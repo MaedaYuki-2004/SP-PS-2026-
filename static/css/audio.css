@@ -1,0 +1,107 @@
+* {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+h1 {
+  text-align: center;
+  position: relative;
+  top: 50px;
+  font-size: 50px;
+}
+
+/* canvasのみの枠 */
+.chartBox {
+  position: relative;
+  top: 75px;
+  left: 50%;
+  transform: translate(-50%, 0%);
+  width: 300px;
+  padding: 20px;
+  border-radius: 20px;
+  border: solid 3px rgba(54, 162, 235, 1);
+  background: white;
+  text-align: center;
+}
+
+/* Replay + Audio を中央にまとめて配置 */
+.replayBlock {
+  margin-top: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px; /* Replay と audio の間隔 */
+}
+
+.replayBlock p {
+  font-size: 15px;
+  margin: 0;
+}
+
+
+/* ボタンやaudioをまとめる領域 */
+.controlArea {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  height: 700px; /* 必要に応じて調整 */
+}
+
+/* Audioプレイヤー位置 */
+#audio {
+  width: 300px;
+  max-width: 90%;
+}
+
+.buttonWrapper {
+  display: flex;
+  justify-content: center;
+  gap: 30px; /* ボタンの間隔 */
+  margin-top: 30px;
+}
+
+/* Startボタン */
+#buttonStart {
+  width: 200px;
+  height: 100px;
+  border-radius: 20px;
+  padding: 10px;
+  font-size: 20px;
+  background: pink;
+}
+
+/* Stopボタン */
+#buttonStop {
+  width: 200px;
+  height: 100px;
+  border-radius: 20px;
+  padding: 10px;
+  font-size: 20px;
+  background: cyan;
+}
+
+/* グラフを表示 */
+#buttongraph {
+  width: 200px;
+  height: 100px;
+  border-radius: 20px;
+  padding: 10px;
+  font-size: 20px;
+  background: yellow;
+  margin: 10px auto;
+  display: none;
+}
+
+/* ホーム画面ボタン */
+#buttonHome {
+  width: 200px;
+  height: 60px;
+  border-radius: 20px;
+  font-size: 18px;
+  background: lightgreen;
+  border: 2px solid black;
+  margin: 10px auto;
+  display: block;
+}

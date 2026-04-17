@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8" />
+        <title>select</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="static/css/select.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+      <h1>日本語の発音評価システム</h1>
+        <form action="/" method="post">
+          <select id="selectWord" name="Words">
+            <option value="word1">1.おんど(Temperature)</option>
+            <option value="word2">2.かいけい(Accounting)</option>
+            <option value="word3">3.がっこう(School)</option>
+            <option value="word4">4.ぎんこう(Bank)</option>
+            <option value="word5">5.こうえん(Park)</option>
+            <option value="word6">6.こうつう(Transportation)</option>
+            <option value="word7">7.こうばい(Purchase)</option>
+            <option value="word8">8.しごと(Work)</option>
+            <option value="word9">9.しつど(Humidity)</option>
+            <option value="word10">10.じどうしゃ(Car)</option>
+            <option value="word11">11.しゅうしょく(Employment)</option>
+            <option value="word12">12.しゅみ(Hobby)</option>
+            <option value="word13">13.しょうめいしょ(Certificate)</option>
+            <option value="word14">14.しょくざい(Ingredients)</option>
+            <option value="word15">15.スケジュール(Schedule)</option>
+            <option value="word16">16.スーパー(Supermarket)</option>
+            <option value="word17">17.せいきゅうしょ(Invoice)</option>
+            <option value="word18">18.ぜいきん(Tax)</option>
+            <option value="word19">19.ちゅうしょく(Lunch)</option>
+            <option value="word20">20.ちょうしょく(Breakfast)</option>
+            <option value="word21">21.ちょうみりょう(Seasoning)</option>
+            <option value="word22">22.ちょきん(Savings)</option>
+            <option value="word23">23.でんしゃ(Tarin)</option>
+            <option value="word24">24.でんわ(Telephone)</option>
+            <option value="word25">25.どうろ(Road)</option>
+            <option value="word26">26.びょういん(Hospital)</option>
+            <option value="word27">27.びよういん(BeautySalon)</option>
+            <option value="word28">28.ほどう(Sidewalk)</option>
+            <option value="word29">29.ゆうしょく(Dinner)</option>
+            <option value="word30">30.やちん(Rent)</option>
+            </select>
+        </form>
+        <ul class="words">
+          <li id="word1" class="active">
+            <p><span class="upline">お</span></span><span class="underline">ん</span>ど</p>
+            <audio controls src="static/sample/word1.wav" alt="temperature_Audio"></audio>
+            <img class="pictures" src="static/image/Temperature.png" alt="Picture_of_Temperature"> 
+            <div class="advicebox">・「お」を高く発音し、「ん」にかけて音を下げる<br>・「ん」をはっきり言う</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word1"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word2">
+            <p>か<span class="upline">いけー</span></p>
+            <audio controls src="static/sample/word2.wav" alt="Accounting_Audio"></audio>
+            <img class="pictures" src="static/image/accounting.png" alt="Picture_of_Accounting">
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word2"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word3">
+            <p>が<span class="upline">っこー</span></p>
+            <audio controls src="static/sample/word3.wav" alt="school_Audio"></audio> 
+            <img class="pictures" src="static/image/school.png" alt="Picture_of_School">
+            <div class="advicebox">・「が」のあとの「っ」は1拍止める<br>・「こう」ではなく「こー」と伸ばす</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word3"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word4">
+            <p>ぎ<span class="upline">んこー</span></p>
+            <audio controls src="static/sample/word4.wav" alt="Bank_Audio"></audio>
+            <img class="pictures" src="static/image/bank.png" alt="Picture_of_Bank">
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word4"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word5">
+            <p>こ<span class="upline">ーえん</span></p>
+            <audio controls src="static/sample/word5.wav" alt="Park_Audio"></audio>
+            <img class="pictures" src="static/image/park.png" alt="Picture_of_Park"> 
+            <div class="advicebox">・「こ」から「ー」にかけて音を高くする<br>・「こう」ではなく「こー」と伸ばす</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word5"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word6">
+            <p>こ<span class="upline">ーつー</span></p>
+            <audio controls src="static/sample/word6.wav" alt="Transportation_Audio"></audio>
+            <img class="pictures" src="static/image/transportation.png" alt="Picture_of_Transportation">
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word6"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word7">
+            <p>こ<span class="upline">ーばい</span></p>
+            <audio controls src="static/sample/word7.wav" alt="Purchase_Audio"></audio> 
+            <img class="pictures" src="static/image/purchase.png" alt="Picture_of_Purchase">
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word7"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word8">
+            <p>し<span class="upline">ごと</span></p>
+            <audio controls src="static/sample/word8.wav" alt="Work_Audio"></audio>
+            <img class="pictures" src="static/image/work.png" alt="Picture_of_Work">
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word8"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word9">
+            <p><span class="upline">し</span></span><span class="underline">つ</span>ど</p>
+            <audio controls src="static/sample/word9.wav" alt="Humidity_Audio"></audio>
+            <img class="pictures" src="static/image/humidity.png" alt="Picture_of_Humidity">
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word9"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word10">
+            <p>じ<span class="upline">ど</span><span class="underline">ー</span>しゃ</p>
+            <audio controls src="static/sample/word10.wav" alt="Car_Audio"></audio>
+            <img class="pictures" src="static/image/car.png" alt="Picture_of_Car">
+            <div class="advicebox">・「じどー」と伸ばす<br>・「ど」を高く発音し、「ー」にかけて音を下げる</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word10"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word11">
+            <p>しゅ<span class="upline">ーしょく</span></p>
+            <audio controls src="static/sample/word11.wav" alt="Employment_Audio"></audio>
+            <img class="pictures" src="static/image/employment.png" alt="Picture_of_Employment">
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word11"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word12">
+            <p><span class="upline">しゅ</span></span><span class="underline">み</span></p>
+            <audio controls src="static/sample/word12.wav" alt="Hobby_Audio"></audio>
+            <img class="pictures" src="static/image/hobby.png" alt="Picture_of_Hobby"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word12"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word13">
+            <p>しょ<span class="upline">ーめいしょ</span></p>
+            <audio controls src="static/sample/word13.wav" alt="Certificate_Audio"></audio>
+            <img class="pictures" src="static/image/certificate.png" alt="Picture_of_Certificate"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word13"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word14">
+            <p>しょ<span class="upline">くざい</span></p>
+            <audio controls src="static/sample/word14.wav" alt="Ingredients_Audio"></audio>
+            <img class="pictures" src="static/image/ingredients.png" alt="Picture_of_Ingredients"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word14"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word15">
+            <p>ス<span class="upline">ケ</span></span><span class="underline">ジュ</span>ール</p>
+            <audio controls src="static/sample/word15.wav" alt="Schedule_Audio"></audio>
+            <img class="pictures" src="static/image/schedule.png" alt="Picture_of_Schedule"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word15"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word16">
+            <p><span class="upline">ス</span></span><span class="underline">ー</span>パー</p>
+            <audio controls src="static/sample/word16.wav" alt="Supermarket_Audio"></audio>
+            <img class="pictures" src="static/image/supermarket.png" alt="Picture_of_Supermarket"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word16"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word17">
+            <p>せ<span class="upline">ーきゅーしょ</span></p>
+            <audio controls src="static/sample/word17.wav" alt="Invoice_Audio"></audio>
+            <img class="pictures" src="static/image/invoice.png" alt="Picture_of_Invoice"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word17"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word18">
+            <p>ぜ<span class="upline">ーきん</span></p>
+            <audio controls src="static/sample/word18.wav" alt="Tax_Audio"></audio>
+            <img class="pictures" src="static/image/tax.png" alt="Picture_of_Tax"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word18"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word19">
+            <p>ちゅ<span class="upline">ーしょく</span></p>
+            <audio controls src="static/sample/word19.wav" alt="Lunch_Audio"></audio>
+            <img class="pictures" src="static/image/lunch.png" alt="Picture_of_Lunch"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word19"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word20">
+            <p>ちょ<span class="upline">ーしょく</span></p>
+            <audio controls src="static/sample/word20.wav" alt="Breakfast_Audio"></audio>
+            <img class="pictures" src="static/image/breakfast.png" alt="Picture_of_Breakfast"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word20"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word21">
+            <p>ちょ<span class="upline">ーみ</span></span><span class="underline">りょ</span>ー</p>
+            <audio controls src="static/sample/word21.wav" alt="Seasoning_Audio"></audio>
+            <img class="pictures" src="static/image/seasoning.png" alt="Picture_of_Seasoning"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word21"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word22">
+            <p>ちょ<span class="upline">きん</span></p>
+            <audio controls src="static/sample/word22.wav" alt="Savings_Audio"></audio>
+            <img class="pictures" src="static/image/savings.png" alt="Picture_of_Savings"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word22"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word23">
+            <p>で<span class="upline">んしゃ</span></p>
+            <audio controls src="static/sample/word23.wav" alt="Tarin_Audio"></audio>
+            <img class="pictures" src="static/image/train.png" alt="Picture_of_Tarin"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word23"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word24">
+            <p>で<span class="upline">んわ</span></p>
+            <audio controls src="static/sample/word24.wav" alt="Telephone_Audio"></audio>
+            <img class="pictures" src="static/image/telephone.png" alt="Picture_of_Telephone"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word24"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word25">
+            <p><span class="upline">ど</span></span><span class="underline">ー</span>ろ</p>
+            <audio controls src="static/sample/word25.wav" alt="Road_Audio"></audio>
+            <img class="pictures" src="static/image/road.png" alt="Picture_of_Road"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word25"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word26">
+            <p>びょ<span class="upline">ーいん</span></p>
+            <audio controls src="static/sample/word26.wav" alt="Hospital_Audio"></audio>
+            <img class="pictures" src="static/image/hospital.png" alt="Picture_of_Hospital"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word26"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word27">
+            <p>び<span class="upline">よ</span></span><span class="underline">ー</span>いん</p>
+            <audio controls src="static/sample/word27.wav" alt="BeautySalon_Audio"></audio>
+            <img class="pictures" src="static/image/beautysalon.png" alt="Picture_of_BeautySalon"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word27"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word28">
+            <p>ほ<span class="upline">どー</span></p>
+            <audio controls src="static/sample/word28.wav" alt="Sidewalk_Audio"></audio>
+            <img class="pictures" src="static/image/sidewalk.png" alt="Picture_of_Sidewalk"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word28"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word29">
+            <p>ゆ<span class="upline">ーしょく</span></p>
+            <audio controls src="static/sample/word29.wav" alt="Dinner_Audio"></audio>
+            <img class="pictures" src="static/image/dinner.png" alt="Picture_of_Dinner"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word29"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+          <li id="word30">
+            <p><span class="upline">や</span></span><span class="underline">ち</span>ん</p>
+            <audio controls src="static/sample/word30.wav" alt="Rent_Audio"></audio>
+            <img class="pictures" src="static/image/rent.png" alt="Picture_of_Rent"> 
+            <div class="advicebox">アドバイス</div> 
+            <form action="/" method="post" class="action-form">
+              <input type="hidden" name="Words" value="word30"> <!-- 重要！ -->
+              <input id="moverecord" type="submit" value="録音画面へ"/>
+              <a href="/upload" id="movefile">ファイルアップロード</a>
+            </form>
+          </li>
+        </ul>
+      <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+      <script>
+        $(function(){
+          //$('#selectWord').change(function () {
+            //選択したoptionのvalueを取得
+          //  var val = $(this).val();
+            //先頭に#を付けてvalueの値をidに変換
+          //  var selectWordId = '#' + val;
+            //一度すべてのブロックを非表示にする
+          //  $('ul li').hide();
+            //選択したブロックのみを表示
+          //  $(selectWordId).show();
+          //});
+          $('#selectWord').change(function () {
+            var val = $(this).val();
+            $('ul li').removeClass('active');
+            $('#' + val).addClass('active');
+            $('#hiddenWord').val(val);
+          });
+        });
+      </script>
+    </body>
+</html> 

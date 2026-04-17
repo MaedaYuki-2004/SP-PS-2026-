@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<div style="margin-top: 20px">
+  <button onclick="location.href='/select';">ホーム画面</button>
+</div>
+<h1 style="text-align: center">{{ original_filename }}の解析結果</h1>
+
+<!------------------------------------------- Pitch and Length Chart --------------------------------------------->
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Area Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
+    <style>
+      .chart-container1 {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center; /* Center horizontally */
+        /* align-items: center; Center vertically */
+        /* height: 100vh; 100% of the viewport height */
+      }
+      .chart {
+        width: 48%; /* Adjust the width as needed */
+      }
+      #PitchLengthChart {
+        width: 800px !important; /* Adjust the width as needed */
+        height: 500px !important; /* Adjust the height as needed */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart-container1">
+      <canvas id="PitchLengthChart" class="chart"></canvas>
+    </div>
+    <script>
+      var ctx = document.getElementById('PitchLengthChart').getContext('2d');
+      var chartVisible = false // Initially, the chart is visible
+
+      var data = {
+          labels:{{x_axis}},
+          datasets: [{
+              label:'SampleVoice',
+              data: {{pitch_fin | tojson | safe }},
+              backgroundColor: 'rgba(255, 159, 64, 0.2)',
+              borderColor: 'rgba(255, 159, 64, 1)',
+          },{
+              label:'YourVoice',
+              data: {{pitch_fin2 | tojson | safe }},
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              borderColor: 'rgba(75, 192, 192, 1)',
+          }],
+      };
+
+      var values = {{ mora_values | tojson | safe }};
+      var labels = {{ mora_labels | tojson | safe }};
+
+      var factor_annotations = [];
+
+      // Loop through the arrays and create annotations
+      for (var i = 0; i < values.length; i++) {
+          factor_annotations.push({
+              type: 'line',
+              mode: 'vertical',
+              scaleID: 'x',
+              value: values[i],
+              borderColor: 'red',
+              borderWidth: 1,
+              label: {
+                  content: labels[i],
+                  enabled: true,
+                  position: 'top'
+              }
+          });
+      }
+
+      var areaChart = new Chart(ctx, {
+          type: 'line',
+          data: data,
+          options: {
+              scales: {
+                  x: {
+                      min: -5,
+                      type: 'linear',
+                      position: 'bottom',
+                      title: {
+                          display: true,
+                          text: 'Value'
+                      }
+                  },
+                  y: {
+                      title: {
+                          display: true,
+                          text: 'Normalized Data'
+                      }
+                  }
+              },
+              plugins: {
+                  annotation: {
+                      annotations: factor_annotations
+                  }
+              },
+              elements:{
+                  point:{
+                      radius: 0
+                  }
+              },
+          }
+      });
+    </script>
+  </body>
+</html>
+
+<!------------------------------------------- Native Phoneme chart --------------------------------------------->
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Area Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
+    <style>
+      .chart-container1 {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center; /* Center horizontally */
+        /* align-items: center; Center vertically */
+        /* height: 100vh; 100% of the viewport height */
+      }
+      .chart {
+        width: 48%; /* Adjust the width as needed */
+      }
+      #NativePhonemeChart {
+        width: 800px !important; /* Adjust the width as needed */
+        height: 500px !important; /* Adjust the height as needed */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart-container1">
+      <canvas id="NativePhonemeChart" class="chart"></canvas>
+    </div>
+
+    <script>
+      var chartVisible = false // Initially, the chart is visible
+
+      var ctx = document.getElementById('NativePhonemeChart').getContext('2d');
+
+      var start1 = {{ start1 | tojson | safe}};
+      var end1 = {{ end1 | tojson | safe}};
+
+      var data = {
+          labels: {{ Native_time | tojson | safe }},
+          datasets: [
+              {
+                  label: 'SampleVoice',
+                  data: {{ Native_pitch | tojson | safe }},
+                  fill: true,
+                  backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                  borderColor: 'rgba(255, 159, 64, 1)',
+              }
+          ]
+      };
+
+      var values = {{ Native_phoneme_values | tojson | safe }};
+      var labels = {{ phoneme_labels | tojson | safe }};
+
+      var native_annotations = [];
+
+      // Loop through the arrays and create annotations
+      for (var i = 0; i < values.length; i++) {
+          native_annotations.push({
+              type: 'line',
+              mode: 'vertical',
+              scaleID: 'x',
+              value: values[i],
+              borderColor: 'red',
+              borderWidth: 1,
+              label: {
+                  content: labels[i],
+                  enabled: true,
+                  position: 'top'
+              }
+          });
+      }
+
+      var areaChart = new Chart(ctx, {
+          type: 'line',
+          data: data,
+          options: {
+              scales: {
+                  x: {
+                      type: 'linear',
+                      position: 'bottom',
+                      min: start1 - 0.1,
+                      max: end1 + 0.1,
+                      title: {
+                          display: true,
+                          text: 'Time (seconds)'
+                      }
+                  },
+                  y: {
+                      title: {
+                          display: true,
+                          text: 'Pitch (Hz)'
+                      }
+                  }
+              },
+              plugins: {
+                  annotation: {
+                      annotations: native_annotations
+                  }
+              },
+              elements:{
+                  point:{
+                      radius: 0
+                  }
+              },
+          }
+      });
+    </script>
+  </body>
+</html>
+
+<!------------------------------------------- Native Mora chart --------------------------------------------->
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Area Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
+    <style>
+      .chart-container1 {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center; /* Center horizontally */
+        /* align-items: center; Center vertically */
+        /* height: 100vh; 100% of the viewport height */
+      }
+      .chart {
+        width: 48%; /* Adjust the width as needed */
+      }
+      #NativeMoraChart {
+        width: 800px !important; /* Adjust the width as needed */
+        height: 500px !important; /* Adjust the height as needed */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart-container1">
+      <canvas id="NativeMoraChart" class="chart"></canvas>
+    </div>
+    <script>
+      var ctx = document.getElementById('NativeMoraChart').getContext('2d');
+
+      var chartVisible = "Nativemora"
+      toggleNativeChart()
+
+      var start1 = {{ start1 | tojson | safe}};
+      var end1 = {{ end1 | tojson | safe}};
+
+      var data = {
+          labels: {{ Native_time | tojson | safe }},
+          datasets: [
+              {
+                  label: 'SampleVoice',
+                  data: {{ Native_pitch | tojson | safe }},
+                  fill: true,
+                  backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                  borderColor: 'rgba(255, 159, 64, 1)',
+              }
+          ]
+      };
+
+      var values = {{ Native_mora_values | tojson | safe }};
+      var labels = {{ mora_labels | tojson | safe }};
+
+      var native_annotations = [];
+
+      // Loop through the arrays and create annotations
+      for (var i = 0; i < values.length; i++) {
+          native_annotations.push({
+              type: 'line',
+              mode: 'vertical',
+              scaleID: 'x',
+              value: values[i],
+              borderColor: 'red',
+              borderWidth: 1,
+              label: {
+                  content: labels[i],
+                  enabled: true,
+                  position: 'top'
+              }
+          });
+      }
+
+      var areaChart = new Chart(ctx, {
+          type: 'line',
+          data: data,
+          options: {
+              scales: {
+                  x: {
+                      type: 'linear',
+                      position: 'bottom',
+                      min: start1 - 0.1,
+                      max: end1 + 0.1,
+                      title: {
+                          display: true,
+                          text: 'Time (seconds)'
+                      }
+                  },
+                  y: {
+                      title: {
+                          display: true,
+                          text: 'Pitch (Hz)'
+                      }
+                  }
+              },
+              plugins: {
+                  annotation: {
+                      annotations: native_annotations
+                  }
+              },
+              elements:{
+                  point:{
+                      radius: 0
+                  }
+              },
+          }
+      });
+
+      function toggleNativeChart() {
+          if (chartVisible === "Nativemora") {
+              document.getElementById('NativeMoraChart').style.display = 'block';
+              document.getElementById('NativePhonemeChart').style.display = 'none';
+              document.getElementById('PitchLengthChart').style.display = 'none';
+              chartVisible = "Nativephoneme";
+          } else {
+              document.getElementById('NativeMoraChart').style.display = 'none';
+              document.getElementById('NativePhonemeChart').style.display = 'block';
+              document.getElementById('PitchLengthChart').style.display = 'none';
+              chartVisible = "Nativemora";
+          }
+      }
+      function toggleChart() {
+          document.getElementById('NativeMoraChart').style.display = 'none';
+          document.getElementById('NativePhonemeChart').style.display = 'none';
+          document.getElementById('PitchLengthChart').style.display = 'block';
+          chartVisible = "Nativemora";
+      }
+    </script>
+  </body>
+</html>
+
+<!-- ------------------------Button---------------------------------------------->
+<html>
+  <head>
+    <style>
+      #NativePitchSwitchButton {
+        width: 200px;
+        height: 30px;
+        margin-left: 70%;
+        margin-bottom: 1%;
+        background-color: rgba(255, 159, 64, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <button id="NativePitchSwitchButton" onclick="toggleNativeChart()">
+      Mora or Phoneme
+    </button>
+  </body>
+</html>
+<!-- ------------------------Button---------------------------------------------->
+<html>
+  <head>
+    <style>
+      #PitchSwitchButton {
+        width: 200px;
+        height: 30px;
+        margin-left: 70%;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="PitchSwitchButton" onclick="toggleChart()">
+      Pitch and Length Chart
+    </button>
+  </body>
+</html>
+
+<!------------------------------------------- User Phoneme chart --------------------------------------------->
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Area Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
+    <style>
+      .chart-container1 {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center; /* Center horizontally */
+        /* align-items: center; Center vertically */
+        /* height: 100vh; 100% of the viewport height */
+      }
+      .chart {
+        width: 48%; /* Adjust the width as needed */
+      }
+      #UserPhonemeChart {
+        width: 800px !important; /* Adjust the width as needed */
+        height: 500px !important; /* Adjust the height as needed */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart-container1">
+      <canvas id="UserPhonemeChart" class="chart"></canvas>
+    </div>
+    <script>
+      var start2 = {{ start2 | tojson | safe}};
+      var end2 = {{ end2 | tojson | safe}};
+      var ctx = document.getElementById('UserPhonemeChart').getContext('2d');
+      var chartVisible = false // Initially, the chart is visible
+
+      var data = {
+          labels: {{ User_time | tojson | safe }},
+          datasets: [
+              {
+                  label: 'YourVoice',
+                  data: {{ User_pitch | tojson | safe }},
+                  fill: true,
+                  backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                  borderColor: 'rgba(75, 192, 192, 1)',
+              }
+          ]
+      };
+
+      var values = {{ User_phoneme_values | tojson |safe}};
+      var labels = {{ phoneme_labels | tojson |safe}};
+
+      var user_mora_annotations = [];
+
+      // Loop through the arrays and create annotations
+      for (var i = 0; i < values.length; i++) {
+          user_mora_annotations.push({
+              type: 'line',
+              mode: 'vertical',
+              scaleID: 'x',
+              value: values[i],
+              borderColor: 'red',
+              borderWidth: 1,
+              label: {
+                  content: labels[i],  // Set the label text automatically
+                  enabled: true,
+                  position: 'top'
+              }
+          });
+      }
+
+      var areaChart = new Chart(ctx, {
+          type: 'line',
+          data: data,
+          options: {
+              scales: {
+                  x: {
+                      type: 'linear',
+                      position: 'bottom',
+                      min: start2 - 0.1,
+                      max: end2 + 0.1,
+
+                      title: {
+                          display: true,
+                          text: 'Time (seconds)'
+                      }
+                  },
+                  y: {
+                      title: {
+                          display: true,
+                          text: 'Pitch(Hz)'
+                      }
+                  }
+              },
+              plugins: {
+                  annotation: {
+                      annotations: user_mora_annotations
+                  }
+              },
+              elements:{
+                  point:{
+                      radius: 0
+                  }
+              },
+          }
+      });
+    </script>
+  </body>
+</html>
+
+<!------------------------------------------- User Mora Chart --------------------------------------------->
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Area Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
+    <style>
+      .chart-container1 {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center; /* Center horizontally */
+        /* align-items: center; Center vertically */
+        /* height: 100vh; 100% of the viewport height */
+      }
+      .chart {
+        width: 48%; /* Adjust the width as needed */
+      }
+      #UserMoraChart {
+        width: 800px !important; /* Adjust the width as needed */
+        height: 500px !important; /* Adjust the height as needed */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart-container1">
+      <canvas id="UserMoraChart" class="chart"></canvas>
+    </div>
+    <script>
+          var start2 = {{ start2 | tojson | safe}};
+          var end2 = {{ end2 | tojson | safe}};
+          var ctx = document.getElementById('UserMoraChart').getContext('2d');
+          var chartVisible = "Usermora"
+          toggleUserChart()
+
+          var data = {
+              labels: {{ User_time | tojson | safe }},
+              datasets: [
+                  {
+                      label: 'YourVoice',
+                      data: {{ User_pitch | tojson | safe }},
+                      fill: true,
+                      backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                      borderColor: 'rgba(75, 192, 192, 1)',
+                  }
+              ]
+          };
+
+          var values = {{ User_mora_values | tojson |safe}};
+          var labels = {{ mora_labels | tojson |safe}};
+
+          var user_mora_annotations = [];
+
+          // Loop through the arrays and create annotations
+          for (var i = 0; i < values.length; i++) {
+              user_mora_annotations.push({
+                  type: 'line',
+                  mode: 'vertical',
+                  scaleID: 'x',
+                  value: values[i],
+                  borderColor: 'red',
+                  borderWidth: 1,
+                  label: {
+                      content: labels[i],  // Set the label text automatically
+                      enabled: true,
+                      position: 'top'
+                  }
+              });
+          }
+
+          var areaChart = new Chart(ctx, {
+              type: 'line',
+              data: data,
+              options: {
+                  scales: {
+                      x: {
+                          type: 'linear',
+                          position: 'bottom',
+                          min: start2 - 0.1,
+                          max: end2 + 0.1,
+
+                          title: {
+                              display: true,
+                              text: 'Time (seconds)'
+                          }
+                      },
+                      y: {
+                          // min: 100,
+                          // max: 290,
+                          title: {
+                              display: true,
+                              text: 'Pitch(Hz)'
+                          }
+                      }
+                  },
+                  plugins: {
+                      annotation: {
+                          annotations: user_mora_annotations
+                      }
+                  },
+                  elements:{
+                      point:{
+                          radius: 0
+                      }
+                  },
+              },
+              layout: {
+                  padding: {
+                      bottom: 50
+                  }
+              },
+          });
+
+          function toggleUserChart() {
+          if (chartVisible === "Usermora") {
+              document.getElementById('UserMoraChart').style.display = 'block';
+              document.getElementById('UserPhonemeChart').style.display = 'none';
+              chartVisible = "Userphoneme";
+          } else {
+              document.getElementById('UserMoraChart').style.display = 'none';
+              document.getElementById('UserPhonemeChart').style.display = 'block';
+              chartVisible = "Usermora";
+          }
+      }
+    </script>
+  </body>
+</html>
+
+<!--------------------------------Button--------------------------------------->
+<html>
+  <head>
+    <style>
+      #UserPitchSwitchButton {
+        width: 200px;
+        height: 30px;
+        margin-left: 70%;
+        background-color: rgba(75, 192, 192, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <button id="UserPitchSwitchButton" onclick="toggleUserChart()">
+      Mora or Phoneme
+    </button>
+  </body>
+</html>
+
+<!-- ------------------------Mora Length Chart---------------------------------->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grouped Bar Mora Charts</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <style>
+      .chart-container1 {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center; /* Center horizontally */
+        /* align-items: center; /* Center vertically */
+        /* height: 100vh; 100% of the viewport height */
+      }
+      .chart {
+        width: 48%; /* Adjust the width as needed */
+      }
+      #groupedBarChart1 {
+        width: 800px !important; /* Adjust the width as needed */
+        height: 500px !important; /* Adjust the height as needed */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart-container1">
+      <canvas id="groupedBarChart1" class="chart"></canvas>
+    </div>
+
+    <script>
+      var chartVisible = false // Initially, the chart is visible
+
+      var native_mora_labels = {{ mora_labels | tojson | safe }};
+      var native_mora_length = {{ Native_mora_length | tojson | safe }};
+      var user_mora_labels = {{ mora_labels | tojson | safe }};
+      var user_mora_length = {{ User_mora_length | tojson | safe }};
+
+      var ctx2 = document.getElementById('groupedBarChart1').getContext('2d');
+
+      // Function to generate datasets dynamically
+      function generateDatasets(labels, data, backgroundColor, borderColor) {
+          return labels.map((label, index) => ({
+              label: label,
+              data: data.map(d => d[index]),
+              backgroundColor: backgroundColor[index],
+              borderColor: borderColor[index],
+              borderWidth: 1
+          }));
+      }
+
+      var groupedBarChart = new Chart(ctx2, {
+          type: 'bar',
+          data: {
+              labels: ['SampleVoice', 'YourVoice'],
+              datasets: [
+                  ...generateDatasets(native_mora_labels, [native_mora_length, user_mora_length], [
+                      'rgba(75, 192, 192, 0.2)',
+                      'rgba(255, 99, 132, 0.2)',
+                      'rgba(255, 206, 86, 0.2)',
+                      'rgba(201, 203, 207, 0.2)'
+                  ], [
+                      'rgba(75, 192, 192, 1)',
+                      'rgba(255, 99, 132, 1)',
+                      'rgba(255, 206, 86, 1)',
+                      'rgba(201, 203, 207, 1)'
+                  ])
+              ]
+          },
+          options: {
+              indexAxis: 'y',
+              scales: {
+                  x: {
+                      max: 100,
+                      title: {
+                          display: true,
+                          text: 'Percentage(%)'
+                      },
+                      stacked: true
+                  },
+                  y: {
+                      stacked: true
+                  }
+              },
+              plugins: {
+                  datalabels: {
+                      formatter: function (value, context) {
+                          return context.dataset.label
+                      }
+                  }
+              },
+              layout: {
+                  padding: {
+                      top: 50
+                  }
+              },
+              maintainAspectRatio: false,
+          },
+          plugins: [ChartDataLabels]
+      });
+    </script>
+  </body>
+</html>
+
+<!-------------------------------- Stacked Phoneme length chart ------------------------------------->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grouped Bar Mora Charts</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <style>
+      .chart-container1 {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center;
+        /* Center horizontally */
+        /* align-items: center; Center vertically */
+        /* height: 100vh; 100% of the viewport height */
+      }
+      .chart {
+        width: 48%; /* Adjust the width as needed */
+      }
+      #groupedBarChart2 {
+        width: 800px !important; /* Adjust the width as needed */
+        height: 500px !important; /* Adjust the height as needed */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart-container1">
+      <canvas id="groupedBarChart2" class="chart"></canvas>
+    </div>
+
+    <script>
+      var chartVisible = false // Initially, the chart is visible
+
+      var labels1 = {{ phoneme_labels | tojson | safe }};
+      var data1 = {{ Native_phoneme_length | tojson | safe }};
+      var labels2 = {{ phoneme_labels | tojson | safe }};
+      var data2 = {{ User_phoneme_length | tojson | safe }};
+
+      var ctx2 = document.getElementById('groupedBarChart2').getContext('2d');
+
+      var chartVisible = "mora"
+      toggleLengthChart()
+
+      // Function to generate datasets dynamically
+      function generateDatasets(labels, data, backgroundColor, borderColor) {
+          return labels.map((label, index) => ({
+              label: label,
+              data: data.map(d => d[index]),
+              backgroundColor: backgroundColor[index],
+              borderColor: borderColor[index],
+              borderWidth: 1
+          }));
+      }
+
+      var groupedBarChart = new Chart(ctx2, {
+          type: 'bar',
+          data: {
+              labels: ['SampleVoice', 'YourVoice'],
+              datasets: [
+                  ...generateDatasets(labels1, [data1, data2], [
+                      'rgba(75, 192, 192, 0.2)',
+                      'rgba(255, 99, 132, 0.2)',
+                      'rgba(255, 205, 86, 0.2)',
+                      'rgba(201, 203, 207, 0.2)',
+                      'rgba(54, 162, 235, 0.2)',
+                      'rgba(255, 159, 64, 0.2)'
+
+                  ], [
+                      'rgba(75, 192, 192, 1)',
+                      'rgba(255, 99, 132, 1)',
+                      'rgba(255, 205, 86, 1)',
+                      'rgba(201, 203, 207, 1)',
+                      'rgba(54, 162, 235, 1)',
+                      'rgba(255, 159, 64, 1)',
+                  ])
+              ]
+          },
+          options: {
+              indexAxis: 'y',
+              scales: {
+                  x: {
+                      max: 100,
+                      title: {
+                          display: true,
+                          text: 'Percentage(%)'
+                      },
+                      stacked: true
+                  },
+                  y: {
+                      stacked: true
+                  }
+              },plugins: {
+                  datalabels: {
+                      formatter: function (value, context) {
+                          return context.dataset.label
+                      }
+                  }
+              },
+              layout: {
+                  padding: {
+                      top: 50
+                  }
+              },
+              maintainAspectRatio: false,
+          },
+          plugins: [ChartDataLabels]
+      });
+
+      function toggleLengthChart() {
+          if (chartVisible === "mora") {
+              document.getElementById('groupedBarChart1').style.display = 'none';
+              document.getElementById('groupedBarChart2').style.display = 'block';
+              chartVisible = "phoneme";
+          } else {
+              document.getElementById('groupedBarChart1').style.display = 'block';
+              document.getElementById('groupedBarChart2').style.display = 'none';
+              chartVisible = "mora";
+          }
+      }
+    </script>
+  </body>
+</html>
+
+<!-- ------------------------Button---------------------------------------------->
+<html>
+  <head>
+    <style>
+      #LengthChartSwitchButton {
+        width: 200px;
+        height: 30px;
+        margin-left: 70%;
+        background-color: rgba(255, 205, 86, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <button id="LengthChartSwitchButton" onclick="toggleLengthChart()">
+      Mora or Phoneme
+    </button>
+  </body>
+</html>
+
+<!-----------------------------------------------音色の評価---------------------------------------------------------------------------->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grouped Bar Mora Charts</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <style>
+      .chart-container1 {
+        display: flex;
+        justify-content: space-between;
+        justify-content: center; /* Center horizontally */
+        /* align-items: center; Center vertically */
+        /* height: 100vh; 100% of the viewport height */
+        padding-right: 20%;
+        padding-left: 20%;
+      }
+      .chart {
+        width: 48%; /* Adjust the width as needed */
+      }
+      #DistanceChart {
+        width: 800px !important; /* Adjust the width as needed */
+        height: 500px !important; /* Adjust the height as needed */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="chart-container1">
+      <canvas id="DistanceChart" class="chart"></canvas>
+    </div>
+
+    <script>
+      var ctx3 = document.getElementById('DistanceChart').getContext('2d');
+
+      var PhoneBarChart = new Chart(ctx3, {
+          type: 'bar',
+          data: {
+              labels: {{words | tojson | safe }},
+              datasets: [{
+                  data: {{sort_distance | tojson | safe }},
+                  backgroundColor: {{bar_color | tojson | safe }},
+              }]
+          },
+          options: {
+              indexAxis: 'y',
+              scales: {
+                  x: {
+                      title: {
+                          display: true,
+                          text: 'Distance'
+                      },
+                      stacked: true,
+                  },
+                  y: {
+                      ticks: {
+                      autoSkip: false,
+                  },
+                  stacked: true
+                  }
+              },
+              plugins: {
+                  legend: {
+                      display: false,
+                  }
+              },
+              layout: {
+                  padding: {
+                      top: 50
+                  }
+              },
+              maintainAspectRatio: false,
+          }
+      });
+    </script>
+  </body>
+</html>

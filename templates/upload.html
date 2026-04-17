@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="static/css/upload.css" rel="stylesheet" type="text/css">
+  <title>test</title>
+</head>
+<body>
+<div>
+  <h1>単語を選択してwavファイルをアップロードしてください</h1>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <div>
+      <select size="1" id="selectWord" name="fileword">
+        <option value="word1">1.おんど</option>
+        <option value="word2">2.かいけい</option>
+        <option value="word3">3.がっこう</option>
+        <option value="word4">4.ぎんこう</option>
+        <option value="word5">5.こうえん</option>
+        <option value="word6">6.こうつう</option>
+        <option value="word7">7.こうばい</option>
+        <option value="word8">8.しごと</option>
+        <option value="word9">9.しつど</option>
+        <option value="word10">10.じどうしゃ</option>
+        <option value="word11">11.しゅうしょく</option>
+        <option value="word12">12.しゅみ</option>
+        <option value="word13">13.しょうめいしょ</option>
+        <option value="word14">14.しょくざい</option>
+        <option value="word15">15.スケジュール</option>
+        <option value="word16">16.スーパー</option>
+        <option value="word17">17.せいきゅうしょ</option>
+        <option value="word18">18.ぜいきん</option>
+        <option value="word19">19.ちょうしょく</option>
+        <option value="word20">20.ちゅうしょく</option>
+        <option value="word21">21.ちょうみりょう</option>
+        <option value="word22">22.ちょきん</option>
+        <option value="word23">23.でんしゃ</option>
+        <option value="word24">24.でんわ</option>
+        <option value="word25">25.どうろ</option>
+        <option value="word26">26.びょういん</option>
+        <option value="word27">27.びよういん</option>
+        <option value="word28">28.ほどう</option>
+        <option value="word29">29.ゆうしょく</option>
+        <option value="word30">30.やちん</option>
+    </div>
+    <div>
+      <label for="fileitem">音声ファイル（.wav）:</label><br>
+      <input type="file" id="fileitem" name="file" accept=".wav" required />
+    </div>
+    <div>
+      <button type="submit" id="send" disabled>アップロード</button>
+    </div>
+    {% if original_filename %}
+      <p>アップロードされたファイル: {{ original_filename }}</p>
+    {% elif error %}
+      <p style="color: red">{{ error }}</p>
+    {% elif message %}
+      <p style="color: green">{{ message }}</p>
+    {% endif %}
+  </form>
+  <form action="/graph" method="post" enctype="multipart/form-data">
+    <button type="submit" id="graph">グラフを表示</button>
+  </form>
+</div>
+<!-- 戻るボタン -->
+<div style="margin-top: 20px">
+  <button onclick="location.href='/select';">ホーム画面</button>
+</div>
+<script>
+  const buttonsend = document.getElementById("send");
+  const buttongraph = document.getElementById("graph");
+  var selectfile = document.getElementById("fileitem");
+  function filecheck(){
+    var numfile = selectfile.files.length;
+    if (numfile == 1){
+        buttonsend.disabled = false;
+      }
+  }
+
+  selectfile.addEventListener("change", filecheck);
+</script>
+</body>
+</html>

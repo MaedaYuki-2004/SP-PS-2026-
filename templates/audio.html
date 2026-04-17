@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>録音画面</title>
+    <link href="static/css/audio.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <h1>{{test}}</h1>
+    <div class="chartBox">
+      <canvas id="visualizer"></canvas>
+    </div>
+
+    <!-- ボタンとプレイヤーなどを包むラッパー -->
+    <div class="controlArea">
+      <div class="replayBlock">
+        <p>Replay</p>
+        <audio controls id="audio"></audio>
+      </div>
+
+      <div class="buttonWrapper">
+        <button type="button" id="buttonStart">Start</button>
+        <button type="button" id="buttonStop" disabled>Stop</button>
+      </div>
+
+      <form action="/graph" method="post" enctype="multipart/form-data">
+        <button type="submit" id="buttongraph">グラフを表示</button>
+      </form>
+
+      <button id="buttonHome" onclick="location.href='/select';">
+        ホーム画面
+      </button>
+    </div>
+    <!--<script src="static/js/encode_audio.js"></script>-->
+    <script src="static/js/main.js"></script>
+  </body>
+</html>
