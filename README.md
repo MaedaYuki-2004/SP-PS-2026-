@@ -1,54 +1,57 @@
-# 試作システム
+# 試作システム：日本語単語 音声解析・可視化プラットフォーム
 
-日本語単語の音声入力（録音/アップロード）を行い、音素/モーラやピッチ、音色の比較結果を可視化するFlaskアプリです。  
-単語選択 → 録音/アップロード → 解析結果表示の流れで利用します。
+【概要】
+・日本語単語の音声入力（録音およびアップロード）を行い、音素アライメント、ピッチ（基本周波数）、長さ、音色の比較結果を可視化するFlaskアプリケーションです。
+・システムの中枢となるプログラム、画面表示（Web）、解析データ、音声認識エンジンを役割ごとに完全に分離し、研究・開発における保守性と拡張性を高めたフォルダ構造を採用しています。
 
-## 動作環境
+【主要機能】
+・__単語選択__：画面から解析対象の単語（30単語）を選択します。
+・__音声入力__：ブラウザ上でのリアルタイム録音、またはWAVファイルのアップロードに対応しています。
+・__自動音素アライメント__：Juliusを用いて、音声波形と音素ラベルを自動で対応付けます。
+・__解析結果の可視化__：ネイティブ音声との比較（ピッチ曲線、音素長、DTWによる音色類似度グラフ）を画面に表示します。
 
-- Python 3.9+（推奨）
-- macOS想定（`brew`で依存を導入）
-- ffmpeg / julius / perl
+【フォルダ・ファイル構造】
+sp-ps/
+├── app.py              システム起動およびWeb・解析処理のメインプログラム
+├── requirements.txt    必要なPythonライブラリ一覧
+├── README.md           本ファイル（システム概要と実行手順）
+├── docs/               仕様書や手順書の保管場所
+│   ├── 実行方法.pdf
+│   └── explanation.txt
+├── web/                フロントエンド（画面表示）関連
+│   ├── templates/      画面のHTMLファイル群（select.html, audio.htmlなど）
+│   └── static/         CSS, JS, 画像, および解析結果（グラフ画像）の出力先
+├── data/               システムが読み書きするデータ・音声ファイル
+│   ├── config/         システム設定・リスト（audio.scp, words.txtなど）
+│   ├── raw_audio/      基準音声・テストデータの保管先（sound/, wav/）
+│   └── mfcc/           音色評価に使う基準音声のバイナリファイル
+├── engine/             音声認識のコアシステム
+│   ├── bin/            Julius実行ファイル（julius-4.3.1.exeなど）
+│   └── models/         音響モデル・トライフォン定義ファイル
+└── scripts/            外部処理用スクリプト
+    └── segment_julius.pl 音素アライメントを実行するPerlスクリプト
 
-## 依存ライブラリ
+【動作環境と依存ライブラリ】
+・Python 3.9以上（推奨）
+・外部プログラム：FFmpeg, Julius, Perl（Windowsの場合はStrawberry Perl等のインストールが必要です）
+・必要なPythonライブラリは requirements.txt（旧：ライブラリリスト.txt） に準拠します。
 
-`ライブラリリスト.txt` の内容に沿ってインストールします。
+【環境構築・実行手順】
 
-```bash
-pip install flask librosa praat-parselmouth pydub noisereduce fastdtw click gunicorn
-brew install ffmpeg julius
-```
+1. __外部ツールの準備__
+　macOSの場合はHomebrewで、Windowsの場合は公式サイト等から ffmpeg と julius をインストールし、パスを通してください。Perlも実行可能な状態にします。
 
-## ローカルの起動方法
+2. __Pythonライブラリのインストール__
+　ターミナル（またはコマンドプロンプト）でプロジェクトのルート階層に移動し、以下を実行して必要なモジュールをインストールします。
+　pip install flask librosa praat-parselmouth pydub noisereduce fastdtw numpy scipy matplotlib
 
-```bash
-python server.py
-```
+3. __システムの起動__
+　同じくプロジェクトのルート階層で以下のコマンドを実行します。
+　python app.py
 
-起動後にブラウザで `http://127.0.0.1:5000/` にアクセスします。
+4. __ブラウザでのアクセス__
+　起動後、画面にURLが表示されたら、ブラウザで http://127.0.0.1:5000/ にアクセスしてシステムを利用します。終了する場合はターミナル上で「CTRL+C」を押します。
 
-## 画面と機能
-
-- 単語選択: `select.html` を表示
-- 録音: `audio.html` から録音 → 解析
-- アップロード: `upload.html` から音声ファイルを送信 → 解析
-- 結果表示: `line_graph.html` でピッチ/長さ/音色の可視化
-
-## ディレクトリ構成
-
-- `server.py` Flaskアプリ本体
-- `templates/` 画面テンプレート（select/upload/audio/line_graph）
-- `static/` CSS/JS/画像/単語リストなど
-- `audio/` 音素アライメント関連（Juliusセグメンテーション）
-  - `audio/segment_julius.pl` を実行して `test.wav` をアライメント
-  - 詳細は `audio/README.md` を参照
-
-## 入力ファイルについて
-
-- アップロード/録音は `audio/wav/test.wav` に保存されます。
-- サンプル音声や比較用データは `audio/sound/` と `audio/mfcc/` を参照します。
-- 単語リストは `static/words.txt` を利用します。
-
-## メモ
-
-- `server.py` 内の `app.secret_key` は必要に応じて変更してください。
-- `julius` の動作やモデル配置は `audio/README.md` に従ってください。
+【注意事項】
+・__データパスの管理__：data/config/audio.scp 内のパスは、必ず data/raw_audio/ を基準としたフォルダ構成（例：sound/word1/word1.wav）で記述してください。
+・__アライメント実行__：録音後の解析には scripts/segment_julius.pl が正しく動作する環境が必須です。
