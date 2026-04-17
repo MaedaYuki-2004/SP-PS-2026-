@@ -11,6 +11,8 @@
 ・解析結果の可視化：ネイティブ音声との比較（ピッチ曲線、音素長、DTWによる音色類似度グラフ）を画面に表示します。
 
 【フォルダ・ファイル構造】
+
+```text
 sp-ps/
 ├── app.py              システム起動およびWeb・解析処理のメインプログラム
 ├── requirements.txt    必要なPythonライブラリ一覧
@@ -29,7 +31,7 @@ sp-ps/
 │   ├── bin/            Julius実行ファイル（julius-4.3.1.exeなど）
 │   └── models/         音響モデル・トライフォン定義ファイル
 └── scripts/            外部処理用スクリプト
-└── segment_julius.pl 音素アライメントを実行するPerlスクリプト
+    └── segment_julius.pl 音素アライメントを実行するPerlスクリプト
 
 【動作環境と依存ライブラリ】
 ・Python 3.9以上（推奨）
