@@ -3,81 +3,155 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="static/css/upload.css" rel="stylesheet" type="text/css">
-  <title>test</title>
+  <title>ファイルアップロード</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="static/css/base.css" rel="stylesheet">
+  <link href="static/css/upload.css" rel="stylesheet">
 </head>
 <body>
-<div>
-  <h1>単語を選択してwavファイルをアップロードしてください</h1>
+
+<nav class="top-nav">
+  <button class="nav-back" onclick="location.href='/select';">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    単語選択に戻る
+  </button>
+  <span style="font-size:12px;color:var(--text-muted);font-weight:500;letter-spacing:.04em;">ファイルアップロード</span>
+</nav>
+
+<div class="upload-page">
+  <h1 class="upload-heading">音声ファイルをアップロード</h1>
+  <p class="upload-sub">単語を選択し、WAVファイルをアップロードしてください。</p>
+
+  {% if message %}
+  <div class="status-message success" style="margin-bottom:20px;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    {{ message }}
+  </div>
+  {% endif %}
+  {% if error %}
+  <div class="status-message error" style="margin-bottom:20px;">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 5v4M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    {{ error }}
+  </div>
+  {% endif %}
+
   <form action="/upload" method="post" enctype="multipart/form-data">
-    <div>
-      <select size="1" id="selectWord" name="fileword">
-        <option value="word1">1.おんど</option>
-        <option value="word2">2.かいけい</option>
-        <option value="word3">3.がっこう</option>
-        <option value="word4">4.ぎんこう</option>
-        <option value="word5">5.こうえん</option>
-        <option value="word6">6.こうつう</option>
-        <option value="word7">7.こうばい</option>
-        <option value="word8">8.しごと</option>
-        <option value="word9">9.しつど</option>
-        <option value="word10">10.じどうしゃ</option>
-        <option value="word11">11.しゅうしょく</option>
-        <option value="word12">12.しゅみ</option>
-        <option value="word13">13.しょうめいしょ</option>
-        <option value="word14">14.しょくざい</option>
-        <option value="word15">15.スケジュール</option>
-        <option value="word16">16.スーパー</option>
-        <option value="word17">17.せいきゅうしょ</option>
-        <option value="word18">18.ぜいきん</option>
-        <option value="word19">19.ちょうしょく</option>
-        <option value="word20">20.ちゅうしょく</option>
-        <option value="word21">21.ちょうみりょう</option>
-        <option value="word22">22.ちょきん</option>
-        <option value="word23">23.でんしゃ</option>
-        <option value="word24">24.でんわ</option>
-        <option value="word25">25.どうろ</option>
-        <option value="word26">26.びょういん</option>
-        <option value="word27">27.びよういん</option>
-        <option value="word28">28.ほどう</option>
-        <option value="word29">29.ゆうしょく</option>
-        <option value="word30">30.やちん</option>
+    <div class="form-section">
+
+      <!-- Word select -->
+      <div class="field">
+        <label class="field-label" for="selectWord">単語を選択</label>
+        <select size="1" id="selectWord" name="fileword">
+          <option value="word1">1. おんど（Temperature）</option>
+          <option value="word2">2. かいけい（Accounting）</option>
+          <option value="word3">3. がっこう（School）</option>
+          <option value="word4">4. ぎんこう（Bank）</option>
+          <option value="word5">5. こうえん（Park）</option>
+          <option value="word6">6. こうつう（Transportation）</option>
+          <option value="word7">7. こうばい（Purchase）</option>
+          <option value="word8">8. しごと（Work）</option>
+          <option value="word9">9. しつど（Humidity）</option>
+          <option value="word10">10. じどうしゃ（Car）</option>
+          <option value="word11">11. しゅうしょく（Employment）</option>
+          <option value="word12">12. しゅみ（Hobby）</option>
+          <option value="word13">13. しょうめいしょ（Certificate）</option>
+          <option value="word14">14. しょくざい（Ingredients）</option>
+          <option value="word15">15. スケジュール（Schedule）</option>
+          <option value="word16">16. スーパー（Supermarket）</option>
+          <option value="word17">17. せいきゅうしょ（Invoice）</option>
+          <option value="word18">18. ぜいきん（Tax）</option>
+          <option value="word19">19. ちゅうしょく（Lunch）</option>
+          <option value="word20">20. ちょうしょく（Breakfast）</option>
+          <option value="word21">21. ちょうみりょう（Seasoning）</option>
+          <option value="word22">22. ちょきん（Savings）</option>
+          <option value="word23">23. でんしゃ（Train）</option>
+          <option value="word24">24. でんわ（Telephone）</option>
+          <option value="word25">25. どうろ（Road）</option>
+          <option value="word26">26. びょういん（Hospital）</option>
+          <option value="word27">27. びよういん（Beauty Salon）</option>
+          <option value="word28">28. ほどう（Sidewalk）</option>
+          <option value="word29">29. ゆうしょく（Dinner）</option>
+          <option value="word30">30. やちん（Rent）</option>
+        </select>
+      </div>
+
+      <!-- Drop zone -->
+      <div class="field">
+        <label class="field-label">音声ファイル（.wav）</label>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileitem').click()">
+          <span class="drop-icon">🎙</span>
+          <p class="drop-title">ここをクリックしてファイルを選択</p>
+          <p class="drop-sub">またはファイルをドラッグ＆ドロップ<br><span>16kHz / 16bit WAVファイル推奨</span></p>
+          <p class="drop-file-name" id="dropFileName"></p>
+        </div>
+        <input type="file" id="fileitem" name="file" accept=".wav" required>
+      </div>
+
+      <!-- Actions -->
+      <div class="upload-actions">
+        <button type="submit" id="send" class="btn btn-primary btn-lg btn-full" disabled>
+          アップロードして解析
+        </button>
+      </div>
+
     </div>
-    <div>
-      <label for="fileitem">音声ファイル（.wav）:</label><br>
-      <input type="file" id="fileitem" name="file" accept=".wav" required />
-    </div>
-    <div>
-      <button type="submit" id="send" disabled>アップロード</button>
-    </div>
-    {% if original_filename %}
-      <p>アップロードされたファイル: {{ original_filename }}</p>
-    {% elif error %}
-      <p style="color: red">{{ error }}</p>
-    {% elif message %}
-      <p style="color: green">{{ message }}</p>
-    {% endif %}
   </form>
+
+  <hr class="divider">
+
   <form action="/graph" method="post" enctype="multipart/form-data">
-    <button type="submit" id="graph">グラフを表示</button>
+    <button type="submit" class="btn btn-secondary btn-full" style="height:48px;">
+      解析結果を表示 →
+    </button>
   </form>
+
 </div>
-<!-- 戻るボタン -->
-<div style="margin-top: 20px">
-  <button onclick="location.href='/select';">ホーム画面</button>
-</div>
+
 <script>
-  const buttonsend = document.getElementById("send");
-  const buttongraph = document.getElementById("graph");
-  var selectfile = document.getElementById("fileitem");
-  function filecheck(){
-    var numfile = selectfile.files.length;
-    if (numfile == 1){
-        buttonsend.disabled = false;
-      }
+  const btnSend   = document.getElementById('send');
+  const fileInput = document.getElementById('fileitem');
+  const dropZone  = document.getElementById('dropZone');
+  const fileName  = document.getElementById('dropFileName');
+
+  function updateFileState(file) {
+    if (file) {
+      dropZone.classList.add('has-file');
+      fileName.textContent = file.name;
+      btnSend.disabled = false;
+    }
   }
 
-  selectfile.addEventListener("change", filecheck);
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) updateFileState(fileInput.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+  });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.wav')) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+      updateFileState(file);
+    }
+  });
 </script>
 </body>
 </html>

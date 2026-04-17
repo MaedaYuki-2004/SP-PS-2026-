@@ -1,38 +1,78 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>録音画面</title>
-    <link href="static/css/audio.css" rel="stylesheet" type="text/css" />
-  </head>
-  <body>
-    <h1>{{test}}</h1>
-    <div class="chartBox">
-      <canvas id="visualizer"></canvas>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>録音 — {{test}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="static/css/base.css" rel="stylesheet">
+  <link href="static/css/audio.css" rel="stylesheet">
+</head>
+<body>
+
+<nav class="top-nav">
+  <button class="nav-back" onclick="location.href='/select';">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    単語選択に戻る
+  </button>
+  <span style="font-size:12px;color:var(--text-muted);font-weight:500;letter-spacing:.04em;">Step 2 — 録音</span>
+</nav>
+
+<div class="audio-page">
+
+  <!-- Word display -->
+  <div class="word-banner">
+    <p class="word-banner-label">練習する単語</p>
+    <h1 class="word-banner-text">{{test}}</h1>
+  </div>
+
+  <!-- Waveform visualizer -->
+  <div class="visualizer-wrap">
+    <div class="visualizer-card">
+      <canvas id="visualizer" width="400" height="100"></canvas>
     </div>
+  </div>
 
-    <!-- ボタンとプレイヤーなどを包むラッパー -->
-    <div class="controlArea">
-      <div class="replayBlock">
-        <p>Replay</p>
-        <audio controls id="audio"></audio>
-      </div>
+  <!-- Controls -->
+  <div class="controls-wrap">
 
-      <div class="buttonWrapper">
-        <button type="button" id="buttonStart">Start</button>
-        <button type="button" id="buttonStop" disabled>Stop</button>
-      </div>
-
-      <form action="/graph" method="post" enctype="multipart/form-data">
-        <button type="submit" id="buttongraph">グラフを表示</button>
-      </form>
-
-      <button id="buttonHome" onclick="location.href='/select';">
-        ホーム画面
+    <!-- Start / Stop -->
+    <div class="record-buttons">
+      <button type="button" id="buttonStart">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="8" cy="8" r="6" fill="currentColor"/>
+        </svg>
+        Start
+      </button>
+      <button type="button" id="buttonStop" disabled>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <rect x="2" y="2" width="10" height="10" rx="2"/>
+        </svg>
+        Stop
       </button>
     </div>
-    <!--<script src="static/js/encode_audio.js"></script>-->
-    <script src="static/js/main.js"></script>
-  </body>
+
+    <!-- Replay -->
+    <div class="replay-wrap">
+      <span class="replay-label">録音再生</span>
+      <audio controls id="audio"></audio>
+    </div>
+
+    <!-- Graph button (shown after recording) -->
+    <form action="/graph" method="post" enctype="multipart/form-data" class="graph-form">
+      <button type="submit" id="buttongraph">解析結果を表示 →</button>
+    </form>
+
+    <!-- Home -->
+    <button id="buttonHome" onclick="location.href='/select';">ホーム画面に戻る</button>
+
+  </div>
+</div>
+
+<script src="static/js/audio_recorder.js"></script>
+<script src="static/js/main.js"></script>
+</body>
 </html>

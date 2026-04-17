@@ -1,234 +1,166 @@
-/* h1 {
+/* ── SELECT PAGE ─────────────────────────── */
+
+.page-hero {
   text-align: center;
+  padding: 40px 24px 32px;
 }
-
-p {
-  text-align: center;
-  transform: translate(-10%, -50%);
-  font-size: 40px;
-}
-
-select{
-  position: relative;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -10%);
-  font-size: 35px;
-}
-
-#moverecord {
-  position:absolute;
-  top: 77%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 400px;
-  height: 70px;
-  border-radius: 20px;
-  font-size: 20px;
-  background-color: orange;
-  color: white;
-}
-
-#movefile {
-  position: absolute;
-  top: 84%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 20px;
-  font-size: 20px;
-}
-
-ul li{
-  list-style:none;
-}
-ul li:nth-of-type(n+2){
-  display: none;
-}
-
-.words {
-  position: absolute;
-  top: 30%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.upline {
-  text-decoration: overline;
-}
-
-.underline {
-  text-decoration: underline;
-  text-underline-offset: 10px;
-}
-
-.pictures{
-  position: absolute;
-  top: 60%;
-  left: 45%;
-  transform: translate(-50%, -50%);
-  width: 150px;
-}
-
-audio{
-  position: relative;
-  top: 190px;
-  left: 45%;
-  transform: translate(-50%, -50%);
-}
-
-.advicebox {
-  border: 3px solid #333;
-  font-size: medium;
-  width: 400px;
-  top: 250px;
-  left: 45%;
-  transform: translate(-50%, -50%);
-  border-radius: 20px;
-  padding: 30px;
-  position: relative;
-}
-
-.advicebox::before {
-  background-color: #fff;
-  color: #333;
-  content: "Advice";
-  left: 30px;
-  padding: 3px 10px;
-  position: absolute;
-  top: -15px;
-  font-size: larger;
-  color: red;
-} */
-
-
-body {
-  margin: 0;
-  padding: 0;
-  font-family: sans-serif;
-}
-
-h1 {
-  text-align: center;
-  margin-top: 20px;
-}
-
-form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 30px;
-}
-
-select {
-  font-size: 24px;
-  argin: 10px 0 5px 0;
-  padding: 8px;
-}
-
-.action-form {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  margin-top: 20px;
-}
-
-#moverecord {
-  width: 400px;              /* 固定幅にする（90%ではなく） */
-  height: 60px;
-  border-radius: 20px;
-  font-size: 18px;
-  background-color: orange;
-  color: white;
-  border: 2px solid black;
-  margin: 10px 0;
-  cursor: pointer;
-  box-sizing: border-box;
-}
-
-
-#movefile {
-  font-size: 18px;
-  color: purple;
-  text-decoration: underline;
-  text-align: center;
-  display: block;
-  margin-top: 5px;
-}
-
-
-.words {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.words p {
-  font-size: 36px;
-  margin-top: 5px;       /* 上にくっつける */
+.page-hero-sub {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
   margin-bottom: 10px;
-  text-align: center;
+}
+.page-hero-title {
+  font-size: clamp(22px, 5vw, 30px);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.01em;
 }
 
-ul {
+/* ── SELECTOR AREA ───────────────────────── */
+.selector-wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.selector-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* ── WORD CARD ───────────────────────────── */
+.word-card {
+  max-width: 560px;
+  margin: 20px auto 40px;
   padding: 0;
+  overflow: hidden;
 }
 
-ul li {
+/* word list */
+ul.words-list {
   list-style: none;
+}
+
+li.word-item {
   display: none;
   flex-direction: column;
-  align-items: center;
+  gap: 0;
 }
-
-ul li.active {
+li.word-item.active {
   display: flex;
 }
 
-p {
-  font-size: 36px;
-  margin: 20px 0 10px 0;
-  text-align: center;
+/* Word header */
+.word-header {
+  padding: 28px 28px 20px;
+  border-bottom: 1px solid var(--border-lite);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.upline {
-  text-decoration: overline;
+.word-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.underline {
-  text-decoration: underline;
-  text-underline-offset: 10px;
+.word-text {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+  letter-spacing: .02em;
 }
 
-.pictures {
-  width: 150px;
-  margin: 20px 0;
+.word-meaning {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: .03em;
+}
+
+.word-index-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-light);
+  background: var(--bg-muted);
+  border-radius: 100px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* Word body */
+.word-body {
+  padding: 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-lite);
+}
+
+.word-image-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.word-image {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: var(--r-sm);
+  background: var(--bg-muted);
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.word-audio-wrap {
+  flex: 1;
+}
+
+.audio-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 audio {
-  width: 90%;
-  max-width: 400px;
-  margin: 20px 0;
+  width: 100%;
+  height: 36px;
+  border-radius: var(--r-xs);
 }
 
-.advicebox {
-  border: 3px solid #333;
-  border-radius: 20px;
-  padding: 20px;
-  max-width: 400px;
-  width: 90%;
-  font-size: 16px;
-  position: relative;
-  margin-bottom: 10px;
+/* Word footer */
+.word-footer {
+  padding: 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.advicebox::before {
-  background-color: #fff;
-  content: "Advice";
-  position: absolute;
-  top: -14px;
-  left: 20px;
-  padding: 2px 10px;
-  font-size: 18px;
-  color: red;
+.word-footer form {
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .word-header { padding: 20px 20px 16px; }
+  .word-body   { padding: 16px 20px; }
+  .word-footer { padding: 16px 20px; }
+  .word-text   { font-size: 34px; }
 }

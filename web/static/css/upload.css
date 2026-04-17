@@ -1,3 +1,133 @@
-div{
-  margin-bottom: 20px;
+/* ── UPLOAD PAGE ─────────────────────────── */
+
+.upload-page {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 36px 20px 48px;
+}
+
+.upload-heading {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.upload-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+/* ── UPLOAD FORM SECTIONS ────────────────── */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── DROP ZONE ───────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--r);
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease),
+              background var(--dur) var(--ease);
+  background: var(--bg);
+}
+.drop-zone:hover,
+.drop-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.drop-zone.has-file {
+  border-style: solid;
+  border-color: var(--green);
+  background: var(--green-bg);
+}
+
+.drop-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+  display: block;
+}
+.drop-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.drop-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.drop-sub span {
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+}
+.drop-file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--green);
+  margin-top: 8px;
+  display: none;
+}
+.drop-zone.has-file .drop-file-name { display: block; }
+.drop-zone.has-file .drop-title,
+.drop-zone.has-file .drop-sub { opacity: .5; }
+
+/* ── ACTIONS ─────────────────────────────── */
+.upload-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border-lite);
+  margin: 8px 0;
+}
+
+/* ── STATUS MESSAGE ──────────────────────── */
+.status-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 500;
+}
+.status-message.success {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid #c2dccb;
+}
+.status-message.error {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid #f0c0b0;
+}
+
+/* hidden real file input */
+#fileitem {
+  display: none;
 }
