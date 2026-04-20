@@ -280,19 +280,32 @@ def smooth(pitch: list[float] | np.ndarray) -> np.ndarray:
 def length_arrange(pitch: list[float] | np.ndarray, phoneme1, phoneme2) -> np.ndarray:
     pitch_arr = np.array(pitch, dtype=float)
     pitch3 = np.array([], dtype=float)
-    for i in range(len(phoneme1)):
+
+    # 変更点:
+    # 参照音声と録音音声で音素数が一致しない場合があるため、
+    # 共通して存在する件数までに制限して index error を防ぐ
+    usable_len = min(len(phoneme1), len(phoneme2))
+    if usable_len == 0:
+        raise ValueError("音素フレーム情報が不足しています")
+
+    for i in range(usable_len):
         standard = int(phoneme1[i][1]) - int(phoneme1[i][0]) + 1
         frame_in = int(phoneme2[i][1]) - int(phoneme2[i][0]) + 1
         dif = standard - frame_in
         start = int(phoneme2[i][0])
         end = int(phoneme2[i][1]) + 1
         pitch2 = pitch_arr[start:end]
+
         if dif > 0:
             pitch2 = np.append(pitch2, np.full(dif, np.nan))
         elif dif < 0:
-            if i == 0: pitch2 = np.delete(pitch2, slice(0, abs(dif)), 0)
-            else: pitch2 = np.delete(pitch2, slice(len(pitch2) - abs(dif), len(pitch2)), 0)
+            if i == 0:
+                pitch2 = np.delete(pitch2, slice(0, abs(dif)), 0)
+            else:
+                pitch2 = np.delete(pitch2, slice(len(pitch2) - abs(dif), len(pitch2)), 0)
+
         pitch3 = pitch2 if i == 0 else np.concatenate([pitch3, pitch2])
+
     return pitch3
 
 def segment_audio(sound_file: str | Path, start: float, end: float) -> None:
@@ -435,6 +448,13 @@ def audio_analysis():
         lab_list1, mora_list1, phoneme1, mora1, _, _, phoneme_length1, mora_length1 = lab_load(lab_sample)
         lab_list2, mora_list2, phoneme2, mora2, _, _, phoneme_length2, mora_length2 = lab_load(lab_learn)
 
+        # 変更点:
+        # lab が空だと後続の [0], [-1] アクセスで落ちるため、先に明示チェックする
+        if not lab_list1:
+            raise ValueError(f"参照labが空です: {lab_sample}")
+        if not lab_list2:
+            raise ValueError(f"録音labが空です: {lab_learn}")
+
         pitch_com1, pitch_com2 = comp(pitch1), comp(pitch2)
         pitch_native, pitch_learn = smooth(pitch_com1), smooth(pitch_com2)
 
@@ -444,12 +464,26 @@ def audio_analysis():
         xline_mora2 = [float(i[0]) for i in mora_list2]
 
         phoneme_frame1, phoneme_frame2, mora_frame1 = log_load(log_sample)
+
+        # 変更点:
+        # 参照側 log の解析結果が空だと phoneme_frame1[0] で落ちるためチェックする
+        if not phoneme_frame1 or not phoneme_frame2 or not mora_frame1:
+            raise ValueError(f"参照音声のアライメント結果が空です: {log_sample}")
+
         pitch1_sil = pitch1[int(phoneme_frame1[0][0]): int(phoneme_frame1[-1][1]) + 1]
 
         phoneme_frame3, phoneme_frame4, mora_frame2 = log_load(log_learn)
-        pitch2_sil = pitch2[int(phoneme_frame3[0][0]): int(phoneme_frame3[-1][1]) + 1]
-        pitch3 = length_arrange(pitch2_sil, phoneme_frame2, phoneme_frame4)
 
+        # 変更点:
+        # 録音側 log の解析結果が空だと phoneme_frame3[0] で落ちるためチェックする
+        if not phoneme_frame3 or not phoneme_frame4 or not mora_frame2:
+            raise ValueError(f"録音音声のアライメント結果が空です: {log_learn}")
+
+        pitch2_sil = pitch2[int(phoneme_frame3[0][0]): int(phoneme_frame3[-1][1]) + 1]
+
+        # 変更点:
+        # length_arrange() 側でも件数ズレに耐えるように修正済み
+        pitch3 = length_arrange(pitch2_sil, phoneme_frame2, phoneme_frame4)
         xline_mora = [int(i[0]) - int(mora_frame1[0][0]) for i in mora_frame1]
 
         pitch_fin = scale(smooth(comp(pitch1_sil)))
@@ -479,8 +513,12 @@ def audio_analysis():
             words=word_list, sort_distance=dtw_list, bar_color=colors,
         )
     except Exception as exc:
+        # 変更点:
+        # ターミナル側に詳細なスタックトレースを出して、
+        # どこで落ちたか追いやすくする
+        import traceback
+        traceback.print_exc()
         return f"解析中にエラーが発生しました: {exc}", 500
-
 if __name__ == "__main__":
     ensure_directories()
     app.run(host="127.0.0.1", port=5000, debug=True)

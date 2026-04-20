@@ -1,11 +1,11 @@
-pip install flask
-pip install librosa
-pip install praat-parselmouth
-pip install pydub
-pip install noisereduce
-pip install fastdtw
-pip install click
-pip install gunicorn
-
-brew install ffmpeg
-brew install julius
+Flask
+librosa
+matplotlib
+noisereduce
+numpy
+praat-parselmouth
+fastdtw
+pydub
+scipy
+gunicorn
+click
