@@ -12,27 +12,35 @@ from pathlib import Path
 from flask import Flask, render_template, request, session
 
 from config import (
+    AUDIO_MFCC_DIR,
+    AUDIO_WAV_DIR,
+    CONFIG_DIR,
+    DISTANCE_RESULT_DIR,
     FLASK_SECRET_KEY,
     STATIC_DIR,
     TEMPLATES_DIR,
-    TEST_WAV_PATH,
     TEST_LAB_PATH,
     TEST_LOG_PATH,
     TEST_SEGMENT_WAV_PATH,
+    TEST_WAV_PATH,
     WORD_ID_MEMO_PATH,
-    CONFIG_DIR,
-    AUDIO_WAV_DIR,
-    AUDIO_MFCC_DIR,
-    DISTANCE_RESULT_DIR,
 )
 from core.audio import (
     convert_to_16kHz,
     read_sample,
+    reduce_noise_wav,
     segment_audio,
     word_select,
 )
 from core.alignment import lab_load, log_load, perl_run
-from core.pitch import comp, length_arrange, praat_pitch, scale, smooth
+from core.pitch import (
+    comp,
+    length_arrange,
+    praat_pitch,
+    resample_to_10ms,
+    scale,
+    smooth,
+)
 from core.timbre import dtw_ascending_order
 from core.utils import pct_length, sleep_second
 
@@ -83,10 +91,12 @@ def upload_file():
         word_select(word_id)
         file.save(str(TEST_WAV_PATH))
         convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
+        # reduce_noise_wav(TEST_WAV_PATH)   # 一時無効化（ピッチへの影響を確認中）
         sleep_second()
         perl_run()
         return render_template("upload.html", message="アップロード完了")
     except Exception as exc:
+        traceback.print_exc()
         return f"エラー: {exc}"
 
 
@@ -98,10 +108,11 @@ def record_audio():
         file = request.files["file"]
         file.save(str(TEST_WAV_PATH))
         convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
-        sleep_second()
-        perl_run()
+        # reduce_noise_wav(TEST_WAV_PATH)   # 一時無効化（ピッチへの影響を確認中）
+        perl_run()                        # Julius は同期実行なので完了後に OK を返す
         return "OK!"
     except Exception as exc:
+        traceback.print_exc()
         return f"エラー: {exc}", 500
 
 
@@ -129,6 +140,12 @@ def audio_analysis():
         pitch1, time1 = praat_pitch(audio_sample)
         pitch2, time2 = praat_pitch(audio_learn)
 
+        # ── 【修正①】Praatピッチを10msグリッドにリサンプリング ──
+        # これによりJuliusのフレーム番号を直接インデックスとして使える。
+        # （従来はPraatフレームとJuliusフレームを混同していた）
+        pitch1_10ms = resample_to_10ms(pitch1, time1)
+        pitch2_10ms = resample_to_10ms(pitch2, time2)
+
         # ── アライメント読み込み（lab） ───────────────────────────
         (lab_list1, mora_list1, phoneme1, mora1,
          _, _, phoneme_length1, mora_length1) = lab_load(lab_sample)
@@ -140,7 +157,7 @@ def audio_analysis():
         if not lab_list2:
             raise ValueError(f"録音 lab が空です: {lab_learn}")
 
-        # ── ピッチ補完・スムージング ──────────────────────────────
+        # ── ピッチ補完・スムージング（表示用・元のPraat時刻軸のまま）
         pitch_native = smooth(comp(pitch1))
         pitch_learn  = smooth(comp(pitch2))
 
@@ -155,20 +172,25 @@ def audio_analysis():
         if not phoneme_frame1 or not phoneme_frame2 or not mora_frame1:
             raise ValueError(f"参照音声のアライメント結果が空です: {log_sample}")
 
-        pitch1_sil = pitch1[
-            int(phoneme_frame1[0][0]): int(phoneme_frame1[-1][1]) + 1
-        ]
+        # ── 【修正①】Juliusフレーム番号で10msグリッドを正しく切り出す
+        # 旧コード: pitch1[julius_frame] → Praatフレームの混用でずれていた
+        # 新コード: pitch1_10ms[julius_frame] → 10msグリッドなので整合する
+        sil_start1 = int(phoneme_frame1[0][0])
+        sil_end1   = int(phoneme_frame1[-1][1]) + 1
+        pitch1_sil = pitch1_10ms[sil_start1:sil_end1]
 
         phoneme_frame3, phoneme_frame4, mora_frame2 = log_load(log_learn)
         if not phoneme_frame3 or not phoneme_frame4 or not mora_frame2:
             raise ValueError(f"録音音声のアライメント結果が空です: {log_learn}")
 
-        pitch2_sil = pitch2[
-            int(phoneme_frame3[0][0]): int(phoneme_frame3[-1][1]) + 1
-        ]
+        sil_start2 = int(phoneme_frame3[0][0])
+        sil_end2   = int(phoneme_frame3[-1][1]) + 1
+        pitch2_sil = pitch2_10ms[sil_start2:sil_end2]
 
         # ── 長さ整合・正規化 ──────────────────────────────────────
-        pitch3    = length_arrange(pitch2_sil, phoneme_frame2, phoneme_frame4)
+        # phoneme_frame2/4 は相対Juliusフレーム、pitch_sil は10msグリッド
+        # → インデックスの単位が一致しているので正しく整合できる
+        pitch3     = length_arrange(pitch2_sil, phoneme_frame2, phoneme_frame4)
         xline_mora = [
             int(i[0]) - int(mora_frame1[0][0]) for i in mora_frame1
         ]
@@ -189,7 +211,7 @@ def audio_analysis():
             "line_graph.html",
             original_filename=session.get("original_filename", "録音データ"),
             Native_pitch=pitch_native.tolist(), Native_time=time1,
-            User_pitch=pitch_learn.tolist(),   User_time=time2,
+            User_pitch=pitch_learn.tolist(),    User_time=time2,
             Native_phoneme_values=xline_phoneme1, Native_mora_values=xline_mora1,
             User_mora_values=xline_mora2,         User_phoneme_values=xline_phoneme2,
             phoneme_labels=phoneme1, mora_labels=mora1,

@@ -1,22 +1,25 @@
 """
 core/audio.py
 音声ファイルの変換・前処理を担当するモジュール。
-フォーマット変換、セグメント切り出しなど入力音声の整形処理をまとめる。
+フォーマット変換、ノイズ除去、セグメント切り出しなど入力音声の整形処理をまとめる。
 """
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
+import noisereduce as nr
+import numpy as np
 from pydub import AudioSegment
+from scipy.io import wavfile
 
 from config import (
     AUDIO_SCP_PATH,
     RAW_AUDIO_DIR,
     TEST_SEGMENT_WAV_PATH,
-    WORDS,
     TEST_TXT_PATH,
     WORD_ID_MEMO_PATH,
+    WORDS,
 )
 
 
@@ -44,7 +47,7 @@ def read_sample(word_id: str) -> str:
     if not match:
         return ""
 
-    file_idx = int(match.group()) - 1
+    file_idx  = int(match.group()) - 1
     wav_paths = AUDIO_SCP_PATH.read_text(encoding="utf-8").splitlines()
 
     if file_idx < 0 or file_idx >= len(wav_paths):
@@ -79,12 +82,42 @@ def convert_to_16kHz(input_path: str | Path, output_path: str | Path) -> bool:
     return False
 
 
+def reduce_noise_wav(wav_path: str | Path, noise_duration: float = 0.5) -> None:
+    """
+    WAV ファイルのノイズを除去して上書き保存する。
+
+    先頭 noise_duration 秒をノイズプロファイルとして推定し、
+    スペクトル減算によってノイズ成分を除去する。
+    Julius の音素認識精度および MFCC の品質向上に効果がある。
+
+    Parameters
+    ----------
+    wav_path       : 処理対象の WAV ファイルパス（16kHz/16bit/モノラル前提）
+    noise_duration : ノイズプロファイルとして使う先頭区間の長さ（秒）
+    """
+    sr, data = wavfile.read(str(wav_path))
+
+    # ノイズサンプル：先頭 noise_duration 秒（無音・環境音区間）
+    n_noise = int(sr * noise_duration)
+    if n_noise <= 0 or n_noise >= len(data):
+        return  # データが短すぎる場合はスキップ
+
+    data_f32   = data.astype(np.float32)
+    noise_clip = data_f32[:n_noise]
+
+    reduced = nr.reduce_noise(y=data_f32, sr=sr, y_noise=noise_clip)
+
+    # 16bit PCM にクリップして保存
+    reduced_int16 = np.clip(reduced, -32768, 32767).astype(np.int16)
+    wavfile.write(str(wav_path), sr, reduced_int16)
+
+
 def segment_audio(sound_file: str | Path, start: float, end: float) -> None:
     """
     音声ファイルを発話区間（start〜end 秒）で切り出し、
     TEST_SEGMENT_WAV_PATH に保存する（前後 100ms のマージン付き）。
     """
-    sound = AudioSegment.from_wav(str(sound_file))
+    sound     = AudioSegment.from_wav(str(sound_file))
     cut_start = max(0, int(start * 1000) - 100)
     cut_end   = max(cut_start, int(end * 1000) + 100)
     sound[cut_start:cut_end].export(str(TEST_SEGMENT_WAV_PATH), format="wav")

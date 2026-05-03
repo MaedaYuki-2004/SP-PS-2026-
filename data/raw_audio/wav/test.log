@@ -9,10 +9,8 @@ Stat: init_phmm: base phones:    43 used in logical
 Stat: init_phmm: finished reading HMM definitions
 STAT: *** AM00 _default loaded
 STAT: *** loading LM00 _default
-STAT: reading [./wav/test.dfa] and [./wav/test.dict]...
+STAT: reading [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dfa] and [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dict]...
 Stat: init_voca: read 3 words
-Error: gzfile: unable to open ./wav/test.dfa.forward
-Error: init_dfa: failed to open ./wav/test.dfa.forward
 STAT: done
 STAT: Gram #0 test registered
 STAT: Gram #0 test: new grammar loaded, now mash it up for recognition
@@ -30,9 +28,9 @@ STAT: 1 MFCC modules created
 STAT: [2] create recognition processing instance(s) with AM and LM
 STAT: composing recognizer instance SR00 _default (AM00 _default, LM00 _default)
 STAT: Building HMM lexicon tree
-STAT: lexicon size: 18+0=18
+STAT: lexicon size: 24+0=24
 STAT: coordination check passed
-STAT: multi-gram: beam width set to 18 (guess) by lexicon change
+STAT: multi-gram: beam width set to 24 (guess) by lexicon change
 STAT: wchmm (re)build completed
 STAT: SR00 _default composed
 STAT: [3] initialize for acoustic HMM calculation
@@ -44,34 +42,13 @@ STAT: All init successfully done
 
 STAT: ###### initialize input device
 ----------------------- System Information begin ---------------------
-JuliusLib rev.4.6 (fast)
+JuliusLib rev.4.3.1 (fast)
 
 Engine specification:
  -  Base setup   : fast
  -  Supported LM : DFA, N-gram, Word
- -  Extension    : LibSndFile
- -  Compiled by  : clang -g -O2 -fPIC
-Library configuration: version 4.6
- - Audio input
-    primary A/D-in driver   : coreaudio (MacOSX CoreAudio)
-    available drivers       :
-    wavefile formats        : various formats by libsndfile ver.1
-    max. length of an input : 320000 samples, 150 words
- - Language Model
-    class N-gram support    : yes
-    MBR weight support      : yes
-    word id unit            : short (2 bytes)
- - Acoustic Model
-    multi-path treatment    : autodetect
- - External library
-    file decompression by   : zlib library
- - Process hangling
-    fork on adinnet input   : no
- - built-in SIMD instruction set for DNN
-    SSE AVX FMA
-    SSE is available maximum on this cpu, use it
- - built-in CUDA support: no
-
+ -  Extension    : NoPThread
+ -  Compiled by  : i686-w64-mingw32-gcc -O6 -fomit-frame-pointer
 
 ------------------------------------------------------------
 Configuration of Modules
@@ -85,8 +62,8 @@ Configuration of Modules
  Language Model:
  - LM00 "_default"
 	grammar #1:
-	    dfa  = ./wav/test.dfa
-	    dict = ./wav/test.dict
+	    dfa  = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dfa
+	    dict = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dict
 
  Recognizer:
  - SR00 "_default" (AM00, LM00)
@@ -153,12 +130,12 @@ Language Model(s)
 
  DFA grammar info:
       4 nodes, 3 arcs, 3 terminal(category) symbols
-      category-pair matrix: 16 bytes (448 bytes allocated)
+      category-pair matrix: 16 bytes (436 bytes allocated)
 
  Vocabulary Info:
-        vocabulary size  = 3 words, 6 models
-        average word len = 2.0 models, 6.0 states
-       maximum state num = 12 nodes per word
+        vocabulary size  = 3 words, 8 models
+        average word len = 2.7 models, 8.0 states
+       maximum state num = 18 nodes per word
        transparent words = not exist
        words under class = not exist
 
@@ -171,7 +148,7 @@ Recognizer(s)
 [SR00 "_default"]  AM00 "_default"  +  LM00 "_default"
 
  Lexicon tree:
-	 total node num =     18
+	 total node num =     24
 	  root node num =      3
 	  leaf node num =      3
 
@@ -181,7 +158,7 @@ Recognizer(s)
 
  Search parameters: 
 	    multi-path handling = no
-	(-b) trellis beam width = 18 (-1 or not specified - guessed)
+	(-b) trellis beam width = 24 (-1 or not specified - guessed)
 	(-bs)score pruning thres= disabled
 	(-n)search candidate num= 1
 	(-s)  search stack size = 500
@@ -214,9 +191,10 @@ FrontEnd:
 	           input source = waveform file
 	          input filelist = (none, get file name from stdin)
 	          sampling freq. = 16000 Hz required
-	         threaded A/D-in = supported, off
+	         threaded A/D-in = not supported (live input may be dropped)
 	   zero frames stripping = on
 	         silence cutting = off
+	    long-term DC removal = off
 	    long-term DC removal = off
 	    level scaling factor = 1.00 (disabled)
 	      reject short input = off
@@ -232,44 +210,47 @@ Notice for feature extraction (01),
 
 ------
 ### read waveform input
-Stat: adin_sndfile: input speechfile: ./wav/test.wav
-Stat: adin_sndfile: input format = Microsoft WAV
-Stat: adin_sndfile: input type = Signed 16 bit PCM
-Stat: adin_sndfile: endian = file native endian
-Stat: adin_sndfile: 16000 Hz, 1 channels
-Warning: strip: sample 21263-21278 has zero value, stripped
-Warning: strip: sample 22145-22167 has zero value, stripped
-Warning: strip: sample 22725-22747 has zero value, stripped
-Warning: strip: sample 24791-24819 has zero value, stripped
-Warning: strip: sample 25143-25158 has zero value, stripped
-Warning: strip: sample 25512-25527 has zero value, stripped
-Warning: strip: sample 25739-25756 has zero value, stripped
-STAT: 31859 samples (1.99 sec.)
+Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.wav
+Warning: strip: sample 0-12686 has zero value, stripped
+Warning: strip: sample 12710-12758 has zero value, stripped
+Warning: strip: sample 41716-41731 has zero value, stripped
+Warning: strip: sample 41927-41949 has zero value, stripped
+Warning: strip: sample 41971-42005 has zero value, stripped
+Warning: strip: sample 42599-42614 has zero value, stripped
+Warning: strip: sample 42792-42807 has zero value, stripped
+Warning: strip: sample 43351-43378 has zero value, stripped
+Warning: strip: sample 44166-44181 has zero value, stripped
+Warning: strip: sample 45769-45810 has zero value, stripped
+Warning: strip: sample 46018-46035 has zero value, stripped
+Warning: strip: sample 46060-46077 has zero value, stripped
+STAT: 33116 samples (2.07 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
-pass1_best_phonemeseq: silB | o N d o | silE
-pass1_best_score: -5769.643066
+pass1_best_phonemeseq: silB | y u: sh o k u | silE
+pass1_best_score: -5067.273438
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 197
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 205
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
-phseq1: silB | o N d o | silE
+phseq1: silB | y u: sh o k u | silE
 cmscore1: 1.000 1.000 1.000
-score1: -5769.635254
+score1: -5067.262695
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   81]  -31.199059  silB
-[  82   89]  -29.204987  o
-[  90   99]  -28.647802  N
-[ 100  102]  -31.762857  d
-[ 103  117]  -27.297266  o
-[ 118  196]  -27.676643  silE
-re-computed AM score: -5769.643066
+[   0    6]  -29.620113  silB
+[   7   24]  -25.801987  y
+[  25   61]  -23.538094  u:
+[  62   80]  -26.921759  sh
+[  81  105]  -25.347462  o
+[ 106  119]  -29.930559  k
+[ 120  151]  -25.373444  u
+[ 152  204]  -21.668102  silE
+re-computed AM score: -5067.273438
 === end forced alignment ===
 
 
