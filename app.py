@@ -9,7 +9,8 @@ import re
 import traceback
 from pathlib import Path
 
-from flask import Flask, render_template, request, session
+import json
+from flask import Flask, jsonify, render_template, request, send_file, session
 
 from config import (
     AUDIO_MFCC_DIR,
@@ -17,6 +18,7 @@ from config import (
     CONFIG_DIR,
     DISTANCE_RESULT_DIR,
     FLASK_SECRET_KEY,
+    RAW_AUDIO_DIR,
     STATIC_DIR,
     TEMPLATES_DIR,
     TEST_LAB_PATH,
@@ -30,8 +32,8 @@ from core.audio import (
     read_sample,
     reduce_noise_wav,
     segment_audio,
-    word_select,
 )
+from core.vocab import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word
 from core.alignment import lab_load, log_load, perl_run
 from core.pitch import (
     comp,
@@ -41,7 +43,9 @@ from core.pitch import (
     scale,
     smooth,
 )
+from core.evaluate import calc_total_score
 from core.timbre import dtw_ascending_order
+from core.vocab import list_words, register_word
 from core.utils import pct_length, sleep_second
 
 # ── アプリケーション初期化 ────────────────────────────────────────────
@@ -71,33 +75,41 @@ def select():
         word_id = request.form.get("Words")
         if not word_id:
             return "単語を選択してください"
-        word = word_select(word_id)
-        return render_template("audio.html", test=word)
-    return render_template("select.html")
+        reading = get_reading_for_julius(word_id)
+        # word_id.txt と test.txt を更新
+        WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
+        (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
+        return render_template("audio.html", test=reading)
+    words = list_words()
+    return render_template("select.html", words=words)
 
 
 @app.route("/select")
 def select_page():
-    return render_template("select.html")
+    words = list_words()
+    return render_template("select.html", words=words)
 
 
 @app.route("/upload", methods=["GET", "POST"])
 def upload_file():
+    words = list_words()
     if request.method == "GET":
-        return render_template("upload.html")
+        return render_template("upload.html", words=words)
     try:
         file    = request.files["file"]
         word_id = request.form.get("fileword", "").strip()
-        word_select(word_id)
+        reading = get_reading_for_julius(word_id)
+        WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
+        (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
         file.save(str(TEST_WAV_PATH))
         convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
         # reduce_noise_wav(TEST_WAV_PATH)   # 一時無効化（ピッチへの影響を確認中）
         sleep_second()
         perl_run()
-        return render_template("upload.html", message="アップロード完了")
+        return render_template("upload.html", words=words, message="アップロード完了")
     except Exception as exc:
         traceback.print_exc()
-        return f"エラー: {exc}"
+        return render_template("upload.html", words=words, error=str(exc))
 
 
 @app.route("/audio", methods=["GET", "POST"])
@@ -207,6 +219,19 @@ def audio_analysis():
         # ── DTW 音色評価 ──────────────────────────────────────────
         dtw_list, word_list, colors, _ = dtw_ascending_order(audio_learn_edit, num)
 
+        # ── 発音スコア算出 ────────────────────────────────────────
+        word_entry = get_word(word_id)
+        accent     = word_entry.get("accent") if word_entry else None
+        n_mora     = len(mora1)
+        score_result = calc_total_score(
+            pitch_fin2=pitch_fin2.tolist(),
+            mora_values=xline_mora,
+            accent=accent,
+            n_mora=n_mora,
+            native_mora_length=pct_length(mora_length1),
+            user_mora_length=pct_length(mora_length2),
+        )
+
         return render_template(
             "line_graph.html",
             original_filename=session.get("original_filename", "録音データ"),
@@ -223,11 +248,91 @@ def audio_analysis():
             Native_mora_length=pct_length(mora_length1),
             User_mora_length=pct_length(mora_length2),
             words=word_list, sort_distance=dtw_list, bar_color=colors,
+            score=score_result,
         )
 
     except Exception as exc:
         traceback.print_exc()
         return f"解析中にエラーが発生しました: {exc}", 500
+
+
+# ── サンプル音声配信 ─────────────────────────────────────────────────────
+
+@app.route("/sample_audio/<word_id>")
+def sample_audio(word_id: str):
+    """
+    単語選択画面のサンプル音声を配信する。
+    探索順：
+      1. web/static/sample/wordX.wav （既存の人間録音）
+      2. data/raw_audio/sound/wordX/wordX.wav （VOICEVOX自動生成）
+    """
+    # 1. まず static/sample/ を探す（既存の録音済み音声）
+    static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
+    if static_path.exists():
+        return send_file(str(static_path), mimetype="audio/wav")
+
+    # 2. なければ data/raw_audio/sound/ を探す（TTS生成音声）
+    tts_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.wav"
+    if tts_path.exists():
+        return send_file(str(tts_path), mimetype="audio/wav")
+
+    return "not found", 404
+
+
+# ── 単語削除・編集 API ───────────────────────────────────────────────────
+
+@app.route("/admin/delete_word", methods=["POST"])
+def api_delete_word():
+    try:
+        data    = request.get_json()
+        word_id = data.get("word_id", "").strip()
+        if not word_id:
+            return jsonify({"error": "word_id が指定されていません"}), 400
+        result = delete_word(word_id)
+        return jsonify(result)
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/admin/update_word", methods=["POST"])
+def api_update_word():
+    try:
+        data    = request.get_json()
+        word_id = data.get("word_id", "").strip()
+        display = data.get("display", "").strip()
+        reading = data.get("reading", "").strip()
+        accent  = data.get("accent")
+        if not word_id or not display or not reading:
+            return jsonify({"error": "必須項目が不足しています"}), 400
+        result = update_word(word_id, display, reading, accent)
+        return jsonify(result)
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
+# ── 管理画面 ──────────────────────────────────────────────────────────
+
+@app.route("/admin")
+def admin():
+    words = list_words()
+    return render_template("admin.html", words=words)
+
+
+@app.route("/admin/add_word", methods=["POST"])
+def add_word():
+    try:
+        data    = request.get_json()
+        display = data.get("display", "").strip()
+        reading = data.get("reading", "").strip()
+        if not display or not reading:
+            return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
+        result = register_word(display, reading)
+        return jsonify(result)
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
 
 
 # ── 起動 ──────────────────────────────────────────────────────────────

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>単語管理 — 発音評価システム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="static/css/base.css" rel="stylesheet">
+  <style>
+    .admin-page {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 20px 60px;
+    }
+
+    .admin-heading {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .admin-sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    /* ── セクション ── */
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── 登録フォーム ── */
+    .register-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 24px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .field-hint {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+
+    input[type="text"] {
+      font-family: var(--font);
+      font-size: 15px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      background: var(--bg);
+      color: var(--text);
+      width: 100%;
+      transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-bg);
+    }
+
+    /* ── ステータス表示 ── */
+    .status-box {
+      display: none;
+      padding: 12px 16px;
+      border-radius: var(--r-sm);
+      font-size: 13px;
+      font-weight: 500;
+      margin-top: 12px;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-box.show { display: flex; }
+    .status-box.loading {
+      background: var(--bg-muted);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .status-box.success {
+      background: var(--green-bg);
+      color: var(--green);
+      border: 1px solid #c2dccb;
+    }
+    .status-box.error {
+      background: var(--accent-bg);
+      color: var(--accent);
+      border: 1px solid #f0c0b0;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--text-muted);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 単語一覧 ── */
+    .word-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .word-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-muted);
+    }
+    .word-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-lite);
+      color: var(--text);
+      vertical-align: middle;
+    }
+    .word-table tr:hover td { background: var(--bg-muted); }
+
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 100px;
+      letter-spacing: .04em;
+    }
+    .badge-recorded {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+    .badge-tts {
+      background: var(--accent-bg);
+      color: var(--accent);
+    }
+    .badge-unknown {
+      background: var(--bg-muted);
+      color: var(--text-muted);
+    }
+
+    .accent-type {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.4); z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: var(--bg-card); border-radius: var(--r-lg);
+      padding: 28px; width: 90%; max-width: 480px;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <button class="nav-back" onclick="location.href='/select';">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    ホームに戻る
+  </button>
+  <span style="font-size:12px;color:var(--text-muted);font-weight:500;letter-spacing:.04em;">単語管理</span>
+</nav>
+
+<div class="admin-page">
+  <h1 class="admin-heading">単語管理</h1>
+  <p class="admin-sub">単語を登録するとサンプル音声・アライメント・MFCCが自動生成されます。</p>
+
+  <!-- ── 登録フォーム ── -->
+  <p class="section-title">新しい単語を登録</p>
+  <div class="register-card">
+    <div class="form-row">
+      <div class="field">
+        <label class="field-label" for="inputDisplay">表示テキスト</label>
+        <input type="text" id="inputDisplay" placeholder="例：夕食、スーパー、びよういん">
+        <span class="field-hint">漢字・カタカナ・ひらがなすべてOK。MeCabのアクセント取得に使用します。</span>
+      </div>
+      <div class="field">
+        <label class="field-label" for="inputReading">ひらがな読み</label>
+        <input type="text" id="inputReading" placeholder="例：ゆうしょく、すーぱー、びよーいん">
+        <span class="field-hint">Julius用。長音は「ー」で表記してください。</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-lg" id="btnRegister" onclick="registerWord()">
+      登録する（音声自動生成）
+    </button>
+
+    <div class="status-box loading" id="statusLoading">
+      <div class="spinner"></div>
+      <span id="statusMsg">音声を生成中です。しばらくお待ちください...</span>
+    </div>
+    <div class="status-box success" id="statusSuccess"></div>
+    <div class="status-box error"   id="statusError"></div>
+  </div>
+
+  <!-- ── 単語一覧 ── -->
+  <p class="section-title">登録済み単語一覧（{{ words|length }} 語）</p>
+  <div class="card" style="overflow:hidden;">
+    <table class="word-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>表示</th>
+          <th>読み（Julius）</th>
+          <th>アクセント型</th>
+          <th>ソース</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in words %}
+        <tr>
+          <td><span style="font-family:var(--mono);color:var(--text-muted);">{{ w.word_id }}</span></td>
+          <td style="font-weight:600;">{{ w.display }}</td>
+          <td style="font-family:var(--mono);font-size:12px;">{{ w.reading }}</td>
+          <td>
+            <span class="accent-type">
+              {% if w.accent is not none %}
+                {{ w.accent }}型
+                {% if w.accent == 0 %}（平板）
+                {% elif w.accent == 1 %}（頭高）
+                {% else %}（{{ w.accent }}型）
+                {% endif %}
+              {% else %}
+                不明
+              {% endif %}
+            </span>
+          </td>
+          <td>
+            {% if w.source == "recorded" %}
+              <span class="badge badge-recorded">人間録音</span>
+            {% elif w.source == "tts" %}
+              <span class="badge badge-tts">自動生成</span>
+            {% else %}
+              <span class="badge badge-unknown">不明</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if w.source != "recorded" %}
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;"
+                onclick="openEdit('{{ w.word_id }}', '{{ w.display }}', '{{ w.reading }}', '{{ w.accent }}')">
+                編集
+              </button>
+              <button class="btn" style="padding:4px 10px;font-size:11px;background:var(--accent-bg);color:var(--accent);border:1px solid #f0c0b0;"
+                onclick="deleteWord('{{ w.word_id }}', '{{ w.display }}')">
+                削除
+              </button>
+            </div>
+            {% else %}
+            <span style="font-size:11px;color:var(--text-light);">変更不可</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 編集モーダル -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <p class="modal-title">単語を編集</p>
+    <input type="hidden" id="editWordId">
+    <div class="form-row" style="grid-template-columns:1fr;">
+      <div class="field">
+        <label class="field-label">表示テキスト</label>
+        <input type="text" id="editDisplay">
+      </div>
+      <div class="field">
+        <label class="field-label">ひらがな読み</label>
+        <input type="text" id="editReading">
+      </div>
+      <div class="field">
+        <label class="field-label">アクセント型（空欄でMeCab自動取得）</label>
+        <input type="text" id="editAccent" placeholder="例：0（平板）、1（頭高）">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeEdit()">キャンセル</button>
+      <button class="btn btn-primary" onclick="submitEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function registerWord() {
+  const display = document.getElementById('inputDisplay').value.trim();
+  const reading = document.getElementById('inputReading').value.trim();
+
+  if (!display || !reading) {
+    showError('表示テキストとひらがな読みを両方入力してください。');
+    return;
+  }
+
+  hideAll();
+  document.getElementById('statusLoading').classList.add('show');
+  document.getElementById('btnRegister').disabled = true;
+  document.getElementById('statusMsg').textContent =
+    `「${display}」の音声を生成中です。20〜30秒かかる場合があります...`;
+
+  try {
+    const res = await fetch('/admin/add_word', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display, reading }),
+    });
+    const data = await res.json();
+
+    hideAll();
+    if (res.ok) {
+      const accentLabel = data.accent !== null
+        ? `アクセント型: ${data.accent}型`
+        : 'アクセント型: 不明';
+      document.getElementById('statusSuccess').textContent =
+        `✓ ${data.message}（${accentLabel}）`;
+      document.getElementById('statusSuccess').classList.add('show');
+      document.getElementById('inputDisplay').value = '';
+      document.getElementById('inputReading').value  = '';
+      // 一覧を更新
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      showError(data.error || '登録に失敗しました。');
+    }
+  } catch (e) {
+    hideAll();
+    showError(`通信エラー: ${e.message}`);
+  } finally {
+    document.getElementById('btnRegister').disabled = false;
+  }
+}
+
+async function deleteWord(wordId, display) {
+  if (!confirm('「' + display + '」を削除しますか？')) return;
+  try {
+    const res  = await fetch('/admin/delete_word', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word_id: wordId }),
+    });
+    const data = await res.json();
+    if (res.ok) { alert(data.message); location.reload(); }
+    else { alert('エラー: ' + (data.error || '削除に失敗しました')); }
+  } catch (e) { alert('通信エラー: ' + e.message); }
+}
+
+function openEdit(wordId, display, reading, accent) {
+  document.getElementById('editWordId').value  = wordId;
+  document.getElementById('editDisplay').value = display;
+  document.getElementById('editReading').value = reading;
+  document.getElementById('editAccent').value  = (accent === 'None' || accent === 'null') ? '' : accent;
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEdit() {
+  document.getElementById('editModal').classList.remove('show');
+}
+
+async function submitEdit() {
+  const wordId  = document.getElementById('editWordId').value;
+  const display = document.getElementById('editDisplay').value.trim();
+  const reading = document.getElementById('editReading').value.trim();
+  const accent  = document.getElementById('editAccent').value.trim();
+  if (!display || !reading) { alert('表示テキストとひらがな読みを入力してください。'); return; }
+  try {
+    const res  = await fetch('/admin/update_word', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word_id: wordId, display, reading, accent: accent || null }),
+    });
+    const data = await res.json();
+    if (res.ok) { closeEdit(); alert(data.message); location.reload(); }
+    else { alert('エラー: ' + (data.error || '更新に失敗しました')); }
+  } catch (e) { alert('通信エラー: ' + e.message); }
+}
+
+function hideAll() {
+  ['statusLoading', 'statusSuccess', 'statusError'].forEach(id => {
+    document.getElementById(id).classList.remove('show');
+  });
+}
+
+function showError(msg) {
+  document.getElementById('statusError').textContent = `✗ ${msg}`;
+  document.getElementById('statusError').classList.add('show');
+}
+</script>
+</body>
+</html>

@@ -47,44 +47,19 @@
   <form action="/upload" method="post" enctype="multipart/form-data">
     <div class="form-section">
 
-      <!-- Word select -->
+      <!-- 単語選択（words_db.json から動的生成） -->
       <div class="field">
         <label class="field-label" for="selectWord">単語を選択</label>
         <select size="1" id="selectWord" name="fileword">
-          <option value="word1">1. おんど（Temperature）</option>
-          <option value="word2">2. かいけい（Accounting）</option>
-          <option value="word3">3. がっこう（School）</option>
-          <option value="word4">4. ぎんこう（Bank）</option>
-          <option value="word5">5. こうえん（Park）</option>
-          <option value="word6">6. こうつう（Transportation）</option>
-          <option value="word7">7. こうばい（Purchase）</option>
-          <option value="word8">8. しごと（Work）</option>
-          <option value="word9">9. しつど（Humidity）</option>
-          <option value="word10">10. じどうしゃ（Car）</option>
-          <option value="word11">11. しゅうしょく（Employment）</option>
-          <option value="word12">12. しゅみ（Hobby）</option>
-          <option value="word13">13. しょうめいしょ（Certificate）</option>
-          <option value="word14">14. しょくざい（Ingredients）</option>
-          <option value="word15">15. スケジュール（Schedule）</option>
-          <option value="word16">16. スーパー（Supermarket）</option>
-          <option value="word17">17. せいきゅうしょ（Invoice）</option>
-          <option value="word18">18. ぜいきん（Tax）</option>
-          <option value="word19">19. ちゅうしょく（Lunch）</option>
-          <option value="word20">20. ちょうしょく（Breakfast）</option>
-          <option value="word21">21. ちょうみりょう（Seasoning）</option>
-          <option value="word22">22. ちょきん（Savings）</option>
-          <option value="word23">23. でんしゃ（Train）</option>
-          <option value="word24">24. でんわ（Telephone）</option>
-          <option value="word25">25. どうろ（Road）</option>
-          <option value="word26">26. びょういん（Hospital）</option>
-          <option value="word27">27. びよういん（Beauty Salon）</option>
-          <option value="word28">28. ほどう（Sidewalk）</option>
-          <option value="word29">29. ゆうしょく（Dinner）</option>
-          <option value="word30">30. やちん（Rent）</option>
+          {% for w in words %}
+          <option value="{{ w.word_id }}">
+            {{ loop.index }}. {{ w.display }}（{{ w.reading }}）
+          </option>
+          {% endfor %}
         </select>
       </div>
 
-      <!-- Drop zone -->
+      <!-- ドロップゾーン -->
       <div class="field">
         <label class="field-label">音声ファイル（.wav）</label>
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileitem').click()">
@@ -96,7 +71,7 @@
         <input type="file" id="fileitem" name="file" accept=".wav" required>
       </div>
 
-      <!-- Actions -->
+      <!-- アップロードボタン -->
       <div class="upload-actions">
         <button type="submit" id="send" class="btn btn-primary btn-lg btn-full" disabled>
           アップロードして解析
