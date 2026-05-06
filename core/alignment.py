@@ -2,37 +2,68 @@
 core/alignment.py
 Julius を用いた音素アライメント処理を担当するモジュール。
 Perl スクリプトの実行、lab / log ファイルの読み込みと解析をまとめる。
+
+【修正点】
+  - perl_run() の cwd を ENGINE_DIR に変更し、./models/ が正しく解決されるようにした。
+  - Julius バイナリパスを環境変数 JULIUS_BIN 経由で Perl スクリプトに渡す。
+  - mora_time() の欠落ケース（子音が末尾/子音が連続）を明示的に処理する。
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
 
 from config import (
+    AUDIO_WAV_DIR,
     CONSONANTS,
+    ENGINE_DIR,
+    JULIUS_BIN_PATH,
     PERL_SCRIPT_PATH,
-    RAW_AUDIO_DIR,
     VOWELS,
 )
 from core.utils import phone_list, phoneme_frame
 
 
 def perl_run() -> None:
-    """segment_julius.pl を実行して音素アライメントを行う。"""
+    """
+    segment_julius.pl を実行して音素アライメントを行う。
+
+    実行ディレクトリを ENGINE_DIR（engine/）にすることで
+    Perl スクリプト内の ./models/ および ./bin/ が正しく解決される。
+    音声データディレクトリ（AUDIO_WAV_DIR）は引数で渡す。
+    Julius バイナリパスは環境変数 JULIUS_BIN で渡す。
+    """
     if not PERL_SCRIPT_PATH.exists():
         raise FileNotFoundError(
             f"Perl スクリプトが見つかりません: {PERL_SCRIPT_PATH}"
         )
+    if not ENGINE_DIR.exists():
+        raise FileNotFoundError(
+            f"engine/ ディレクトリが見つかりません: {ENGINE_DIR}"
+        )
+
+    env = os.environ.copy()
+    env["JULIUS_BIN"] = JULIUS_BIN_PATH  # Perl スクリプトに Julius パスを通知
+
     try:
         subprocess.run(
-            ["perl", str(PERL_SCRIPT_PATH)],
+            ["perl", str(PERL_SCRIPT_PATH), str(AUDIO_WAV_DIR)],
             check=True,
-            cwd=str(RAW_AUDIO_DIR),
+            cwd=str(ENGINE_DIR),   # engine/ を起点にすることで ./models/ が解決される
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
+    except subprocess.CalledProcessError as exc:
+        stderr_msg = exc.stderr.strip() if exc.stderr else "（詳細なし）"
+        raise RuntimeError(
+            f"Julius アライメントに失敗しました。\n"
+            f"Julius パス: {JULIUS_BIN_PATH}\n"
+            f"stderr: {stderr_msg}"
+        ) from exc
     except Exception as exc:
         raise RuntimeError(f"外部プログラムの実行に失敗しました: {exc}") from exc
 
@@ -42,38 +73,50 @@ def mora_time(
 ) -> list[list[str | int | float]]:
     """
     音素リストをモーラ単位にまとめて返す。
-    子音＋母音をひとつのモーラとして結合する。
+
+    処理ルール：
+      1. 子音 + 次が母音 → 結合してひとつのモーラ（次の母音はスキップ）
+      2. 先頭が母音 → 単独モーラ
+      3. 母音が連続（長音など） → 単独モーラ
+      4. 特殊音素（N, q など）→ 単独モーラ
+      5. 結合できなかった子音（末尾・次が子音）→ 単独モーラとして追加
+         ※ 旧実装ではこのケースが無言でスキップされていたが、明示的に処理する。
     """
     mora_list: list[list[str | int | float]] = []
+    skip_next = False  # 直前で子音+母音を結合したので次の母音をスキップするフラグ
 
     for i, entry in enumerate(phones):
-        phone = str(entry[2])
-
-        # 先頭が母音の場合はそのままモーラとして追加
-        if i == 0 and phone in VOWELS:
-            mora_list.append([entry[0], entry[1], phone])
+        if skip_next:
+            skip_next = False
             continue
 
-        if i < len(phones) - 1:
-            next_phone = str(phones[i + 1][2])
-            is_consonant = phone in CONSONANTS or (
-                len(phone) == 2 and ":" not in phone
-            )
-            # 子音＋母音の結合
-            if is_consonant and next_phone in VOWELS:
+        phone = str(entry[2])
+        is_consonant = phone in CONSONANTS or (
+            len(phone) == 2 and ":" not in phone
+        )
+
+        # ── 子音 + 次が母音 → 結合 ─────────────────────────────────
+        if is_consonant and i < len(phones) - 1:
+            next_entry = phones[i + 1]
+            if str(next_entry[2]) in VOWELS:
                 mora_list.append(
-                    [entry[0], phones[i + 1][1], phone + next_phone]
+                    [entry[0], next_entry[1], phone + str(next_entry[2])]
                 )
+                skip_next = True  # 次の母音は結合済みなのでスキップ
                 continue
 
-        # 母音でも子音でもない音素（N, q など）
-        if phone not in VOWELS and phone not in CONSONANTS:
+        # ── 子音が末尾または次も子音（アライメント失敗時など） ───────
+        if is_consonant:
             mora_list.append([entry[0], entry[1], phone])
             continue
 
-        # 母音が連続する場合（長音など）
-        if i >= 1 and phone in VOWELS and str(phones[i - 1][2]) in VOWELS:
+        # ── 単独の母音 ────────────────────────────────────────────
+        if phone in VOWELS:
             mora_list.append([entry[0], entry[1], phone])
+            continue
+
+        # ── 特殊音素（N: 撥音, q: 促音 など） ────────────────────
+        mora_list.append([entry[0], entry[1], phone])
 
     return mora_list
 
@@ -90,13 +133,13 @@ def lab_load(lab_file: str | Path):
     phoneme_length, mora_length
     """
     lab_path = Path(lab_file)
-    lab_list: list[list[str]] = []
-    phoneme_start: list[str]  = []
-    phoneme: list[str]        = []
+    lab_list: list[list[str]]   = []
+    phoneme_start: list[str]    = []
+    phoneme: list[str]          = []
     phoneme_length: list[float] = []
-    mora_start: list[str]     = []
-    mora: list[str]           = []
-    mora_length: list[float]  = []
+    mora_start: list[str]       = []
+    mora: list[str]             = []
+    mora_length: list[float]    = []
 
     with lab_path.open("r", encoding="utf-8") as f:
         for line in f:
@@ -130,22 +173,27 @@ def log_load(log_file: str | Path):
 
     Returns
     -------
-    phoneme_list  : フレーム情報付き音素リスト（生）
-    phoneme_only  : 開始フレームを先頭基準に正規化した音素リスト
-    mora_list     : フレーム情報付きモーラリスト
+    phoneme_list  : 絶対Juliusフレームの音素リスト
+    phoneme_only  : 発話先頭基準の相対Juliusフレーム音素リスト
+    mora_list     : 絶対Juliusフレームのモーラリスト
     """
     log_path = Path(log_file)
-    num   = 0
+    in_alignment = False
     frame: list[int | str] = []
 
     with log_path.open("r", encoding="utf-8") as f:
         for line in f:
             if "begin forced alignment" in line:
-                num = 1
+                in_alignment = True
             elif "end forced alignment" in line:
-                num = 0
+                in_alignment = False
 
-            if num == 1 and "[" in line and "silB" not in line and "silE" not in line:
+            if (
+                in_alignment
+                and "[" in line
+                and "silB" not in line
+                and "silE" not in line
+            ):
                 m = re.findall(r"\d+", line)
                 if len(m) < 2:
                     continue
@@ -154,9 +202,9 @@ def log_load(log_file: str | Path):
                     continue
                 frame.extend([int(m[0]), int(m[1]), n.group()])
 
-    phoneme_list = phone_list(frame)
+    phoneme_list  = phone_list(frame)
     phoneme_list2 = phone_list(frame.copy())
-    mora_list    = mora_time(phoneme_list)
-    phoneme_only = phoneme_frame(phoneme_list2)
+    mora_list     = mora_time(phoneme_list)
+    phoneme_only  = phoneme_frame(phoneme_list2)
 
     return phoneme_list, phoneme_only, mora_list

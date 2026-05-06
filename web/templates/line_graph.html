@@ -11,7 +11,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
-    /* ── RESULTS PAGE ─────────────────────── */
     .results-header {
       background: var(--bg-card);
       border-bottom: 1px solid var(--border-lite);
@@ -22,18 +21,9 @@
       gap: 16px;
       flex-wrap: wrap;
     }
-    .results-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--text);
-    }
-    .results-sub {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 2px;
-    }
+    .results-title { font-size: 18px; font-weight: 700; color: var(--text); }
+    .results-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
-    /* ── SECTION TABS ──────────────────────── */
     .section-tabs {
       display: flex;
       gap: 4px;
@@ -44,7 +34,6 @@
       scrollbar-width: none;
     }
     .section-tabs::-webkit-scrollbar { display: none; }
-
     .sec-tab {
       flex-shrink: 0;
       padding: 10px 18px;
@@ -60,12 +49,8 @@
       transition: color 150ms ease, border-color 150ms ease;
     }
     .sec-tab:hover { color: var(--text); }
-    .sec-tab.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
+    .sec-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-    /* ── SECTION PANELS ────────────────────── */
     .section-panel {
       display: none;
       padding: 24px;
@@ -73,20 +58,9 @@
       margin: 0 auto;
     }
     .section-panel.active { display: block; }
+    .panel-heading { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .panel-sub     { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
 
-    .panel-heading {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-    .panel-sub {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 18px;
-    }
-
-    /* ── CHART CARD ────────────────────────── */
     .chart-card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -110,8 +84,6 @@
       text-transform: uppercase;
       color: var(--text-muted);
     }
-
-    /* Toggle buttons (pill style) */
     .toggle-pill {
       display: inline-flex;
       background: var(--bg-muted);
@@ -136,45 +108,144 @@
       color: var(--text);
       box-shadow: var(--shadow-xs);
     }
+    .chart-legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    .legend-item  { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .legend-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .chart-wrap { position: relative; width: 100%; }
+    .chart-wrap canvas { width: 100% !important; max-height: 400px; }
+    .chart-wrap-tall canvas { max-height: 680px; }
 
-    /* Legend dots */
-    .chart-legend {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
+    /* ── スコアカード ── */
+    .score-hero {
+      text-align: center;
+      padding: 32px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-xs);
     }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
+    .score-grade {
+      font-size: 72px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .grade-S { color: #c03d20; }
+    .grade-A { color: #2a7a4f; }
+    .grade-B { color: #2a6496; }
+    .grade-C { color: #8a6d3b; }
+    .grade-D { color: var(--text-muted); }
+
+    .score-total {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .score-total span {
+      font-size: 16px;
+      font-weight: 400;
       color: var(--text-muted);
     }
-    .legend-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
+
+    .score-breakdown {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .score-item {
+      background: var(--bg);
+      border: 1px solid var(--border-lite);
+      border-radius: var(--r-sm);
+      padding: 14px 16px;
+      text-align: left;
+    }
+    .score-item-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .score-item-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .score-item-max {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .score-bar {
+      height: 6px;
+      background: var(--bg-muted);
+      border-radius: 100px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 100px;
+      transition: width .6s ease;
     }
 
-    /* Chart containers — responsive height */
-    .chart-wrap {
-      position: relative;
-      width: 100%;
+    .feedback-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 20px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-xs);
     }
-    .chart-wrap canvas {
-      width: 100% !important;
-      max-height: 400px;
+    .feedback-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
     }
-    .chart-wrap-tall canvas {
-      max-height: 680px;
+    .feedback-text {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.7;
     }
 
-    /* Responsive */
+    .accent-pattern {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .mora-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .mora-hl {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .mora-hl.H { background: var(--accent-bg); color: var(--accent); }
+    .mora-hl.L { background: var(--bg-muted);  color: var(--text-muted); }
+    .mora-label { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+
     @media (max-width: 600px) {
       .section-panel { padding: 16px; }
       .results-header { padding: 16px 20px; }
       .chart-card { padding: 14px; }
+      .score-breakdown { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -194,14 +265,81 @@
 </div>
 
 <div class="section-tabs">
-  <button class="sec-tab active" onclick="showSection('pitch-native', this)">ネイティブ音声</button>
+  <button class="sec-tab active" onclick="showSection('score', this)">📊 発音スコア</button>
+  <button class="sec-tab" onclick="showSection('pitch-native', this)">ネイティブ音声</button>
   <button class="sec-tab" onclick="showSection('pitch-user', this)">あなたの音声</button>
   <button class="sec-tab" onclick="showSection('pitch-compare', this)">ピッチ比較</button>
   <button class="sec-tab" onclick="showSection('length', this)">長さ比較</button>
   <button class="sec-tab" onclick="showSection('timbre', this)">音色評価</button>
 </div>
 
-<div id="sec-pitch-native" class="section-panel active">
+<!-- ── スコアタブ ── -->
+<div id="sec-score" class="section-panel active">
+  <p class="panel-heading">発音スコア</p>
+  <p class="panel-sub">アクセント型とモーラの長さを基に評価しています。</p>
+
+  {% if score %}
+  <div class="score-hero">
+    <div class="score-grade grade-{{ score.grade }}">{{ score.grade }}</div>
+    <div class="score-total">{{ score.total }} <span>/ 100点</span></div>
+
+    <div class="score-breakdown">
+      <div class="score-item">
+        <div class="score-item-label">アクセントスコア</div>
+        <div class="score-item-value">
+          {{ score.accent_score }} <span class="score-item-max">/ 60</span>
+        </div>
+        <div class="score-bar">
+          <div class="score-bar-fill"
+               style="width:{{ (score.accent_score / 60 * 100)|round }}%;
+                      background:var(--accent);"></div>
+        </div>
+      </div>
+      <div class="score-item">
+        <div class="score-item-label">長さスコア</div>
+        <div class="score-item-value">
+          {{ score.length_score }} <span class="score-item-max">/ 40</span>
+        </div>
+        <div class="score-bar">
+          <div class="score-bar-fill"
+               style="width:{{ (score.length_score / 40 * 100)|round }}%;
+                      background:var(--green);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- アクセントフィードバック -->
+  <div class="feedback-card">
+    <div class="feedback-title">アクセント（{{ score.accent_label }}）</div>
+    <div class="feedback-text">{{ score.accent_feedback }}</div>
+    {% if score.accent_pattern %}
+    <div class="accent-pattern">
+      {% for hl in score.accent_pattern %}
+      <div class="mora-badge">
+        <div class="mora-hl {{ hl }}">{{ hl }}</div>
+        <div class="mora-label">{{ loop.index }}拍</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 長さフィードバック -->
+  <div class="feedback-card">
+    <div class="feedback-title">モーラの長さ</div>
+    <div class="feedback-text">{{ score.length_feedback }}</div>
+  </div>
+
+  {% else %}
+  <div class="feedback-card">
+    <div class="feedback-text">スコアを計算できませんでした。</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── ネイティブ音声 ── -->
+<div id="sec-pitch-native" class="section-panel">
   <p class="panel-heading">ネイティブ音声のピッチ</p>
   <p class="panel-sub">ネイティブ話者の基本周波数（F0）と音素・モーラ境界を表示しています。</p>
   <div class="chart-card">
@@ -227,6 +365,7 @@
   </div>
 </div>
 
+<!-- ── ユーザー音声 ── -->
 <div id="sec-pitch-user" class="section-panel">
   <p class="panel-heading">あなたの音声のピッチ</p>
   <p class="panel-sub">録音した音声の基本周波数（F0）と音素・モーラ境界を表示しています。</p>
@@ -253,6 +392,7 @@
   </div>
 </div>
 
+<!-- ── ピッチ比較 ── -->
 <div id="sec-pitch-compare" class="section-panel">
   <p class="panel-heading">ピッチ比較（正規化）</p>
   <p class="panel-sub">ネイティブ音声とあなたの音声のピッチを正規化し、モーラ境界を合わせて比較しています。</p>
@@ -276,6 +416,7 @@
   </div>
 </div>
 
+<!-- ── 長さ比較 ── -->
 <div id="sec-length" class="section-panel">
   <p class="panel-heading">音素・モーラの長さ比較</p>
   <p class="panel-sub">全体に占める各音素・モーラの長さの割合（%）を比較しています。</p>
@@ -294,6 +435,7 @@
   </div>
 </div>
 
+<!-- ── 音色評価 ── -->
 <div id="sec-timbre" class="section-panel">
   <p class="panel-heading">音色評価（DTW距離）</p>
   <p class="panel-sub">MFCCとDTWを用いて各単語との音色の類似度を比較しています。赤いバーが選択した単語です。</p>
@@ -314,38 +456,41 @@
 <script id="python-data" type="application/json">
 {
   "start1": {{ start1 | tojson | safe }},
-  "end1": {{ end1 | tojson | safe }},
+  "end1":   {{ end1   | tojson | safe }},
   "start2": {{ start2 | tojson | safe }},
-  "end2": {{ end2 | tojson | safe }},
-  "Native_mora_values": {{ Native_mora_values | tojson | safe }},
-  "mora_labels": {{ mora_labels | tojson | safe }},
-  "Native_time": {{ Native_time | tojson | safe }},
-  "Native_pitch": {{ Native_pitch | tojson | safe }},
-  "Native_phoneme_values": {{ Native_phoneme_values | tojson | safe }},
-  "phoneme_labels": {{ phoneme_labels | tojson | safe }},
-  "User_mora_values": {{ User_mora_values | tojson | safe }},
-  "User_time": {{ User_time | tojson | safe }},
-  "User_pitch": {{ User_pitch | tojson | safe }},
-  "User_phoneme_values": {{ User_phoneme_values | tojson | safe }},
-  "mora_values": {{ mora_values | tojson | safe }},
-  "x_axis": {{ x_axis | tojson | safe }},
-  "pitch_fin": {{ pitch_fin | tojson | safe }},
-  "pitch_fin2": {{ pitch_fin2 | tojson | safe }},
-  "Native_mora_length": {{ Native_mora_length | tojson | safe }},
-  "User_mora_length": {{ User_mora_length | tojson | safe }},
-  "Native_phoneme_length": {{ Native_phoneme_length | tojson | safe }},
-  "User_phoneme_length": {{ User_phoneme_length | tojson | safe }},
-  "words": {{ words | tojson | safe }},
-  "sort_distance": {{ sort_distance | tojson | safe }},
-  "bar_color": {{ bar_color | tojson | safe }}
+  "end2":   {{ end2   | tojson | safe }},
+  "Native_mora_values":   {{ Native_mora_values   | tojson | safe }},
+  "mora_labels":          {{ mora_labels           | tojson | safe }},
+  "Native_time":          {{ Native_time           | tojson | safe }},
+  "Native_pitch":         {{ Native_pitch          | tojson | safe }},
+  "Native_phoneme_values":{{ Native_phoneme_values | tojson | safe }},
+  "phoneme_labels":       {{ phoneme_labels        | tojson | safe }},
+  "User_mora_values":     {{ User_mora_values      | tojson | safe }},
+  "User_time":            {{ User_time             | tojson | safe }},
+  "User_pitch":           {{ User_pitch            | tojson | safe }},
+  "User_phoneme_values":  {{ User_phoneme_values   | tojson | safe }},
+  "mora_values":          {{ mora_values           | tojson | safe }},
+  "x_axis":               {{ x_axis               | tojson | safe }},
+  "pitch_fin":            {{ pitch_fin             | tojson | safe }},
+  "pitch_fin2":           {{ pitch_fin2            | tojson | safe }},
+  "Native_mora_length":   {{ Native_mora_length    | tojson | safe }},
+  "User_mora_length":     {{ User_mora_length      | tojson | safe }},
+  "Native_phoneme_length":{{ Native_phoneme_length | tojson | safe }},
+  "User_phoneme_length":  {{ User_phoneme_length   | tojson | safe }},
+  "words":                {{ words                 | tojson | safe }},
+  "sort_distance":        {{ sort_distance         | tojson | safe }},
+  "bar_color":            {{ bar_color             | tojson | safe }}
 }
 </script>
 
 <script>
-/* ── データの読み込み ── */
-var templateData = JSON.parse(document.getElementById('python-data').textContent);
+var d = JSON.parse(document.getElementById('python-data').textContent);
+var commonLineOptions = {
+  elements: { point: { radius: 0 } },
+  responsive: true,
+  maintainAspectRatio: true,
+};
 
-/* ── Tab navigation ── */
 function showSection(name, btn) {
   document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sec-tab').forEach(t => t.classList.remove('active'));
@@ -353,238 +498,134 @@ function showSection(name, btn) {
   btn.classList.add('active');
 }
 
-/* ── Chart toggles ── */
-var _nativeView = 'mora';
 function setNativeView(view, btn) {
-  _nativeView = view;
-  document.getElementById('NativeMoraChart').style.display    = (view === 'mora')    ? 'block' : 'none';
-  document.getElementById('NativePhonemeChart').style.display = (view === 'phoneme') ? 'block' : 'none';
+  document.getElementById('NativeMoraChart').style.display    = view === 'mora'    ? 'block' : 'none';
+  document.getElementById('NativePhonemeChart').style.display = view === 'phoneme' ? 'block' : 'none';
   document.querySelectorAll('#nativePill button').forEach(b => b.classList.remove('active-pill'));
   btn.classList.add('active-pill');
 }
-
-var _userView = 'mora';
 function setUserView(view, btn) {
-  _userView = view;
-  document.getElementById('UserMoraChart').style.display    = (view === 'mora')    ? 'block' : 'none';
-  document.getElementById('UserPhonemeChart').style.display = (view === 'phoneme') ? 'block' : 'none';
+  document.getElementById('UserMoraChart').style.display    = view === 'mora'    ? 'block' : 'none';
+  document.getElementById('UserPhonemeChart').style.display = view === 'phoneme' ? 'block' : 'none';
   document.querySelectorAll('#userPill button').forEach(b => b.classList.remove('active-pill'));
   btn.classList.add('active-pill');
 }
-
-var _lengthView = 'mora';
 function setLengthView(view, btn) {
-  _lengthView = view;
-  document.getElementById('groupedBarChart1').style.display = (view === 'mora')    ? 'block' : 'none';
-  document.getElementById('groupedBarChart2').style.display = (view === 'phoneme') ? 'block' : 'none';
+  document.getElementById('groupedBarChart1').style.display = view === 'mora'    ? 'block' : 'none';
+  document.getElementById('groupedBarChart2').style.display = view === 'phoneme' ? 'block' : 'none';
   document.querySelectorAll('#lengthPill button').forEach(b => b.classList.remove('active-pill'));
   btn.classList.add('active-pill');
 }
 
-/* Common chart options */
-var commonLineOptions = {
-  elements: { point: { radius: 0 } },
-  responsive: true,
-  maintainAspectRatio: true,
-};
-
-/* ── 1. Native Mora Chart ── */
-(function() {
-  var d = templateData;
-  var annotations = d.Native_mora_values.map(function(v, i) {
-    return { type:'line', scaleID:'x', value:v, borderColor:'rgba(192,61,32,.6)', borderWidth:1,
-      label:{ content:d.mora_labels[i], enabled:true, position:'top', font:{size:11} } };
+function makeAnnotations(values, labels, color) {
+  return values.map(function(v, i) {
+    return { type:'line', scaleID:'x', value:v, borderColor:color, borderWidth:1,
+      label:{ content:labels[i], enabled:true, position:'top', font:{size:11} } };
   });
+}
 
-  new Chart(document.getElementById('NativeMoraChart').getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: d.Native_time,
-      datasets: [{ label:'SampleVoice', data:d.Native_pitch,
-        fill:true, backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 }]
-    },
-    options: Object.assign({}, commonLineOptions, {
-      scales: {
-        x: { type:'linear', position:'bottom', min:d.start1-.1, max:d.end1+.1, title:{ display:true, text:'Time (s)' } },
-        y: { title:{ display:true, text:'Pitch (Hz)' } }
-      },
-      plugins: { annotation:{ annotations:annotations }, legend:{ display:false } }
-    })
+// Native Mora
+new Chart(document.getElementById('NativeMoraChart').getContext('2d'), {
+  type:'line', data:{ labels:d.Native_time,
+    datasets:[{ label:'SampleVoice', data:d.Native_pitch,
+      fill:true, backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 }]
+  },
+  options: Object.assign({}, commonLineOptions, {
+    scales:{ x:{ type:'linear', position:'bottom', min:d.start1-.1, max:d.end1+.1, title:{ display:true, text:'Time (s)' }}, y:{ title:{ display:true, text:'Pitch (Hz)' }}},
+    plugins:{ annotation:{ annotations: makeAnnotations(d.Native_mora_values, d.mora_labels, 'rgba(192,61,32,.6)') }, legend:{ display:false } }
+  })
+});
+
+// Native Phoneme
+new Chart(document.getElementById('NativePhonemeChart').getContext('2d'), {
+  type:'line', data:{ labels:d.Native_time,
+    datasets:[{ label:'SampleVoice', data:d.Native_pitch,
+      fill:true, backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 }]
+  },
+  options: Object.assign({}, commonLineOptions, {
+    scales:{ x:{ type:'linear', position:'bottom', min:d.start1-.1, max:d.end1+.1, title:{ display:true, text:'Time (s)' }}, y:{ title:{ display:true, text:'Pitch (Hz)' }}},
+    plugins:{ annotation:{ annotations: makeAnnotations(d.Native_phoneme_values, d.phoneme_labels, 'rgba(192,61,32,.6)') }, legend:{ display:false } }
+  })
+});
+
+// User Mora
+new Chart(document.getElementById('UserMoraChart').getContext('2d'), {
+  type:'line', data:{ labels:d.User_time,
+    datasets:[{ label:'YourVoice', data:d.User_pitch,
+      fill:true, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }]
+  },
+  options: Object.assign({}, commonLineOptions, {
+    scales:{ x:{ type:'linear', position:'bottom', min:d.start2-.1, max:d.end2+.1, title:{ display:true, text:'Time (s)' }}, y:{ title:{ display:true, text:'Pitch (Hz)' }}},
+    plugins:{ annotation:{ annotations: makeAnnotations(d.User_mora_values, d.mora_labels, 'rgba(42,130,130,.7)') }, legend:{ display:false } }
+  })
+});
+
+// User Phoneme
+new Chart(document.getElementById('UserPhonemeChart').getContext('2d'), {
+  type:'line', data:{ labels:d.User_time,
+    datasets:[{ label:'YourVoice', data:d.User_pitch,
+      fill:true, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }]
+  },
+  options: Object.assign({}, commonLineOptions, {
+    scales:{ x:{ type:'linear', position:'bottom', min:d.start2-.1, max:d.end2+.1, title:{ display:true, text:'Time (s)' }}, y:{ title:{ display:true, text:'Pitch (Hz)' }}},
+    plugins:{ annotation:{ annotations: makeAnnotations(d.User_phoneme_values, d.phoneme_labels, 'rgba(42,130,130,.7)') }, legend:{ display:false } }
+  })
+});
+
+// Pitch Compare
+new Chart(document.getElementById('PitchLengthChart').getContext('2d'), {
+  type:'line', data:{ labels:d.x_axis,
+    datasets:[
+      { label:'SampleVoice', data:d.pitch_fin,  backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 },
+      { label:'YourVoice',   data:d.pitch_fin2, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }
+    ]
+  },
+  options: Object.assign({}, commonLineOptions, {
+    scales:{ x:{ min:-5, type:'linear', position:'bottom', title:{ display:true, text:'Value' }}, y:{ title:{ display:true, text:'Normalized Pitch' }}},
+    plugins:{ annotation:{ annotations: makeAnnotations(d.mora_values, d.mora_labels, 'rgba(192,61,32,.5)') } }
+  })
+});
+
+// Length bar charts
+var palette = ['rgba(75,192,192,.7)','rgba(255,99,132,.7)','rgba(255,205,86,.7)','rgba(153,102,255,.7)','rgba(255,159,64,.7)'];
+function genDatasets(lbls, data) {
+  return lbls.map(function(l, i) {
+    return { label:l, data:data.map(function(v){ return v[i]; }), backgroundColor:palette[i % palette.length], borderWidth:0 };
   });
-})();
+}
 
-/* ── 2. Native Phoneme Chart ── */
-(function() {
-  var d = templateData;
-  var annotations = d.Native_phoneme_values.map(function(v, i) {
-    return { type:'line', scaleID:'x', value:v, borderColor:'rgba(192,61,32,.6)', borderWidth:1,
-      label:{ content:d.phoneme_labels[i], enabled:true, position:'top', font:{size:11} } };
-  });
+new Chart(document.getElementById('groupedBarChart1').getContext('2d'), {
+  type:'bar',
+  data:{ labels:['SampleVoice','YourVoice'], datasets: genDatasets(d.mora_labels, [d.Native_mora_length, d.User_mora_length]) },
+  options:{ indexAxis:'y', responsive:true,
+    scales:{ x:{ max:100, stacked:true, title:{ display:true, text:'Percentage (%)' }}, y:{ stacked:true }},
+    plugins:{ datalabels:{ formatter:function(v, ctx){ return ctx.dataset.label; }, font:{ size:11 } } }
+  },
+  plugins:[ChartDataLabels]
+});
 
-  new Chart(document.getElementById('NativePhonemeChart').getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: d.Native_time,
-      datasets: [{ label:'SampleVoice', data:d.Native_pitch,
-        fill:true, backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 }]
-    },
-    options: Object.assign({}, commonLineOptions, {
-      scales: {
-        x: { type:'linear', position:'bottom', min:d.start1-.1, max:d.end1+.1, title:{ display:true, text:'Time (s)' } },
-        y: { title:{ display:true, text:'Pitch (Hz)' } }
-      },
-      plugins: { annotation:{ annotations:annotations }, legend:{ display:false } }
-    })
-  });
-})();
+new Chart(document.getElementById('groupedBarChart2').getContext('2d'), {
+  type:'bar',
+  data:{ labels:['SampleVoice','YourVoice'], datasets: genDatasets(d.phoneme_labels, [d.Native_phoneme_length, d.User_phoneme_length]) },
+  options:{ indexAxis:'y', responsive:true,
+    scales:{ x:{ max:100, stacked:true, title:{ display:true, text:'Percentage (%)' }}, y:{ stacked:true }},
+    plugins:{ datalabels:{ formatter:function(v, ctx){ return ctx.dataset.label; }, font:{ size:11 } } }
+  },
+  plugins:[ChartDataLabels]
+});
 
-/* ── 3. User Mora Chart ── */
-(function() {
-  var d = templateData;
-  var annotations = d.User_mora_values.map(function(v, i) {
-    return { type:'line', scaleID:'x', value:v, borderColor:'rgba(42,130,130,.7)', borderWidth:1,
-      label:{ content:d.mora_labels[i], enabled:true, position:'top', font:{size:11} } };
-  });
-
-  new Chart(document.getElementById('UserMoraChart').getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: d.User_time,
-      datasets: [{ label:'YourVoice', data:d.User_pitch,
-        fill:true, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }]
-    },
-    options: Object.assign({}, commonLineOptions, {
-      scales: {
-        x: { type:'linear', position:'bottom', min:d.start2-.1, max:d.end2+.1, title:{ display:true, text:'Time (s)' } },
-        y: { title:{ display:true, text:'Pitch (Hz)' } }
-      },
-      plugins: { annotation:{ annotations:annotations }, legend:{ display:false } }
-    })
-  });
-})();
-
-/* ── 4. User Phoneme Chart ── */
-(function() {
-  var d = templateData;
-  var annotations = d.User_phoneme_values.map(function(v, i) {
-    return { type:'line', scaleID:'x', value:v, borderColor:'rgba(42,130,130,.7)', borderWidth:1,
-      label:{ content:d.phoneme_labels[i], enabled:true, position:'top', font:{size:11} } };
-  });
-
-  new Chart(document.getElementById('UserPhonemeChart').getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: d.User_time,
-      datasets: [{ label:'YourVoice', data:d.User_pitch,
-        fill:true, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }]
-    },
-    options: Object.assign({}, commonLineOptions, {
-      scales: {
-        x: { type:'linear', position:'bottom', min:d.start2-.1, max:d.end2+.1, title:{ display:true, text:'Time (s)' } },
-        y: { title:{ display:true, text:'Pitch (Hz)' } }
-      },
-      plugins: { annotation:{ annotations:annotations }, legend:{ display:false } }
-    })
-  });
-})();
-
-/* ── 5. Pitch Compare ── */
-(function() {
-  var d = templateData;
-  var annotations = d.mora_values.map(function(v, i) {
-    return { type:'line', scaleID:'x', value:v, borderColor:'rgba(192,61,32,.5)', borderWidth:1,
-      label:{ content:d.mora_labels[i], enabled:true, position:'top', font:{size:11} } };
-  });
-
-  new Chart(document.getElementById('PitchLengthChart').getContext('2d'), {
-    type: 'line',
-    data: {
-      labels: d.x_axis,
-      datasets: [
-        { label:'SampleVoice', data:d.pitch_fin, backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 },
-        { label:'YourVoice',   data:d.pitch_fin2, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }
-      ]
-    },
-    options: Object.assign({}, commonLineOptions, {
-      scales: {
-        x: { min:-5, type:'linear', position:'bottom', title:{ display:true, text:'Value' } },
-        y: { title:{ display:true, text:'Normalized Pitch' } }
-      },
-      plugins: { annotation:{ annotations:annotations } }
-    })
-  });
-})();
-
-/* ── 6. Mora Length Bar ── */
-(function() {
-  var d = templateData;
-  var palette = ['rgba(75,192,192,.7)','rgba(255,99,132,.7)','rgba(255,205,86,.7)','rgba(153,102,255,.7)','rgba(255,159,64,.7)'];
-
-  function genDatasets(lbls, data) {
-    return lbls.map(function(l, i) {
-      return { label:l, data:data.map(function(v){ return v[i]; }), backgroundColor:palette[i % palette.length], borderWidth:0 };
-    });
+// DTW
+var ctx = document.getElementById('DistanceChart').getContext('2d');
+new Chart(ctx, {
+  type:'bar',
+  data:{ labels:d.words, datasets:[{ data:d.sort_distance, backgroundColor:d.bar_color, borderWidth:0, borderRadius:4 }] },
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    scales:{ x:{ title:{ display:true, text:'DTW Distance' }}, y:{ ticks:{ autoSkip:false, font:{ size:11 } } } },
+    plugins:{ legend:{ display:false }, datalabels:{ display:false } }
   }
-
-  new Chart(document.getElementById('groupedBarChart1').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: ['SampleVoice', 'YourVoice'],
-      datasets: genDatasets(d.mora_labels, [d.Native_mora_length, d.User_mora_length])
-    },
-    options: {
-      indexAxis:'y', responsive:true,
-      scales: { x: { max:100, stacked:true, title:{ display:true, text:'Percentage (%)' } }, y: { stacked:true } },
-      plugins: { datalabels:{ formatter:function(v, ctx){ return ctx.dataset.label; }, font:{ size:11 } } }
-    },
-    plugins: [ChartDataLabels]
-  });
-})();
-
-/* ── 7. Phoneme Length Bar ── */
-(function() {
-  var d = templateData;
-  var palette = ['rgba(75,192,192,.7)','rgba(255,99,132,.7)','rgba(255,205,86,.7)','rgba(153,102,255,.7)','rgba(255,159,64,.7)'];
-
-  function genDatasets(lbls, data) {
-    return lbls.map(function(l, i) {
-      return { label:l, data:data.map(function(v){ return v[i]; }), backgroundColor:palette[i % palette.length], borderWidth:0 };
-    });
-  }
-
-  new Chart(document.getElementById('groupedBarChart2').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: ['SampleVoice', 'YourVoice'],
-      datasets: genDatasets(d.phoneme_labels, [d.Native_phoneme_length, d.User_phoneme_length])
-    },
-    options: {
-      indexAxis:'y', responsive:true,
-      scales: { x: { max:100, stacked:true, title:{ display:true, text:'Percentage (%)' } }, y: { stacked:true } },
-      plugins: { datalabels:{ formatter:function(v, ctx){ return ctx.dataset.label; }, font:{ size:11 } } }
-    },
-    plugins: [ChartDataLabels]
-  });
-})();
-
-/* ── 8. DTW Distance Chart ── */
-(function() {
-  var d = templateData;
-  var ctx = document.getElementById('DistanceChart').getContext('2d');
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: d.words,
-      datasets: [{ data:d.sort_distance, backgroundColor:d.bar_color, borderWidth:0, borderRadius:4 }]
-    },
-    options: {
-      indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      scales: { x: { title:{ display:true, text:'DTW Distance' } }, y: { ticks:{ autoSkip:false, font:{ size:11 } } } },
-      plugins: { legend:{ display:false }, datalabels:{ display:false } }
-    }
-  });
-  document.getElementById('DistanceChart').style.height = '640px';
-})();
+});
+document.getElementById('DistanceChart').style.height = '640px';
 </script>
 </body>
 </html>

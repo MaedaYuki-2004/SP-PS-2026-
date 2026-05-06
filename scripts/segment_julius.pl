@@ -46,10 +46,18 @@ $leave_dict_flag=0;
 $debug_flag=0;
 
 ## julius executable
-if ($^O =~ /MSWin/){
-    $juliusbin=".\\bin\\julius-4.3.1.exe";
+## 環境変数 JULIUS_BIN が設定されていればそれを優先する
+## （Python側の config.py で自動検出したパスを受け取る）
+## 優先順位：
+##   1. 環境変数 JULIUS_BIN（Python側で設定）
+##   2. Windows の場合は engine/bin/ 以下の exe
+##   3. macOS/Linux の場合は /usr/local/bin/julius
+if (defined $ENV{JULIUS_BIN} && $ENV{JULIUS_BIN} ne "") {
+    $juliusbin = $ENV{JULIUS_BIN};
+} elsif ($^O =~ /MSWin/) {
+    $juliusbin = ".\\bin\\julius-4.3.1.exe";
 } else {
-    $juliusbin="/usr/local/bin/julius";
+    $juliusbin = "/usr/local/bin/julius";
 }
 
 ## acoustic model
@@ -490,4 +498,3 @@ sub yomi2voca {
 
     return $_;
 }
-    
