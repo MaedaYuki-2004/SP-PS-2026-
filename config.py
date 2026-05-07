@@ -47,22 +47,30 @@ PERL_SCRIPT_PATH = SCRIPTS_DIR / "segment_julius.pl"
 # ── Julius バイナリの自動検出 ─────────────────────────────────────────
 # 優先順位：
 #   1. 環境変数 JULIUS_BIN（手動設定）
-#   2. Apple Silicon Mac の Homebrew パス
-#   3. Intel Mac / Linux の Homebrew パス
-#   4. PATH 検索（which julius）
-#   5. フォールバック（エラーは実行時に発生）
-def _detect_julius() -> str:
+#   2. Windows の場合は engine/bin/ 以下の exe を自動検出
+#   3. Apple Silicon Mac の Homebrew パス
+#   4. Intel Mac / Linux の Homebrew パス
+#   5. PATH 検索（which julius）
+#   6. 見つからない場合は None（Perl スクリプトのデフォルトに任せる）
+def _detect_julius() -> str | None:
     if env := os.environ.get("JULIUS_BIN"):
         return env
+    # Windows: engine/bin/ 以下の julius*.exe を自動検出
+    if os.name == "nt":
+        bin_dir = BASE_DIR / "engine" / "bin"
+        if bin_dir.exists():
+            for exe in bin_dir.glob("julius*.exe"):
+                return str(exe)
     for candidate in [
         "/opt/homebrew/bin/julius",  # Apple Silicon Mac
         "/usr/local/bin/julius",     # Intel Mac / Linux
     ]:
         if Path(candidate).is_file():
             return candidate
-    return shutil.which("julius") or "julius"
+    found = shutil.which("julius")
+    return found  # 見つからない場合は None（Perl のデフォルトに任せる）
 
-JULIUS_BIN_PATH: str = _detect_julius()
+JULIUS_BIN_PATH: str | None = _detect_julius()
 
 # ── アップロード許可拡張子 ────────────────────────────────────────────
 ALLOWED_EXTENSIONS = {".wav"}

@@ -211,7 +211,9 @@ Notice for feature extraction (01),
 ------
 ### read waveform input
 Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word32.wav
-Warning: strip: sample 1891-1930 has zero value, stripped
+Warning: strip: sample 0-7999 has zero value, stripped
+Warning: strip: sample 9891-9930 has zero value, stripped
+Warning: strip: sample 30187-38186 is invalid, stripped
 STAT: 22147 samples (1.38 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)

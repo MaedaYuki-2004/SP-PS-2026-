@@ -217,7 +217,8 @@ def audio_analysis():
         segment_audio(audio_learn, start2, end2)
 
         # ── DTW 音色評価 ──────────────────────────────────────────
-        dtw_list, word_list, colors, _ = dtw_ascending_order(audio_learn_edit, num)
+        # words_db 全単語と比較し上位10件を返す
+        dtw_list, word_list, colors, _ = dtw_ascending_order(audio_learn_edit, word_id)
 
         # ── 発音スコア算出 ────────────────────────────────────────
         word_entry = get_word(word_id)
