@@ -9,14 +9,14 @@ Stat: init_phmm: base phones:    43 used in logical
 Stat: init_phmm: finished reading HMM definitions
 STAT: *** AM00 _default loaded
 STAT: *** loading LM00 _default
-STAT: reading [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word31.dfa] and [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word31.dict]...
+STAT: reading [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word36.dfa] and [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word36.dict]...
 Stat: init_voca: read 3 words
 STAT: done
-STAT: Gram #0 word31 registered
-STAT: Gram #0 word31: new grammar loaded, now mash it up for recognition
-STAT: Gram #0 word31: extracting category-pair constraint for the 1st pass
-STAT: Gram #0 word31: installed
-STAT: Gram #0 word31: turn on active
+STAT: Gram #0 word36 registered
+STAT: Gram #0 word36: new grammar loaded, now mash it up for recognition
+STAT: Gram #0 word36: extracting category-pair constraint for the 1st pass
+STAT: Gram #0 word36: installed
+STAT: Gram #0 word36: turn on active
 STAT: grammar update completed
 STAT: *** LM00 _default loaded
 STAT: ------
@@ -62,8 +62,8 @@ Configuration of Modules
  Language Model:
  - LM00 "_default"
 	grammar #1:
-	    dfa  = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word31.dfa
-	    dict = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word31.dict
+	    dfa  = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word36.dfa
+	    dict = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word36.dict
 
  Recognizer:
  - SR00 "_default" (AM00, LM00)
@@ -210,37 +210,37 @@ Notice for feature extraction (01),
 
 ------
 ### read waveform input
-Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word31.wav
+Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word36.wav
 Warning: strip: sample 0-7999 has zero value, stripped
-Warning: strip: sample 24384-32383 is invalid, stripped
-STAT: 16384 samples (1.02 sec.)
+Warning: strip: sample 23189-31188 is invalid, stripped
+STAT: 15189 samples (0.95 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
-pass1_best_phonemeseq: silB | k e N k o u | silE
-pass1_best_score: -2745.767578
+pass1_best_phonemeseq: silB | k o u ts u u | silE
+pass1_best_score: -2654.099609
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 100
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 93
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
-phseq1: silB | k e N k o u | silE
+phseq1: silB | k o u ts u u | silE
 cmscore1: 1.000 1.000 1.000
-score1: -2745.770752
+score1: -2654.101807
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   15]  -27.739960  silB
-[  16   21]  -29.864603  k
-[  22   37]  -26.275696  e
-[  38   53]  -29.463371  N
-[  54   61]  -30.702087  k
-[  62   64]  -29.030151  o
-[  65   67]  -27.551514  u
-[  68   99]  -25.486057  silE
-re-computed AM score: -2745.767578
+[   0   13]  -28.173740  silB
+[  14   18]  -29.962963  k
+[  19   36]  -27.990980  o
+[  37   46]  -28.818958  u
+[  47   54]  -31.336212  ts
+[  55   58]  -33.085632  u
+[  59   61]  -30.330282  u
+[  62   92]  -27.219423  silE
+re-computed AM score: -2654.099609
 === end forced alignment ===
 
 

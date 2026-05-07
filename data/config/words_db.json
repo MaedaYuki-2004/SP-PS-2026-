@@ -243,5 +243,19 @@
     "accent": 1,
     "accent_source": "mecab",
     "source": "tts"
+  },
+  "word36": {
+    "display": "交通",
+    "reading": "こうつう",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word37": {
+    "display": "ゲーム",
+    "reading": "げーむ",
+    "accent": 1,
+    "accent_source": "mecab",
+    "source": "tts"
   }
 }
