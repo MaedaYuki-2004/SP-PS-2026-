@@ -3,10 +3,11 @@ core/alignment.py
 Julius を用いた音素アライメント処理を担当するモジュール。
 Perl スクリプトの実行、lab / log ファイルの読み込みと解析をまとめる。
 
-【修正点】
-  - perl_run() の cwd を ENGINE_DIR に変更し、./models/ が正しく解決されるようにした。
-  - Julius バイナリパスを環境変数 JULIUS_BIN 経由で Perl スクリプトに渡す。
-  - mora_time() の欠落ケース（子音が末尾/子音が連続）を明示的に処理する。
+【変更点】
+  - extract_julius_score() を追加。
+    Julius の .log ファイルからアライメントの平均対数尤度を取得する。
+    スコアが低い（目安：-3000 以下）場合はアライメント失敗・
+    録音品質不良の可能性があるため、app.py 側で警告表示に活用できる。
 """
 from __future__ import annotations
 
@@ -14,6 +15,8 @@ import os
 import re
 import subprocess
 from pathlib import Path
+
+import numpy as np
 
 from config import (
     AUDIO_WAV_DIR,
@@ -208,3 +211,67 @@ def log_load(log_file: str | Path):
     phoneme_only  = phoneme_frame(phoneme_list2)
 
     return phoneme_list, phoneme_only, mora_list
+
+
+def extract_julius_score(log_file: str | Path) -> float | None:
+    """
+    Julius の .log ファイルからアライメントの平均対数尤度を取得する。
+
+    【スコアの解釈】
+    Julius のアライメントスコアは対数尤度（負の値）。
+    値が大きい（0 に近い）ほどアライメントが良好。
+
+      -1000 以上  : アライメント良好（信頼できる結果）
+      -1000〜-3000: アライメントやや不安定（軽度の音質問題の可能性）
+      -3000 以下  : アライメント不安定（録音品質問題・静音区間の可能性大）
+
+    【使用例（app.py 側）】
+        julius_score = extract_julius_score(log_learn)
+        if julius_score is not None and julius_score < -3000:
+            # score_result に警告フラグを追加するなど
+            score_result["alignment_warning"] = True
+
+    Parameters
+    ----------
+    log_file : Julius が出力した .log ファイルパス
+
+    Returns
+    -------
+    float | None : 全アライメント音素の平均スコア。
+                   スコアが取得できなかった場合は None。
+    """
+    log_path = Path(log_file)
+    if not log_path.exists():
+        return None
+
+    in_alignment = False
+    scores: list[float] = []
+
+    with log_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if "begin forced alignment" in line:
+                in_alignment = True
+            elif "end forced alignment" in line:
+                in_alignment = False
+
+            if not in_alignment or "[" not in line:
+                continue
+
+            # Julius ログの形式:
+            #   [  0  5] -1234.56 silB
+            #   [  6 12]  -234.56 sh
+            # "]" の直後の数値（負の浮動小数点）がスコア
+            m = re.search(r"\]\s*([-\d.]+)", line)
+            if m:
+                try:
+                    score_val = float(m.group(1))
+                    # silB / silE は除外（発話部分のみ評価）
+                    if "silB" not in line and "silE" not in line:
+                        scores.append(score_val)
+                except ValueError:
+                    pass
+
+    if not scores:
+        return None
+
+    return round(float(np.mean(scores)), 2)

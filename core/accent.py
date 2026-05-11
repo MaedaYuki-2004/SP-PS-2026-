@@ -68,7 +68,7 @@ def get_accent(display: str) -> tuple[int | None, str]:
 # ── VOICEVOX 音声生成 ─────────────────────────────────────────────────
 
 VOICEVOX_URL = "http://127.0.0.1:50021"
-VOICEVOX_SPEAKER = 1  # ずんだもん（変更可）
+VOICEVOX_SPEAKER = 11  # ずんだもん（変更可）
 
 
 def is_voicevox_running() -> bool:

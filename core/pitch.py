@@ -2,10 +2,18 @@
 core/pitch.py
 ピッチ（基本周波数）の抽出・補間・スムージング・正規化を担当するモジュール。
 
-【重要】Praatのフレームレートとjuliusのフレームレートについて
-  Praatは独自の分析窓でF0を推定するため、フレーム番号がJuliusの
-  10msフレームと一致しない。resample_to_10ms() でPraatピッチを
-  10msグリッドに揃えてからJuliusフレーム番号をインデックスとして使うこと。
+【変更点】
+  smooth() のデフォルト window を 5（50ms）→ 3（30ms）に短縮。
+
+  【理由】
+  日本語のアクセント変化はモーラ境界で急激に起きる。
+  window=5（50ms）では境界が平滑化されすぎてアクセント核の検出が甘くなる。
+  window=3（30ms）の方が境界の立ち上がり・立ち下がりが鮮明になり、
+  detect_accent_nucleus() の精度が向上する。
+
+  表示用グラフ（pitch_native, pitch_learn）はHzのまま window=5 を使い、
+  スコア計算用（pitch_fin, pitch_fin2）は window=3 を使う。
+  app.py 側で window 引数を明示的に渡すことで使い分けが可能。
 """
 from __future__ import annotations
 
@@ -31,6 +39,36 @@ def librosa_pitch(sound_file: str) -> tuple[list[float], list[float]]:
     return f0.tolist(), librosa.times_like(f0).tolist()
 
 
+def estimate_pitch_range(
+    sound_file: str,
+    percentile_low:  float = 10.0,
+    percentile_high: float = 90.0,
+    margin_low:      float = 0.75,
+    margin_high:     float = 1.50,
+) -> tuple[float, float]:
+    """
+    音声ファイルから話者のピッチ範囲を自動推定し、
+    Praat に渡す (pitch_floor, pitch_ceiling) を返す。
+    """
+    snd        = parselmouth.Sound(sound_file)
+    pitch_wide = snd.to_pitch_ac(pitch_floor=50.0, pitch_ceiling=700.0)
+    values     = pitch_wide.selected_array["frequency"].copy()
+    voiced     = values[values > 0]
+
+    if len(voiced) < 10:
+        return PITCH_FLOOR_DEFAULT, PITCH_CEILING_DEFAULT
+
+    p_low   = np.percentile(voiced, percentile_low)
+    p_high  = np.percentile(voiced, percentile_high)
+    floor   = max(50.0,  p_low  * margin_low)
+    ceiling = min(700.0, p_high * margin_high)
+
+    if floor >= ceiling:
+        return PITCH_FLOOR_DEFAULT, PITCH_CEILING_DEFAULT
+
+    return round(floor, 1), round(ceiling, 1)
+
+
 def praat_pitch(
     sound_file: str,
     pitch_floor: float = PITCH_FLOOR_DEFAULT,
@@ -40,21 +78,9 @@ def praat_pitch(
 ) -> tuple[list[float], list[float]]:
     """
     Praat（parselmouth）で F0 を推定する。無声区間は NaN に置換する。
-
-    Parameters
-    ----------
-    sound_file         : 音声ファイルパス
-    pitch_floor        : ピッチ検出下限（Hz）
-                         男性：70Hz、女性：150Hz、デフォルト：70Hz
-    pitch_ceiling      : ピッチ検出上限（Hz）
-                         男性：200Hz、女性：400Hz、デフォルト：400Hz
-    silence_threshold  : 無音と判定する振幅閾値（デフォルト 0.01）
-                         Praatのデフォルトは 0.03。小さくすると小声でも検出可能。
-    voicing_threshold  : 有声と判定する閾値（デフォルト 0.3）
-                         Praatのデフォルトは 0.45。小さくするとNaNが減る。
-                         録音音量が小さい・マイクが遠い場合に下げると改善する。
+    pitch_floor / pitch_ceiling には estimate_pitch_range() の返り値を渡すこと。
     """
-    snd = parselmouth.Sound(sound_file)
+    snd   = parselmouth.Sound(sound_file)
     pitch = snd.to_pitch_ac(
         pitch_floor=pitch_floor,
         pitch_ceiling=pitch_ceiling,
@@ -72,38 +98,22 @@ def resample_to_10ms(
     pitch: list[float] | np.ndarray,
     times: list[float] | np.ndarray,
 ) -> np.ndarray:
-    """
-    Praatのピッチ配列をJuliusと同じ10msグリッドにリサンプリングする。
-
-    Praatは独自の分析窓でF0を推定するため、インデックスNがN×10msに
-    対応するとは限らない。このリサンプリング後は：
-        resampled[julius_frame_N] ≈ F0 at N×10ms
-    となるため、Juliusのフレーム番号を直接インデックスとして使える。
-
-    NaN（無声区間）は線形補間の対象外とし、最近傍フレームのNaN状態を
-    そのまま引き継ぐ。
-    """
+    """Praatのピッチ配列をJuliusと同じ10msグリッドにリサンプリングする。"""
     times_arr = np.array(times, dtype=float)
     pitch_arr = np.array(pitch, dtype=float)
-
     if len(times_arr) == 0:
         return pitch_arr
 
     duration  = times_arr[-1]
     n_frames  = int(duration / 0.01) + 1
-    grid      = np.arange(n_frames) * 0.01  # 10ms グリッド
-
-    nan_mask = np.isnan(pitch_arr)
-
-    # NaN以外の値のみ使って線形補間
+    grid      = np.arange(n_frames) * 0.01
+    nan_mask  = np.isnan(pitch_arr)
     valid_idx = ~nan_mask
+
     if not np.any(valid_idx):
         return np.full(n_frames, np.nan)
 
     resampled = np.interp(grid, times_arr[valid_idx], pitch_arr[valid_idx])
-
-    # 元のNaN区間に対応するグリッド点にNaNを復元する
-    # （最近傍のPraatフレームがNaNならそのグリッド点もNaN）
     for gi, t in enumerate(grid):
         nearest_idx = int(np.argmin(np.abs(times_arr - t)))
         if nan_mask[nearest_idx]:
@@ -112,23 +122,42 @@ def resample_to_10ms(
     return resampled
 
 
+# ── Hz → 半音変換 ────────────────────────────────────────────────────
+
+def hz_to_semitone(
+    pitch: list[float] | np.ndarray,
+    ref_hz: float | None = None,
+) -> np.ndarray:
+    """ピッチ配列を Hz → 半音（semitone）スケールに変換する。"""
+    arr = np.array(pitch, dtype=float)
+    arr[arr == 0] = np.nan
+    valid_mask = ~np.isnan(arr)
+
+    if not np.any(valid_mask):
+        return arr
+    if ref_hz is None:
+        ref_hz = float(np.median(arr[valid_mask]))
+    if ref_hz <= 0:
+        return arr
+
+    result = np.full_like(arr, np.nan)
+    result[valid_mask] = 12.0 * np.log2(arr[valid_mask] / ref_hz)
+    return result
+
+
 # ── NaN 補間 ──────────────────────────────────────────────────────────
 
 def _graph_compensate(pitch: np.ndarray, idx: int, count: int) -> np.ndarray:
-    """NaN 区間を前後の値で線形補間する（内部ヘルパー）。"""
     n_space  = pitch[idx - 1: idx + count + 1]
     distance = n_space[-1] - n_space[0]
     diff     = distance / (count + 1)
     pitch[idx: idx + count] = np.linspace(
-        n_space[0] + diff,
-        n_space[0] + diff * count,
-        count,
+        n_space[0] + diff, n_space[0] + diff * count, count,
     )
     return pitch
 
 
 def _fill_internal_nan(pitch: np.ndarray) -> np.ndarray:
-    """配列内部の NaN 区間を線形補間する。"""
     idx = 0
     while idx < len(pitch):
         if np.isnan(pitch[idx]):
@@ -145,7 +174,6 @@ def _fill_internal_nan(pitch: np.ndarray) -> np.ndarray:
 
 
 def _fill_edge_nan(pitch: np.ndarray) -> np.ndarray:
-    """配列の先頭・末尾の NaN を隣接値で埋める。"""
     if not len(pitch):
         return pitch
     idx = 0
@@ -173,8 +201,22 @@ def comp(pitch: list[float] | np.ndarray) -> np.ndarray:
 
 # ── スムージング・正規化 ───────────────────────────────────────────────
 
-def smooth(pitch: list[float] | np.ndarray, window: int = 5) -> np.ndarray:
-    """移動平均でピッチ曲線をスムージングする。"""
+def smooth(
+    pitch: list[float] | np.ndarray,
+    window: int = 3,
+) -> np.ndarray:
+    """
+    移動平均でピッチ曲線をスムージングする。
+
+    【window のデフォルト変更：5 → 3】
+    日本語アクセントの変化はモーラ境界で急激に起きるため、
+    window=5（50ms）では境界が平滑化されすぎる。
+    window=3（30ms）の方がアクセント核の検出精度が向上する。
+
+    使い分け：
+      スコア計算用（pitch_fin, pitch_fin2）→ window=3（デフォルト）
+      表示用グラフ（pitch_native, pitch_learn）→ window=5 を明示的に指定
+    """
     arr = np.array(pitch, dtype=float)
     if not len(arr):
         return arr
@@ -196,6 +238,27 @@ def scale(values: list[float] | np.ndarray) -> np.ndarray:
     return (arr - mn) / (mx - mn)
 
 
+def normalize_zscore(
+    values: list[float] | np.ndarray,
+    clip_sigma: float = 2.5,
+) -> np.ndarray:
+    """
+    Z-score 正規化（0〜1）。外れ値に対してロバスト。
+    半音変換後は scale() で十分なため、通常は使用しない。
+    特に外れ値が多い録音環境での代替手段として残しておく。
+    """
+    arr = np.array(values, dtype=float)
+    if not len(arr):
+        return arr
+    mean = np.mean(arr)
+    std  = np.std(arr)
+    if std == 0:
+        return np.zeros_like(arr)
+    z         = (arr - mean) / std
+    z_clipped = np.clip(z, -clip_sigma, clip_sigma)
+    return (z_clipped + clip_sigma) / (2.0 * clip_sigma)
+
+
 # ── 長さ整合 ──────────────────────────────────────────────────────────
 
 def length_arrange(
@@ -203,14 +266,7 @@ def length_arrange(
     phoneme1: list,
     phoneme2: list,
 ) -> np.ndarray:
-    """
-    phoneme1（基準）の各音素長に合わせて pitch（録音側）を伸縮する。
-    音素数が一致しない場合は共通する件数で打ち切る。
-
-    【前提】pitch は resample_to_10ms() 済みの10msグリッド配列であること。
-    phoneme1・phoneme2 はともにJuliusの相対フレーム番号（0始まり）であること。
-    これにより「フレーム番号 = 配列インデックス」が保証される。
-    """
+    """phoneme1（基準）の各音素長に合わせて pitch（録音側）を伸縮する。"""
     pitch_arr = np.array(pitch, dtype=float)
     usable    = min(len(phoneme1), len(phoneme2))
     if usable == 0:
@@ -226,7 +282,7 @@ def length_arrange(
         if dif > 0:
             chunk = np.append(chunk, np.full(dif, np.nan))
         elif dif < 0:
-            cut = abs(dif)
+            cut   = abs(dif)
             chunk = chunk[cut:] if i == 0 else chunk[:len(chunk) - cut]
 
         result = chunk if i == 0 else np.concatenate([result, chunk])

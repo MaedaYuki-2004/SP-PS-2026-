@@ -4,8 +4,12 @@ core/timbre.py
 librosa で MFCC を算出し、fastdtw で基準音声との類似度を評価する。
 
 【変更点】
-  - words_db.json に登録された全単語を動的に比較対象とする
-  - 結果を上位 TOP_N 件に絞って返す
+  - audio_mfcc() に Delta MFCC（Δ・ΔΔ）を追加。
+    静的MFCC（12次元）＋ Δ（12次元）＋ ΔΔ（12次元）= 計36次元に変更。
+    時間的な変化（音の動き）も捉えられるため DTW の比較精度が向上する。
+
+  ⚠️ 重要：この変更により既存の .bin ファイル（12次元）は非互換になる。
+  　　　　　python scripts/regenerate_mfcc.py を必ず再実行すること。
 """
 from __future__ import annotations
 
@@ -18,22 +22,49 @@ from scipy.spatial.distance import euclidean
 
 from config import AUDIO_MFCC_DIR
 
+# ── MFCC 次元数 ──────────────────────────────────────────────────────
+# 静的MFCC(12) + Δ(12) + ΔΔ(12) = 36 次元
+# ※ 0次元（エネルギー）は各成分から除外するため n_mfcc=13 から 1 を引いた 12
+MFCC_STATIC_DIMS = 12
+MFCC_TOTAL_DIMS  = MFCC_STATIC_DIMS * 3  # 36
+
 # 表示する上位件数
 TOP_N = 20
 
 
 def audio_mfcc(wav_file: str | Path) -> np.ndarray:
     """
-    WAV ファイルから MFCC（12 次元、1 次元目を除く）を抽出する。
+    WAV ファイルから MFCC + Δ + ΔΔ（計36次元）を抽出する。
+
+    【次元構成】
+      - 静的 MFCC （12次元）: スペクトル包絡の形状
+      - Δ  MFCC （12次元）: スペクトルの1階時間微分（変化の速さ）
+      - ΔΔ MFCC （12次元）: スペクトルの2階時間微分（変化の加速度）
+
+    従来の静的 MFCC だけでは音の「形」しか捉えられなかったが、
+    Δ・ΔΔ を追加することで音の「動き」も比較できる。
+    これにより DTW による音色類似度の精度が向上する。
 
     Returns
     -------
-    np.ndarray : shape (frames, 12)
+    np.ndarray : shape (frames, 36)
     """
     y, sr = librosa.load(str(wav_file), sr=None)
-    mfcc  = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, n_fft=512, hop_length=160)
-    mfcc  = mfcc.T
-    return np.delete(mfcc, 0, axis=1)  # 0 次元（エネルギー）を除去
+
+    # ── 静的 MFCC ─────────────────────────────────────────────────
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, n_fft=512, hop_length=160)
+
+    # ── Δ（1階差分）・ΔΔ（2階差分） ────────────────────────────────
+    delta1 = librosa.feature.delta(mfcc, order=1)
+    delta2 = librosa.feature.delta(mfcc, order=2)
+
+    # ── (frames, 13) に転置してから 0次元（エネルギー）を除去 ────────
+    mfcc_T   = np.delete(mfcc.T,   0, axis=1)  # (frames, 12)
+    delta1_T = np.delete(delta1.T, 0, axis=1)  # (frames, 12)
+    delta2_T = np.delete(delta2.T, 0, axis=1)  # (frames, 12)
+
+    # ── 結合：(frames, 36) ─────────────────────────────────────────
+    return np.concatenate([mfcc_T, delta1_T, delta2_T], axis=1)
 
 
 def _load_all_words() -> list[dict]:
@@ -69,14 +100,22 @@ def create_dtw_list_dynamic(
 ) -> list[float]:
     """
     mfcc1 と words_db の全単語の MFCC バイナリとの DTW 距離リストを返す。
+
+    .bin ファイルは MFCC_TOTAL_DIMS（36）次元として読み込む。
+    regenerate_mfcc.py で再生成した .bin ファイルと次元数が一致すること。
     """
-    num_dims = 12
     dtw_list = []
 
     for entry in words:
-        mfcc2    = np.fromfile(str(entry["bin_path"]), dtype=np.float32).reshape(-1, num_dims)
-        distance, _ = fastdtw(mfcc1, mfcc2, dist=euclidean)
-        dtw_list.append(float(distance))
+        try:
+            mfcc2 = np.fromfile(
+                str(entry["bin_path"]), dtype=np.float32
+            ).reshape(-1, MFCC_TOTAL_DIMS)
+            distance, _ = fastdtw(mfcc1, mfcc2, dist=euclidean)
+            dtw_list.append(float(distance))
+        except Exception:
+            # 次元不一致などで読み込めない場合は最大距離扱い
+            dtw_list.append(float("inf"))
 
     return dtw_list
 
@@ -96,7 +135,7 @@ def dtw_ascending_order(
 
     Returns
     -------
-    dtw_list  : 昇順の DTW 距離リスト（上位 TOP_N + 選択単語）
+    dtw_list  : 昇順の DTW 距離リスト
     word_list : 対応する単語表示テキストリスト
     colors    : 棒グラフの色（選択単語="red", それ以外="blue"）
     red_index : 選択単語のインデックス
@@ -109,7 +148,7 @@ def dtw_ascending_order(
 
     dtw_list_raw = create_dtw_list_dynamic(mfcc1, words)
 
-    # 昇順ソート
+    # 昇順ソート（inf は末尾に）
     pairs = sorted(
         zip(dtw_list_raw, words),
         key=lambda x: x[0]
@@ -117,31 +156,24 @@ def dtw_ascending_order(
     sorted_distances = [p[0] for p in pairs]
     sorted_words     = [p[1] for p in pairs]
 
-    # 選択単語の位置を特定
     red_index_full = next(
         (i for i, w in enumerate(sorted_words) if w["word_id"] == word_id_selected),
         0
     )
 
-    # 上位 TOP_N 件を取得
     top_distances = sorted_distances[:TOP_N]
     top_words     = sorted_words[:TOP_N]
 
-    # 選択単語が上位 TOP_N に含まれない場合は末尾に追加
     selected_in_top = any(w["word_id"] == word_id_selected for w in top_words)
     if not selected_in_top:
         top_distances.append(sorted_distances[red_index_full])
         top_words.append(sorted_words[red_index_full])
 
-    # 表示用リストに変換
-    display_distances = top_distances
-    display_labels    = [w["display"] for w in top_words]
-
-    # 赤バーのインデックスを再計算
+    display_labels = [w["display"] for w in top_words]
     red_index = next(
         (i for i, w in enumerate(top_words) if w["word_id"] == word_id_selected),
         len(top_words) - 1
     )
     colors = ["red" if i == red_index else "blue" for i in range(len(top_words))]
 
-    return display_distances, display_labels, colors, red_index
+    return top_distances, display_labels, colors, red_index

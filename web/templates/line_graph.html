@@ -106,14 +106,50 @@
     .toggle-pill button.active-pill {
       background: var(--bg-card);
       color: var(--text);
-      box-shadow: var(--shadow-xs);
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
     }
     .chart-legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
     .legend-item  { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
     .legend-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .chart-wrap { position: relative; width: 100%; }
+    .chart-wrap   { position: relative; width: 100%; }
     .chart-wrap canvas { width: 100% !important; max-height: 400px; }
-    .chart-wrap-tall canvas { max-height: 680px; }
+
+    /* ── アライメント失敗パネル ── */
+    .alignment-fail-panel {
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .alignment-fail-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+    }
+    .alignment-fail-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    .alignment-fail-steps {
+      display: inline-block;
+      text-align: left;
+      background: var(--accent-bg);
+      border: 1px solid #f0c0b0;
+      border-radius: var(--r);
+      padding: 20px 28px;
+      margin: 16px auto;
+      font-size: 14px;
+      line-height: 2.0;
+      color: var(--text);
+    }
+    .alignment-fail-steps strong {
+      color: var(--accent);
+    }
+    .julius-score-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-family: var(--mono);
+    }
 
     /* ── スコアカード ── */
     .score-hero {
@@ -123,7 +159,7 @@
       border: 1px solid var(--border);
       border-radius: var(--r);
       margin-bottom: 16px;
-      box-shadow: var(--shadow-xs);
+      box-shadow: 0 2px 8px rgba(28,26,20,.08);
     }
     .score-grade {
       font-size: 72px;
@@ -136,22 +172,17 @@
     .grade-B { color: #2a6496; }
     .grade-C { color: #8a6d3b; }
     .grade-D { color: var(--text-muted); }
-
     .score-total {
       font-size: 28px;
       font-weight: 700;
       color: var(--text);
       margin-bottom: 4px;
     }
-    .score-total span {
-      font-size: 16px;
-      font-weight: 400;
-      color: var(--text-muted);
-    }
+    .score-total span { font-size: 16px; font-weight: 400; color: var(--text-muted); }
 
     .score-breakdown {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 12px;
       margin-top: 20px;
     }
@@ -170,16 +201,8 @@
       color: var(--text-muted);
       margin-bottom: 4px;
     }
-    .score-item-value {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text);
-    }
-    .score-item-max {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 400;
-    }
+    .score-item-value { font-size: 22px; font-weight: 700; color: var(--text); }
+    .score-item-max   { font-size: 12px; color: var(--text-muted); font-weight: 400; }
     .score-bar {
       height: 6px;
       background: var(--bg-muted);
@@ -187,11 +210,24 @@
       margin-top: 8px;
       overflow: hidden;
     }
-    .score-bar-fill {
-      height: 100%;
-      border-radius: 100px;
-      transition: width .6s ease;
+    .score-bar-fill { height: 100%; border-radius: 100px; transition: width .6s ease; }
+
+    .metrics-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 16px 0 0;
+      justify-content: center;
     }
+    .metric-badge {
+      background: var(--bg-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 5px 13px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .metric-badge strong { color: var(--text); font-weight: 600; }
 
     .feedback-card {
       background: var(--bg-card);
@@ -199,7 +235,7 @@
       border-radius: var(--r);
       padding: 20px;
       margin-bottom: 12px;
-      box-shadow: var(--shadow-xs);
+      box-shadow: 0 1px 3px rgba(28,26,20,.06);
     }
     .feedback-title {
       font-size: 12px;
@@ -209,11 +245,8 @@
       color: var(--text-muted);
       margin-bottom: 10px;
     }
-    .feedback-text {
-      font-size: 14px;
-      color: var(--text);
-      line-height: 1.7;
-    }
+    .feedback-text  { font-size: 14px; color: var(--text); line-height: 1.7; }
+    .feedback-note  { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
 
     .accent-pattern {
       display: flex;
@@ -221,21 +254,12 @@
       margin-top: 12px;
       flex-wrap: wrap;
     }
-    .mora-badge {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-    }
+    .mora-badge { display: flex; flex-direction: column; align-items: center; gap: 4px; }
     .mora-hl {
-      width: 32px;
-      height: 32px;
+      width: 32px; height: 32px;
       border-radius: var(--r-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
     }
     .mora-hl.H { background: var(--accent-bg); color: var(--accent); }
     .mora-hl.L { background: var(--bg-muted);  color: var(--text-muted); }
@@ -273,39 +297,84 @@
   <button class="sec-tab" onclick="showSection('timbre', this)">音色評価</button>
 </div>
 
-<!-- ── スコアタブ ── -->
+<!-- ── 発音スコアタブ ── -->
 <div id="sec-score" class="section-panel active">
-  <p class="panel-heading">発音スコア</p>
-  <p class="panel-sub">アクセント型とモーラの長さを基に評価しています。</p>
 
-  {% if score %}
+  {% if alignment_failed %}
+  <!-- アライメント失敗時：スコアを出さず再録音を促す -->
+  <div class="alignment-fail-panel">
+    <div class="alignment-fail-icon">🎙️</div>
+    <div class="alignment-fail-title">音声の解析に失敗しました</div>
+    <div class="alignment-fail-steps">
+      <strong>再録音のポイント：</strong><br>
+      ① マイクにしっかり近づく（10cm以内が理想）<br>
+      ② はっきりと、ゆっくり発音する<br>
+      ③ 静かな環境で録音する<br>
+      ④ 単語全体を一息で発音する
+    </div>
+    <div class="julius-score-note">
+      アライメントスコア：{{ julius_score if julius_score else "取得不可" }}
+      （目安：-3000 以上が正常）
+    </div>
+    <div style="margin-top:24px;">
+      <button class="btn btn-primary btn-lg" onclick="history.back()">
+        ← 録音画面に戻る
+      </button>
+    </div>
+  </div>
+
+  {% elif score %}
+  <!-- 通常評価 -->
+  <p class="panel-heading">発音スコア</p>
+  <p class="panel-sub">アクセント・モーラ長・母音品質を基に評価しています。</p>
+
   <div class="score-hero">
     <div class="score-grade grade-{{ score.grade }}">{{ score.grade }}</div>
     <div class="score-total">{{ score.total }} <span>/ 100点</span></div>
 
     <div class="score-breakdown">
       <div class="score-item">
-        <div class="score-item-label">アクセントスコア</div>
+        <div class="score-item-label">アクセント</div>
         <div class="score-item-value">
-          {{ score.accent_score }} <span class="score-item-max">/ 60</span>
+          {{ score.accent_score }} <span class="score-item-max">/ 50</span>
         </div>
         <div class="score-bar">
           <div class="score-bar-fill"
-               style="width:{{ (score.accent_score / 60 * 100)|round }}%;
-                      background:var(--accent);"></div>
+               style="width:{{ (score.accent_score / 50 * 100)|round }}%;background:var(--accent);"></div>
         </div>
       </div>
       <div class="score-item">
-        <div class="score-item-label">長さスコア</div>
+        <div class="score-item-label">モーラの長さ</div>
         <div class="score-item-value">
-          {{ score.length_score }} <span class="score-item-max">/ 40</span>
+          {{ score.length_score }} <span class="score-item-max">/ 30</span>
         </div>
         <div class="score-bar">
           <div class="score-bar-fill"
-               style="width:{{ (score.length_score / 40 * 100)|round }}%;
-                      background:var(--green);"></div>
+               style="width:{{ (score.length_score / 30 * 100)|round }}%;background:var(--green);"></div>
         </div>
       </div>
+      <div class="score-item">
+        <div class="score-item-label">母音の品質</div>
+        <div class="score-item-value">
+          {{ score.vowel_score }} <span class="score-item-max">/ 20</span>
+        </div>
+        <div class="score-bar">
+          <div class="score-bar-fill"
+               style="width:{{ (score.vowel_score / 20 * 100)|round }}%;background:#2a6496;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-row">
+      {% if speaking_rate and speaking_rate > 0 %}
+      <div class="metric-badge">発話速度 <strong>{{ speaking_rate }}モーラ/秒</strong></div>
+      {% endif %}
+      {% if voice_quality and voice_quality.jitter is not none %}
+      <div class="metric-badge">Jitter <strong>{{ voice_quality.jitter }}%</strong></div>
+      {% endif %}
+      {% if voice_quality and voice_quality.shimmer is not none %}
+      <div class="metric-badge">Shimmer <strong>{{ voice_quality.shimmer }}%</strong></div>
+      {% endif %}
     </div>
   </div>
 
@@ -331,11 +400,43 @@
     <div class="feedback-text">{{ score.length_feedback }}</div>
   </div>
 
+  <!-- 母音品質フィードバック -->
+  <div class="feedback-card">
+    <div class="feedback-title">母音の品質（口の形）</div>
+    <div class="feedback-text">{{ score.vowel_feedback }}</div>
+    <div class="feedback-note">F1/F2フォルマントをネイティブ音声と比較して評価しています。</div>
+  </div>
+
+  <!-- 有声フレーム比率 -->
+  {% if score.voiced_feedback %}
+  <div class="feedback-card">
+    <div class="feedback-title">声の明瞭さ</div>
+    <div class="feedback-text">{{ score.voiced_feedback }}</div>
+  </div>
+  {% endif %}
+
+  <!-- 発話速度フィードバック -->
+  {% if rate_feedback %}
+  <div class="feedback-card">
+    <div class="feedback-title">発話速度</div>
+    <div class="feedback-text">{{ rate_feedback }}</div>
+  </div>
+  {% endif %}
+
+  <!-- 声質フィードバック -->
+  {% if voice_quality and voice_quality.feedback %}
+  <div class="feedback-card">
+    <div class="feedback-title">声質</div>
+    <div class="feedback-text">{{ voice_quality.feedback }}</div>
+  </div>
+  {% endif %}
+
   {% else %}
   <div class="feedback-card">
     <div class="feedback-text">スコアを計算できませんでした。</div>
   </div>
   {% endif %}
+
 </div>
 
 <!-- ── ネイティブ音声 ── -->
@@ -497,7 +598,6 @@ function showSection(name, btn) {
   document.getElementById('sec-' + name).classList.add('active');
   btn.classList.add('active');
 }
-
 function setNativeView(view, btn) {
   document.getElementById('NativeMoraChart').style.display    = view === 'mora'    ? 'block' : 'none';
   document.getElementById('NativePhonemeChart').style.display = view === 'phoneme' ? 'block' : 'none';
@@ -524,7 +624,6 @@ function makeAnnotations(values, labels, color) {
   });
 }
 
-// Native Mora
 new Chart(document.getElementById('NativeMoraChart').getContext('2d'), {
   type:'line', data:{ labels:d.Native_time,
     datasets:[{ label:'SampleVoice', data:d.Native_pitch,
@@ -535,8 +634,6 @@ new Chart(document.getElementById('NativeMoraChart').getContext('2d'), {
     plugins:{ annotation:{ annotations: makeAnnotations(d.Native_mora_values, d.mora_labels, 'rgba(192,61,32,.6)') }, legend:{ display:false } }
   })
 });
-
-// Native Phoneme
 new Chart(document.getElementById('NativePhonemeChart').getContext('2d'), {
   type:'line', data:{ labels:d.Native_time,
     datasets:[{ label:'SampleVoice', data:d.Native_pitch,
@@ -547,8 +644,6 @@ new Chart(document.getElementById('NativePhonemeChart').getContext('2d'), {
     plugins:{ annotation:{ annotations: makeAnnotations(d.Native_phoneme_values, d.phoneme_labels, 'rgba(192,61,32,.6)') }, legend:{ display:false } }
   })
 });
-
-// User Mora
 new Chart(document.getElementById('UserMoraChart').getContext('2d'), {
   type:'line', data:{ labels:d.User_time,
     datasets:[{ label:'YourVoice', data:d.User_pitch,
@@ -559,8 +654,6 @@ new Chart(document.getElementById('UserMoraChart').getContext('2d'), {
     plugins:{ annotation:{ annotations: makeAnnotations(d.User_mora_values, d.mora_labels, 'rgba(42,130,130,.7)') }, legend:{ display:false } }
   })
 });
-
-// User Phoneme
 new Chart(document.getElementById('UserPhonemeChart').getContext('2d'), {
   type:'line', data:{ labels:d.User_time,
     datasets:[{ label:'YourVoice', data:d.User_pitch,
@@ -571,8 +664,6 @@ new Chart(document.getElementById('UserPhonemeChart').getContext('2d'), {
     plugins:{ annotation:{ annotations: makeAnnotations(d.User_phoneme_values, d.phoneme_labels, 'rgba(42,130,130,.7)') }, legend:{ display:false } }
   })
 });
-
-// Pitch Compare
 new Chart(document.getElementById('PitchLengthChart').getContext('2d'), {
   type:'line', data:{ labels:d.x_axis,
     datasets:[
@@ -581,19 +672,17 @@ new Chart(document.getElementById('PitchLengthChart').getContext('2d'), {
     ]
   },
   options: Object.assign({}, commonLineOptions, {
-    scales:{ x:{ min:-5, type:'linear', position:'bottom', title:{ display:true, text:'Value' }}, y:{ title:{ display:true, text:'Normalized Pitch' }}},
+    scales:{ x:{ min:-5, type:'linear', position:'bottom', title:{ display:true, text:'Frame' }}, y:{ title:{ display:true, text:'Normalized Pitch' }}},
     plugins:{ annotation:{ annotations: makeAnnotations(d.mora_values, d.mora_labels, 'rgba(192,61,32,.5)') } }
   })
 });
 
-// Length bar charts
 var palette = ['rgba(75,192,192,.7)','rgba(255,99,132,.7)','rgba(255,205,86,.7)','rgba(153,102,255,.7)','rgba(255,159,64,.7)'];
 function genDatasets(lbls, data) {
   return lbls.map(function(l, i) {
     return { label:l, data:data.map(function(v){ return v[i]; }), backgroundColor:palette[i % palette.length], borderWidth:0 };
   });
 }
-
 new Chart(document.getElementById('groupedBarChart1').getContext('2d'), {
   type:'bar',
   data:{ labels:['SampleVoice','YourVoice'], datasets: genDatasets(d.mora_labels, [d.Native_mora_length, d.User_mora_length]) },
@@ -603,7 +692,6 @@ new Chart(document.getElementById('groupedBarChart1').getContext('2d'), {
   },
   plugins:[ChartDataLabels]
 });
-
 new Chart(document.getElementById('groupedBarChart2').getContext('2d'), {
   type:'bar',
   data:{ labels:['SampleVoice','YourVoice'], datasets: genDatasets(d.phoneme_labels, [d.Native_phoneme_length, d.User_phoneme_length]) },
@@ -614,7 +702,6 @@ new Chart(document.getElementById('groupedBarChart2').getContext('2d'), {
   plugins:[ChartDataLabels]
 });
 
-// DTW
 var ctx = document.getElementById('DistanceChart').getContext('2d');
 new Chart(ctx, {
   type:'bar',

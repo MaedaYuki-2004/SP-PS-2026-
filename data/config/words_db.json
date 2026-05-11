@@ -257,5 +257,110 @@
     "accent": 1,
     "accent_source": "mecab",
     "source": "tts"
+  },
+  "word38": {
+    "display": "下校",
+    "reading": "げこう",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word39": {
+    "display": "病気",
+    "reading": "びょうき",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word40": {
+    "display": "研究",
+    "reading": "けんきゅう",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word41": {
+    "display": "卵",
+    "reading": "たまご",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word42": {
+    "display": "イヤホン",
+    "reading": "いやほん",
+    "accent": 2,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word43": {
+    "display": "こんにちは",
+    "reading": "こんにちは",
+    "accent": 5,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word44": {
+    "display": "通学",
+    "reading": "つうがく",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word45": {
+    "display": "温度",
+    "reading": "おんど",
+    "accent": 1,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word46": {
+    "display": "会計",
+    "reading": "かいけい",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word47": {
+    "display": "学校",
+    "reading": "がっこう",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word48": {
+    "display": "銀行",
+    "reading": "ぎんこう",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word49": {
+    "display": "スマホ",
+    "reading": "すまほ",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word50": {
+    "display": "挨拶",
+    "reading": "あいさつ",
+    "accent": 1,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word51": {
+    "display": "公園",
+    "reading": "こうえん",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
+  },
+  "word52": {
+    "display": "バスケ",
+    "reading": "ばすけ",
+    "accent": 1,
+    "accent_source": "mecab",
+    "source": "tts"
   }
 }

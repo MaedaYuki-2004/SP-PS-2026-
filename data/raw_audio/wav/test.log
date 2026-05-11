@@ -28,9 +28,9 @@ STAT: 1 MFCC modules created
 STAT: [2] create recognition processing instance(s) with AM and LM
 STAT: composing recognizer instance SR00 _default (AM00 _default, LM00 _default)
 STAT: Building HMM lexicon tree
-STAT: lexicon size: 18+0=18
+STAT: lexicon size: 21+0=21
 STAT: coordination check passed
-STAT: multi-gram: beam width set to 18 (guess) by lexicon change
+STAT: multi-gram: beam width set to 21 (guess) by lexicon change
 STAT: wchmm (re)build completed
 STAT: SR00 _default composed
 STAT: [3] initialize for acoustic HMM calculation
@@ -133,9 +133,9 @@ Language Model(s)
       category-pair matrix: 16 bytes (436 bytes allocated)
 
  Vocabulary Info:
-        vocabulary size  = 3 words, 6 models
-        average word len = 2.0 models, 6.0 states
-       maximum state num = 12 nodes per word
+        vocabulary size  = 3 words, 7 models
+        average word len = 2.3 models, 7.0 states
+       maximum state num = 15 nodes per word
        transparent words = not exist
        words under class = not exist
 
@@ -148,7 +148,7 @@ Recognizer(s)
 [SR00 "_default"]  AM00 "_default"  +  LM00 "_default"
 
  Lexicon tree:
-	 total node num =     18
+	 total node num =     21
 	  root node num =      3
 	  leaf node num =      3
 
@@ -158,7 +158,7 @@ Recognizer(s)
 
  Search parameters: 
 	    multi-path handling = no
-	(-b) trellis beam width = 18 (-1 or not specified - guessed)
+	(-b) trellis beam width = 21 (-1 or not specified - guessed)
 	(-bs)score pruning thres= disabled
 	(-n)search candidate num= 1
 	(-s)  search stack size = 500
@@ -211,53 +211,41 @@ Notice for feature extraction (01),
 ------
 ### read waveform input
 Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.wav
-Warning: strip: sample 5152-5170 has zero value, stripped
-Warning: strip: sample 5227-5386 has zero value, stripped
-Warning: strip: sample 5443-5469 has zero value, stripped
-Warning: strip: sample 5576-5609 has zero value, stripped
-Warning: strip: sample 5708-5750 has zero value, stripped
-Warning: strip: sample 5838-5891 has zero value, stripped
-Warning: strip: sample 5967-6035 has zero value, stripped
-Warning: strip: sample 6093-6186 has zero value, stripped
-Warning: strip: sample 6222-6300 has zero value, stripped
-Warning: strip: sample 6331-6349 has zero value, stripped
-Warning: strip: sample 6411-6433 has zero value, stripped
-Warning: strip: sample 6726-6753 has zero value, stripped
-Warning: strip: sample 6841-6871 has zero value, stripped
-Warning: strip: sample 6951-6989 has zero value, stripped
-Warning: strip: sample 7054-7117 has zero value, stripped
-Warning: strip: sample 7124-7298 has zero value, stripped
-Warning: strip: sample 7323-7445 has zero value, stripped
-Warning: strip: sample 7448-7581 has zero value, stripped
-Warning: strip: sample 7588-7701 has zero value, stripped
-Warning: strip: sample 7703-8827 has zero value, stripped
-Warning: strip: sample 8861-10828 has zero value, stripped
-STAT: 26554 samples (1.66 sec.)
+Warning: strip: sample 4416-4432 has zero value, stripped
+Warning: strip: sample 4475-6061 has zero value, stripped
+Warning: strip: sample 6063-6087 has zero value, stripped
+Warning: strip: sample 7407-7423 has zero value, stripped
+Warning: strip: sample 7457-7476 has zero value, stripped
+Warning: strip: sample 7490-7506 has zero value, stripped
+Warning: strip: sample 7520-7537 has zero value, stripped
+Warning: strip: sample 7539-9835 has zero value, stripped
+STAT: 21218 samples (1.33 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
-pass1_best_phonemeseq: silB | g e: m u | silE
-pass1_best_score: -4230.683105
+pass1_best_phonemeseq: silB | k o u e N | silE
+pass1_best_score: -3676.974365
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 164
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 131
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
-phseq1: silB | g e: m u | silE
+phseq1: silB | k o u e N | silE
 cmscore1: 1.000 1.000 1.000
-score1: -4230.688477
+score1: -3676.979492
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   48]  -30.314720  silB
-[  49   59]  -31.702625  g
-[  60  104]  -20.942371  e:
-[ 105  123]  -24.757338  m
-[ 124  150]  -23.206425  u
-[ 151  163]  -27.474102  silE
-re-computed AM score: -4230.683105
+[   0    2]  -34.935661  silB
+[   3   41]  -28.715191  k
+[  42   70]  -26.735735  o
+[  71   73]  -29.532349  u
+[  74   82]  -25.551432  e
+[  83  105]  -28.882685  N
+[ 106  130]  -27.763077  silE
+re-computed AM score: -3676.974365
 === end forced alignment ===
 
 
