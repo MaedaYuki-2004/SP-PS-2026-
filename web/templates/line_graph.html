@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>解析結果</title>
+  <title>解析結果 — {{ original_filename }} — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="static/css/base.css" rel="stylesheet">
@@ -11,708 +11,556 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
-    .results-header {
-      background: var(--bg-card);
-      border-bottom: 1px solid var(--border-lite);
-      padding: 20px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .results-title { font-size: 18px; font-weight: 700; color: var(--text); }
-    .results-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .results-header { background:var(--navy); padding:18px 32px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .results-word { font-size:24px; font-weight:700; color:#fff; }
+    .results-sub  { font-size:11px; color:rgba(255,255,255,.4); margin-top:2px; }
+    .delta-badge  { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:13px; font-weight:600; padding:5px 12px; border-radius:100px; }
+    .delta-up   { background:rgba(45,106,79,.3); color:#7fff9a; border:1px solid rgba(100,200,120,.3); }
+    .delta-down { background:rgba(192,61,32,.3); color:#ffb3a3; border:1px solid rgba(192,61,32,.3); }
 
-    .section-tabs {
-      display: flex;
-      gap: 4px;
-      padding: 16px 24px 0;
-      border-bottom: 1px solid var(--border-lite);
-      background: var(--bg-card);
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-    .section-tabs::-webkit-scrollbar { display: none; }
-    .sec-tab {
-      flex-shrink: 0;
-      padding: 10px 18px;
-      border: none;
-      background: none;
-      font-family: var(--font);
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-muted);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      transition: color 150ms ease, border-color 150ms ease;
-    }
-    .sec-tab:hover { color: var(--text); }
-    .sec-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-bar { display:flex; padding:0 32px; background:var(--bg-card); border-bottom:1px solid var(--border-light); overflow-x:auto; scrollbar-width:none; }
+    .tab-bar::-webkit-scrollbar { display:none; }
+    .sec-tab { flex-shrink:0; padding:13px 18px; border:none; background:none; font-family:var(--font); font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color 150ms,border-color 150ms; white-space:nowrap; }
+    .sec-tab:hover { color:var(--text-2); }
+    .sec-tab.active { color:var(--navy); border-bottom-color:var(--navy); }
 
-    .section-panel {
-      display: none;
-      padding: 24px;
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    .section-panel.active { display: block; }
-    .panel-heading { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-    .panel-sub     { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
+    .section-panel { display:none; padding:24px 32px; max-width:1040px; margin:0 auto; }
+    .section-panel.active { display:block; }
+    .panel-heading { font-size:17px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+    .panel-sub { font-size:12px; color:var(--text-3); margin-bottom:20px; }
 
-    .chart-card {
+    .chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:20px; box-shadow:var(--shadow-xs); margin-bottom:14px; }
+    .chart-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
+    .chart-label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .toggle-pill { display:inline-flex; background:var(--bg-muted); border-radius:100px; padding:3px; gap:2px; }
+    .toggle-pill button { font-family:var(--font); font-size:11px; font-weight:600; padding:5px 14px; border:none; border-radius:100px; cursor:pointer; background:transparent; color:var(--text-3); transition:background 120ms,color 120ms; }
+    .toggle-pill button.active-pill { background:var(--bg-card); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+    .chart-legend { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .legend-item  { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-3); }
+    .legend-dot   { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .chart-wrap   { position:relative; width:100%; }
+    .chart-wrap canvas { width:100%!important; max-height:360px; }
+
+    /* Fail */
+    .fail-panel { text-align:center; padding:56px 24px; }
+    .fail-pill { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; padding:4px 12px; border-radius:3px; background:var(--accent-bg); color:var(--accent); margin-bottom:14px; }
+    .fail-title { font-size:20px; font-weight:700; color:var(--accent); margin-bottom:12px; }
+    .fail-list { display:inline-block; text-align:left; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:20px 28px; font-size:14px; line-height:2.1; color:var(--text-2); }
+    .fail-score { font-family:var(--mono); font-size:11px; color:var(--text-3); margin-top:10px; }
+
+    /* Score layout */
+    .score-layout { display:grid; grid-template-columns:1fr 260px; gap:16px; margin-bottom:16px; }
+    .score-hero { background:var(--navy); border-radius:var(--r); padding:24px; text-align:center; position:relative; overflow:hidden; }
+    .score-hero::before { content:""; position:absolute; inset:0; background:radial-gradient(ellipse at 25% 60%,rgba(192,61,32,.15) 0%,transparent 55%); pointer-events:none; }
+    .score-grade { font-size:76px; font-weight:700; line-height:1; margin-bottom:8px; position:relative; }
+    .grade-S{color:#FBBF24;} .grade-A{color:#34D399;} .grade-B{color:#60A5FA;} .grade-C{color:#F87171;} .grade-D{color:#9CA3AF;}
+    .score-total { font-size:28px; font-weight:700; color:#fff; position:relative; }
+    .score-total span { font-size:14px; font-weight:400; color:rgba(255,255,255,.4); }
+    .score-breakdown { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:16px; position:relative; }
+    .score-item { background:rgba(255,255,255,.07); border-radius:var(--r-sm); padding:10px 12px; }
+    .score-item-label { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:4px; }
+    .score-item-value { font-size:18px; font-weight:700; color:#fff; }
+    .score-item-max { font-size:10px; font-weight:400; color:rgba(255,255,255,.35); }
+    .score-bar { height:3px; background:rgba(255,255,255,.1); border-radius:100px; margin-top:5px; overflow:hidden; }
+    .score-bar-fill { height:100%; border-radius:100px; }
+    .metrics-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; justify-content:center; position:relative; }
+    .metric-pill { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-radius:var(--r-sm); padding:3px 10px; font-size:10px; color:rgba(255,255,255,.5); }
+    .metric-pill strong { color:#fff; font-weight:600; }
+
+    /* Radar */
+    .radar-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:18px; display:flex; flex-direction:column; align-items:center; box-shadow:var(--shadow-xs); }
+    .radar-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; align-self:flex-start; }
+
+    /* Compare (F) */
+    .score-compare { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; margin-bottom:14px; box-shadow:var(--shadow-xs); }
+    .compare-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; }
+    .compare-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+    .compare-item { text-align:center; }
+    .compare-label { font-size:9px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); margin-bottom:3px; }
+    .compare-now  { font-family:var(--mono); font-size:16px; font-weight:500; color:var(--text); }
+    .compare-prev { font-family:var(--mono); font-size:10px; color:var(--text-3); }
+    .compare-delta { font-family:var(--mono); font-size:10px; font-weight:600; margin-top:1px; }
+    .compare-delta.up { color:var(--green); } .compare-delta.down { color:var(--accent); }
+
+    /* 比較再生プレーヤー (4) */
+    .compare-player {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--r);
-      padding: 20px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
       box-shadow: var(--shadow-xs);
-      margin-bottom: 16px;
     }
-    .chart-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-      gap: 8px;
+    .compare-player-title {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--text-3); margin-bottom: 12px;
     }
-    .chart-label {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-    .toggle-pill {
-      display: inline-flex;
-      background: var(--bg-muted);
-      border-radius: 100px;
-      padding: 3px;
-      gap: 2px;
-    }
-    .toggle-pill button {
-      font-family: var(--font);
-      font-size: 11px;
-      font-weight: 600;
-      padding: 5px 14px;
-      border: none;
-      border-radius: 100px;
-      cursor: pointer;
-      background: transparent;
-      color: var(--text-muted);
-      transition: background 120ms ease, color 120ms ease;
-    }
-    .toggle-pill button.active-pill {
-      background: var(--bg-card);
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(0,0,0,.08);
-    }
-    .chart-legend { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-    .legend-item  { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-    .legend-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .chart-wrap   { position: relative; width: 100%; }
-    .chart-wrap canvas { width: 100% !important; max-height: 400px; }
-
-    /* ── アライメント失敗パネル ── */
-    .alignment-fail-panel {
-      text-align: center;
-      padding: 48px 24px;
-    }
-    .alignment-fail-icon {
-      font-size: 56px;
-      margin-bottom: 16px;
-    }
-    .alignment-fail-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--accent);
-      margin-bottom: 12px;
-    }
-    .alignment-fail-steps {
-      display: inline-block;
-      text-align: left;
-      background: var(--accent-bg);
-      border: 1px solid #f0c0b0;
-      border-radius: var(--r);
-      padding: 20px 28px;
-      margin: 16px auto;
-      font-size: 14px;
-      line-height: 2.0;
-      color: var(--text);
-    }
-    .alignment-fail-steps strong {
-      color: var(--accent);
-    }
-    .julius-score-note {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 8px;
-      font-family: var(--mono);
-    }
-
-    /* ── スコアカード ── */
-    .score-hero {
-      text-align: center;
-      padding: 32px 24px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      margin-bottom: 16px;
-      box-shadow: 0 2px 8px rgba(28,26,20,.08);
-    }
-    .score-grade {
-      font-size: 72px;
-      font-weight: 700;
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-    .grade-S { color: #c03d20; }
-    .grade-A { color: #2a7a4f; }
-    .grade-B { color: #2a6496; }
-    .grade-C { color: #8a6d3b; }
-    .grade-D { color: var(--text-muted); }
-    .score-total {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-    .score-total span { font-size: 16px; font-weight: 400; color: var(--text-muted); }
-
-    .score-breakdown {
+    .compare-player-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-      margin-top: 20px;
-    }
-    .score-item {
-      background: var(--bg);
-      border: 1px solid var(--border-lite);
-      border-radius: var(--r-sm);
-      padding: 14px 16px;
-      text-align: left;
-    }
-    .score-item-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-    .score-item-value { font-size: 22px; font-weight: 700; color: var(--text); }
-    .score-item-max   { font-size: 12px; color: var(--text-muted); font-weight: 400; }
-    .score-bar {
-      height: 6px;
-      background: var(--bg-muted);
-      border-radius: 100px;
-      margin-top: 8px;
-      overflow: hidden;
-    }
-    .score-bar-fill { height: 100%; border-radius: 100px; transition: width .6s ease; }
-
-    .metrics-row {
-      display: flex;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
-      flex-wrap: wrap;
-      margin: 16px 0 0;
-      justify-content: center;
-    }
-    .metric-badge {
-      background: var(--bg-muted);
-      border: 1px solid var(--border);
-      border-radius: var(--r-sm);
-      padding: 5px 13px;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-    .metric-badge strong { color: var(--text); font-weight: 600; }
-
-    .feedback-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      padding: 20px;
-      margin-bottom: 12px;
-      box-shadow: 0 1px 3px rgba(28,26,20,.06);
-    }
-    .feedback-title {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-      color: var(--text-muted);
       margin-bottom: 10px;
     }
-    .feedback-text  { font-size: 14px; color: var(--text); line-height: 1.7; }
-    .feedback-note  { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
-
-    .accent-pattern {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-      flex-wrap: wrap;
+    .player-item { display: flex; flex-direction: column; gap: 5px; }
+    .player-label {
+      font-size: 10px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase;
     }
-    .mora-badge { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .mora-hl {
-      width: 32px; height: 32px;
+    .player-label.native { color: rgba(255,159,64,1); }
+    .player-label.user   { color: rgba(75,192,192,1); }
+    .player-item audio { width: 100%; height: 28px; border-radius: var(--r-xs); }
+    .alt-play-btn {
+      width: 100%;
+      padding: 9px 16px;
+      background: var(--navy);
+      color: #fff;
+      border: none;
       border-radius: var(--r-sm);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700;
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: background var(--dur), transform var(--dur);
     }
-    .mora-hl.H { background: var(--accent-bg); color: var(--accent); }
-    .mora-hl.L { background: var(--bg-muted);  color: var(--text-muted); }
-    .mora-label { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+    .alt-play-btn:hover { background: var(--navy-mid); }
+    .alt-play-btn:active { transform: scale(.97); }
+    .alt-play-btn.playing { background: var(--accent); }
+    .alt-play-status {
+      font-size: 11px; color: var(--text-3); text-align: center;
+      margin-top: 6px; min-height: 16px;
+    }
+    .alt-play-status.active { color: var(--accent); font-weight: 500; }
 
-    @media (max-width: 600px) {
-      .section-panel { padding: 16px; }
-      .results-header { padding: 16px 20px; }
-      .chart-card { padding: 14px; }
-      .score-breakdown { grid-template-columns: 1fr; }
-    }
+    /* Feedback */
+    .feedback-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+    .feedback-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; box-shadow:var(--shadow-xs); }
+    .feedback-card.full { grid-column:1/-1; }
+    .feedback-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; }
+    .feedback-text { font-size:13px; color:var(--text-2); line-height:1.75; }
+    .feedback-note { font-size:11px; color:var(--text-3); margin-top:4px; }
+    .accent-pattern { display:flex; gap:5px; margin-top:10px; flex-wrap:wrap; }
+    .mora-badge { display:flex; flex-direction:column; align-items:center; gap:3px; }
+    .mora-hl { width:26px; height:26px; border-radius:var(--r-xs); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+    .mora-hl.H { background:var(--accent-bg); color:var(--accent); }
+    .mora-hl.L { background:var(--bg-muted);  color:var(--text-3); }
+    .mora-label { font-size:9px; color:var(--text-3); font-family:var(--mono); }
+
+    /* Quest clear */
+    @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+    .quest-clear-banner { background:var(--green); border-radius:var(--r); padding:14px 18px; margin-bottom:8px; display:flex; align-items:center; gap:12px; animation:slideIn .3s ease; }
+    .quest-clear-check { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .quest-clear-badge { font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.6); display:block; margin-bottom:2px; }
+    .quest-clear-title { font-size:13px; font-weight:700; color:#fff; }
+    .quest-clear-sub   { font-size:11px; color:rgba(255,255,255,.65); margin-top:1px; }
+
+    /* Quest cards */
+    .quests-header { display:flex; align-items:baseline; gap:10px; margin:20px 0 10px; }
+    .quests-sec-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .quest-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+    .quest-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; transition:box-shadow var(--dur),transform var(--dur); }
+    .quest-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+    .quest-card[data-cat="accent"] { border-left:3px solid var(--accent); }
+    .quest-card[data-cat="length"] { border-left:3px solid var(--green); }
+    .quest-card[data-cat="vowel"]  { border-left:3px solid var(--blue); }
+    .quest-card[data-cat="total"]  { border-left:3px solid var(--navy); }
+    .quest-card[data-cat="review"] { border-left:3px solid var(--quest); }
+    .quest-card-body { padding:14px 16px 12px; }
+    .quest-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:5px; }
+    .quest-card-title { font-size:13px; font-weight:700; color:var(--text); line-height:1.3; flex:1; }
+    .quest-card-desc { font-size:11px; color:var(--text-2); line-height:1.65; margin-bottom:8px; }
+    .quest-hint-bar { font-size:11px; color:var(--text-2); line-height:1.6; background:var(--bg); border-left:2px solid var(--border); padding:6px 10px; border-radius:0 var(--r-xs) var(--r-xs) 0; margin-bottom:8px; }
+    .quest-progress-meta { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px; }
+    .quest-progress-vals { font-family:var(--mono); font-size:10px; color:var(--text-3); }
+    .quest-progress-pct  { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--quest); }
+    .quest-card-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .cat-review { background:var(--quest-bg); color:var(--quest); }
+
+    /* Suggestions */
+    .suggestions-section { margin-top:24px; }
+    .suggestions-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; display:flex; align-items:center; gap:10px; }
+    .suggestions-line { flex:1; height:1px; background:var(--border-light); }
+    .suggestions-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .suggestion-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; transition:box-shadow var(--dur),transform var(--dur); }
+    .suggestion-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+    .suggestion-body { padding:14px 16px 12px; }
+    .suggestion-word { font-size:20px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+    .suggestion-reading { font-size:11px; color:var(--text-3); margin-bottom:4px; }
+    .suggestion-accent { font-size:10px; color:var(--text-3); }
+    .suggestion-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); }
+    .suggestion-btn { width:100%; padding:8px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:600; letter-spacing:.04em; cursor:pointer; transition:background var(--dur),transform var(--dur); }
+    .suggestion-btn:hover { background:var(--navy-mid); }
+    .suggestion-btn:active { transform:scale(.97); }
+
+    @media (max-width:720px) { .score-layout{grid-template-columns:1fr;} .feedback-grid{grid-template-columns:1fr;} .suggestions-grid{grid-template-columns:1fr;} .compare-grid{grid-template-columns:repeat(2,1fr);} .compare-player-grid{grid-template-columns:1fr;} .section-panel{padding:16px 20px;} .tab-bar{padding:0 20px;} }
   </style>
 </head>
 <body>
 
 <div class="results-header">
   <div>
-    <h1 class="results-title">{{ original_filename }} の解析結果</h1>
-    <p class="results-sub">ネイティブ音声との比較・分析レポート</p>
+    <div class="results-word">{{ original_filename }}</div>
+    <div class="results-sub">ネイティブ音声との比較レポート{% if score and score.accent_label %} — {{ score.accent_label }}{% endif %}</div>
   </div>
-  <button class="btn btn-ghost" onclick="location.href='/select';">
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-      <path d="M8.5 1.5L3.5 6.5l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    ホーム画面
-  </button>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    {% if score_delta %}
+      {% if score_delta.startswith('+') %}<span class="delta-badge delta-up">{{ score_delta }}点</span>
+      {% else %}<span class="delta-badge delta-down">{{ score_delta }}点</span>{% endif %}
+    {% endif %}
+    <a href="/history" class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">履歴</a>
+    <a href="/select"  class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">ホーム</a>
+  </div>
 </div>
 
-<div class="section-tabs">
-  <button class="sec-tab active" onclick="showSection('score', this)">📊 発音スコア</button>
-  <button class="sec-tab" onclick="showSection('pitch-native', this)">ネイティブ音声</button>
-  <button class="sec-tab" onclick="showSection('pitch-user', this)">あなたの音声</button>
-  <button class="sec-tab" onclick="showSection('pitch-compare', this)">ピッチ比較</button>
-  <button class="sec-tab" onclick="showSection('length', this)">長さ比較</button>
-  <button class="sec-tab" onclick="showSection('timbre', this)">音色評価</button>
+<div class="tab-bar">
+  <button class="sec-tab active" onclick="showSection('score',this)">発音スコア</button>
+  <button class="sec-tab" onclick="showSection('pitch-native',this)">ネイティブ</button>
+  <button class="sec-tab" onclick="showSection('pitch-user',this)">あなたの音声</button>
+  <button class="sec-tab" onclick="showSection('pitch-compare',this)">ピッチ比較</button>
+  <button class="sec-tab" onclick="showSection('length',this)">長さ比較</button>
+  <button class="sec-tab" onclick="showSection('timbre',this)">音色評価</button>
 </div>
 
-<!-- ── 発音スコアタブ ── -->
+<!-- ── Score tab ── -->
 <div id="sec-score" class="section-panel active">
 
   {% if alignment_failed %}
-  <!-- アライメント失敗時：スコアを出さず再録音を促す -->
-  <div class="alignment-fail-panel">
-    <div class="alignment-fail-icon">🎙️</div>
-    <div class="alignment-fail-title">音声の解析に失敗しました</div>
-    <div class="alignment-fail-steps">
-      <strong>再録音のポイント：</strong><br>
-      ① マイクにしっかり近づく（10cm以内が理想）<br>
-      ② はっきりと、ゆっくり発音する<br>
-      ③ 静かな環境で録音する<br>
-      ④ 単語全体を一息で発音する
-    </div>
-    <div class="julius-score-note">
-      アライメントスコア：{{ julius_score if julius_score else "取得不可" }}
-      （目安：-3000 以上が正常）
-    </div>
-    <div style="margin-top:24px;">
-      <button class="btn btn-primary btn-lg" onclick="history.back()">
-        ← 録音画面に戻る
-      </button>
-    </div>
+  <div class="fail-panel">
+    <span class="fail-pill">Analysis Failed</span>
+    <div class="fail-title">音声の解析に失敗しました</div>
+    <ul class="fail-list">
+      <li>マイクに 10cm 以内に近づく</li>
+      <li>はっきりと、ゆっくり発音する</li>
+      <li>静かな環境で録音する</li>
+      <li>単語全体を一息で発音する</li>
+    </ul>
+    <div class="fail-score">Julius スコア：{{ julius_score or "取得不可" }} / 目安：-3000 以上が正常</div>
+    <div style="margin-top:20px;"><button class="btn btn-primary btn-lg" onclick="history.back()">録音画面に戻る</button></div>
   </div>
 
   {% elif score %}
-  <!-- 通常評価 -->
   <p class="panel-heading">発音スコア</p>
-  <p class="panel-sub">アクセント・モーラ長・母音品質を基に評価しています。</p>
+  <p class="panel-sub">アクセント・長さ・母音品質の3軸で評価しています</p>
 
-  <div class="score-hero">
-    <div class="score-grade grade-{{ score.grade }}">{{ score.grade }}</div>
-    <div class="score-total">{{ score.total }} <span>/ 100点</span></div>
-
-    <div class="score-breakdown">
-      <div class="score-item">
-        <div class="score-item-label">アクセント</div>
-        <div class="score-item-value">
-          {{ score.accent_score }} <span class="score-item-max">/ 50</span>
-        </div>
-        <div class="score-bar">
-          <div class="score-bar-fill"
-               style="width:{{ (score.accent_score / 50 * 100)|round }}%;background:var(--accent);"></div>
-        </div>
+  <div class="score-layout">
+    <div class="score-hero">
+      <div class="score-grade grade-{{ score.grade }}">{{ score.grade }}</div>
+      <div class="score-total">{{ score.total }}<span> / 100点</span></div>
+      <div class="score-breakdown">
+        <div class="score-item"><div class="score-item-label">アクセント</div><div class="score-item-value">{{ score.accent_score }}<span class="score-item-max">/50</span></div><div class="score-bar"><div class="score-bar-fill" style="width:{{ (score.accent_score/50*100)|round }}%;background:var(--accent);"></div></div></div>
+        <div class="score-item"><div class="score-item-label">長さ</div><div class="score-item-value">{{ score.length_score }}<span class="score-item-max">/30</span></div><div class="score-bar"><div class="score-bar-fill" style="width:{{ (score.length_score/30*100)|round }}%;background:#34D399;"></div></div></div>
+        <div class="score-item"><div class="score-item-label">母音</div><div class="score-item-value">{{ score.vowel_score }}<span class="score-item-max">/20</span></div><div class="score-bar"><div class="score-bar-fill" style="width:{{ (score.vowel_score/20*100)|round }}%;background:#60A5FA;"></div></div></div>
       </div>
-      <div class="score-item">
-        <div class="score-item-label">モーラの長さ</div>
-        <div class="score-item-value">
-          {{ score.length_score }} <span class="score-item-max">/ 30</span>
-        </div>
-        <div class="score-bar">
-          <div class="score-bar-fill"
-               style="width:{{ (score.length_score / 30 * 100)|round }}%;background:var(--green);"></div>
-        </div>
-      </div>
-      <div class="score-item">
-        <div class="score-item-label">母音の品質</div>
-        <div class="score-item-value">
-          {{ score.vowel_score }} <span class="score-item-max">/ 20</span>
-        </div>
-        <div class="score-bar">
-          <div class="score-bar-fill"
-               style="width:{{ (score.vowel_score / 20 * 100)|round }}%;background:#2a6496;"></div>
-        </div>
+      <div class="metrics-row">
+        {% if speaking_rate and speaking_rate > 0 %}<div class="metric-pill">速度 <strong>{{ speaking_rate }}M/s</strong></div>{% endif %}
+        {% if voice_quality and voice_quality.jitter is not none %}<div class="metric-pill">Jitter <strong>{{ voice_quality.jitter }}%</strong></div>{% endif %}
+        {% if voice_quality and voice_quality.shimmer is not none %}<div class="metric-pill">Shimmer <strong>{{ voice_quality.shimmer }}%</strong></div>{% endif %}
       </div>
     </div>
-
-    <div class="metrics-row">
-      {% if speaking_rate and speaking_rate > 0 %}
-      <div class="metric-badge">発話速度 <strong>{{ speaking_rate }}モーラ/秒</strong></div>
-      {% endif %}
-      {% if voice_quality and voice_quality.jitter is not none %}
-      <div class="metric-badge">Jitter <strong>{{ voice_quality.jitter }}%</strong></div>
-      {% endif %}
-      {% if voice_quality and voice_quality.shimmer is not none %}
-      <div class="metric-badge">Shimmer <strong>{{ voice_quality.shimmer }}%</strong></div>
-      {% endif %}
+    <div class="radar-card">
+      <div class="radar-title">3軸レーダー</div>
+      <canvas id="radarChart"></canvas>
     </div>
   </div>
 
-  <!-- アクセントフィードバック -->
-  <div class="feedback-card">
-    <div class="feedback-title">アクセント（{{ score.accent_label }}）</div>
-    <div class="feedback-text">{{ score.accent_feedback }}</div>
-    {% if score.accent_pattern %}
-    <div class="accent-pattern">
-      {% for hl in score.accent_pattern %}
-      <div class="mora-badge">
-        <div class="mora-hl {{ hl }}">{{ hl }}</div>
-        <div class="mora-label">{{ loop.index }}拍</div>
+  <!-- 前回比較 -->
+  {% if prev_score %}
+  <div class="score-compare">
+    <div class="compare-title">前回との比較（{{ prev_score.display }} / {{ prev_score.timestamp[:10] if prev_score.timestamp else "" }}）</div>
+    <div class="compare-grid">
+      {% for lbl, now, prev in [("合計",score.total,prev_score.total or 0),("アクセント",score.accent_score,prev_score.accent_score or 0),("長さ",score.length_score,prev_score.length_score or 0),("母音",score.vowel_score,prev_score.vowel_score or 0)] %}
+      {% set diff = (now - prev)|round(1) %}
+      <div class="compare-item">
+        <div class="compare-label">{{ lbl }}</div>
+        <div class="compare-now">{{ now }}</div>
+        <div class="compare-prev">前回 {{ prev }}</div>
+        <div class="compare-delta {{ 'up' if diff > 0 else ('down' if diff < 0 else '') }}">{% if diff > 0 %}+{{ diff }}{% elif diff < 0 %}{{ diff }}{% else %}±0{% endif %}</div>
       </div>
       {% endfor %}
     </div>
-    {% endif %}
-  </div>
-
-  <!-- 長さフィードバック -->
-  <div class="feedback-card">
-    <div class="feedback-title">モーラの長さ</div>
-    <div class="feedback-text">{{ score.length_feedback }}</div>
-  </div>
-
-  <!-- 母音品質フィードバック -->
-  <div class="feedback-card">
-    <div class="feedback-title">母音の品質（口の形）</div>
-    <div class="feedback-text">{{ score.vowel_feedback }}</div>
-    <div class="feedback-note">F1/F2フォルマントをネイティブ音声と比較して評価しています。</div>
-  </div>
-
-  <!-- 有声フレーム比率 -->
-  {% if score.voiced_feedback %}
-  <div class="feedback-card">
-    <div class="feedback-title">声の明瞭さ</div>
-    <div class="feedback-text">{{ score.voiced_feedback }}</div>
   </div>
   {% endif %}
 
-  <!-- 発話速度フィードバック -->
-  {% if rate_feedback %}
-  <div class="feedback-card">
-    <div class="feedback-title">発話速度</div>
-    <div class="feedback-text">{{ rate_feedback }}</div>
+  <!-- 比較再生プレーヤー (4) -->
+  <div class="compare-player">
+    <div class="compare-player-title">音声を聞き比べる</div>
+    <div class="compare-player-grid">
+      <div class="player-item">
+        <span class="player-label native">ネイティブ音声</span>
+        <audio id="nativeAudio" controls preload="none"
+               src="/sample_audio/{{ word_id }}"></audio>
+      </div>
+      <div class="player-item">
+        <span class="player-label user">あなたの録音</span>
+        <audio id="userAudio" controls preload="none"
+               src="/recorded_audio"></audio>
+      </div>
+    </div>
+    <button class="alt-play-btn" id="altPlayBtn" onclick="toggleAltPlay()">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor">
+        <circle cx="6.5" cy="6.5" r="6"/>
+        <polygon points="5,4 10,6.5 5,9" fill="white"/>
+      </svg>
+      交互に再生（ネイティブ → あなたの録音 × 3回）
+    </button>
+    <div class="alt-play-status" id="altPlayStatus"></div>
   </div>
-  {% endif %}
 
-  <!-- 声質フィードバック -->
-  {% if voice_quality and voice_quality.feedback %}
-  <div class="feedback-card">
-    <div class="feedback-title">声質</div>
-    <div class="feedback-text">{{ voice_quality.feedback }}</div>
+  <!-- フィードバック -->
+  <div class="feedback-grid">
+    <div class="feedback-card full">
+      <div class="feedback-label">アクセント — {{ score.accent_label }}</div>
+      <div class="feedback-text">{{ score.accent_feedback }}</div>
+      {% if score.accent_pattern %}<div class="accent-pattern">{% for hl in score.accent_pattern %}<div class="mora-badge"><div class="mora-hl {{ hl }}">{{ hl }}</div><div class="mora-label">{{ loop.index }}</div></div>{% endfor %}</div>{% endif %}
+    </div>
+    <div class="feedback-card"><div class="feedback-label">モーラの長さ</div><div class="feedback-text">{{ score.length_feedback }}</div></div>
+    <div class="feedback-card"><div class="feedback-label">母音（口の形）</div><div class="feedback-text">{{ score.vowel_feedback }}</div><div class="feedback-note">F1/F2 の30・50・70%点の平均値で評価</div></div>
+    {% if score.voiced_feedback %}<div class="feedback-card"><div class="feedback-label">声の明瞭さ</div><div class="feedback-text">{{ score.voiced_feedback }}</div></div>{% endif %}
+    {% if rate_feedback %}<div class="feedback-card"><div class="feedback-label">発話速度</div><div class="feedback-text">{{ rate_feedback }}</div></div>{% endif %}
+    {% if voice_quality and voice_quality.feedback %}<div class="feedback-card"><div class="feedback-label">声質</div><div class="feedback-text">{{ voice_quality.feedback }}</div></div>{% endif %}
   </div>
-  {% endif %}
 
   {% else %}
-  <div class="feedback-card">
-    <div class="feedback-text">スコアを計算できませんでした。</div>
+  <div class="feedback-card"><div class="feedback-text">スコアを計算できませんでした。</div></div>
+  {% endif %}
+
+  {% if newly_completed %}
+  <div style="margin-top:16px;">
+    {% for q in newly_completed %}
+    <div class="quest-clear-banner">
+      <div class="quest-clear-check"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3.5 3.5 5.5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div><span class="quest-clear-badge">Quest Clear</span><div class="quest-clear-title">{{ q.title }}</div><div class="quest-clear-sub">目標 {{ q.target_value|int }}点 を達成。次のクエストが発行されました。</div></div>
+    </div>
+    {% endfor %}
   </div>
   {% endif %}
 
+  {% if active_quests %}
+  <div class="quests-header"><span class="quests-sec-title">進行中のクエスト</span><span style="font-size:11px;color:var(--text-3);">次回の録音で自動クリア判定</span></div>
+  <div class="quest-cards-grid">
+    {% for q in active_quests %}
+    {% if score %}
+      {% if q.target_metric=="accent_score" %}{% set cur=score.accent_score %}
+      {% elif q.target_metric=="length_score" %}{% set cur=score.length_score %}
+      {% elif q.target_metric=="vowel_score"  %}{% set cur=score.vowel_score %}
+      {% else %}{% set cur=score.total %}{% endif %}
+      {% set span=(q.target_value-q.start_value) %}
+      {% if span>0 %}{% set _raw=((cur-q.start_value)/span*100)|round|int %}{% set _raw=[_raw,0]|max %}{% set pct=[_raw,100]|min %}{% else %}{% set pct=100 %}{% endif %}
+    {% else %}{% set cur=q.start_value %}{% set pct=0 %}{% endif %}
+    <div class="quest-card" data-cat="{{ q.category }}">
+      <div class="quest-card-body">
+        <div class="quest-card-top">
+          <div class="quest-card-title">{{ q.title }}</div>
+          <span class="cat-badge cat-{{ q.category }}">
+            {% if q.category=="accent" %}Ac{% elif q.category=="length" %}Le{% elif q.category=="vowel" %}Vo{% elif q.category=="review" %}復習{% else %}All{% endif %}
+          </span>
+        </div>
+        <div class="quest-card-desc">{{ q.description }}</div>
+        <div class="quest-hint-bar">{{ q.hint }}</div>
+        <div class="quest-progress-meta"><span class="quest-progress-vals">{{ cur|round(1) }}点 / {{ q.target_value|int }}点</span><span class="quest-progress-pct">{{ pct }}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:{{ pct }}%;"></div></div>
+      </div>
+      <div class="quest-card-footer">
+        <span class="diff-badge diff-{{ q.difficulty }}">{% if q.difficulty=="easy" %}初級{% elif q.difficulty=="normal" %}中級{% else %}上級{% endif %}</span>
+        <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ q.word_id }}"><button type="submit" class="btn btn-sm btn-quest">再練習</button></form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if suggestions %}
+  <div class="suggestions-section">
+    <div class="suggestions-title">次の練習候補<div class="suggestions-line"></div><span style="font-size:11px;color:var(--text-3);font-weight:400;text-transform:none;letter-spacing:0;">同じアクセント型・練習回数が少ない順</span></div>
+    <div class="suggestions-grid">
+      {% for s in suggestions %}
+      <div class="suggestion-card">
+        <div class="suggestion-body">
+          <div class="suggestion-word">{{ s.display }}</div>
+          <div class="suggestion-reading">{{ s.reading }}</div>
+          <div class="suggestion-accent">{% if s.accent==0 %}平板型{% elif s.accent==1 %}頭高型{% elif s.accent is not none %}{{ s.accent }}型{% else %}型不明{% endif %}</div>
+        </div>
+        <div class="suggestion-footer">
+          <form action="/" method="post"><input type="hidden" name="Words" value="{{ s.word_id }}"><button type="submit" class="suggestion-btn">この単語を練習する</button></form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 
-<!-- ── ネイティブ音声 ── -->
+<!-- ── Pitch native ── -->
 <div id="sec-pitch-native" class="section-panel">
-  <p class="panel-heading">ネイティブ音声のピッチ</p>
-  <p class="panel-sub">ネイティブ話者の基本周波数（F0）と音素・モーラ境界を表示しています。</p>
+  <p class="panel-heading">ネイティブ音声のピッチ</p><p class="panel-sub">ネイティブ話者の基本周波数（F0）と音素・モーラ境界</p>
   <div class="chart-card">
-    <div class="chart-card-header">
-      <span class="chart-label">ピッチ曲線</span>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div class="chart-legend">
-          <div class="legend-item">
-            <div class="legend-dot" style="background:rgba(255,159,64,1);"></div>
-            <span>SampleVoice</span>
-          </div>
-        </div>
-        <div class="toggle-pill" id="nativePill">
-          <button class="active-pill" onclick="setNativeView('mora', this)">モーラ境界</button>
-          <button onclick="setNativeView('phoneme', this)">音素境界</button>
-        </div>
-      </div>
-    </div>
-    <div class="chart-wrap">
-      <canvas id="NativeMoraChart"></canvas>
-      <canvas id="NativePhonemeChart" style="display:none;"></canvas>
-    </div>
+    <div class="chart-card-header"><span class="chart-label">F0 曲線</span><div style="display:flex;align-items:center;gap:10px;"><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(255,159,64,1);"></div><span>Sample</span></div></div><div class="toggle-pill" id="nativePill"><button class="active-pill" onclick="setNativeView('mora',this)">モーラ</button><button onclick="setNativeView('phoneme',this)">音素</button></div></div></div>
+    <div class="chart-wrap"><canvas id="NativeMoraChart"></canvas><canvas id="NativePhonemeChart" style="display:none;"></canvas></div>
   </div>
 </div>
 
-<!-- ── ユーザー音声 ── -->
+<!-- ── Pitch user ── -->
 <div id="sec-pitch-user" class="section-panel">
-  <p class="panel-heading">あなたの音声のピッチ</p>
-  <p class="panel-sub">録音した音声の基本周波数（F0）と音素・モーラ境界を表示しています。</p>
+  <p class="panel-heading">あなたの音声のピッチ</p><p class="panel-sub">録音した音声の基本周波数（F0）と音素・モーラ境界</p>
   <div class="chart-card">
-    <div class="chart-card-header">
-      <span class="chart-label">ピッチ曲線</span>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div class="chart-legend">
-          <div class="legend-item">
-            <div class="legend-dot" style="background:rgba(75,192,192,1);"></div>
-            <span>YourVoice</span>
-          </div>
-        </div>
-        <div class="toggle-pill" id="userPill">
-          <button class="active-pill" onclick="setUserView('mora', this)">モーラ境界</button>
-          <button onclick="setUserView('phoneme', this)">音素境界</button>
-        </div>
-      </div>
-    </div>
-    <div class="chart-wrap">
-      <canvas id="UserMoraChart"></canvas>
-      <canvas id="UserPhonemeChart" style="display:none;"></canvas>
-    </div>
+    <div class="chart-card-header"><span class="chart-label">F0 曲線</span><div style="display:flex;align-items:center;gap:10px;"><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(75,192,192,1);"></div><span>You</span></div></div><div class="toggle-pill" id="userPill"><button class="active-pill" onclick="setUserView('mora',this)">モーラ</button><button onclick="setUserView('phoneme',this)">音素</button></div></div></div>
+    <div class="chart-wrap"><canvas id="UserMoraChart"></canvas><canvas id="UserPhonemeChart" style="display:none;"></canvas></div>
   </div>
 </div>
 
-<!-- ── ピッチ比較 ── -->
+<!-- ── Pitch compare ── -->
 <div id="sec-pitch-compare" class="section-panel">
-  <p class="panel-heading">ピッチ比較（正規化）</p>
-  <p class="panel-sub">ネイティブ音声とあなたの音声のピッチを正規化し、モーラ境界を合わせて比較しています。</p>
+  <p class="panel-heading">ピッチ比較（正規化）</p><p class="panel-sub">両者のピッチをモーラ境界に合わせて重ね合わせて比較</p>
   <div class="chart-card">
-    <div class="chart-card-header">
-      <span class="chart-label">正規化ピッチ曲線</span>
-      <div class="chart-legend">
-        <div class="legend-item">
-          <div class="legend-dot" style="background:rgba(255,159,64,1);"></div>
-          <span>SampleVoice</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot" style="background:rgba(75,192,192,1);"></div>
-          <span>YourVoice</span>
-        </div>
-      </div>
-    </div>
-    <div class="chart-wrap">
-      <canvas id="PitchLengthChart"></canvas>
-    </div>
+    <div class="chart-card-header"><span class="chart-label">正規化 F0 曲線</span><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(255,159,64,1);"></div><span>Sample</span></div><div class="legend-item"><div class="legend-dot" style="background:rgba(75,192,192,1);"></div><span>You</span></div></div></div>
+    <div class="chart-wrap"><canvas id="PitchLengthChart"></canvas></div>
   </div>
 </div>
 
-<!-- ── 長さ比較 ── -->
+<!-- ── Length ── -->
 <div id="sec-length" class="section-panel">
-  <p class="panel-heading">音素・モーラの長さ比較</p>
-  <p class="panel-sub">全体に占める各音素・モーラの長さの割合（%）を比較しています。</p>
+  <p class="panel-heading">音素・モーラの長さ比較</p><p class="panel-sub">全体に占める各音素・モーラの長さの割合（%）</p>
   <div class="chart-card">
-    <div class="chart-card-header">
-      <span class="chart-label">長さの割合</span>
-      <div class="toggle-pill" id="lengthPill">
-        <button class="active-pill" onclick="setLengthView('mora', this)">モーラ</button>
-        <button onclick="setLengthView('phoneme', this)">音素</button>
-      </div>
-    </div>
-    <div class="chart-wrap">
-      <canvas id="groupedBarChart1"></canvas>
-      <canvas id="groupedBarChart2" style="display:none;"></canvas>
-    </div>
+    <div class="chart-card-header"><span class="chart-label">長さの割合</span><div class="toggle-pill" id="lengthPill"><button class="active-pill" onclick="setLengthView('mora',this)">モーラ</button><button onclick="setLengthView('phoneme',this)">音素</button></div></div>
+    <div class="chart-wrap"><canvas id="groupedBarChart1"></canvas><canvas id="groupedBarChart2" style="display:none;"></canvas></div>
   </div>
 </div>
 
-<!-- ── 音色評価 ── -->
+<!-- ── Timbre ── -->
 <div id="sec-timbre" class="section-panel">
-  <p class="panel-heading">音色評価（DTW距離）</p>
-  <p class="panel-sub">MFCCとDTWを用いて各単語との音色の類似度を比較しています。赤いバーが選択した単語です。</p>
+  <p class="panel-heading">音色評価（DTW距離）</p><p class="panel-sub">MFCC+DTWで各単語との音色類似度を比較。赤いバーが選択した単語です</p>
   <div class="chart-card">
-    <div class="chart-card-header">
-      <span class="chart-label">DTW距離（昇順）</span>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:red;"></div>
-        <span>選択した単語</span>
-      </div>
-    </div>
-    <div class="chart-wrap">
-      <canvas id="DistanceChart"></canvas>
-    </div>
+    <div class="chart-card-header"><span class="chart-label">DTW距離（昇順）</span><div class="legend-item"><div class="legend-dot" style="background:var(--accent);"></div><span>選択した単語</span></div></div>
+    <div class="chart-wrap"><canvas id="DistanceChart"></canvas></div>
   </div>
 </div>
 
 <script id="python-data" type="application/json">
-{
-  "start1": {{ start1 | tojson | safe }},
-  "end1":   {{ end1   | tojson | safe }},
-  "start2": {{ start2 | tojson | safe }},
-  "end2":   {{ end2   | tojson | safe }},
-  "Native_mora_values":   {{ Native_mora_values   | tojson | safe }},
-  "mora_labels":          {{ mora_labels           | tojson | safe }},
-  "Native_time":          {{ Native_time           | tojson | safe }},
-  "Native_pitch":         {{ Native_pitch          | tojson | safe }},
-  "Native_phoneme_values":{{ Native_phoneme_values | tojson | safe }},
-  "phoneme_labels":       {{ phoneme_labels        | tojson | safe }},
-  "User_mora_values":     {{ User_mora_values      | tojson | safe }},
-  "User_time":            {{ User_time             | tojson | safe }},
-  "User_pitch":           {{ User_pitch            | tojson | safe }},
-  "User_phoneme_values":  {{ User_phoneme_values   | tojson | safe }},
-  "mora_values":          {{ mora_values           | tojson | safe }},
-  "x_axis":               {{ x_axis               | tojson | safe }},
-  "pitch_fin":            {{ pitch_fin             | tojson | safe }},
-  "pitch_fin2":           {{ pitch_fin2            | tojson | safe }},
-  "Native_mora_length":   {{ Native_mora_length    | tojson | safe }},
-  "User_mora_length":     {{ User_mora_length      | tojson | safe }},
-  "Native_phoneme_length":{{ Native_phoneme_length | tojson | safe }},
-  "User_phoneme_length":  {{ User_phoneme_length   | tojson | safe }},
-  "words":                {{ words                 | tojson | safe }},
-  "sort_distance":        {{ sort_distance         | tojson | safe }},
-  "bar_color":            {{ bar_color             | tojson | safe }}
-}
+{"start1":{{ start1|tojson|safe }},"end1":{{ end1|tojson|safe }},"start2":{{ start2|tojson|safe }},"end2":{{ end2|tojson|safe }},"Native_mora_values":{{ Native_mora_values|tojson|safe }},"mora_labels":{{ mora_labels|tojson|safe }},"Native_time":{{ Native_time|tojson|safe }},"Native_pitch":{{ Native_pitch|tojson|safe }},"Native_phoneme_values":{{ Native_phoneme_values|tojson|safe }},"phoneme_labels":{{ phoneme_labels|tojson|safe }},"User_mora_values":{{ User_mora_values|tojson|safe }},"User_time":{{ User_time|tojson|safe }},"User_pitch":{{ User_pitch|tojson|safe }},"User_phoneme_values":{{ User_phoneme_values|tojson|safe }},"mora_values":{{ mora_values|tojson|safe }},"x_axis":{{ x_axis|tojson|safe }},"pitch_fin":{{ pitch_fin|tojson|safe }},"pitch_fin2":{{ pitch_fin2|tojson|safe }},"Native_mora_length":{{ Native_mora_length|tojson|safe }},"User_mora_length":{{ User_mora_length|tojson|safe }},"Native_phoneme_length":{{ Native_phoneme_length|tojson|safe }},"User_phoneme_length":{{ User_phoneme_length|tojson|safe }},"words":{{ words|tojson|safe }},"sort_distance":{{ sort_distance|tojson|safe }},"bar_color":{{ bar_color|tojson|safe }},{% if score %}"accent_pct":{{ (score.accent_score/50*100)|round|int }},"length_pct":{{ (score.length_score/30*100)|round|int }},"vowel_pct":{{ (score.vowel_score/20*100)|round|int }}{% else %}"accent_pct":0,"length_pct":0,"vowel_pct":0{% endif %}}
 </script>
-
 <script>
 var d = JSON.parse(document.getElementById('python-data').textContent);
-var commonLineOptions = {
-  elements: { point: { radius: 0 } },
-  responsive: true,
-  maintainAspectRatio: true,
-};
+var lo = { elements:{point:{radius:0}}, responsive:true, maintainAspectRatio:true };
 
-function showSection(name, btn) {
-  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.sec-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('sec-' + name).classList.add('active');
-  btn.classList.add('active');
-}
-function setNativeView(view, btn) {
-  document.getElementById('NativeMoraChart').style.display    = view === 'mora'    ? 'block' : 'none';
-  document.getElementById('NativePhonemeChart').style.display = view === 'phoneme' ? 'block' : 'none';
-  document.querySelectorAll('#nativePill button').forEach(b => b.classList.remove('active-pill'));
-  btn.classList.add('active-pill');
-}
-function setUserView(view, btn) {
-  document.getElementById('UserMoraChart').style.display    = view === 'mora'    ? 'block' : 'none';
-  document.getElementById('UserPhonemeChart').style.display = view === 'phoneme' ? 'block' : 'none';
-  document.querySelectorAll('#userPill button').forEach(b => b.classList.remove('active-pill'));
-  btn.classList.add('active-pill');
-}
-function setLengthView(view, btn) {
-  document.getElementById('groupedBarChart1').style.display = view === 'mora'    ? 'block' : 'none';
-  document.getElementById('groupedBarChart2').style.display = view === 'phoneme' ? 'block' : 'none';
-  document.querySelectorAll('#lengthPill button').forEach(b => b.classList.remove('active-pill'));
-  btn.classList.add('active-pill');
+function showSection(n,b){document.querySelectorAll('.section-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.sec-tab').forEach(t=>t.classList.remove('active'));document.getElementById('sec-'+n).classList.add('active');b.classList.add('active');}
+function setNativeView(v,b){document.getElementById('NativeMoraChart').style.display=v==='mora'?'block':'none';document.getElementById('NativePhonemeChart').style.display=v==='phoneme'?'block':'none';document.querySelectorAll('#nativePill button').forEach(x=>x.classList.remove('active-pill'));b.classList.add('active-pill');}
+function setUserView(v,b){document.getElementById('UserMoraChart').style.display=v==='mora'?'block':'none';document.getElementById('UserPhonemeChart').style.display=v==='phoneme'?'block':'none';document.querySelectorAll('#userPill button').forEach(x=>x.classList.remove('active-pill'));b.classList.add('active-pill');}
+function setLengthView(v,b){document.getElementById('groupedBarChart1').style.display=v==='mora'?'block':'none';document.getElementById('groupedBarChart2').style.display=v==='phoneme'?'block':'none';document.querySelectorAll('#lengthPill button').forEach(x=>x.classList.remove('active-pill'));b.classList.add('active-pill');}
+
+// ── 比較再生 (4) ──────────────────────────────────────────────────────
+var altPlaying = false;
+var altAbort   = null;
+
+function toggleAltPlay() {
+  if (altPlaying) {
+    stopAltPlay();
+  } else {
+    startAltPlay();
+  }
 }
 
-function makeAnnotations(values, labels, color) {
-  return values.map(function(v, i) {
-    return { type:'line', scaleID:'x', value:v, borderColor:color, borderWidth:1,
-      label:{ content:labels[i], enabled:true, position:'top', font:{size:11} } };
+async function startAltPlay() {
+  const btn    = document.getElementById('altPlayBtn');
+  const status = document.getElementById('altPlayStatus');
+  const native = document.getElementById('nativeAudio');
+  const user   = document.getElementById('userAudio');
+
+  altPlaying = true;
+  btn.classList.add('playing');
+  btn.querySelector('svg + *') || btn;
+  btn.lastChild.textContent = ' 停止する';
+
+  const REPEAT = 3;
+  const GAP_MS = 800;
+
+  for (let i = 0; i < REPEAT && altPlaying; i++) {
+    // ネイティブ再生
+    status.textContent = `ネイティブ音声 (${i+1}/${REPEAT})`;
+    status.classList.add('active');
+    native.currentTime = 0;
+    await playAndWait(native);
+    if (!altPlaying) break;
+
+    await sleep(GAP_MS);
+    if (!altPlaying) break;
+
+    // ユーザー録音再生
+    status.textContent = `あなたの録音 (${i+1}/${REPEAT})`;
+    user.currentTime = 0;
+    await playAndWait(user);
+    if (!altPlaying) break;
+
+    if (i < REPEAT - 1) await sleep(GAP_MS);
+  }
+
+  stopAltPlay();
+}
+
+function stopAltPlay() {
+  altPlaying = false;
+  const btn    = document.getElementById('altPlayBtn');
+  const status = document.getElementById('altPlayStatus');
+  const native = document.getElementById('nativeAudio');
+  const user   = document.getElementById('userAudio');
+  btn.classList.remove('playing');
+  status.textContent = '';
+  status.classList.remove('active');
+  native.pause();
+  user.pause();
+  // ボタンテキストをリセット
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><circle cx="6.5" cy="6.5" r="6"/><polygon points="5,4 10,6.5 5,9" fill="white"/></svg> 交互に再生（ネイティブ → あなたの録音 × 3回）`;
+  btn.onclick = toggleAltPlay;
+}
+
+function playAndWait(audioEl) {
+  return new Promise(resolve => {
+    audioEl.play().catch(() => resolve());
+    audioEl.onended = resolve;
+    audioEl.onerror = resolve;
   });
 }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-new Chart(document.getElementById('NativeMoraChart').getContext('2d'), {
-  type:'line', data:{ labels:d.Native_time,
-    datasets:[{ label:'SampleVoice', data:d.Native_pitch,
-      fill:true, backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 }]
+// ── レーダーチャート ──────────────────────────────────────────────────
+var rc = document.getElementById('radarChart');
+if (rc) new Chart(rc, {
+  type: 'radar',
+  data: {
+    labels: ['アクセント','長さ','母音'],
+    datasets: [{
+      data: [d.accent_pct, d.length_pct, d.vowel_pct],
+      backgroundColor: 'rgba(14,30,69,.1)',
+      borderColor: 'rgba(14,30,69,.7)',
+      borderWidth: 2,
+      pointBackgroundColor: ['#C03D20','#2D6A4F','#2A5F96'],
+      pointRadius: 5, pointHoverRadius: 7,
+    }]
   },
-  options: Object.assign({}, commonLineOptions, {
-    scales:{ x:{ type:'linear', position:'bottom', min:d.start1-.1, max:d.end1+.1, title:{ display:true, text:'Time (s)' }}, y:{ title:{ display:true, text:'Pitch (Hz)' }}},
-    plugins:{ annotation:{ annotations: makeAnnotations(d.Native_mora_values, d.mora_labels, 'rgba(192,61,32,.6)') }, legend:{ display:false } }
-  })
-});
-new Chart(document.getElementById('NativePhonemeChart').getContext('2d'), {
-  type:'line', data:{ labels:d.Native_time,
-    datasets:[{ label:'SampleVoice', data:d.Native_pitch,
-      fill:true, backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 }]
-  },
-  options: Object.assign({}, commonLineOptions, {
-    scales:{ x:{ type:'linear', position:'bottom', min:d.start1-.1, max:d.end1+.1, title:{ display:true, text:'Time (s)' }}, y:{ title:{ display:true, text:'Pitch (Hz)' }}},
-    plugins:{ annotation:{ annotations: makeAnnotations(d.Native_phoneme_values, d.phoneme_labels, 'rgba(192,61,32,.6)') }, legend:{ display:false } }
-  })
-});
-new Chart(document.getElementById('UserMoraChart').getContext('2d'), {
-  type:'line', data:{ labels:d.User_time,
-    datasets:[{ label:'YourVoice', data:d.User_pitch,
-      fill:true, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }]
-  },
-  options: Object.assign({}, commonLineOptions, {
-    scales:{ x:{ type:'linear', position:'bottom', min:d.start2-.1, max:d.end2+.1, title:{ display:true, text:'Time (s)' }}, y:{ title:{ display:true, text:'Pitch (Hz)' }}},
-    plugins:{ annotation:{ annotations: makeAnnotations(d.User_mora_values, d.mora_labels, 'rgba(42,130,130,.7)') }, legend:{ display:false } }
-  })
-});
-new Chart(document.getElementById('UserPhonemeChart').getContext('2d'), {
-  type:'line', data:{ labels:d.User_time,
-    datasets:[{ label:'YourVoice', data:d.User_pitch,
-      fill:true, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }]
-  },
-  options: Object.assign({}, commonLineOptions, {
-    scales:{ x:{ type:'linear', position:'bottom', min:d.start2-.1, max:d.end2+.1, title:{ display:true, text:'Time (s)' }}, y:{ title:{ display:true, text:'Pitch (Hz)' }}},
-    plugins:{ annotation:{ annotations: makeAnnotations(d.User_phoneme_values, d.phoneme_labels, 'rgba(42,130,130,.7)') }, legend:{ display:false } }
-  })
-});
-new Chart(document.getElementById('PitchLengthChart').getContext('2d'), {
-  type:'line', data:{ labels:d.x_axis,
-    datasets:[
-      { label:'SampleVoice', data:d.pitch_fin,  backgroundColor:'rgba(255,159,64,.15)', borderColor:'rgba(255,159,64,1)', borderWidth:2 },
-      { label:'YourVoice',   data:d.pitch_fin2, backgroundColor:'rgba(75,192,192,.15)', borderColor:'rgba(75,192,192,1)', borderWidth:2 }
-    ]
-  },
-  options: Object.assign({}, commonLineOptions, {
-    scales:{ x:{ min:-5, type:'linear', position:'bottom', title:{ display:true, text:'Frame' }}, y:{ title:{ display:true, text:'Normalized Pitch' }}},
-    plugins:{ annotation:{ annotations: makeAnnotations(d.mora_values, d.mora_labels, 'rgba(192,61,32,.5)') } }
-  })
-});
-
-var palette = ['rgba(75,192,192,.7)','rgba(255,99,132,.7)','rgba(255,205,86,.7)','rgba(153,102,255,.7)','rgba(255,159,64,.7)'];
-function genDatasets(lbls, data) {
-  return lbls.map(function(l, i) {
-    return { label:l, data:data.map(function(v){ return v[i]; }), backgroundColor:palette[i % palette.length], borderWidth:0 };
-  });
-}
-new Chart(document.getElementById('groupedBarChart1').getContext('2d'), {
-  type:'bar',
-  data:{ labels:['SampleVoice','YourVoice'], datasets: genDatasets(d.mora_labels, [d.Native_mora_length, d.User_mora_length]) },
-  options:{ indexAxis:'y', responsive:true,
-    scales:{ x:{ max:100, stacked:true, title:{ display:true, text:'Percentage (%)' }}, y:{ stacked:true }},
-    plugins:{ datalabels:{ formatter:function(v, ctx){ return ctx.dataset.label; }, font:{ size:11 } } }
-  },
-  plugins:[ChartDataLabels]
-});
-new Chart(document.getElementById('groupedBarChart2').getContext('2d'), {
-  type:'bar',
-  data:{ labels:['SampleVoice','YourVoice'], datasets: genDatasets(d.phoneme_labels, [d.Native_phoneme_length, d.User_phoneme_length]) },
-  options:{ indexAxis:'y', responsive:true,
-    scales:{ x:{ max:100, stacked:true, title:{ display:true, text:'Percentage (%)' }}, y:{ stacked:true }},
-    plugins:{ datalabels:{ formatter:function(v, ctx){ return ctx.dataset.label; }, font:{ size:11 } } }
-  },
-  plugins:[ChartDataLabels]
-});
-
-var ctx = document.getElementById('DistanceChart').getContext('2d');
-new Chart(ctx, {
-  type:'bar',
-  data:{ labels:d.words, datasets:[{ data:d.sort_distance, backgroundColor:d.bar_color, borderWidth:0, borderRadius:4 }] },
-  options:{
-    indexAxis:'y', responsive:true, maintainAspectRatio:false,
-    scales:{ x:{ title:{ display:true, text:'DTW Distance' }}, y:{ ticks:{ autoSkip:false, font:{ size:11 } } } },
-    plugins:{ legend:{ display:false }, datalabels:{ display:false } }
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    scales: { r: { min:0, max:100, ticks:{stepSize:25,font:{size:9},color:'#9E9890'}, grid:{color:'#EAE6DC'}, pointLabels:{font:{size:11,weight:'bold'},color:'#1A1714'} } },
+    plugins: { legend: { display: false } }
   }
 });
-document.getElementById('DistanceChart').style.height = '640px';
+
+// ── ピッチグラフ ──────────────────────────────────────────────────────
+var ann=(v,l,c)=>v.map((x,i)=>({type:'line',scaleID:'x',value:x,borderColor:c,borderWidth:1,label:{content:l[i],enabled:true,position:'top',font:{size:10}}}));
+new Chart(document.getElementById('NativeMoraChart'),{type:'line',data:{labels:d.Native_time,datasets:[{data:d.Native_pitch,fill:true,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start1-.1,max:d.end1+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.Native_mora_values,d.mora_labels,'rgba(192,61,32,.5)')},legend:{display:false}}})});
+new Chart(document.getElementById('NativePhonemeChart'),{type:'line',data:{labels:d.Native_time,datasets:[{data:d.Native_pitch,fill:true,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start1-.1,max:d.end1+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.Native_phoneme_values,d.phoneme_labels,'rgba(192,61,32,.5)')},legend:{display:false}}})});
+new Chart(document.getElementById('UserMoraChart'),{type:'line',data:{labels:d.User_time,datasets:[{data:d.User_pitch,fill:true,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start2-.1,max:d.end2+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.User_mora_values,d.mora_labels,'rgba(42,130,130,.6)')},legend:{display:false}}})});
+new Chart(document.getElementById('UserPhonemeChart'),{type:'line',data:{labels:d.User_time,datasets:[{data:d.User_pitch,fill:true,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start2-.1,max:d.end2+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.User_phoneme_values,d.phoneme_labels,'rgba(42,130,130,.6)')},legend:{display:false}}})});
+new Chart(document.getElementById('PitchLengthChart'),{type:'line',data:{labels:d.x_axis,datasets:[{label:'Sample',data:d.pitch_fin,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2},{label:'You',data:d.pitch_fin2,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{min:-5,type:'linear',title:{display:true,text:'Frame'}},y:{title:{display:true,text:'Normalized Pitch'}}},plugins:{annotation:{annotations:ann(d.mora_values,d.mora_labels,'rgba(192,61,32,.4)')}}})});
+var pal=['rgba(75,192,192,.7)','rgba(255,99,132,.7)','rgba(255,205,86,.7)','rgba(153,102,255,.7)','rgba(255,159,64,.7)'];
+var gen=(l,dat)=>l.map((lb,i)=>({label:lb,data:dat.map(v=>v[i]),backgroundColor:pal[i%pal.length],borderWidth:0}));
+new Chart(document.getElementById('groupedBarChart1'),{type:'bar',data:{labels:['Sample','You'],datasets:gen(d.mora_labels,[d.Native_mora_length,d.User_mora_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
+new Chart(document.getElementById('groupedBarChart2'),{type:'bar',data:{labels:['Sample','You'],datasets:gen(d.phoneme_labels,[d.Native_phoneme_length,d.User_phoneme_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
+var dc=document.getElementById('DistanceChart');
+new Chart(dc,{type:'bar',data:{labels:d.words,datasets:[{data:d.sort_distance,backgroundColor:d.bar_color,borderWidth:0,borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{title:{display:true,text:'DTW Distance'}},y:{ticks:{autoSkip:false,font:{size:11}}}},plugins:{legend:{display:false},datalabels:{display:false}}}});
+dc.style.height='640px';
 </script>
 </body>
 </html>

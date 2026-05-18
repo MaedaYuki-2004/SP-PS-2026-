@@ -3,75 +3,257 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>録音 — {{test}}</title>
+  <title>録音 — {{ display or test }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="static/css/base.css" rel="stylesheet">
-  <link href="static/css/audio.css" rel="stylesheet">
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; }
+
+    .record-page { flex:1; display:grid; grid-template-rows:auto 1fr auto; max-width:540px; margin:0 auto; width:100%; padding:0 24px; }
+
+    /* Steps */
+    .steps { display:flex; align-items:center; padding:20px 0 0; }
+    .step { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+    .step-num { width:20px; height:20px; border-radius:50%; background:var(--bg-muted); color:var(--text-3); font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+    .step.done .step-num  { background:var(--green); color:#fff; }
+    .step.active .step-num{ background:var(--navy);  color:#fff; }
+    .step.active { color:var(--navy); }
+    .step-line { flex:1; height:1px; background:var(--border); margin:0 8px; }
+
+    /* Word */
+    .word-section { text-align:center; padding:28px 0 24px; }
+    .word-reading { font-size:12px; letter-spacing:.12em; color:var(--text-3); margin-bottom:8px; }
+    .word-display { font-size:clamp(48px,12vw,68px); font-weight:700; color:var(--navy); line-height:1.1; letter-spacing:.01em; margin-bottom:10px; }
+    .sample-wrap  { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:12px; }
+    .sample-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
+    .sample-audio { height:28px; width:160px; border-radius:var(--r-xs); }
+
+    /* Visualizer */
+    .visualizer-section { display:flex; flex-direction:column; align-items:center; gap:12px; }
+    .viz-card { width:100%; background:var(--navy); border-radius:var(--r-lg); padding:18px; }
+    #visualizer { width:100%; height:72px; display:block; border-radius:var(--r-sm); }
+    .rec-status { display:flex; align-items:center; gap:8px; margin-top:10px; height:20px; }
+    .rec-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.2); }
+    .rec-dot.active { background:var(--accent); animation:blink 1s ease infinite; }
+    @keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.7)} }
+    .rec-label { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.35); }
+    .rec-label.recording { color:var(--accent); }
+    .rec-time { font-family:var(--mono); font-size:11px; color:rgba(255,255,255,.3); margin-left:auto; display:none; }
+    .rec-time.active { display:block; color:rgba(255,255,255,.5); }
+    .volume-wrap { width:100%; display:flex; align-items:center; gap:8px; margin-top:8px; }
+    .volume-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.3); white-space:nowrap; }
+    .volume-track { flex:1; height:4px; background:rgba(255,255,255,.1); border-radius:100px; overflow:hidden; }
+    #volumeFill { height:100%; width:0%; border-radius:100px; background:#9E9890; transition:width 60ms, background 200ms; }
+    #autoStopCountdown { display:none; font-size:11px; color:rgba(255,200,100,.9); text-align:center; font-weight:600; letter-spacing:.04em; margin-top:6px; padding:5px 10px; background:rgba(255,165,0,.1); border-radius:var(--r-sm); }
+
+    /* Controls */
+    .controls { display:flex; flex-direction:column; align-items:center; gap:12px; padding:18px 0 36px; }
+    .record-btn-row { display:flex; gap:12px; width:100%; }
+    #buttonStart, #buttonStop { flex:1; height:52px; border-radius:var(--r); font-family:var(--font); font-size:13px; font-weight:700; letter-spacing:.04em; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:8px; transition:background var(--dur),box-shadow var(--dur),transform var(--dur),opacity var(--dur); -webkit-tap-highlight-color:transparent; }
+    #buttonStart:active:not(:disabled), #buttonStop:active:not(:disabled) { transform:scale(.97); }
+    #buttonStart:disabled, #buttonStop:disabled { opacity:.3; cursor:not-allowed; }
+    #buttonStart { background:var(--accent); color:#fff; }
+    #buttonStart:not(:disabled):hover { background:#a83318; box-shadow:0 4px 16px rgba(192,61,32,.35); }
+    #buttonStop  { background:var(--navy); color:#fff; }
+    #buttonStop:not(:disabled):hover  { background:var(--navy-mid); box-shadow:0 4px 16px rgba(14,30,69,.3); }
+
+    /* キーボードショートカットのヒント */
+    .shortcut-hint {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-3);
+    }
+    .key-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-3);
+      background: var(--bg-muted);
+      box-shadow: 0 1px 0 var(--border);
+      letter-spacing: .04em;
+    }
+
+    .replay-section { width:100%; }
+    .replay-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; display:block; }
+    #audio { width:100%; height:32px; border-radius:var(--r-sm); }
+    .graph-form { width:100%; }
+    #buttongraph { display:none; width:100%; height:52px; border-radius:var(--r); font-family:var(--font); font-size:14px; font-weight:700; letter-spacing:.04em; color:#fff; background:var(--green); border:none; cursor:pointer; transition:background var(--dur),box-shadow var(--dur),transform var(--dur); }
+    #buttongraph:hover { background:#245a42; box-shadow:0 4px 16px rgba(45,106,79,.3); }
+    #buttongraph:active { transform:scale(.98); }
+
+    /* Loading overlay */
+    .loading-overlay { display:none; position:fixed; inset:0; background:rgba(14,30,69,.92); z-index:999; flex-direction:column; align-items:center; justify-content:center; gap:20px; }
+    .loading-overlay.show { display:flex; }
+    .loading-spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,.15); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .loading-text { font-size:13px; color:rgba(255,255,255,.6); font-weight:500; letter-spacing:.04em; }
+    .loading-word { font-size:26px; font-weight:700; color:#fff; }
+
+    #micError { display:none; background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0; border-radius:var(--r-sm); padding:12px 16px; font-size:13px; margin-top:12px; }
+
+    @media (max-width:480px) { .word-display { font-size:48px; } .top-nav { padding:0 16px; } .shortcut-hint { display:none; } }
+  </style>
 </head>
 <body>
 
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-word">{{ display or test }}</div>
+  <div class="loading-text">音声を解析しています...</div>
+</div>
+
 <nav class="top-nav">
-  <button class="nav-back" onclick="location.href='/select';">
+  <a href="/select" class="nav-link">
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
       <path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     単語選択に戻る
-  </button>
-  <span style="font-size:12px;color:var(--text-muted);font-weight:500;letter-spacing:.04em;">Step 2 — 録音</span>
+  </a>
+  <span style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);">Step 2 — 録音</span>
 </nav>
 
-<div class="audio-page">
-
-  <!-- Word display -->
-  <div class="word-banner">
-    <p class="word-banner-label">練習する単語</p>
-    <h1 class="word-banner-text">{{test}}</h1>
+<div class="record-page">
+  <div class="steps">
+    <div class="step done">
+      <div class="step-num">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      単語を選ぶ
+    </div>
+    <div class="step-line"></div>
+    <div class="step active"><div class="step-num">2</div>録音する</div>
+    <div class="step-line"></div>
+    <div class="step"><div class="step-num">3</div>結果を見る</div>
   </div>
 
-  <!-- Waveform visualizer -->
-  <div class="visualizer-wrap">
-    <div class="visualizer-card">
-      <canvas id="visualizer" width="400" height="100"></canvas>
+  <div class="word-section">
+    <div class="word-reading">{{ test }}</div>
+    <div class="word-display">{{ display or test }}</div>
+    <div class="sample-wrap">
+      <span class="sample-label">サンプル音声</span>
+      <audio class="sample-audio" controls preload="none" src="/sample_audio/{{ word_id or '' }}"></audio>
     </div>
   </div>
 
-  <!-- Controls -->
-  <div class="controls-wrap">
+  <div class="visualizer-section">
+    <div class="viz-card">
+      <canvas id="visualizer" width="480" height="72"></canvas>
+      <div class="rec-status">
+        <div class="rec-dot" id="recDot"></div>
+        <span class="rec-label" id="recLabel">待機中</span>
+        <span class="rec-time" id="recTime">0:00</span>
+      </div>
+      <div class="volume-wrap">
+        <span class="volume-label">VOL</span>
+        <div class="volume-track"><div id="volumeFill"></div></div>
+      </div>
+      <div id="autoStopCountdown"></div>
+    </div>
+    <div id="micError"></div>
+  </div>
 
-    <!-- Start / Stop -->
-    <div class="record-buttons">
+  <div class="controls">
+    <div class="record-btn-row">
       <button type="button" id="buttonStart">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <circle cx="8" cy="8" r="6" fill="currentColor"/>
-        </svg>
-        Start
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
+        録音開始
       </button>
       <button type="button" id="buttonStop" disabled>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-          <rect x="2" y="2" width="10" height="10" rx="2"/>
-        </svg>
-        Stop
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/></svg>
+        録音停止
       </button>
     </div>
 
-    <!-- Replay -->
-    <div class="replay-wrap">
+    <!-- キーボードショートカットのヒント (1) -->
+    <div class="shortcut-hint">
+      <span class="key-badge">Space</span>
+      <span>で録音開始 / 停止</span>
+      <span style="margin-left:8px;"><span class="key-badge">Enter</span></span>
+      <span>で解析開始</span>
+    </div>
+
+    <div class="replay-section">
       <span class="replay-label">録音再生</span>
       <audio controls id="audio"></audio>
     </div>
 
-    <!-- Graph button (shown after recording) -->
-    <form action="/graph" method="post" enctype="multipart/form-data" class="graph-form">
-      <button type="submit" id="buttongraph">解析結果を表示 →</button>
+    <form action="/graph" method="post" enctype="multipart/form-data" class="graph-form"
+          id="graphForm"
+          onsubmit="document.getElementById('loadingOverlay').classList.add('show')">
+      <button type="submit" id="buttongraph">解析結果を見る</button>
     </form>
 
-    <!-- Home -->
-    <button id="buttonHome" onclick="location.href='/select';">ホーム画面に戻る</button>
-
+    <a href="/select" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;">別の単語を選ぶ</a>
   </div>
 </div>
 
+<script>
+  // ── 録音状態の視覚フィードバック ─────────────────────────────────────
+  let recTimer = null, recSeconds = 0;
+  const dot   = document.getElementById('recDot');
+  const label = document.getElementById('recLabel');
+  const time  = document.getElementById('recTime');
+
+  document.getElementById('buttonStart').addEventListener('click', () => {
+    dot.classList.add('active');
+    label.classList.add('recording');
+    label.textContent = '録音中';
+    time.classList.add('active');
+    recSeconds = 0;
+    recTimer = setInterval(() => {
+      recSeconds++;
+      const m = Math.floor(recSeconds / 60);
+      const s = recSeconds % 60;
+      time.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+  });
+
+  document.getElementById('buttonStop').addEventListener('click', () => {
+    dot.classList.remove('active');
+    label.classList.remove('recording');
+    label.textContent = '録音完了';
+    time.classList.remove('active');
+    clearInterval(recTimer);
+  });
+
+  // ── キーボードショートカット (1) ─────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    // input/textarea/audio にフォーカスしているときは無効
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'audio' || tag === 'select') return;
+
+    const startBtn  = document.getElementById('buttonStart');
+    const stopBtn   = document.getElementById('buttonStop');
+    const graphBtn  = document.getElementById('buttongraph');
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (!startBtn.disabled) {
+        startBtn.click();
+      } else if (!stopBtn.disabled) {
+        stopBtn.click();
+      }
+    }
+
+    if (e.code === 'Enter') {
+      e.preventDefault();
+      if (graphBtn && graphBtn.style.display !== 'none') {
+        document.getElementById('loadingOverlay').classList.add('show');
+        document.getElementById('graphForm').submit();
+      }
+    }
+  });
+</script>
 <script src="static/js/audio_recorder.js"></script>
 <script src="static/js/main.js"></script>
 </body>

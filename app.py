@@ -1,59 +1,36 @@
 """
-app.py
-Flask ルーティングのみを担当するエントリーポイント。
+app.py — Flask ルーティング
 
-【変更点】
-  pitch_native_raw（NaN保持のネイティブ半音ピッチ）を生成して
-  calc_total_score() に渡すよう変更。
-
-  【背景】
-  _pitch_correlation_score() が有声フレームのみで Pearson 相関を
-  計算するように変更されたため、NaN-preserved の配列を渡す必要がある。
-
-  変更前：pitch_fin_score（comp/smooth済み、NaN なし）をネイティブとして渡す
-          → comp() による補間値も相関計算に混入
-  変更後：pitch_native_raw_semi（hz_to_semitone 直後、NaN 保持）を渡す
-          → 有声フレームのみで相関計算
-
-  pitch_fin_score（comp/smooth済み）は H/L 分類・核検出用に引き続き使用。
+【追加】
+  /recorded_audio : 直前の録音（test.wav）を返す。
+                    結果ページの「比較再生」ボタン (4) で使用。
 """
 from __future__ import annotations
 
+import csv
+import io
 import re
 import traceback
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request, send_file, session
+from flask import Flask, Response, jsonify, render_template, request, send_file, session
 
 from config import (
-    AUDIO_MFCC_DIR,
-    AUDIO_WAV_DIR,
-    CONFIG_DIR,
-    DISTANCE_RESULT_DIR,
-    FLASK_SECRET_KEY,
-    RAW_AUDIO_DIR,
-    STATIC_DIR,
-    TEMPLATES_DIR,
-    TEST_LAB_PATH,
-    TEST_LOG_PATH,
-    TEST_SEGMENT_WAV_PATH,
-    TEST_WAV_PATH,
-    WORD_ID_MEMO_PATH,
+    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DISTANCE_RESULT_DIR,
+    FLASK_SECRET_KEY, RAW_AUDIO_DIR, STATIC_DIR, TEMPLATES_DIR,
+    TEST_LAB_PATH, TEST_LOG_PATH, TEST_SEGMENT_WAV_PATH,
+    TEST_WAV_PATH, WORD_ID_MEMO_PATH,
 )
-from core.audio import convert_to_16kHz, read_sample, segment_audio
-from core.vocab import (
-    list_words, register_word, get_reading_for_julius,
-    get_word, delete_word, update_word,
-)
+from core.audio    import convert_to_16kHz, read_sample, segment_audio
+from core.vocab    import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word
 from core.alignment import lab_load, log_load, perl_run, extract_julius_score
-from core.pitch import (
-    comp, estimate_pitch_range, hz_to_semitone,
-    length_arrange, praat_pitch, resample_to_10ms, scale, smooth,
-)
-from core.evaluate import calc_total_score, calc_speaking_rate
-from core.formant import extract_mora_formants, calc_vowel_score, calc_voice_quality
-from core.timbre import dtw_ascending_order
-from core.utils import pct_length, sleep_second
+from core.pitch    import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
+from core.evaluate  import calc_total_score, calc_speaking_rate
+from core.formant  import extract_mora_formants, calc_vowel_score, calc_voice_quality
+from core.timbre   import dtw_ascending_order
+from core.quest    import check_and_update_quests, load_active_quests
+from core.history  import save_record, load_history, get_last_score, get_stats
+from core.utils    import pct_length, sleep_second
 
 JULIUS_GATE_THRESHOLD = -3000
 
@@ -65,6 +42,8 @@ app = Flask(
 app.secret_key = FLASK_SECRET_KEY
 
 
+# ── ユーティリティ ────────────────────────────────────────────────────
+
 def ensure_directories() -> None:
     for d in [CONFIG_DIR, AUDIO_WAV_DIR, AUDIO_MFCC_DIR, DISTANCE_RESULT_DIR, STATIC_DIR]:
         d.mkdir(parents=True, exist_ok=True)
@@ -74,22 +53,149 @@ def ensure_directories() -> None:
         WORD_ID_MEMO_PATH.touch()
 
 
+def _enrich_quests(quests, word_map: dict) -> list[dict]:
+    result = []
+    for q in quests:
+        d = q.to_dict() if hasattr(q, "to_dict") else dict(q)
+        d["word_display"] = word_map.get(d.get("word_id", ""), {}).get("display", d.get("word_id", ""))
+        result.append(d)
+    return result
+
+
+def _score_delta(current, prev) -> str | None:
+    if current is None or prev is None:
+        return None
+    diff = round(float(current) - float(prev), 1)
+    return f"+{diff}" if diff >= 0 else str(diff)
+
+
+_SMALL_KANA = set('ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ')
+
+def _mora_count(reading: str) -> int:
+    return max(1, sum(1 for c in reading if c not in _SMALL_KANA))
+
+def _accent_pattern_for_word(accent, reading: str) -> list[str]:
+    n = _mora_count(reading)
+    if accent is None or n == 0:
+        return []
+    if accent == 0:
+        return ['L'] + ['H'] * (n - 1)
+    elif accent == 1:
+        return ['H'] + ['L'] * (n - 1)
+    else:
+        result = ['L']
+        for i in range(1, n):
+            result.append('H' if i < accent else 'L')
+        return result
+
+def _get_suggestions(word_id: str, score_result: dict, words_list: list) -> list[dict]:
+    current    = get_word(word_id)
+    if not current:
+        return []
+    current_accent = current.get("accent")
+    stats      = get_stats()
+    word_counts = stats.get("word_counts", {})
+    candidates = [w for w in words_list if w["word_id"] != word_id and w.get("accent") == current_accent]
+    candidates.sort(key=lambda w: word_counts.get(w["word_id"], 0))
+    if len(candidates) < 3:
+        others = [w for w in words_list if w["word_id"] != word_id and w not in candidates]
+        others.sort(key=lambda w: word_counts.get(w["word_id"], 0))
+        candidates = (candidates + others)[:3]
+    return candidates[:3]
+
+
+# ── エラーハンドラー ─────────────────────────────────────────────────
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("error.html", code=404, title="ページが見つかりません",
+                           message="お探しのページは存在しないか、移動した可能性があります。"), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return render_template("error.html", code=500, title="サーバーエラー",
+                           message="解析中に問題が発生しました。もう一度試してください。"), 500
+
+
+# ── ルーティング ─────────────────────────────────────────────────────
+
 @app.route("/", methods=["GET", "POST"])
 def select():
     if request.method == "POST":
-        word_id = request.form.get("Words")
+        word_id    = request.form.get("Words")
         if not word_id:
             return "単語を選択してください"
-        reading = get_reading_for_julius(word_id)
+        reading    = get_reading_for_julius(word_id)
+        word_entry = get_word(word_id)
+        display    = word_entry.get("display", reading) if word_entry else reading
         WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
         (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
-        return render_template("audio.html", test=reading)
-    return render_template("select.html", words=list_words())
+        return render_template("audio.html", test=reading, display=display, word_id=word_id)
+
+    words    = list_words()
+    word_map = {w["word_id"]: w for w in words}
+    stats    = get_stats()
+    quests   = _enrich_quests(load_active_quests(), word_map)
+    accent_patterns = {
+        w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
+        for w in words
+    }
+    return render_template("select.html", words=words, active_quests=quests,
+                           stats=stats, accent_patterns=accent_patterns)
 
 
 @app.route("/select")
 def select_page():
-    return render_template("select.html", words=list_words())
+    words    = list_words()
+    word_map = {w["word_id"]: w for w in words}
+    stats    = get_stats()
+    quests   = _enrich_quests(load_active_quests(), word_map)
+    accent_patterns = {
+        w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
+        for w in words
+    }
+    return render_template("select.html", words=words, active_quests=quests,
+                           stats=stats, accent_patterns=accent_patterns)
+
+
+@app.route("/history")
+def history_page():
+    history  = load_history()
+    stats    = get_stats()
+    words    = list_words()
+
+    word_history: dict[str, list] = {}
+    for record in reversed(history):
+        wid = record.get("word_id")
+        if wid:
+            if wid not in word_history:
+                word_history[wid] = []
+            word_history[wid].append(record)
+
+    word_latest = {wid: recs[-1] for wid, recs in word_history.items()}
+
+    return render_template("history.html",
+                           history=history[:100], stats=stats,
+                           word_latest=word_latest, word_history=word_history,
+                           words=words)
+
+
+@app.route("/history/export.csv")
+def export_history_csv():
+    history = load_history()
+    output  = io.StringIO()
+    writer  = csv.writer(output)
+    writer.writerow(["日時","単語ID","単語","読み","合計点","アクセント","長さ","母音","グレード"])
+    for r in history:
+        writer.writerow([
+            (r.get("timestamp") or "")[:19].replace("T"," "),
+            r.get("word_id",""), r.get("display",""), r.get("reading",""),
+            r.get("total",""), r.get("accent_score",""), r.get("length_score",""),
+            r.get("vowel_score",""), r.get("grade",""),
+        ])
+    return Response("\ufeff" + output.getvalue(),
+                    mimetype="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": "attachment; filename=sp-ps-history.csv"})
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -128,6 +234,17 @@ def record_audio():
         return f"エラー: {exc}", 500
 
 
+@app.route("/recorded_audio")
+def recorded_audio():
+    """
+    直前の録音（test.wav）を返す。
+    結果ページの比較再生ボタン (4) で使用する。
+    """
+    if TEST_WAV_PATH.exists():
+        return send_file(str(TEST_WAV_PATH), mimetype="audio/wav")
+    return "録音データが見つかりません", 404
+
+
 @app.route("/graph", methods=["GET", "POST"])
 def audio_analysis():
     if request.method != "POST":
@@ -140,34 +257,26 @@ def audio_analysis():
         audio_sample     = read_sample(word_id)
         audio_learn      = str(TEST_WAV_PATH)
         audio_learn_edit = str(TEST_SEGMENT_WAV_PATH)
-        lab_sample       = str(Path(audio_sample).with_suffix(".lab"))
-        lab_learn        = str(TEST_LAB_PATH)
-        log_sample       = str(Path(audio_sample).with_suffix(".log"))
-        log_learn        = str(TEST_LOG_PATH)
+        lab_sample = str(Path(audio_sample).with_suffix(".lab"))
+        lab_learn  = str(TEST_LAB_PATH)
+        log_sample = str(Path(audio_sample).with_suffix(".log"))
+        log_learn  = str(TEST_LOG_PATH)
 
-        # ── 話者ピッチ範囲自動推定 ──────────────────────────────────
+        prev_score = get_last_score(word_id)
+
         floor_sample, ceiling_sample = estimate_pitch_range(audio_sample)
         floor_learn,  ceiling_learn  = estimate_pitch_range(audio_learn)
 
-        # ── ピッチ抽出 ──────────────────────────────────────────────
         pitch1, time1 = praat_pitch(audio_sample, pitch_floor=floor_sample, pitch_ceiling=ceiling_sample)
         pitch2, time2 = praat_pitch(audio_learn,  pitch_floor=floor_learn,  pitch_ceiling=ceiling_learn)
+        pitch1_10ms   = resample_to_10ms(pitch1, time1)
+        pitch2_10ms   = resample_to_10ms(pitch2, time2)
 
-        pitch1_10ms = resample_to_10ms(pitch1, time1)
-        pitch2_10ms = resample_to_10ms(pitch2, time2)
+        (lab_list1, mora_list1, phoneme1, mora1, _, _, phoneme_length1, mora_length1) = lab_load(lab_sample)
+        (lab_list2, mora_list2, phoneme2, mora2, _, _, phoneme_length2, mora_length2) = lab_load(lab_learn)
+        if not lab_list1: raise ValueError(f"参照 lab が空: {lab_sample}")
+        if not lab_list2: raise ValueError(f"録音 lab が空: {lab_learn}")
 
-        # ── アライメント読み込み（lab） ─────────────────────────────
-        (lab_list1, mora_list1, phoneme1, mora1,
-         _, _, phoneme_length1, mora_length1) = lab_load(lab_sample)
-        (lab_list2, mora_list2, phoneme2, mora2,
-         _, _, phoneme_length2, mora_length2) = lab_load(lab_learn)
-
-        if not lab_list1:
-            raise ValueError(f"参照 lab が空です: {lab_sample}")
-        if not lab_list2:
-            raise ValueError(f"録音 lab が空です: {lab_learn}")
-
-        # ── 表示用ピッチ（Hz・window=5 で滑らか） ───────────────────
         pitch_native = smooth(comp(pitch1), window=5)
         pitch_learn  = smooth(comp(pitch2), window=5)
 
@@ -176,21 +285,14 @@ def audio_analysis():
         xline_mora1    = [float(i[0]) for i in mora_list1]
         xline_mora2    = [float(i[0]) for i in mora_list2]
 
-        # ── アライメント読み込み（log） ─────────────────────────────
         phoneme_frame1, phoneme_frame2, mora_frame1 = log_load(log_sample)
-        if not phoneme_frame1 or not phoneme_frame2 or not mora_frame1:
-            raise ValueError(f"参照音声のアライメント結果が空です: {log_sample}")
-
-        sil_start1 = int(phoneme_frame1[0][0])
-        sil_end1   = int(phoneme_frame1[-1][1]) + 1
+        if not phoneme_frame1 or not mora_frame1: raise ValueError(f"参照アライメント結果が空: {log_sample}")
+        sil_start1 = int(phoneme_frame1[0][0]); sil_end1 = int(phoneme_frame1[-1][1]) + 1
         pitch1_sil = pitch1_10ms[sil_start1:sil_end1]
 
         phoneme_frame3, phoneme_frame4, mora_frame2 = log_load(log_learn)
-        if not phoneme_frame3 or not phoneme_frame4 or not mora_frame2:
-            raise ValueError(f"録音音声のアライメント結果が空です: {log_learn}")
-
-        sil_start2 = int(phoneme_frame3[0][0])
-        sil_end2   = int(phoneme_frame3[-1][1]) + 1
+        if not phoneme_frame3 or not mora_frame2: raise ValueError(f"録音アライメント結果が空: {log_learn}")
+        sil_start2 = int(phoneme_frame3[0][0]); sil_end2 = int(phoneme_frame3[-1][1]) + 1
         pitch2_sil = pitch2_10ms[sil_start2:sil_end2]
 
         pitch3     = length_arrange(pitch2_sil, phoneme_frame2, phoneme_frame4)
@@ -201,21 +303,20 @@ def audio_analysis():
         segment_audio(audio_learn, start2, end2)
 
         dtw_list, word_list, colors, _ = dtw_ascending_order(audio_learn_edit, word_id)
-
-        # ── Julius 品質ゲート ─────────────────────────────────────────
         julius_score = extract_julius_score(log_learn)
 
-        # ── 半音変換 ─────────────────────────────────────────────────
         pitch1_sil_semi = hz_to_semitone(pitch1_sil, ref_hz=None)
         pitch3_semi     = hz_to_semitone(pitch3,     ref_hz=None)
-
-        # ── 表示用ピッチ（comp/smooth/scale 済み） ───────────────────
         pitch_fin_disp  = scale(smooth(comp(pitch1_sil_semi), window=5))
         pitch_fin2_disp = scale(smooth(comp(pitch3_semi),     window=5))
         x_axis          = list(range(len(pitch_fin_disp)))
 
+        word_entry = get_word(word_id)
+        display    = word_entry.get("display", word_id) if word_entry else word_id
+        reading    = word_entry.get("reading", word_id) if word_entry else word_id
+
         common_kwargs = dict(
-            original_filename=session.get("original_filename", "録音データ"),
+            original_filename=display, word_id=word_id,
             Native_pitch=pitch_native.tolist(), Native_time=time1,
             User_pitch=pitch_learn.tolist(),    User_time=time2,
             Native_phoneme_values=xline_phoneme1, Native_mora_values=xline_mora1,
@@ -229,39 +330,26 @@ def audio_analysis():
             Native_mora_length=pct_length(mora_length1),
             User_mora_length=pct_length(mora_length2),
             words=word_list, sort_distance=dtw_list, bar_color=colors,
+            prev_score=prev_score,
         )
 
-        if julius_score is not None and julius_score < JULIUS_GATE_THRESHOLD:
-            return render_template(
-                "line_graph.html",
-                **common_kwargs,
-                score=None,
-                alignment_failed=True,
-                julius_score=julius_score,
-                alignment_feedback=(
-                    "音声のアライメントに失敗しました。"
-                    "以下の点を確認して再録音してください：\n"
-                    "① マイクにしっかり近づく\n"
-                    "② はっきりと、ゆっくり発音する\n"
-                    "③ 静かな環境で録音する"
-                ),
-                voice_quality={"jitter": None, "shimmer": None, "feedback": None},
-                speaking_rate=0.0,
-                rate_feedback=None,
-            )
+        words_list = list_words()
+        word_map   = {w["word_id"]: w for w in words_list}
 
-        # ── スコア計算用ピッチ（H/L・核検出用：comp/smooth済み） ────
+        if julius_score is not None and julius_score < JULIUS_GATE_THRESHOLD:
+            return render_template("line_graph.html", **common_kwargs,
+                                   score=None, alignment_failed=True,
+                                   julius_score=julius_score,
+                                   voice_quality={"jitter":None,"shimmer":None,"feedback":None},
+                                   speaking_rate=0.0, rate_feedback=None,
+                                   newly_completed=[], active_quests=_enrich_quests(load_active_quests(), word_map),
+                                   score_delta=None, suggestions=[])
+
         pitch_fin_score  = smooth(comp(pitch1_sil_semi), window=3)
         pitch_fin2_score = smooth(comp(pitch3_semi),     window=3)
+        pitch_native_raw = pitch1_sil_semi.copy()
+        pitch_user_raw   = pitch3_semi.copy()
 
-        # ── 有声フレーム保持配列（Pearson相関・安定度・有声率用） ───
-        # comp() を通す前の NaN 保持配列を使う。
-        # これにより _pitch_correlation_score() で「声が出ている
-        # フレームのみ」の相関計算が可能になる。
-        pitch_native_raw = pitch1_sil_semi.copy()  # NaN保持（ネイティブ）
-        pitch_user_raw   = pitch3_semi.copy()      # NaN保持（録音）
-
-        # ── フォルマント分析 ──────────────────────────────────────────
         max_formant_sample = 5500.0 if ceiling_sample > 400 else 5000.0
         max_formant_learn  = 5500.0 if ceiling_learn  > 400 else 5000.0
         try:
@@ -271,71 +359,69 @@ def audio_analysis():
         except Exception:
             vowel_score, vowel_feedback = 10.0, "母音の評価中にエラーが発生しました。"
 
-        # ── 声質評価 ──────────────────────────────────────────────────
         try:
-            voice_quality = calc_voice_quality(
-                audio_learn, start2, end2,
-                pitch_floor=floor_learn, pitch_ceiling=ceiling_learn,
-            )
+            voice_quality = calc_voice_quality(audio_learn, start2, end2,
+                                               pitch_floor=floor_learn, pitch_ceiling=ceiling_learn)
         except Exception:
             voice_quality = {"jitter": None, "shimmer": None, "feedback": None}
 
-        # ── 発話速度評価 ─────────────────────────────────────────────
         try:
             native_rate, _           = calc_speaking_rate(lab_list1, mora_list1)
             user_rate, rate_feedback = calc_speaking_rate(lab_list2, mora_list2, native_rate=native_rate)
         except Exception:
             user_rate, rate_feedback = 0.0, None
 
-        # ── 発音スコア算出 ────────────────────────────────────────────
-        word_entry = get_word(word_id)
-        accent     = word_entry.get("accent") if word_entry else None
-        n_mora     = len(mora1)
+        accent = word_entry.get("accent") if word_entry else None
+        n_mora = len(mora1)
 
         score_result = calc_total_score(
-            pitch_fin2=pitch_fin2_score.tolist(),    # comp/smooth済み（H/L・核検出用）
-            mora_values=xline_mora,
-            accent=accent,
-            n_mora=n_mora,
+            pitch_fin2=pitch_fin2_score.tolist(), mora_values=xline_mora,
+            accent=accent, n_mora=n_mora,
             native_mora_length=pct_length(mora_length1),
             user_mora_length=pct_length(mora_length2),
-            mora_labels=mora1,
-            pitch_fin=pitch_fin_score.tolist(),      # comp/smooth済み（後方互換）
-            pitch_user_raw=pitch_user_raw,           # NaN保持（安定度・有声率・Pearson用）
-            pitch_native_raw=pitch_native_raw,       # NaN保持（Pearson用・新規）
-            vowel_score=vowel_score,
-            vowel_feedback=vowel_feedback,
+            mora_labels=mora1, pitch_fin=pitch_fin_score.tolist(),
+            pitch_user_raw=pitch_user_raw, pitch_native_raw=pitch_native_raw,
+            vowel_score=vowel_score, vowel_feedback=vowel_feedback,
         )
+        score_result["alignment_failed"] = False
+        score_result["julius_score"]     = julius_score
 
-        score_result["alignment_failed"]   = False
-        score_result["julius_score"]       = julius_score
-        score_result["alignment_feedback"] = None
+        score_delta = _score_delta(score_result.get("total"), prev_score.get("total") if prev_score else None)
 
-        return render_template(
-            "line_graph.html",
-            **common_kwargs,
-            score=score_result,
-            alignment_failed=False,
-            julius_score=julius_score,
-            alignment_feedback=None,
-            voice_quality=voice_quality,
-            speaking_rate=user_rate,
-            rate_feedback=rate_feedback,
-        )
+        try:
+            save_record(word_id, display, reading, score_result)
+        except Exception:
+            pass
+
+        try:
+            newly_completed_raw, _, active_raw = check_and_update_quests(score_result, word_id)
+            newly_completed = _enrich_quests(newly_completed_raw, word_map)
+            active_quests   = _enrich_quests(active_raw, word_map)
+        except Exception:
+            newly_completed = []
+            active_quests   = _enrich_quests(load_active_quests(), word_map)
+
+        suggestions = _get_suggestions(word_id, score_result, words_list)
+
+        return render_template("line_graph.html", **common_kwargs,
+                               score=score_result,
+                               alignment_failed=False, julius_score=julius_score,
+                               voice_quality=voice_quality,
+                               speaking_rate=user_rate, rate_feedback=rate_feedback,
+                               newly_completed=newly_completed, active_quests=active_quests,
+                               score_delta=score_delta, suggestions=suggestions)
 
     except Exception as exc:
         traceback.print_exc()
-        return f"解析中にエラーが発生しました: {exc}", 500
+        return render_template("error.html", code=500, title="解析エラー", message=str(exc)), 500
 
 
 @app.route("/sample_audio/<word_id>")
 def sample_audio(word_id: str):
     static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
-    if static_path.exists():
-        return send_file(str(static_path), mimetype="audio/wav")
+    if static_path.exists(): return send_file(str(static_path), mimetype="audio/wav")
     tts_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.wav"
-    if tts_path.exists():
-        return send_file(str(tts_path), mimetype="audio/wav")
+    if tts_path.exists(): return send_file(str(tts_path), mimetype="audio/wav")
     return "not found", 404
 
 
@@ -344,12 +430,10 @@ def api_delete_word():
     try:
         data    = request.get_json()
         word_id = data.get("word_id", "").strip()
-        if not word_id:
-            return jsonify({"error": "word_id が指定されていません"}), 400
+        if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
         return jsonify(delete_word(word_id))
     except Exception as exc:
-        traceback.print_exc()
-        return jsonify({"error": str(exc)}), 500
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/admin/update_word", methods=["POST"])
@@ -360,17 +444,15 @@ def api_update_word():
         display = data.get("display", "").strip()
         reading = data.get("reading", "").strip()
         accent  = data.get("accent")
-        if not word_id or not display or not reading:
-            return jsonify({"error": "必須項目が不足しています"}), 400
+        if not word_id or not display or not reading: return jsonify({"error": "必須項目が不足しています"}), 400
         return jsonify(update_word(word_id, display, reading, accent))
     except Exception as exc:
-        traceback.print_exc()
-        return jsonify({"error": str(exc)}), 500
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/admin")
 def admin():
-    return render_template("admin.html", words=list_words())
+    return render_template("admin.html", words=list_words(), stats=get_stats())
 
 
 @app.route("/admin/add_word", methods=["POST"])
@@ -379,12 +461,10 @@ def add_word():
         data    = request.get_json()
         display = data.get("display", "").strip()
         reading = data.get("reading", "").strip()
-        if not display or not reading:
-            return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
+        if not display or not reading: return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
         return jsonify(register_word(display, reading))
     except Exception as exc:
-        traceback.print_exc()
-        return jsonify({"error": str(exc)}), 500
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":
