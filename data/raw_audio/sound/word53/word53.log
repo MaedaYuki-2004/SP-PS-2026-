@@ -9,14 +9,14 @@ Stat: init_phmm: base phones:    43 used in logical
 Stat: init_phmm: finished reading HMM definitions
 STAT: *** AM00 _default loaded
 STAT: *** loading LM00 _default
-STAT: reading [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dfa] and [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dict]...
+STAT: reading [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word53.dfa] and [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word53.dict]...
 Stat: init_voca: read 3 words
 STAT: done
-STAT: Gram #0 test registered
-STAT: Gram #0 test: new grammar loaded, now mash it up for recognition
-STAT: Gram #0 test: extracting category-pair constraint for the 1st pass
-STAT: Gram #0 test: installed
-STAT: Gram #0 test: turn on active
+STAT: Gram #0 word53 registered
+STAT: Gram #0 word53: new grammar loaded, now mash it up for recognition
+STAT: Gram #0 word53: extracting category-pair constraint for the 1st pass
+STAT: Gram #0 word53: installed
+STAT: Gram #0 word53: turn on active
 STAT: grammar update completed
 STAT: *** LM00 _default loaded
 STAT: ------
@@ -28,9 +28,9 @@ STAT: 1 MFCC modules created
 STAT: [2] create recognition processing instance(s) with AM and LM
 STAT: composing recognizer instance SR00 _default (AM00 _default, LM00 _default)
 STAT: Building HMM lexicon tree
-STAT: lexicon size: 21+0=21
+STAT: lexicon size: 24+0=24
 STAT: coordination check passed
-STAT: multi-gram: beam width set to 21 (guess) by lexicon change
+STAT: multi-gram: beam width set to 24 (guess) by lexicon change
 STAT: wchmm (re)build completed
 STAT: SR00 _default composed
 STAT: [3] initialize for acoustic HMM calculation
@@ -62,8 +62,8 @@ Configuration of Modules
  Language Model:
  - LM00 "_default"
 	grammar #1:
-	    dfa  = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dfa
-	    dict = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dict
+	    dfa  = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word53.dfa
+	    dict = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word53.dict
 
  Recognizer:
  - SR00 "_default" (AM00, LM00)
@@ -133,9 +133,9 @@ Language Model(s)
       category-pair matrix: 16 bytes (436 bytes allocated)
 
  Vocabulary Info:
-        vocabulary size  = 3 words, 7 models
-        average word len = 2.3 models, 7.0 states
-       maximum state num = 15 nodes per word
+        vocabulary size  = 3 words, 8 models
+        average word len = 2.7 models, 8.0 states
+       maximum state num = 18 nodes per word
        transparent words = not exist
        words under class = not exist
 
@@ -148,7 +148,7 @@ Recognizer(s)
 [SR00 "_default"]  AM00 "_default"  +  LM00 "_default"
 
  Lexicon tree:
-	 total node num =     21
+	 total node num =     24
 	  root node num =      3
 	  leaf node num =      3
 
@@ -158,7 +158,7 @@ Recognizer(s)
 
  Search parameters: 
 	    multi-path handling = no
-	(-b) trellis beam width = 21 (-1 or not specified - guessed)
+	(-b) trellis beam width = 24 (-1 or not specified - guessed)
 	(-bs)score pruning thres= disabled
 	(-n)search candidate num= 1
 	(-s)  search stack size = 500
@@ -210,34 +210,35 @@ Notice for feature extraction (01),
 
 ------
 ### read waveform input
-Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.wav
-STAT: 26112 samples (1.63 sec.)
+Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word53.wav
+STAT: 10923 samples (0.68 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
-pass1_best_phonemeseq: silB | k a i k e: | silE
-pass1_best_score: -3993.090088
+pass1_best_phonemeseq: silB | k e N k o u | silE
+pass1_best_score: -1684.797974
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 161
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 66
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
-phseq1: silB | k a i k e: | silE
+phseq1: silB | k e N k o u | silE
 cmscore1: 1.000 1.000 1.000
-score1: -3993.088867
+score1: -1684.798218
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   29]  -25.124571  silB
-[  30   64]  -28.504005  k
-[  65   77]  -24.684673  a
-[  78   90]  -24.418026  i
-[  91  101]  -27.544945  k
-[ 102  147]  -20.629410  e:
-[ 148  160]  -27.033110  silE
-re-computed AM score: -3993.090088
+[   0    8]  -22.563681  silB
+[   9   13]  -27.197651  k
+[  14   25]  -25.750441  e
+[  26   31]  -27.939270  N
+[  32   38]  -27.485342  k
+[  39   57]  -25.542175  o
+[  58   60]  -27.508301  u
+[  61   65]  -21.774414  silE
+re-computed AM score: -1684.797974
 === end forced alignment ===
 
 

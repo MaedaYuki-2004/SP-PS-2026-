@@ -362,5 +362,12 @@
     "accent": 1,
     "accent_source": "mecab",
     "source": "tts"
+  },
+  "word53": {
+    "display": "健康",
+    "reading": "けんこう",
+    "accent": 0,
+    "accent_source": "mecab",
+    "source": "tts"
   }
 }

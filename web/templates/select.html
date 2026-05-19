@@ -1,117 +1,228 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <title>日本語発音評価システム</title>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SP-PS — 日本語発音練習</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="static/css/base.css" rel="stylesheet">
-  <link href="static/css/select.css" rel="stylesheet">
+  <style>
+    .hero { padding:32px 32px 24px; border-bottom:1px solid var(--border-light); display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+    .hero-eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
+    .hero-title { font-size:clamp(22px,3.5vw,28px); font-weight:700; color:var(--navy); }
+    .hero-sub { font-size:13px; color:var(--text-3); margin-top:4px; }
+    .hero-stats { display:flex; align-items:center; gap:20px; }
+    .stat-item { text-align:right; }
+    .stat-num { font-family:var(--mono); font-size:20px; font-weight:500; color:var(--navy); display:block; }
+    .stat-lbl { font-size:10px; color:var(--text-3); letter-spacing:.04em; }
+
+    .main-layout { display:grid; grid-template-columns:1fr 320px; min-height:calc(100vh - 148px); }
+
+    /* Word section */
+    .words-section { padding:24px 32px; border-right:1px solid var(--border-light); }
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; gap:12px; flex-wrap:wrap; }
+    .section-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .search-wrap { position:relative; }
+    .search-input { width:220px; padding:8px 12px 8px 32px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:13px; background:var(--bg-card); color:var(--text); transition:border-color var(--dur),box-shadow var(--dur); }
+    .search-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(14,30,69,.08); }
+    .search-icon { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--text-3); }
+
+    .word-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; }
+    .word-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; transition:box-shadow var(--dur),transform var(--dur),border-color var(--dur); }
+    .word-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
+    .word-card.hidden { display:none; }
+
+    .word-card-body { padding:16px 16px 12px; flex:1; }
+    .word-card-index { font-family:var(--mono); font-size:9px; color:var(--text-3); display:block; margin-bottom:6px; }
+    .word-card-text { font-size:26px; font-weight:700; color:var(--navy); line-height:1.15; letter-spacing:.01em; margin-bottom:3px; }
+    .word-card-reading { font-size:11px; color:var(--text-3); letter-spacing:.04em; margin-bottom:8px; }
+
+    /* A: アクセント図解 */
+    .word-card-accent { margin-bottom:8px; }
+    .accent-type-label { font-size:9px; color:var(--text-3); letter-spacing:.04em; margin-bottom:3px; display:block; }
+
+    .word-card-audio { padding:0 16px 8px; }
+    .word-card-audio audio { width:100%; height:26px; border-radius:var(--r-xs); }
+    .word-card-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); }
+    .word-record-btn { width:100%; padding:9px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:12px; font-weight:600; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:background var(--dur),box-shadow var(--dur),transform var(--dur); }
+    .word-record-btn:hover { background:var(--navy-mid); box-shadow:0 2px 10px rgba(14,30,69,.2); }
+    .word-record-btn:active { transform:scale(.97); }
+    .no-results { display:none; text-align:center; padding:48px; color:var(--text-3); font-size:14px; grid-column:1/-1; }
+
+    /* Quest sidebar */
+    .quest-sidebar { padding:24px 20px; background:var(--bg); }
+    .quest-board-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:4px; }
+    .quest-board-sub { font-size:10px; color:var(--text-3); margin-bottom:16px; }
+
+    .quest-item { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); margin-bottom:10px; overflow:hidden; transition:box-shadow var(--dur),transform var(--dur); }
+    .quest-item:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+    .quest-item[data-cat="accent"] { border-left:3px solid var(--accent); }
+    .quest-item[data-cat="length"] { border-left:3px solid var(--green); }
+    .quest-item[data-cat="vowel"]  { border-left:3px solid var(--blue); }
+    .quest-item[data-cat="total"]  { border-left:3px solid var(--navy); }
+
+    .quest-item-body { padding:12px 14px 10px; }
+    .quest-item-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:4px; }
+    .quest-item-title { font-size:12px; font-weight:700; color:var(--text); line-height:1.35; flex:1; }
+    .quest-item-word { font-size:10px; color:var(--text-3); margin-bottom:6px; }
+    .quest-item-word span { font-size:13px; font-weight:700; color:var(--navy); margin-left:4px; }
+    .quest-item-desc { font-size:11px; color:var(--text-2); line-height:1.6; margin-bottom:8px; }
+    .quest-progress-meta { display:flex; justify-content:space-between; font-size:10px; color:var(--text-3); margin-bottom:3px; }
+    .quest-progress-pct { font-family:var(--mono); font-weight:500; color:var(--quest); }
+    .quest-item-footer { padding:8px 14px 10px; }
+    .quest-practice-btn { width:100%; padding:8px 12px; background:var(--quest-bg); color:var(--quest); border:1px solid var(--quest-border); border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; transition:background var(--dur),color var(--dur),transform var(--dur); }
+    .quest-practice-btn:hover { background:var(--quest); color:#fff; }
+    .quest-practice-btn:active { transform:scale(.97); }
+
+    .quest-empty { background:var(--bg-card); border:1px dashed var(--border); border-radius:var(--r); padding:24px 16px; text-align:center; }
+    .quest-empty-title { font-size:12px; font-weight:700; color:var(--text-2); margin-bottom:4px; }
+    .quest-empty-sub { font-size:11px; color:var(--text-3); line-height:1.6; }
+
+    @media (max-width:900px) { .main-layout { grid-template-columns:1fr; } .words-section { border-right:none; } .quest-sidebar { border-top:1px solid var(--border-light); } }
+    @media (max-width:600px) { .hero { padding:20px; } .words-section { padding:16px 20px; } .hero-stats { display:none; } }
+  </style>
 </head>
 <body>
-
 <nav class="top-nav">
   <a href="/" class="nav-brand">
-    <span class="nav-brand-jp">発音評価</span>
-    <span class="nav-brand-dot"></span>
-    <span class="nav-brand-en">Pronunciation System</span>
+    <span class="nav-brand-main">SP-PS</span>
+    <span class="nav-divider"></span>
+    <span class="nav-brand-sub">発音評価システム</span>
   </a>
-  <a href="/admin" class="nav-back" style="text-decoration:none;">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <rect x="2" y="2" width="4" height="4" rx="1" fill="currentColor"/>
-      <rect x="8" y="2" width="4" height="4" rx="1" fill="currentColor"/>
-      <rect x="2" y="8" width="4" height="4" rx="1" fill="currentColor"/>
-      <rect x="8" y="8" width="4" height="4" rx="1" fill="currentColor"/>
-    </svg>
-    単語管理
-  </a>
+  <div class="nav-actions">
+    <a href="/history" class="nav-link">履歴</a>
+    <a href="/upload"  class="nav-link">ファイル</a>
+    <a href="/admin"   class="nav-link">管理</a>
+  </div>
 </nav>
 
-<div class="page-hero">
-  <p class="page-hero-sub">Step 1 — 単語選択</p>
-  <h1 class="page-hero-title">練習する単語を選んでください</h1>
+<div class="hero">
+  <div>
+    <p class="hero-eyebrow">Step 1</p>
+    <h1 class="hero-title">練習する単語を選ぼう</h1>
+    <p class="hero-sub">録音してネイティブ音声と比較できます</p>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-item"><span class="stat-num">{{ words|length }}</span><span class="stat-lbl">登録単語数</span></div>
+    <div class="stat-item"><span class="stat-num">{{ stats.total_sessions if stats else 0 }}</span><span class="stat-lbl">総練習回数</span></div>
+    <div class="stat-item"><span class="stat-num">{{ active_quests|length }}</span><span class="stat-lbl">進行中クエスト</span></div>
+  </div>
 </div>
 
-<div class="selector-wrap">
-  <label class="selector-label" for="selectWord">単語リスト（{{ words|length }} 語）</label>
-  <select id="selectWord" name="Words">
-    {% for w in words %}
-    <option value="{{ w.word_id }}">
-      {{ loop.index }}. {{ w.display }}
-    </option>
-    {% endfor %}
-  </select>
-</div>
-
-<div class="word-card card selector-wrap" style="margin-top:16px; margin-bottom:40px;">
-  <ul class="words-list">
-    {% for w in words %}
-    <li id="{{ w.word_id }}" class="word-item {% if loop.first %}active{% endif %}">
-
-      <div class="word-header">
-        <div class="word-text-wrap">
-          <p class="word-text">{{ w.display }}</p>
-          <p class="word-meaning">{{ w.reading }}</p>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-          <span class="word-index-badge">No.{{ "%02d"|format(loop.index) }}</span>
-          {% if w.accent is not none %}
-          <span class="word-index-badge" style="background:var(--accent-bg);color:var(--accent);">
-            {{ w.accent }}型
-          </span>
+<div class="main-layout">
+  <!-- 単語グリッド -->
+  <div class="words-section">
+    <div class="section-header">
+      <span class="section-title">単語一覧</span>
+      <div class="search-wrap">
+        <svg class="search-icon" width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <input type="text" class="search-input" id="searchInput" placeholder="単語を検索..." oninput="filterWords()">
+      </div>
+    </div>
+    <div class="word-grid" id="wordGrid">
+      {% for w in words %}
+      {% set pattern = accent_patterns.get(w.word_id, []) %}
+      <div class="word-card" data-word="{{ w.display }}" data-reading="{{ w.reading }}">
+        <div class="word-card-body">
+          <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
+          <div class="word-card-text">{{ w.display }}</div>
+          <div class="word-card-reading">{{ w.reading }}</div>
+          <!-- A: アクセント図解 -->
+          {% if pattern %}
+          <div class="word-card-accent">
+            <span class="accent-type-label">
+              {% if w.accent == 0 %}平板型{% elif w.accent == 1 %}頭高型{% elif w.accent is not none %}{{ w.accent }}型{% else %}型不明{% endif %}
+            </span>
+            <div class="accent-viz">
+              {% for hl in pattern %}
+              <div class="av-mora">
+                <div class="av-bar {{ hl }}"></div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
           {% endif %}
         </div>
+        <div class="word-card-audio">
+          <audio controls src="/sample_audio/{{ w.word_id }}" preload="none"></audio>
+        </div>
+        <div class="word-card-footer">
+          <form action="/" method="post">
+            <input type="hidden" name="Words" value="{{ w.word_id }}">
+            <button type="submit" class="word-record-btn">
+              録音する
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </form>
+        </div>
       </div>
+      {% endfor %}
+      <div class="no-results" id="noResults">該当する単語が見つかりませんでした</div>
+    </div>
+  </div>
 
-      <div class="word-body">
-        <div class="word-image-wrap">
-          <!-- 画像があれば表示、なければスペース -->
-          {% set img_path = "static/image/" + w.display + ".png" %}
-          <div style="width:80px;height:80px;flex-shrink:0;"></div>
-          <div class="word-audio-wrap">
-            <span class="audio-label">サンプル音声</span>
-            <audio controls src="/sample_audio/{{ w.word_id }}"></audio>
+  <!-- クエストサイドバー -->
+  <div class="quest-sidebar">
+    <div class="quest-board-title">進行中のクエスト</div>
+    <div class="quest-board-sub">次回の録音で自動クリア判定されます</div>
+
+    {% if active_quests %}
+      {% for q in active_quests %}
+      <div class="quest-item" data-cat="{{ q.category }}">
+        <div class="quest-item-body">
+          <div class="quest-item-top">
+            <div class="quest-item-title">{{ q.title }}</div>
+            <span class="cat-badge cat-{{ q.category }}">
+              {% if q.category=="accent" %}Ac{% elif q.category=="length" %}Le{% elif q.category=="vowel" %}Vo{% else %}All{% endif %}
+            </span>
+          </div>
+          <div class="quest-item-word">対象<span>{{ q.word_display or q.word_id }}</span></div>
+          <div class="quest-item-desc">{{ q.description }}</div>
+          <div class="quest-progress-meta">
+            <span>{{ q.start_value|round(1) }}点 → {{ q.target_value|int }}点</span>
+            <span class="quest-progress-pct">
+              {% set span = q.target_value - q.start_value %}
+              {% if span > 0 %}{{ [(q.start_value / q.target_value * 100)|round|int, 0]|max }}%
+              {% else %}100%{% endif %}
+            </span>
+          </div>
+          <div class="progress-bar">
+            {% if q.target_value > 0 %}{% set _p = (q.start_value / q.target_value * 100)|round|int %}{% set _p = [_p, 0]|max %}{% set _p = [_p, 100]|min %}{% else %}{% set _p = 0 %}{% endif %}
+          <div class="progress-fill" style="width:{{ _p }}%;"></div>
           </div>
         </div>
-
-        {% if w.accent is not none %}
-        <div class="advice-box">
-          {% if w.accent == 0 %}
-            ・平板型：最初の拍を低く発音し、2拍目以降を高く保つ
-          {% elif w.accent == 1 %}
-            ・頭高型：最初の拍を高く発音し、2拍目以降を低く下げる
-          {% else %}
-            ・{{ w.accent }}型：{{ w.accent }}拍目まで高く、その後低く下げる
-          {% endif %}
+        <div class="quest-item-footer">
+          <form action="/" method="post">
+            <input type="hidden" name="Words" value="{{ q.word_id }}">
+            <button type="submit" class="quest-practice-btn">
+              練習する
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </form>
         </div>
-        {% else %}
-        <div class="advice-box">アクセント情報なし</div>
-        {% endif %}
       </div>
-
-      <div class="word-footer">
-        <form action="/" method="post">
-          <input type="hidden" name="Words" value="{{ w.word_id }}">
-          <button type="submit" class="btn btn-primary btn-lg btn-full">録音画面へ →</button>
-        </form>
-        <a href="/upload" class="btn btn-ghost btn-full">ファイルアップロード</a>
+      {% endfor %}
+    {% else %}
+      <div class="quest-empty">
+        <div class="quest-empty-title">クエストがありません</div>
+        <div class="quest-empty-sub">単語を録音・解析すると<br>弱点に合わせたクエストが<br>自動生成されます</div>
       </div>
-
-    </li>
-    {% endfor %}
-  </ul>
+    {% endif %}
+  </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
 <script>
-  $(function() {
-    $('#selectWord').change(function() {
-      var val = $(this).val();
-      $('ul.words-list li').removeClass('active');
-      $('#' + val).addClass('active');
-    });
+function filterWords() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  let vis = 0;
+  document.querySelectorAll('.word-card').forEach(c => {
+    const m = !q || (c.dataset.word||'').includes(q) || (c.dataset.reading||'').includes(q);
+    c.classList.toggle('hidden', !m);
+    if(m) vis++;
   });
+  document.getElementById('noResults').style.display = vis === 0 ? 'block' : 'none';
+}
 </script>
 </body>
 </html>

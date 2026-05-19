@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>練習履歴 — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="static/css/base.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .page-header { background:var(--navy); padding:24px 32px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .page-header-title { font-size:22px; font-weight:700; color:#fff; }
+    .page-header-sub { font-size:12px; color:rgba(255,255,255,.4); margin-top:3px; }
+    .header-actions { display:flex; gap:8px; }
+
+    .main { max-width:1100px; margin:0 auto; padding:28px 32px; }
+
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
+    .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; box-shadow:var(--shadow-xs); }
+    .stat-card-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; }
+    .stat-card-value { font-family:var(--mono); font-size:28px; font-weight:500; color:var(--navy); }
+    .stat-card-sub { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .grade-S-c{color:#F59E0B;} .grade-A-c{color:var(--green);} .grade-B-c{color:var(--blue);} .grade-C-c{color:var(--accent);} .grade-D-c{color:var(--text-3);}
+
+    .sec-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+    .sec-title-line { flex:1; height:1px; background:var(--border-light); }
+
+    /* E: スコア推移グラフ */
+    .word-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-bottom:32px; }
+    .word-progress-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px; box-shadow:var(--shadow-xs); transition:box-shadow var(--dur),transform var(--dur); }
+    .word-progress-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+    .wpc-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px; }
+    .wpc-word { font-size:20px; font-weight:700; color:var(--navy); }
+    .wpc-reading { font-size:10px; color:var(--text-3); }
+    .wpc-grade { font-size:22px; font-weight:700; }
+    .wpc-score { font-family:var(--mono); font-size:18px; font-weight:500; color:var(--text); margin-bottom:6px; }
+    .wpc-score span { font-size:11px; color:var(--text-3); font-weight:400; }
+    .wpc-count { font-size:10px; color:var(--text-3); margin-bottom:8px; }
+    .wpc-chart-wrap { height:60px; position:relative; }
+    .wpc-footer { margin-top:10px; border-top:1px solid var(--border-light); padding-top:10px; }
+    .wpc-practice-btn { width:100%; padding:7px 12px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:600; letter-spacing:.04em; cursor:pointer; transition:background var(--dur),transform var(--dur); }
+    .wpc-practice-btn:hover { background:var(--navy-mid); }
+    .wpc-practice-btn:active { transform:scale(.97); }
+
+    /* History table */
+    .table-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:12px; flex-wrap:wrap; }
+    .filter-wrap { position:relative; }
+    .filter-input { padding:7px 12px 7px 28px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:12px; background:var(--bg-card); color:var(--text); width:180px; transition:border-color var(--dur),box-shadow var(--dur); }
+    .filter-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(14,30,69,.08); }
+    .filter-icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--text-3); }
+
+    .hist-table-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-xs); }
+    .hist-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .hist-table th { text-align:left; padding:10px 16px; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); background:var(--bg-muted); border-bottom:1px solid var(--border); }
+    .hist-table td { padding:10px 16px; border-bottom:1px solid var(--border-light); color:var(--text-2); vertical-align:middle; }
+    .hist-table tr:last-child td { border-bottom:none; }
+    .hist-table tr:hover td { background:var(--bg); }
+    .tbl-word { font-size:16px; font-weight:700; color:var(--navy); }
+    .tbl-reading { font-size:10px; color:var(--text-3); display:block; }
+    .tbl-score { font-family:var(--mono); font-weight:500; color:var(--text); }
+    .tbl-grade { font-size:16px; font-weight:700; }
+    .tbl-date { font-family:var(--mono); font-size:11px; color:var(--text-3); }
+    .mini-bars { display:flex; gap:3px; align-items:flex-end; height:14px; }
+    .mini-bar { width:5px; border-radius:2px; }
+
+    .empty-state { text-align:center; padding:64px 24px; }
+    .empty-title { font-size:18px; font-weight:700; color:var(--text-2); margin-bottom:10px; }
+    .empty-sub { font-size:14px; color:var(--text-3); line-height:1.7; margin-bottom:24px; }
+
+    @media (max-width:800px) { .stats-row { grid-template-columns:repeat(2,1fr); } .main { padding:16px 20px; } }
+  </style>
+</head>
+<body>
+<nav class="top-nav">
+  <a href="/select" class="nav-link">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    ホーム
+  </a>
+  <div class="nav-actions"><a href="/admin" class="nav-link">管理</a></div>
+</nav>
+
+<div class="page-header">
+  <div>
+    <div class="page-header-title">練習履歴</div>
+    <div class="page-header-sub">全録音セッションの記録と成長の可視化</div>
+  </div>
+  <div class="header-actions">
+    <!-- F: CSVエクスポート -->
+    <a href="/history/export.csv" class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">CSVダウンロード</a>
+    <a href="/select" class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">練習する</a>
+  </div>
+</div>
+
+<div class="main">
+  {% if stats.total_sessions == 0 %}
+  <div class="empty-state">
+    <div class="empty-title">まだ練習記録がありません</div>
+    <div class="empty-sub">単語を録音して解析すると、ここにスコアの記録が蓄積されます。</div>
+    <a href="/select" class="btn btn-primary btn-lg">最初の録音をする</a>
+  </div>
+  {% else %}
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-card-label">総録音回数</div>
+      <div class="stat-card-value">{{ stats.total_sessions }}</div>
+      <div class="stat-card-sub">回</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">練習した単語</div>
+      <div class="stat-card-value">{{ stats.unique_words }}</div>
+      <div class="stat-card-sub">/ {{ words|length }} 語</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">平均スコア</div>
+      <div class="stat-card-value">{{ stats.avg_score }}</div>
+      <div class="stat-card-sub">点</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-label">最高グレード</div>
+      <div class="stat-card-value grade-{{ stats.best_grade }}-c" style="font-size:32px;">{{ stats.best_grade or "—" }}</div>
+      <div class="stat-card-sub">グレード</div>
+    </div>
+  </div>
+
+  <!-- E: 単語別スコア推移グラフ -->
+  {% if word_latest %}
+  <div class="sec-title">単語別スコア推移 <div class="sec-title-line"></div></div>
+  <div class="word-progress-grid">
+    {% for wid, rec in word_latest.items() %}
+    {% set recs = word_history.get(wid, []) %}
+    {% set count = recs|length %}
+    <div class="word-progress-card">
+      <div class="wpc-header">
+        <div>
+          <div class="wpc-word">{{ rec.display }}</div>
+          <div class="wpc-reading">{{ rec.reading }}</div>
+        </div>
+        <div class="wpc-grade grade-{{ rec.grade }}-c">{{ rec.grade }}</div>
+      </div>
+      <div class="wpc-score">{{ rec.total or 0 }}<span> / 100点</span></div>
+      <div class="wpc-count">{{ count }}回練習</div>
+      <!-- E: 推移グラフ（Chart.js） -->
+      <div class="wpc-chart-wrap">
+        <canvas id="chart-{{ wid }}" height="60"></canvas>
+      </div>
+      <div class="wpc-footer">
+        <form action="/" method="post">
+          <input type="hidden" name="Words" value="{{ wid }}">
+          <button type="submit" class="wpc-practice-btn">もう一度練習する</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- History log -->
+  <div class="table-header">
+    <div class="sec-title" style="margin-bottom:0;">録音ログ（最新100件）<div class="sec-title-line"></div></div>
+    <div class="filter-wrap">
+      <svg class="filter-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 8l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <input type="text" class="filter-input" id="filterInput" placeholder="単語を絞り込む..." oninput="filterHistory()">
+    </div>
+  </div>
+
+  <div class="hist-table-wrap">
+    <table class="hist-table" id="historyTable">
+      <thead>
+        <tr>
+          <th>単語</th>
+          <th>スコア</th>
+          <th>内訳</th>
+          <th>グレード</th>
+          <th>日時</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in history %}
+        <tr data-word="{{ rec.display }}">
+          <td><span class="tbl-word">{{ rec.display }}</span><span class="tbl-reading">{{ rec.reading }}</span></td>
+          <td class="tbl-score">{{ rec.total or "—" }}点</td>
+          <td>
+            <div class="mini-bars">
+              <div class="mini-bar" style="height:{{ ((rec.accent_score or 0)/50*12)|round|int }}px;background:var(--accent);" title="Ac {{ rec.accent_score }}"></div>
+              <div class="mini-bar" style="height:{{ ((rec.length_score or 0)/30*12)|round|int }}px;background:var(--green);"  title="Le {{ rec.length_score }}"></div>
+              <div class="mini-bar" style="height:{{ ((rec.vowel_score  or 0)/20*12)|round|int }}px;background:var(--blue);"   title="Vo {{ rec.vowel_score }}"></div>
+            </div>
+          </td>
+          <td><span class="tbl-grade grade-{{ rec.grade }}-c">{{ rec.grade }}</span></td>
+          <td class="tbl-date">{{ rec.timestamp[:16].replace("T"," ") if rec.timestamp else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+// ── テーブル絞り込み ──────────────────────────────────
+function filterHistory() {
+  const q = document.getElementById('filterInput').value.trim().toLowerCase();
+  document.querySelectorAll('#historyTable tbody tr').forEach(row => {
+    row.style.display = !q || (row.dataset.word||'').toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// ── E: 単語別スコア推移グラフ ─────────────────────────
+const wordHistories = {{ word_history | tojson | safe }};
+
+Object.entries(wordHistories).forEach(([wid, recs]) => {
+  const canvas = document.getElementById('chart-' + wid);
+  if (!canvas || recs.length < 2) {
+    // 1回のみの場合は「まだ推移なし」を表示
+    if (canvas && recs.length === 1) {
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#9E9890';
+      ctx.font = '10px "Noto Sans JP"';
+      ctx.textAlign = 'center';
+      ctx.fillText('2回目以降から推移グラフが表示されます', canvas.width/2, 30);
+    }
+    return;
+  }
+
+  const labels = recs.map((r, i) => `${i + 1}回目`);
+  const totals  = recs.map(r => r.total || 0);
+  const accents = recs.map(r => ((r.accent_score || 0) / 50 * 100).toFixed(1));
+  const lengths = recs.map(r => ((r.length_score || 0) / 30 * 100).toFixed(1));
+  const vowels  = recs.map(r => ((r.vowel_score  || 0) / 20 * 100).toFixed(1));
+
+  new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'合計', data:totals,  borderColor:'#0E1E45', backgroundColor:'rgba(14,30,69,.08)', borderWidth:2, pointRadius:3, tension:.3 },
+        { label:'Ac%', data:accents, borderColor:'#C03D20', borderWidth:1, pointRadius:2, tension:.3, borderDash:[3,3] },
+        { label:'Le%', data:lengths, borderColor:'#2D6A4F', borderWidth:1, pointRadius:2, tension:.3, borderDash:[3,3] },
+        { label:'Vo%', data:vowels,  borderColor:'#2A5F96', borderWidth:1, pointRadius:2, tension:.3, borderDash:[3,3] },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { display:false },
+        y: { display:false, min:0, max:100 }
+      },
+      plugins: { legend:{ display:false }, tooltip:{ mode:'index', intersect:false } }
+    }
+  });
+});
+</script>
+</body>
+</html>
