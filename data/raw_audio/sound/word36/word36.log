@@ -211,36 +211,34 @@ Notice for feature extraction (01),
 ------
 ### read waveform input
 Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word36.wav
-Warning: strip: sample 0-7999 has zero value, stripped
-Warning: strip: sample 23189-31188 is invalid, stripped
-STAT: 15189 samples (0.95 sec.)
+STAT: 10752 samples (0.67 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
 pass1_best_phonemeseq: silB | k o u ts u u | silE
-pass1_best_score: -2654.099609
+pass1_best_score: -1631.222900
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 93
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 65
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
 phseq1: silB | k o u ts u u | silE
 cmscore1: 1.000 1.000 1.000
-score1: -2654.101807
+score1: -1631.222656
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   13]  -28.173740  silB
-[  14   18]  -29.962963  k
-[  19   36]  -27.990980  o
-[  37   46]  -28.818958  u
-[  47   54]  -31.336212  ts
-[  55   58]  -33.085632  u
-[  59   61]  -30.330282  u
-[  62   92]  -27.219423  silE
-re-computed AM score: -2654.099609
+[   0    8]  -20.152208  silB
+[   9   14]  -27.430735  k
+[  15   26]  -26.849670  o
+[  27   30]  -32.064880  u
+[  31   42]  -24.859634  ts
+[  43   54]  -25.437418  u
+[  55   57]  -29.222128  u
+[  58   64]  -20.511719  silE
+re-computed AM score: -1631.222900
 === end forced alignment ===
 
 

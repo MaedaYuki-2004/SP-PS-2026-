@@ -211,43 +211,40 @@ Notice for feature extraction (01),
 ------
 ### read waveform input
 Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word32.wav
-Warning: strip: sample 0-7999 has zero value, stripped
-Warning: strip: sample 9891-9930 has zero value, stripped
-Warning: strip: sample 30187-38186 is invalid, stripped
-STAT: 22147 samples (1.38 sec.)
+STAT: 15019 samples (0.94 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
 pass1_best_phonemeseq: silB | k o u s o k u d o u r o | silE
-pass1_best_score: -4061.748047
+pass1_best_score: -2477.575684
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 136
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 92
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
 phseq1: silB | k o u s o k u d o u r o | silE
 cmscore1: 1.000 1.000 1.000
-score1: -4061.746094
+score1: -2477.574951
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   10]  -29.067385  silB
-[  11   19]  -29.032936  k
-[  20   34]  -28.210058  o
-[  35   40]  -29.671438  u
-[  41   53]  -31.451050  s
-[  54   60]  -30.584455  o
-[  61   99]  -31.690470  k
-[ 100  102]  -30.822428  u
-[ 103  105]  -31.945883  d
-[ 106  108]  -32.815838  o
-[ 109  111]  -26.443848  u
-[ 112  114]  -26.997641  r
-[ 115  121]  -27.811453  o
-[ 122  135]  -27.063616  silE
-re-computed AM score: -4061.748047
+[   0    8]  -21.786980  silB
+[   9   14]  -28.260973  k
+[  15   24]  -27.185398  o
+[  25   27]  -31.633890  u
+[  28   37]  -27.755121  s
+[  38   42]  -29.422449  o
+[  43   46]  -27.866180  k
+[  47   52]  -28.095987  u
+[  53   57]  -29.965454  d
+[  58   64]  -27.741367  o
+[  65   67]  -31.128500  u
+[  68   74]  -26.734304  r
+[  75   83]  -25.493734  o
+[  84   91]  -23.310150  silE
+re-computed AM score: -2477.575684
 === end forced alignment ===
 
 

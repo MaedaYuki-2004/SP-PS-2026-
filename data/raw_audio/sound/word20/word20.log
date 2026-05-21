@@ -9,7 +9,7 @@ Stat: init_phmm: base phones:    43 used in logical
 Stat: init_phmm: finished reading HMM definitions
 STAT: *** AM00 _default loaded
 STAT: *** loading LM00 _default
-STAT: reading [./wav/////////////word20.dfa] and [./wav/////////////word20.dict]...
+STAT: reading [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word20.dfa] and [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word20.dict]...
 Stat: init_voca: read 3 words
 STAT: done
 STAT: Gram #0 word20 registered
@@ -62,8 +62,8 @@ Configuration of Modules
  Language Model:
  - LM00 "_default"
 	grammar #1:
-	    dfa  = ./wav/////////////word20.dfa
-	    dict = ./wav/////////////word20.dict
+	    dfa  = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word20.dfa
+	    dict = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word20.dict
 
  Recognizer:
  - SR00 "_default" (AM00, LM00)
@@ -210,35 +210,35 @@ Notice for feature extraction (01),
 
 ------
 ### read waveform input
-Stat: adin_file: input speechfile: ./wav/////////////word20.wav
-STAT: 21068 samples (1.32 sec.)
+Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/word20.wav
+STAT: 11605 samples (0.73 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
 pass1_best_phonemeseq: silB | ch o: sh o k u | silE
-pass1_best_score: -3230.119629
+pass1_best_score: -1811.225708
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 130
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 71
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
 phseq1: silB | ch o: sh o k u | silE
 cmscore1: 1.000 1.000 1.000
-score1: -3230.121094
+score1: -1811.225464
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   37]  -21.880470  silB
-[  38   45]  -25.423767  ch
-[  46   61]  -25.028954  o:
-[  62   75]  -28.481646  sh
-[  76   86]  -27.469006  o
-[  87   94]  -29.323517  k
-[  95  114]  -25.372229  u
-[ 115  129]  -23.458235  silE
-re-computed AM score: -3230.119629
+[   0    8]  -22.075214  silB
+[   9   17]  -25.856304  ch
+[  18   28]  -27.172625  o:
+[  29   38]  -27.094135  sh
+[  39   43]  -27.696630  o
+[  44   49]  -26.632385  k
+[  50   60]  -26.609587  u
+[  61   70]  -21.901892  silE
+re-computed AM score: -1811.225708
 === end forced alignment ===
 
 

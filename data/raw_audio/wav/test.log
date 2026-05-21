@@ -216,28 +216,28 @@ STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
-pass1_best_phonemeseq: silB | k a i k e: | silE
-pass1_best_score: -3993.090088
+pass1_best_phonemeseq: silB | g a q k o: | silE
+pass1_best_score: -4395.372070
 ### Recognition: 2nd pass (RL heuristic best-first)
 STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 161
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
-phseq1: silB | k a i k e: | silE
+phseq1: silB | g a q k o: | silE
 cmscore1: 1.000 1.000 1.000
-score1: -3993.088867
+score1: -4395.368652
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   29]  -25.124571  silB
-[  30   64]  -28.504005  k
-[  65   77]  -24.684673  a
-[  78   90]  -24.418026  i
-[  91  101]  -27.544945  k
-[ 102  147]  -20.629410  e:
-[ 148  160]  -27.033110  silE
-re-computed AM score: -3993.090088
+[   0   55]  -26.169285  silB
+[  56   58]  -33.111004  g
+[  59   81]  -28.099907  a
+[  82  144]  -27.498508  q
+[ 145  153]  -27.121988  k
+[ 154  156]  -33.010254  o:
+[ 157  160]  -27.181641  silE
+re-computed AM score: -4395.372070
 === end forced alignment ===
 
 

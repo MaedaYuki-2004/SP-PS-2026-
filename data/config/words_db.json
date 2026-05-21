@@ -4,210 +4,210 @@
     "reading": "おんど",
     "accent": 1,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word2": {
     "display": "かいけい",
     "reading": "かいけー",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word3": {
     "display": "がっこう",
     "reading": "がっこー",
     "accent": 0,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word4": {
     "display": "ぎんこう",
     "reading": "ぎんこー",
     "accent": 0,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word5": {
     "display": "こうえん",
     "reading": "こーえん",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word6": {
     "display": "こうつう",
     "reading": "こーつー",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word7": {
     "display": "こうばい",
     "reading": "こーばい",
     "accent": 0,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word8": {
     "display": "しごと",
     "reading": "しごと",
     "accent": 0,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word9": {
     "display": "しつど",
     "reading": "しつど",
     "accent": 1,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word10": {
     "display": "じどうしゃ",
     "reading": "じどーしゃ",
     "accent": 2,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word11": {
     "display": "しゅうしょく",
     "reading": "しゅーしょく",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word12": {
     "display": "しゅみ",
     "reading": "しゅみ",
     "accent": 1,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word13": {
     "display": "しょうめいしょ",
     "reading": "しょーめーしょ",
     "accent": 4,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word14": {
     "display": "しょくざい",
     "reading": "しょくざい",
     "accent": 3,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word15": {
     "display": "スケジュール",
     "reading": "すけじゅーる",
     "accent": 2,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word16": {
     "display": "スーパー",
     "reading": "すーぱー",
     "accent": 1,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word17": {
     "display": "せいきゅうしょ",
     "reading": "せーきゅーしょ",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word18": {
     "display": "ぜいきん",
     "reading": "ぜーきん",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word19": {
     "display": "ちゅうしょく",
     "reading": "ちゅーしょく",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word20": {
     "display": "ちょうしょく",
     "reading": "ちょーしょく",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word21": {
     "display": "ちょうみりょう",
     "reading": "ちょーみりょー",
     "accent": 4,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word22": {
     "display": "ちょきん",
     "reading": "ちょきん",
     "accent": 2,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word23": {
     "display": "でんしゃ",
     "reading": "でんしゃ",
     "accent": 0,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word24": {
     "display": "でんわ",
     "reading": "でんわ",
     "accent": 1,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word25": {
     "display": "どうろ",
     "reading": "どーろ",
     "accent": 1,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word26": {
     "display": "びょういん",
     "reading": "びょーいん",
     "accent": 0,
     "accent_source": "mecab",
-    "source": "recorded"
+    "source": "tts"
   },
   "word27": {
     "display": "びよういん",
     "reading": "びよーいん",
     "accent": 3,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word28": {
     "display": "ほどう",
     "reading": "ほどー",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word29": {
     "display": "ゆうしょく",
     "reading": "ゆーしょく",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word30": {
     "display": "やちん",
     "reading": "やちん",
     "accent": 0,
     "accent_source": "manual",
-    "source": "recorded"
+    "source": "tts"
   },
   "word31": {
     "display": "健康",

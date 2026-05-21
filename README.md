@@ -1,10 +1,9 @@
-```text
 # SP-PS — 日本語単語 音声解析・可視化プラットフォーム
 
 > 「声（口）のかたちを綺麗にする一歩を踏める嬉しさを届ける」
 
 録音した日本語単語の発音をネイティブ音声と比較し、
-アクセント・モーラ長・母音の口の形の3軸でスコアを算出してフィードバックを提供するFlaskアプリケーション。
+アクセント・モーラ長・母音品質の3軸でスコアを算出してフィードバックを提供する Flask アプリケーション。
 
 ---
 
@@ -17,8 +16,9 @@
 5. [機能一覧](#機能一覧)
 6. [ディレクトリ構成](#ディレクトリ構成)
 7. [スコアロジック](#スコアロジック)
-8. [主要な変更点（実装ログ）](#主要な変更点実装ログ)
-9. [既知の限界](#既知の限界)
+8. [システム内部の処理フロー](#システム内部の処理フロー)
+9. [主要な変更点（実装ログ）](#主要な変更点実装ログ)
+10. [既知の限界](#既知の限界)
 
 ---
 
@@ -26,10 +26,12 @@
 
 | 項目 | 要件 |
 |------|------|
-| OS | Ubuntu 22.04 LTS 以降（Julius の動作確認済み） |
+| OS | Windows 10/11・Ubuntu 22.04 LTS 以降（Julius の動作確認済み） |
 | Python | 3.10 以上 |
-| Node.js | 18 以上（スライド生成スクリプト使用時のみ） |
-| Julius | 4.6 以上 |
+| Julius | 4.3.1 以上（Windows は `engine/bin/` に exe を配置） |
+| Perl | Strawberry Perl（Windows）/ システム標準（Linux） |
+| VOICEVOX | 0.14 以上（サンプル音声の自動生成に必要） |
+| MeCab | UniDic 辞書と組み合わせて使用 |
 | Praat | parselmouth 経由で自動インストール |
 
 ---
@@ -39,159 +41,205 @@
 ### 1. リポジトリのクローン
 
 ```bash
-git clone <repository_url>
-cd sp-ps
+git clone https://github.com/MaedaYuki-2004/SP-PS-2026-.git
+cd SP-PS-2026-
 ```
 
-### 2. Julius のインストール
+### 2. Julius の配置
 
 Julius は音素アライメント（音声と音素の対応付け）に使用します。
 
-```bash
-# Ubuntu / Debian
-sudo apt-get update
-sudo apt-get install -y julius julius-dev
+**Windows の場合**
+`engine/bin/` フォルダに Julius の実行ファイルを配置します。
 
-# バージョン確認
-julius --version
+```
+engine/bin/julius-4.3.1.exe   ← ここに配置
+engine/models/hmmdefs_monof_mix16_gid.binhmm
 ```
 
-> **Note:** パッケージ版で動作しない場合はソースからビルドしてください。  
-> https://github.com/julius-speech/julius
+Julius は以下の優先順位で自動検出されます（`config.py` の `_detect_julius()`）。
 
-Julius 用の音響モデルを `config.py` で指定したパスに配置します（後述）。
+1. 環境変数 `JULIUS_BIN`（手動設定）
+2. `engine/bin/julius*.exe`（Windows 自動検出）
+3. `/opt/homebrew/bin/julius`（Apple Silicon Mac）
+4. `/usr/local/bin/julius`（Intel Mac / Linux）
+5. `PATH` 検索
 
-### 3. Python 依存パッケージのインストール
+**Ubuntu / Debian の場合**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y julius julius-dev
+```
+
+### 3. Perl のインストール
+
+**Windows**（Strawberry Perl 推奨）
+https://strawberryperl.com/ からインストール。
+
+**Ubuntu / Debian**
+
+```bash
+sudo apt-get install -y perl
+```
+
+### 4. MeCab + UniDic のインストール
+
+アクセント型の自動取得（`core/accent.py`）に使用します。
+
+```bash
+# MeCab 本体
+pip install mecab-python3
+
+# UniDic 辞書
+pip install unidic
+python -m unidic download
+```
+
+### 5. Python 依存パッケージのインストール
 
 ```bash
 pip install -r requirements.txt
 ```
 
-`requirements.txt` が存在しない場合は以下を手動でインストールしてください。
+`requirements.txt` に含まれないが必要なパッケージ：
 
 ```bash
-pip install flask \
-            parselmouth \
-            librosa \
-            fastdtw \
-            scipy \
-            numpy \
-            pydub \
-            soundfile
+pip install mecab-python3 unidic soundfile
 ```
 
 | パッケージ | 用途 |
 |-----------|------|
-| flask | Webサーバー |
-| parselmouth | Praat連携（ピッチ・フォルマント抽出） |
-| librosa | 音声読み込み・MFCC抽出 |
-| fastdtw | DTW距離計算（音色評価） |
-| scipy | 統計計算（Pearson相関など） |
+| flask | Web サーバー |
+| praat-parselmouth | Praat 連携（ピッチ・フォルマント抽出） |
+| librosa | 音声読み込み・MFCC 抽出 |
+| fastdtw | DTW 距離計算（音色評価） |
+| scipy | 統計計算（Pearson 相関など） |
 | numpy | 数値計算全般 |
+| noisereduce | ノイズ除去 |
 | pydub | 音声フォーマット変換 |
-| soundfile | WAVファイル読み書き |
+| mecab-python3 | アクセント型の自動取得 |
+| unidic | MeCab 用 UniDic 辞書 |
 
-### 4. ffmpeg のインストール（pydub の依存）
+### 6. ffmpeg のインストール（pydub の依存）
 
 ```bash
+# Ubuntu / Debian
 sudo apt-get install -y ffmpeg
+
+# Windows: https://ffmpeg.org/download.html
 ```
 
-### 5. MFCCバイナリの生成
+### 7. MFCC バイナリの生成
 
-Delta MFCC（Δ・ΔΔ）を含む36次元に変更したため、
-既存の `.bin` ファイルがある場合は再生成が必要です。
+Delta MFCC（Δ・ΔΔ）を含む 36 次元で生成します。
+新規セットアップ時・単語追加後は必ず実行してください。
 
 ```bash
 python scripts/regenerate_mfcc.py
 ```
 
-### 6. requirements.txt の生成（初回のみ）
+### 8. 動作確認
+
+インストール後は診断スクリプトで環境を確認できます。
 
 ```bash
-pip freeze > requirements.txt
+python diagnose.py
 ```
 
-最低限必要なパッケージのバージョン例：
-
-```
-Flask>=2.3.0
-numpy>=1.24.0
-scipy>=1.10.0
-librosa>=0.10.0
-parselmouth>=0.4.3
-fastdtw>=0.3.4
-pydub>=0.25.1
-soundfile>=0.12.1
-```
+`[OK]` が全項目で出れば起動準備完了です。`[NG]` が出た項目が起動失敗の原因になります。
 
 ---
 
 ## 設定
 
-`config.py` を環境に合わせて編集してください。
+`config.py` を環境に合わせて確認・編集してください。
+パス定数はすべて `BASE_DIR`（`app.py` と同じ場所）からの相対パスで解決されます。
 
 ```python
 # config.py の主要な設定項目
 
-# Julius 音響モデルのパス
-JULIUS_MODEL_PATH = "/path/to/hmmdefs_monof_mix16_gid.binhmm"
-JULIUS_DICT_PATH  = "/path/to/dict"
-
-# 音声ファイルの保存先
-AUDIO_WAV_DIR     = Path("data/wav")
-AUDIO_MFCC_DIR    = Path("data/mfcc")
-RAW_AUDIO_DIR     = Path("data/raw")
-
-# Flask
-FLASK_SECRET_KEY  = "your-secret-key-here"
+# Julius バイナリ（自動検出。手動指定する場合は環境変数で上書き）
+# export JULIUS_BIN="/path/to/julius"
 
 # Praat ピッチ検出のデフォルト範囲（自動推定が失敗した場合のフォールバック）
-PITCH_FLOOR_DEFAULT   = 75.0   # Hz
-PITCH_CEILING_DEFAULT = 600.0  # Hz
+PITCH_FLOOR_DEFAULT   = 70.0    # Hz
+PITCH_CEILING_DEFAULT = 400.0   # Hz
+
+# Flask シークレットキー（本番環境では必ず変更）
+FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "change-this-secret-key")
 ```
 
-### 単語データベースの準備
+### 音響モデルのパス
 
-`words_db.json` に評価対象の単語を登録します。
+Julius の音響モデルは `engine/models/` に配置します。
+パスは `scripts/segment_julius.pl` の冒頭で指定されています。
+
+```perl
+$hmmdefs = "./models/hmmdefs_monof_mix16_gid.binhmm";
+```
+
+### 単語データベース
+
+`data/config/words_db.json` に評価対象の単語が登録されています。
 
 ```json
 {
-  "word_001": {
-    "display": "東京",
-    "reading": "とうきょう",
-    "accent": 0
-  },
-  "word_002": {
-    "display": "日本語",
-    "reading": "にほんご",
-    "accent": 0
+  "word1": {
+    "display": "おんど",
+    "reading": "おんど",
+    "accent": 1,
+    "accent_source": "manual",
+    "source": "recorded"
   }
 }
 ```
 
-`accent` の値はアクセント型（0=平板型、1=頭高型、N=N型）を指定します。
+| フィールド | 説明 |
+|-----------|------|
+| `display` | 画面表示用テキスト |
+| `reading` | Julius に渡すひらがな読み（長音は「ー」） |
+| `accent` | アクセント型（0=平板型 / 1=頭高型 / N=N型） |
+| `accent_source` | `"mecab"` / `"manual"` |
+| `source` | `"recorded"` / `"tts"` |
 
 ### ネイティブ音声の配置
 
-各単語のネイティブ音声（16kHz・モノラル WAV）を以下の場所に配置します。
+各単語のネイティブ音声（16kHz・モノラル・16bit PCM WAV）を配置します。
 
 ```
-data/raw/sound/{word_id}/{word_id}.wav
+data/raw_audio/sound/{word_id}/{word_id}.wav
+data/raw_audio/sound/{word_id}/{word_id}.lab   ← Julius アライメント結果
+data/raw_audio/sound/{word_id}/{word_id}.log   ← Julius ログ
+data/raw_audio/sound/{word_id}/{word_id}.txt   ← ひらがな読み
 ```
-
-Julius のアライメント結果（`.lab`・`.log`）も同じディレクトリに配置してください。
 
 ### 新しい単語の追加方法
 
-1. 管理画面 `http://127.0.0.1:5000/admin` にアクセスする
-2. 「単語を追加」から表示テキスト・よみがな・アクセント型を入力する
-3. ネイティブ音声（16kHz WAV）を `data/raw/sound/{word_id}/` に配置する
-4. Julius でアライメントを実行して `.lab` `.log` を生成する
-5. MFCC を生成する（初回のみ）：
-   ```bash
-   python scripts/regenerate_mfcc.py --word_id {word_id}
-   ```
+管理画面から追加する方法（VOICEVOX が起動している必要があります）：
+
+1. `http://127.0.0.1:5000/admin` にアクセスする
+2. 「単語を追加」から表示テキスト・読み・アクセント型を入力する
+3. VOICEVOX でサンプル音声を自動生成し、Julius でアライメントを自動実行する
+4. MFCC を再生成する
+
+```bash
+python scripts/regenerate_mfcc.py
+```
+
+全単語のサンプル音声とアライメントを一括再生成する場合：
+
+```bash
+python scripts/regenerate_all_samples.py
+python scripts/regenerate_mfcc.py
+```
+
+特定単語のアライメントが失敗した場合の修復：
+
+```bash
+python scripts/repair_alignment.py word35
+python scripts/repair_alignment.py word35 word36 word37   # 複数指定可
+```
 
 ---
 
@@ -206,7 +254,7 @@ python app.py
 ### 使い方の流れ
 
 1. トップページで評価する単語を選択する（アクセント図解・クエスト確認）
-2. 録音ページで発音する（`Space` キーで開始/停止、`Enter` で解析）
+2. 録音ページで発音する（`Space` で開始/停止・`Enter` で解析）
 3. 解析結果ページでスコア・フィードバックを確認する
 4. 「交互に再生」でネイティブ音声と自分の録音を聞き比べる
 5. クエストをこなしながら苦手パターンを練習する
@@ -220,42 +268,36 @@ python app.py
 
 | 軸 | 配点 | 評価内容 |
 |----|------|---------|
-| アクセント | 50点 | 核位置・ピッチ相関・H/L一致率・安定度 |
+| アクセント | 50点 | 核位置・ピッチ相関・H/L 一致率・安定度 |
 | 長さ | 30点 | 各モーラの時間割合比較（長音・促音を2倍重視） |
 | 母音品質 | 20点 | F1/F2 フォルマントの Bark スケール距離（30/50/70%の3点平均） |
 
 グレード：**S** (≥90) / **A** (≥75) / **B** (≥60) / **C** (≥40) / **D** (<40)
 
----
-
 ### UI / UX
 
 | 機能 | 説明 |
 |------|------|
-| **キーボードショートカット** | `Space` で録音開始/停止、`Enter` で解析開始 |
-| **音声比較再生** | 結果ページでネイティブ→自分の録音を3回交互再生（`/recorded_audio` 経由） |
+| **キーボードショートカット** | `Space` で録音開始/停止・`Enter` で解析開始 |
+| **音声比較再生** | ネイティブ→自分の録音を3回交互再生（`/recorded_audio` 経由） |
 | **音量バー** | 録音中のリアルタイム入力レベル表示（RMS） |
 | **無音自動停止** | 1.5秒無音で録音を自動停止（0.5秒発話後に有効化） |
 | **ローディングオーバーレイ** | Julius 解析中の画面ブロック |
-| **レーダーチャート** | アクセント・長さ・母音の3軸レーダー表示 |
+| **レーダーチャート** | アクセント・長さ・母音の3軸レーダー |
 | **前回比較バッジ** | 前回スコアとの差分を4項目で表示（+/-バッジ） |
 | **アクセント図解** | 単語カードに H/L パターンをバッジで可視化 |
-| **ダークカラーパレット** | CSS 変数ベースのデザインシステム（`base.css`）、Noto Sans JP 統一 |
-
----
+| **デザインシステム** | CSS 変数ベース（`base.css`）・Noto Sans JP 統一 |
 
 ### 練習サポート
 
 | 機能 | 説明 |
 |------|------|
-| **クエスト自動生成** | スコアの弱点軸（アクセント・長さ・母音）から最大3つのクエストを自動発行 |
-| **クエスト自動クリア** | 次回録音でスコアが目標を超えたら自動クリア＋新クエスト補充 |
-| **間隔反復クエスト** | 3日以上練習していない単語（スコア85点未満）を `review` カテゴリのクエストとして最優先で提案 |
-| **練習履歴** | `/history` で単語別スコア推移グラフを表示（Chart.js） |
-| **CSV エクスポート** | `/history/export.csv` で全履歴をダウンロード（BOM付きUTF-8） |
-| **次の練習候補** | 同アクセント型・練習回数が少ない順で3単語を提案 |
-
----
+| **クエスト自動生成** | 弱点軸（アクセント・長さ・母音）から最大3つを自動発行 |
+| **クエスト自動クリア** | 次回録音でスコアが目標を超えたら自動クリア＋補充 |
+| **間隔反復クエスト** | 3日以上練習していない単語（スコア85点未満）を `review` クエストとして最優先提案 |
+| **練習履歴** | `/history` で単語別スコア推移グラフ（Chart.js） |
+| **CSV エクスポート** | `/history/export.csv` で全履歴ダウンロード（BOM 付き UTF-8） |
+| **次の練習候補** | 同アクセント型・練習回数少ない順で3単語を提案 |
 
 ### 管理機能
 
@@ -264,6 +306,8 @@ python app.py
 | **管理ページ** | `/admin` で単語の追加・編集・削除 |
 | **統計カード** | 総練習回数・ユニーク単語数・平均スコア・最高グレード |
 | **単語検索** | 管理テーブルでリアルタイム絞り込み |
+| **VOICEVOX 連携** | 単語登録時にサンプル音声を自動生成 |
+| **MeCab 連携** | 単語登録時にアクセント型を自動取得 |
 
 ---
 
@@ -271,43 +315,85 @@ python app.py
 
 ```
 sp-ps/
-├── app.py                         # Flaskルーティング（/recorded_audio 含む）
-├── config.py                      # パス定数・グローバル設定
+├── app.py                              # Flask ルーティング（/recorded_audio 含む）
+├── config.py                           # パス定数・Julius 自動検出・音素定数
+├── diagnose.py                         # 環境診断スクリプト
 ├── requirements.txt
+├── test_mecab.py                       # MeCab 動作確認用
+├── test_voicevox.py                    # VOICEVOX 動作確認用
 ├── core/
-│   ├── alignment.py               # Julius実行・lab/log読み込み・品質スコア抽出
-│   ├── audio.py                   # 音声変換・セグメント切り出し
-│   ├── evaluate.py                # スコア算出（アクセント・長さ・総合）
-│   ├── formant.py                 # F1/F2フォルマント抽出（30/50/70%平均）・母音品質評価
-│   ├── history.py                 # 練習履歴の保存・読み込み・間隔反復候補取得
-│   ├── pitch.py                   # F0抽出・補間・正規化・hz_to_semitone 等
-│   ├── quest.py                   # クエスト生成・自動クリア・間隔反復クエスト
-│   ├── timbre.py                  # MFCC+Delta・DTW音色評価
-│   ├── utils.py                   # 汎用ユーティリティ
-│   └── vocab.py                   # words_db.json 管理
+│   ├── __init__.py
+│   ├── accent.py                       # MeCab アクセント取得・VOICEVOX 音声生成
+│   ├── alignment.py                    # Julius 実行・lab/log 読み込み・品質スコア抽出
+│   ├── audio.py                        # 音声変換・ノイズ除去・セグメント切り出し
+│   ├── evaluate.py                     # スコア算出（アクセント・長さ・総合）
+│   ├── formant.py                      # F1/F2 フォルマント抽出（30/50/70%平均）・母音品質評価
+│   ├── history.py                      # 練習履歴の保存・読み込み・間隔反復候補取得
+│   ├── pitch.py                        # F0 抽出・補間・正規化・hz_to_semitone 等
+│   ├── quest.py                        # クエスト生成・自動クリア・間隔反復クエスト
+│   ├── timbre.py                       # MFCC+Delta（36次元）・DTW 音色評価
+│   ├── utils.py                        # 汎用ユーティリティ
+│   └── vocab.py                        # words_db.json 管理・単語登録フロー
 ├── data/
 │   ├── config/
-│   │   ├── history.json           # 練習履歴（最大500件）
-│   │   ├── quest_progress.json    # クエスト進捗
-│   │   └── words_db.json          # 単語データベース
-│   ├── raw_audio/wav/             # 録音音声の一時保存（test.wav）
-│   ├── mfcc/                      # MFCCバイナリキャッシュ
-│   └── raw/sound/{word_id}/       # ネイティブ音声・lab/logファイル
+│   │   ├── audio.scp                   # 基準音声パス一覧（Julius 用）
+│   │   ├── history.json                # 練習履歴（最大500件）
+│   │   ├── quest_progress.json         # クエスト進捗
+│   │   ├── word_id.txt                 # 直前に選択した単語 ID
+│   │   ├── words.txt                   # 表示テキスト一覧（DTW 用）
+│   │   └── words_db.json              # 単語データベース
+│   ├── mfcc/
+│   │   └── {word_id}.bin              # MFCC バイナリ（36次元 float32）
+│   └── raw_audio/
+│       ├── test2.wav                   # セグメント切り出し用一時ファイル
+│       ├── wav/
+│       │   ├── test.wav               # 録音音声（上書き保存）
+│       │   ├── test.lab               # Julius アライメント結果
+│       │   ├── test.log               # Julius ログ
+│       │   └── test.txt               # 録音単語のひらがな読み
+│       └── sound/
+│           └── {word_id}/
+│               ├── {word_id}.wav      # ネイティブ音声（16kHz/モノラル/16bit）
+│               ├── {word_id}.lab      # Julius アライメント結果
+│               ├── {word_id}.log      # Julius ログ
+│               └── {word_id}.txt      # ひらがな読み
+├── docs/
+│   └── explanation.txt
+├── engine/
+│   ├── License.md
+│   ├── README.md
+│   ├── bin/
+│   │   └── julius-4.3.1.exe           # Windows 用 Julius バイナリ
+│   └── models/
+│       └── hmmdefs_monof_mix16_gid.binhmm
 ├── scripts/
-│   └── regenerate_mfcc.py         # MFCCバイナリ再生成スクリプト
+│   ├── segment_julius.pl              # Julius 音素アライメント Perl スクリプト
+│   ├── regenerate_mfcc.py             # MFCC バイナリ一括再生成
+│   ├── regenerate_all_samples.py      # サンプル音声・アライメント一括再生成
+│   ├── repair_alignment.py            # 特定単語のアライメント修復
+│   ├── mkdir_test.py                  # フォルダ一括作成（初期セットアップ用）
+│   ├── move_folder.py                 # 音声ファイル移動（初期セットアップ用）
+│   └── path_write.py                  # audio.scp 生成（初期セットアップ用）
 └── web/
     ├── static/
-    │   ├── css/base.css           # デザインシステム（CSS変数・Noto Sans JP）
-    │   └── js/
-    │       ├── main.js            # 音量バー・無音自動停止
-    │       └── audio_recorder.js  # MediaRecorder API ラッパー
+    │   ├── css/
+    │   │   ├── base.css               # デザインシステム（CSS 変数・Noto Sans JP）
+    │   │   ├── audio.css              # 録音ページ用スタイル
+    │   │   ├── select.css             # 単語選択ページ用スタイル
+    │   │   └── upload.css             # アップロードページ用スタイル
+    │   ├── js/
+    │   │   ├── audio_recorder.js      # AudioWorklet（録音・WAV エンコード）
+    │   │   └── main.js                # 音量バー・無音自動停止
+    │   ├── distance_result/           # DTW 結果キャッシュ
+    │   └── sample/                    # 静的サンプル音声（オプション）
     └── templates/
-        ├── audio.html             # 録音ページ（キーボードショートカット）
-        ├── line_graph.html        # 解析結果（比較再生・レーダー・クエスト）
-        ├── history.html           # 練習履歴・スコア推移グラフ
-        ├── select.html            # 単語選択（アクセント図解・クエストサイドバー）
-        ├── admin.html             # 管理ページ
-        └── error.html             # 404/500 エラーページ
+        ├── admin.html                 # 管理ページ
+        ├── audio.html                 # 録音ページ（キーボードショートカット）
+        ├── error.html                 # 404/500 エラーページ
+        ├── history.html               # 練習履歴・スコア推移グラフ
+        ├── line_graph.html            # 解析結果（比較再生・レーダー・クエスト）
+        ├── select.html                # 単語選択（アクセント図解・クエストサイドバー）
+        └── upload.html                # 音声アップロードページ
 ```
 
 ---
@@ -317,17 +403,21 @@ sp-ps/
 ### 全体フロー
 
 ```
-録音音声
+録音音声（test.wav）
   ↓
-Julius アライメント（音素と波形の対応付け）
+Julius アライメント（perl_run() → test.lab / test.log 生成）
   ↓
-品質チェック：Julius スコア < -3000 → スキップ・再録音を促す
+品質チェック：extract_julius_score() で対数尤度を取得
+  Julius スコア < -3000 → スコア計算スキップ・再録音ガイドを表示
   ↓（品質 OK）
-  ├─ ピッチ抽出（Hz → 半音変換）→ アクセントスコア（50点）
-  ├─ モーラ長の割合を比較         → 長さスコア（30点）
-  └─ F1/F2フォルマント抽出       → 母音品質スコア（20点）
+  ├─ ピッチ抽出（Hz → 半音変換） → アクセントスコア（50点）
+  ├─ モーラ長の割合を比較        → 長さスコア（30点）
+  └─ F1/F2 フォルマント抽出      → 母音品質スコア（20点）
   ↓
 合計（100点満点）→ グレード判定（S / A / B / C / D）
+  ↓
+save_record() で history.json に保存
+check_and_update_quests() でクエスト更新（間隔反復含む）
 ```
 
 ### グレード基準
@@ -344,19 +434,24 @@ Julius アライメント（音素と波形の対応付け）
 
 ### アクセントスコア（0〜50点）
 
-4指標の加重平均で内部スコア（0〜60）を算出し、50点に正規化します。
+4指標の加重平均で内部スコア（最大60）を算出し、50点に正規化します。
 
 ```
-内部スコア（0〜60） =
-  核位置スコア  × 0.40   ← 日本語アクセントで最重要
-+ ピッチ相関    × 0.35   ← Pearson相関（有声フレームのみ）
-+ H/L一致率    × 0.15   ← 各モーラの高低の正確さ
-+ 安定度スコア  × 0.10   ← モーラ内ピッチの安定さ
+内部スコア（最大60） =
+  核位置スコア    × 0.40   ← 日本語アクセントで最重要
++ ピッチ相関スコア × 0.35   ← Pearson 相関（有声フレームのみ）
++ H/L 一致率スコア × 0.15   ← 各モーラの高低の正確さ
++ 安定度スコア    × 0.10   ← モーラ内ピッチの安定さ
 
 アクセントスコア = 内部スコア × 50 / 60
 ```
 
-**ピッチ相関（Pearson相関係数）**
+各サブスコアの最大値はすべて60です。
+
+**ピッチ相関（Pearson 相関係数）**
+
+ネイティブと録音の「両方が有声（NaN でない）」フレームのみを使って計算します。
+無声区間の補間値がノイズとして混入しないようにするためです。
 
 ```
 r = Σ(xi − x̄)(yi − ȳ) / (n × σx × σy)
@@ -364,24 +459,23 @@ r = Σ(xi − x̄)(yi − ȳ) / (n × σx × σy)
 r = +1.0：ネイティブと同じタイミングで上下（完全一致）
 r =  0.0：無相関
 r = -1.0：完全に逆パターン
+
+score = max(0, (r + 1) / 2 × 60)
 ```
 
-ネイティブと録音の「両方が有声（NaNでない）」フレームのみを使用して計算します。
-無声区間の補間値がノイズとして混入しないようにするためです。
-
-**H/L分類**
+**H/L 分類（パーセンタイル閾値）**
 
 期待パターンの L 比率に合わせたパーセンタイルで閾値を設定します。
 
-```
+```python
 threshold = percentile(mora_pitches, L比率 × 100)
 ```
 
-例：平板型（L-H-H-H）→ L比率25% → 25パーセンタイルを閾値に使用
+例：平板型（L-H-H-H）→ L 比率 25% → 25 パーセンタイルを閾値
 
 **アクセント核の検出（動的閾値）**
 
-```
+```python
 DROP_THRESHOLD = max(0.05, min(0.25, ピッチ範囲 × 0.15))
 ```
 
@@ -392,15 +486,18 @@ DROP_THRESHOLD = max(0.05, min(0.25, ピッチ範囲 × 0.15))
 モーラ長の割合（全体に占める%）をネイティブと比較し、重み付き誤差でスコア化します。
 
 ```
-重み：長音・促音 → 2.0倍 ／ 撥音 → 1.5倍 ／ 通常 → 1.0倍
-長さスコア = 内部スコア（0〜40） × 30 / 40
+モーラ重み：長音（:）・促音（q）→ 2.0倍 ／ 撥音（N）→ 1.5倍 ／ 通常 → 1.0倍
+
+weighted_diff = Σ(|native[i] - user[i]| × weight[i]) / Σ(weight[i])
+内部スコア = max(0, (1.0 - weighted_diff / 20.0) × 40)
+長さスコア = 内部スコア × 30 / 40
 ```
 
 ---
 
 ### 母音品質スコア（0〜20点）
 
-F1・F2フォルマントをBarkスケールで比較してスコア化します。
+F1・F2 フォルマントを Bark スケールで比較してスコア化します。
 
 ```
 # Hz → Bark 変換（知覚的均等スケール）
@@ -413,67 +510,415 @@ dist = √( (ΔBark_F1 / 3.0)² + (ΔBark_F2 / 4.0)² )
 score = 20 × exp(−1.2 × dist)
 ```
 
-Barkスケールを使う理由：HzはF1（低周波）とF2（高周波）で知覚的な重みが異なるため、
-Hzのままでは「聞こえ方の差」を正しく評価できません。
+Bark スケールを使う理由：Hz は F1（低周波）と F2（高周波）で知覚的な重みが異なるため、
+Hz のままでは「聞こえ方の差」を正しく評価できません。
 
 **フォルマント抽出の3点サンプリング**
 
-各モーラのフォルマントは **30% / 50% / 70%** の3時刻で測定し、有効値（NaN でない値）の平均を使います。
+各モーラのフォルマントはモーラ区間の **30% / 50% / 70%** の3時刻で測定し、
+有効値（NaN でない値）の平均を最終値とします。
 
 ```python
-_SAMPLE_RATIOS = [0.30, 0.50, 0.70]
+_SAMPLE_RATIOS = [0.30, 0.50, 0.70]   # core/formant.py で変更可能
 
 for ratio in _SAMPLE_RATIOS:
     t = start + duration * ratio
     f1, f2 = get_formant_at_time(formant, t)
     # 有効値のみ収集
 
-f1_mean = mean(f1_vals)  # 最終値
+f1_mean = mean(f1_vals)   # 最終フォルマント値
 f2_mean = mean(f2_vals)
 ```
 
 中心時刻1点だけを使う場合、子音の解放直後（/k/→/a/ の遷移区間など）を
-誤って拾うことがある。複数点を平均することで遷移区間の影響を緩和し、
-母音の安定核を正確に評価できます。有効サンプル数が0の場合は None を返し、
-後続のスコア計算でそのモーラをスキップします。
+誤って拾うことがあります。複数点を平均することで遷移区間の影響を緩和し、
+母音の安定核を正確に評価できます。
+
+**話者性別と max_formant の自動判定**
+
+`app.py` では `estimate_pitch_range()` で推定したピッチ上限を使って
+`max_formant` を自動設定します。
+
+```python
+max_formant = 5500.0 if ceiling > 400 else 5000.0
+# ceiling > 400Hz → 女性話者と判定 → 5500Hz
+# ceiling ≤ 400Hz → 男性話者と判定 → 5000Hz
+```
 
 ---
 
 ### Julius 品質ゲート
 
 ```
-Julius スコア（対数尤度） < -3000
+Julius スコア（対数尤度平均）< -3000
   → スコア計算を完全にスキップ
   → 再録音ガイドを表示（マイクに近づく・はっきり発音・静かな環境）
 ```
 
-アライメントが失敗した状態でスコアを出しても意味がないため、
-信頼できる改善点だけを表示する仕組みになっています。
+ピッチグラフは引き続き表示します（アライメントと独立して計算されるため）。
 
 ---
 
 ### 追加フィードバック（スコア非影響）
 
-以下はスコアには含まれず、フィードバックとして表示します。
+スコアには含まれず、フィードバックとして表示する補助指標です。
 
 | 指標 | 内容 | しきい値 |
 |------|------|---------|
-| 発話速度 | モーラ/秒でネイティブと比較 | ネイティブ比 0.70〜1.30倍の範囲が適切 |
-| ジッター | F0の変動率（声のピッチの安定さ） | > 3% で警告 |
+| 発話速度 | モーラ/秒でネイティブと比較 | ネイティブ比 0.70〜1.15 が適切 |
+| ジッター | F0 の変動率（声のピッチの安定さ） | > 3% で警告 |
 | シマー | 振幅の変動率（声の音量の安定さ） | > 8% で警告 |
 | 有声フレーム比率 | モーラ内で声が出ているフレームの割合 | < 45% で警告 |
 
-**発話速度の計算式**
+---
+
+## システム内部の処理フロー
+
+スコアロジックが「何を計算するか」を説明するのに対し、このセクションは「どのように処理されるか」を説明します。
+
+---
+
+### 1. 録音から結果画面までの全体フロー
 
 ```
-発話速度（モーラ/秒） = モーラ数 ÷ 発話区間の長さ（秒）
+【ブラウザ側】
+  navigator.mediaDevices.getUserMedia()   マイク入力（16kHz）
+    ↓
+  AudioWorkletNode（audio_recorder.js）   Float32 サンプルをキャプチャ
+    ↓
+  encodeAudio()                           WAV ヘッダを付けて Blob に変換
+    ↓
+  POST /audio                             test.wav として保存 → Julius アライメント
 
-ネイティブ比率 = 録音の速度 ÷ ネイティブの速度
-  0.70 未満 → 「遅すぎます」
-  0.70〜0.85 → 「少し遅めです」
-  0.85〜1.15 → 適切（フィードバックなし）
-  1.15〜1.30 → 「少し速めです」
-  1.30 超   → 「速すぎます」
+【解析ボタン押下（POST /graph）】
+  ↓
+  estimate_pitch_range()    ネイティブ・録音それぞれの話者ピッチ範囲を自動推定
+  ↓
+  praat_pitch()             Praat で F0 を抽出（NaN 保持の Hz 配列）
+  ↓
+  resample_to_10ms()        Julius フレーム（10ms 単位）にリサンプリング
+  ↓
+  lab_load()                .lab を読み込み → 音素リスト・モーラリスト・長さ情報
+  log_load()                .log を読み込み → フレーム単位の音素・モーラ情報
+  ↓
+  extract_julius_score()    Julius 品質チェック → < -3000 なら以降の計算をスキップ
+  ↓（品質 OK）
+  hz_to_semitone()          Hz → 半音変換（NaN 保持）※ここが pitch_native_raw / pitch_user_raw
+  ↓
+  length_arrange()          録音ピッチをネイティブのモーラ長に時間正規化
+  ↓
+  extract_mora_formants()   F1/F2 を 30/50/70%の3点平均で抽出
+  ↓
+  calc_total_score()        アクセント・長さ・母音スコアを合算
+  ↓
+  save_record()             history.json に保存
+  check_and_update_quests() クエスト更新（間隔反復含む）
+  ↓
+  render_template("line_graph.html")
+```
+
+---
+
+### 2. Julius 強制アライメントとは
+
+Julius の「強制アライメント（Forced Alignment）」は、
+**既知のテキスト（ひらがな読み）が音声のどのタイミングで発音されているか**を特定する処理です。
+通常の音声認識と異なり「何を言ったか」ではなく「どのタイミングで言ったか」を求めます。
+
+**入力**
+- `test.wav`：録音音声（16kHz / 16bit PCM）
+- `test.txt`：ひらがな読み（例：`びょーいん`）
+
+**Perl スクリプトが行うこと**
+
+`segment_julius.pl` がひらがなを Julius 用の音素列に変換します。
+
+```
+びょーいん → by o: i N
+```
+
+その後 Julius が Viterbi アルゴリズムで最尤アライメントを計算し、`.lab` と `.log` を出力します。
+
+**出力（.lab ファイルの構造）**
+
+```
+0.0000000 0.0750000 silB    ← 無音（文頭）
+0.0750000 0.1500000 by      ← 子音 /by/
+0.1500000 0.2500000 o:      ← 長母音 /o:/（ー）
+0.2500000 0.3000000 i       ← 母音 /i/
+0.3000000 0.3750000 N       ← 撥音 /N/（ん）
+0.3750000 0.4500000 silE    ← 無音（文末）
+```
+
+各行は `開始時刻（秒）　終了時刻（秒）　音素ラベル` の形式です。
+アライメント精度は 10ms 単位に丸められます。
+
+**Julius スコアの目安**
+
+`.log` ファイルに含まれる対数尤度の平均値が Julius スコアです（`extract_julius_score()` で取得）。
+値が 0 に近いほど「音響モデルとの一致度が高い = 発音がはっきりしている」ことを意味します。
+
+```
+-1000 以上     : アライメント良好
+-1000 〜 -3000 : やや不安定（音質や発音の問題の可能性）
+-3000 以下     : 不安定 → スコア計算をスキップ
+```
+
+---
+
+### 3. モーラと音素の違い
+
+日本語の音韻単位には **モーラ（拍）** と **音素** の2種類があります。
+
+| 概念 | 定義 | 例（「びょういん」） |
+|------|------|------|
+| 音素 | 音声学的な最小単位 | `by` / `o:` / `i` / `N` |
+| モーラ | 日本語リズムの最小単位（1拍） | `びょ` / `う` / `い` / `ん` |
+
+SP-PS では Julius の音素アライメント結果を `mora_time()` でモーラ単位に変換してから評価します。
+
+**mora_time() の変換ルール（core/alignment.py）**
+
+```
+① 子音 + 次が母音 → 結合して1モーラ       by + o: → "byo:"
+② 単独の母音      → そのまま1モーラ         i      → "i"
+③ N（撥音・ん）   → 単独1モーラ             N      → "N"
+④ q（促音・っ）   → 単独1モーラ             q      → "q"
+⑤ 結合できない子音 → 単独1モーラ（異常時のフォールバック）
+```
+
+アクセントスコアとモーラ長スコアはこのモーラ単位で計算されます。
+グラフのモーラ境界線もこの変換結果を使います。
+
+---
+
+### 4. ピッチ処理パイプライン
+
+ピッチ処理は**表示用**と**スコア計算用**で異なる経路をたどります。
+2経路を意図的に分けているのは、グラフの見やすさとスコアの正確さの要求が異なるためです。
+
+```
+praat_pitch()          Hz 配列（NaN 保持：無声区間は NaN）
+  ↓
+resample_to_10ms()     Julius の 10ms フレームに揃える
+  ↓
+発話区間だけを切り出す（Julius の silB〜silE の外を除去）
+  ↓
+hz_to_semitone()       Hz → 半音変換（NaN 保持）
+                       ← ここが pitch_native_raw / pitch_user_raw（有声フレームのみで Pearson 計算に使用）
+
+  ┌──────────────────────────┐     ┌──────────────────────────┐
+  │     スコア計算用          │     │     表示用（グラフ）       │
+  ├──────────────────────────┤     ├──────────────────────────┤
+  │ length_arrange()          │     │ comp()    NaN を線形補間  │
+  │ 録音をネイティブの音素長  │     │ smooth()  window=5 で平滑 │
+  │ に時間正規化              │     │ scale()   0〜1 に正規化   │
+  │ comp()  NaN を補間        │     └──────────────────────────┘
+  │ smooth() window=3 ← 小さく
+  │ して境界を鮮明に          │
+  └──────────────────────────┘
+```
+
+**なぜ Hz → 半音（semitone）に変換するのか**
+
+ピッチを Hz のまま比較すると、話者の声の絶対的な高さの違い（男性 vs 女性など）がそのまま「差」になります。
+半音は比率（対数）スケールなので、絶対値ではなく「上がり下がりのパターン」だけを比較できます。
+
+```
+半音 = 12 × log2(F / F_ref)
+
+F_ref = 有声フレームの中央値（話者ごとに個別に設定 → 話者差を吸収）
+```
+
+---
+
+### 5. 時間正規化（length_arrange）
+
+ネイティブと録音では発話速度が異なるため、ピッチを重ね合わせる前に時間軸を揃える必要があります。
+
+`length_arrange()` はネイティブの各音素のフレーム数を基準として、録音ピッチを伸縮します。
+
+```
+例：「か」音素
+  ネイティブ：8フレーム
+  録音      ：5フレーム → 末尾に NaN を3つ追加して8フレームに伸張
+
+例：「い」音素
+  ネイティブ：6フレーム
+  録音      ：9フレーム → 先頭または末尾を3フレーム削って6フレームに短縮
+```
+
+この処理により「同じモーラ位置のピッチ同士」を比較できます。
+結果ページの「ピッチ比較」タブで2本のラインが重なって表示されるのは、この正規化の結果です。
+
+---
+
+### 6. 音色評価（MFCC + DTW）
+
+**MFCC とは**
+
+MFCC（メル周波数ケプストラム係数）は人間の聴覚特性（メルスケール）に基づいて
+音の「スペクトル包絡（音色）」を数値化したものです。
+ピッチが異なっても同じ母音なら近い値になるため、音色の類似度評価に適しています。
+
+**Delta MFCC を追加する理由**
+
+静的 MFCC だけでは音の「瞬間的な形（断面）」しか捉えられません。
+Δ・ΔΔ を追加することで「音の動き」も比較できます。
+
+```
+静的 MFCC（12次元） : スペクトル包絡の形状
+Δ  MFCC（12次元） : 単位時間あたりの変化量（変化の速さ）
+ΔΔ MFCC（12次元） : 変化量の変化量（変化の加速度）
+─────────────────
+合計 36次元
+```
+
+**DTW（動的時間伸縮法）とは**
+
+2つの時系列データの「最も近い対応付け」を動的計画法で求めるアルゴリズムです。
+長さが異なる音声同士でも比較でき、発話速度の違いを吸収します。
+距離が小さいほど音色が近いことを意味します。
+
+**音色グラフの見方（「音色評価」タブ）**
+
+録音音声と登録済み全単語のネイティブ音声との DTW 距離を昇順で表示します。
+
+```
+赤いバー  ：今回練習した単語（練習対象）
+青いバー  ：その他の単語
+
+バーが左（距離が小）→ 音色が近い
+バーが右（距離が大）→ 音色が遠い
+
+理想：赤いバーが最左端 = 自分の発音が最も練習対象に近い音色になっている
+```
+
+---
+
+### 7. クエストシステムの内部ロジック
+
+**クエストのライフサイクル**
+
+```
+【録音・解析のたびに実行される】
+check_and_update_quests(score_result, word_id)
+  ↓
+  1. quest_progress.json からアクティブなクエストを読み込む
+  2. 各クエストの target_metric と今回のスコアを比較
+       current >= target_value → is_completed = True → newly_completed へ
+       current <  target_value → still_active に残る
+  3. 空きスロット = MAX_ACTIVE_QUESTS(3) - len(still_active)
+  4. generate_new_quests() で空きスロット分を補充
+       ① get_spaced_repetition_candidates() を確認
+          3日以上未練習 かつ スコア85点未満 → review クエストを最大1つ追加
+       ② 残りを弱点軸（スコアが低い順）で埋める
+  5. quest_progress.json に保存
+```
+
+**難易度と目標値の決まり方**
+
+現在のスコアに応じて難易度と目標増分が変わります。
+
+| 軸 | 現在スコア | 難易度 | 目標増分 |
+|----|-----------|--------|---------|
+| アクセント | < 20点 | 上級 | +12点 |
+| アクセント | < 35点 | 中級 | +8点 |
+| アクセント | ≥ 35点 | 初級 | +5点 |
+| 長さ | < 12点 | 上級 | +7点 |
+| 長さ | < 22点 | 中級 | +5点 |
+| 長さ | ≥ 22点 | 初級 | +3点 |
+| 母音 | < 8点 | 上級 | +5点 |
+| 母音 | < 14点 | 中級 | +4点 |
+| 母音 | ≥ 14点 | 初級 | +2点 |
+
+目標値は上限（アクセント50点・長さ30点・母音20点）を超えないように制限されます。
+
+**progress_pct（進捗率）の計算**
+
+```python
+pct = (current_value - start_value) / (target_value - start_value) × 100
+```
+
+クエスト発行時点のスコアを `start_value`、目標を `target_value` とした相対進捗率です。
+スコアが悪化した場合は 0% に固定されます（マイナスにはなりません）。
+
+---
+
+### 8. 単語登録フロー（vocab.py）
+
+管理画面から単語を追加すると以下が自動実行されます。
+
+```
+register_word(display, reading)
+  ↓
+  1. get_accent(display)
+     MeCab + UniDic でアクセント型を自動取得
+     → UniDic フィーチャーの25番目フィールドを読む
+     → 複数型がある場合は最初の値を採用
+     → 1形態素として認識されない場合は accent=None
+
+  2. generate_sample_wav(display, wav_path)
+     VOICEVOX（話者 ID: 11 / ずんだもん）で音声合成
+     → POST /audio_query → POST /synthesis → 16kHz WAV として保存
+
+  3. convert_to_16kHz()
+     16kHz / モノラル / 16bit PCM に変換（Julius が要求する形式）
+
+  4. perl_run()
+     Julius で音素アライメントを実行
+     → .lab（音素境界）・.log（詳細ログ）を生成
+
+  5. audio_mfcc()
+     MFCC + Δ + ΔΔ（36次元）を計算 → {word_id}.bin として保存
+
+  6. words_db.json・audio.scp・words.txt を更新
+```
+
+VOICEVOX が起動していない場合は手順2でエラーになります。
+起動確認は `python test_voicevox.py` で行えます。
+
+---
+
+### 9. 録音の音声処理パイプライン
+
+**ブラウザ側の流れ**
+
+```
+getUserMedia()            マイクから 16kHz で入力
+  ↓
+AudioWorkletNode          Float32 サンプルをフレーム単位でキャプチャ
+  ↓
+encodeAudio()             WAV ヘッダ（44バイト）を付加して Blob に変換
+  ↓
+POST /audio               Flask に送信
+
+  音量バー：AnalyserNode で RMS を計算して #volumeFill の width に反映
+  無音自動停止：RMS < 0.03 が 1500ms 継続かつ 500ms 以上発話後 → buttonStop.click()
+```
+
+**サーバー側の流れ**
+
+```
+POST /audio
+  ↓ file.save(TEST_WAV_PATH)     data/raw_audio/wav/test.wav に保存
+  ↓ convert_to_16kHz()           16kHz / モノラル / 16bit に変換
+  ↓ perl_run()                   Julius でアライメント実行（test.lab・test.log 生成）
+  ↓ 「OK!」を返す（3秒後に解析ボタンが表示される）
+
+POST /graph（解析ボタン押下）
+  ↓ audio_analysis()             全解析を実行
+  ↓ render_template("line_graph.html")
+```
+
+**ノイズ除去（オプション・現状は無効）**
+
+`core/audio.py` の `reduce_noise_wav()` が実装済みですが、現状は呼ばれていません。
+有効化する場合は `app.py` の `record_audio()` に以下を追加します。
+
+```python
+from core.audio import reduce_noise_wav
+reduce_noise_wav(TEST_WAV_PATH)   # 先頭 0.5 秒をノイズプロファイルとして除去
 ```
 
 ---
@@ -484,9 +929,9 @@ Julius スコア（対数尤度） < -3000
 
 | | 変更前 | 変更後 |
 |--|--------|--------|
-| アクセント | 60点 | 50点 |
-| 長さ | 40点 | 30点 |
-| 母音品質 | なし | **20点（新規）** |
+| アクセント | 60点 | **50点** |
+| 長さ | 40点 | **30点** |
+| 母音品質 | なし | **20点（新設）** |
 | 合計 | 100点 | 100点 |
 
 ---
@@ -495,23 +940,26 @@ Julius スコア（対数尤度） < -3000
 
 | 変更項目 | 変更前 | 変更後 |
 |---------|--------|--------|
-| 単位変換 | Hz（絶対値） | 半音（semitone）（話者差を吸収） |
-| 比較手法 | DTW（全フレーム） | Pearson相関（有声フレームのみ） |
+| 単位変換 | Hz（絶対値） | 半音（話者差を吸収） |
+| 比較手法 | DTW（全フレーム） | Pearson 相関（有声フレームのみ） |
 | スムージング（スコア用） | window=5 | window=3（境界を鮮明に） |
-| スムージング（表示用） | window=5 | window=5（視認性優先・変更なし） |
-| H/L閾値 | 中央値（固定50パーセンタイル） | L比率ベースのパーセンタイル |
+| スムージング（表示用） | window=5 | window=5（変更なし） |
+| H/L 閾値 | 中央値（固定50パーセンタイル） | L 比率ベースのパーセンタイル |
 | 核検出閾値 | 固定値 0.08 | 動的（ピッチ範囲の15%） |
-| 安定度閾値 | variance_threshold=0.05（バグ） | variance_threshold=1.5（半音スケール適切値） |
+| 安定度閾値 | 0.05（バグ） | 1.5（半音スケール適切値） |
 | 正規化 | normalize_zscore() | scale()（二重正規化を解消） |
+
+DTW からピアソン相関に変えた理由：日本語アクセントの本質は「いつ上がって・いつ下がるか（タイミング）」であり、
+Pearson 相関は上下タイミングの一致度を直接測れます。また Pearson 相関は線形変換不変のため `scale()` 不要です。
 
 ---
 
 ### 母音品質評価の新設（`core/formant.py`）
 
-- parselmouth（Praat）でF1・F2フォルマントを各モーラの **30%・50%・70%** の3時刻で取得し、有効値を平均して抽出
-- Hz→Barkスケール変換（知覚的均等スケール）
+- 各モーラの **30%・50%・70%** の3時刻で F1/F2 を取得し、有効値の平均を使用
+- Hz → Bark スケール変換（知覚的均等スケール）
 - 指数減衰スコア（距離がいくら大きくても0点にならない）
-- `max_formant` は話者のピッチ上限から自動判定（女性→5500Hz、男性→5000Hz）
+- `max_formant` を話者のピッチ上限から自動判定
 
 ---
 
@@ -519,161 +967,62 @@ Julius スコア（対数尤度） < -3000
 
 - `extract_julius_score()` で対数尤度を取得（`core/alignment.py`）
 - `-3000` 以下の場合はスコア計算をスキップし、再録音ガイドを表示
-- ピッチグラフは引き続き表示（アライメントと独立して計算されるため）
+- ピッチグラフは引き続き表示（アライメントと独立）
 
 ---
 
 ### Delta MFCC の導入（`core/timbre.py`）
 
-静的MFCC(12次元) + Δ(12次元) + ΔΔ(12次元) = **36次元** に変更。
+静的 MFCC(12次元) + Δ(12次元) + ΔΔ(12次元) = **36次元** に変更。
 
-> ⚠️ 既存の `.bin` ファイルは非互換です。以下のコマンドで再生成してください。
+> ⚠️ 既存の `.bin` ファイル（12次元）は非互換です。以下のコマンドで再生成してください。
+>
 > ```bash
 > python scripts/regenerate_mfcc.py
 > ```
 
 ---
 
-### ピッチパイプラインの分離
-
-スコア計算用と表示用でパイプラインを明確に分けています。
-
-```python
-# スコア計算用（scale不要・Pearson相関のため）
-pitch_native_raw = pitch1_sil_semi.copy()  # NaN保持（ネイティブ）
-pitch_user_raw   = pitch3_semi.copy()      # NaN保持（録音）
-pitch_fin_score  = smooth(comp(pitch1_sil_semi), window=3)  # H/L・核検出用
-pitch_fin2_score = smooth(comp(pitch3_semi),     window=3)
-
-# 表示用（グラフ描画）
-pitch_fin_disp  = scale(smooth(comp(pitch1_sil_semi), window=5))
-pitch_fin2_disp = scale(smooth(comp(pitch3_semi),     window=5))
-```
-
-`pitch_native_raw` / `pitch_user_raw` を別途保持するのは、
-Pearson相関を有声フレームのみで計算するために NaN を残す必要があるためです。
-`comp()` を通すと無声区間が補間されてしまい、
-実際には声が出ていないフレームの人工値が相関計算に混入します。
-
----
-
 ### 話者ピッチ範囲の自動推定（`core/pitch.py`）
-
-変更前は Praat のデフォルト値（75〜500Hz）を使っていたため、
-男性話者や子どもの音声でピッチ推定が不安定になることがありました。
 
 ```python
 def estimate_pitch_range(sound_file, percentile_low=10.0, percentile_high=90.0,
                          margin_low=0.75, margin_high=1.50) -> tuple[float, float]:
     """
-    音声ファイルから話者のピッチ範囲を自動推定する。
-
-    1. まず広い範囲（50〜700Hz）でピッチを大まかに検出
+    1. 広い範囲（50〜700Hz）でピッチを大まかに検出
     2. 有声フレームの 10〜90 パーセンタイルを取得
     3. マージンを掛けて floor / ceiling を決定
-
-    例：中央値 150Hz（女性）→ floor=84Hz, ceiling=270Hz 程度
-        中央値 110Hz（男性）→ floor=62Hz, ceiling=198Hz 程度
     """
 ```
 
-`app.py` では `estimate_pitch_range()` をネイティブ・録音それぞれに実行し、
-その結果を `praat_pitch()` の `pitch_floor` / `pitch_ceiling` に渡しています。
-
 ---
 
-### normalize_zscore → scale への変更
-
-| | 変更前 | 変更後 |
-|--|--------|--------|
-| 正規化関数 | `normalize_zscore()` | `scale()`（Min-Max正規化） |
-| 変更理由 | `hz_to_semitone()` で半音変換済みのデータは対数変換されており外れ値の影響が元々小さい。Z-score をさらに重ねると「抑揚の大きさ」という情報まで失われる二重正規化になっていた | Min-Max 正規化で十分 |
-
-`normalize_zscore()` は `core/pitch.py` に残してあるため、必要に応じて切り替え可能です。
-
----
-
-### 母音品質スコアの修正（スケール・スコア式）
-
-初期実装では以下の問題がありました。
-
-**問題①：f1_scale / f2_scale が厳しすぎた**
-
-```
-変更前: f1_scale=200Hz, f2_scale=400Hz
-変更後: f1_scale=400Hz, f2_scale=700Hz（※Barkスケール移行前の中間段階）
-```
-
-ネイティブ（女性TTS）とユーザー（男性）の組み合わせでは
-F1 が 150Hz ずれることは普通にあり、変更前のスケールでは常に 0 点になっていた。
-
-**問題②：線形スコア式が 0 点に崩壊する**
-
-```
-変更前: score = max(0, 20 × (1 - dist))  → dist > 1.0 で必ず 0 点
-変更後: score = 20 × exp(-1.2 × dist)   → 指数減衰、0 点にならない
-```
-
-**最終版：Hz スケール → Bark スケールへ移行**
-
-Hz はF1（低周波）とF2（高周波）で知覚的重みが異なるため、
-人間の聴覚特性に基づく Bark スケールに変換して比較します。
-
-```
-Bark = 26.81 × F / (1960 + F) − 0.53
-dist = √( (ΔBark_F1 / 3.0)² + (ΔBark_F2 / 4.0)² )
-score = 20 × exp(-1.2 × dist)
-```
-
----
-
-### アクセントスコアの重み再設計
-
-| 指標 | 変更前の重み | 変更後の重み | 変更理由 |
-|------|------------|------------|---------|
-| H/L パターン一致率 | 35% → 0.35 | **15%** | Pearson相関で代替できる情報 |
-| アクセント核位置 | 25% → 0.25 | **40%** | 日本語アクセントで最重要 |
-| ピッチ比較 | DTW 25% | Pearson相関 **35%** | タイミングの一致を直接評価 |
-| モーラ内安定度 | 15% → 0.15 | **10%** | 補助的な指標として位置付け |
-
-DTW からピアソン相関に変えた理由：
-- DTW は「ピッチ値の近さ（距離）」を測る
-- 日本語アクセントの本質は「いつ上がって・いつ下がるか（タイミング）」
-- Pearson相関は上下タイミングの一致度を直接測れる
-- Pearson相関は線形変換不変のため `scale()` 不要（変換の連鎖が減る）
-
----
-
-### 最新の変更点
-
-#### フォルマット抽出精度の改善（`core/formant.py`）
+### フォルマント抽出精度の改善
 
 | | 変更前 | 変更後 |
 |--|--------|--------|
 | 測定点 | モーラ中心（50%）の1点 | 30% / 50% / 70% の3点の平均 |
-| NaN処理 | 中心がNaNの場合スキップ | 有効点のみで平均（最低1点あれば算出） |
+| NaN 処理 | 中心が NaN の場合スキップ | 有効点のみで平均（最低1点あれば算出） |
 
-子音から母音への遷移区間（フォルマント遷移部）を中心時刻が拾うケースを防ぎ、
-母音の安定核を確実に評価できるようになった。
-3点のサンプル数は `core/formant.py` の `_SAMPLE_RATIOS` で変更可能。
+測定点の数は `core/formant.py` の `_SAMPLE_RATIOS` で変更可能です。
 
 ---
 
-#### 間隔反復クエスト（`core/history.py` + `core/quest.py`）
+### 間隔反復クエスト（`core/history.py` + `core/quest.py`）
 
-`core/history.py` に `get_spaced_repetition_candidates()` を追加。
+`get_spaced_repetition_candidates()` を追加：
 
 ```python
 get_spaced_repetition_candidates(
-    min_days  = 3.0,   # 最終練習から何日以上経過したか
-    max_score = 85.0,  # スコアがこの点未満の単語のみ対象
-    limit     = 5,     # 最大何件返すか
+    min_days  = 3.0,    # 最終練習から何日以上経過したか
+    max_score = 85.0,   # スコアがこの点未満の単語のみ対象
+    limit     = 5,      # 最大何件返すか
 ) -> list[dict]
 ```
 
-`core/quest.py` の `generate_new_quests()` は新クエスト生成時に
-間隔反復候補を確認し、該当する単語があれば `category="review"` の
-復習クエストを最優先で1つ追加する。残りのスロットは従来通り弱点軸から生成。
+`generate_new_quests()` は新クエスト生成時に間隔反復候補を確認し、
+該当する単語があれば `category="review"` の復習クエストを最優先で1つ追加します。
+残りのスロットは従来通り弱点軸から生成します。
 
 クエストの `category` 値と対応する表示色：
 
@@ -687,10 +1036,9 @@ get_spaced_repetition_candidates(
 
 ---
 
-#### キーボードショートカット（`web/templates/audio.html`）
+### キーボードショートカット（`web/templates/audio.html`）
 
-録音ページに `keydown` イベントリスナーを追加。`input` / `textarea` / `audio`
-要素にフォーカスしているときは無効。
+`input` / `textarea` / `audio` 要素にフォーカスしているときは無効。
 
 | キー | 動作 |
 |------|------|
@@ -699,24 +1047,22 @@ get_spaced_repetition_candidates(
 
 ---
 
-#### 音声比較再生（`app.py` + `web/templates/line_graph.html`）
+### 音声比較再生（`app.py` + `web/templates/line_graph.html`）
 
-`app.py` に `/recorded_audio` ルートを追加。
+`app.py` に `/recorded_audio` ルートを追加：
 
 ```
 GET /recorded_audio
-  → TEST_WAV_PATH（data/raw_audio/wav/test.wav）を audio/wav で返す
+  → data/raw_audio/wav/test.wav を audio/wav で返す
   → ファイルが存在しない場合は 404
 ```
 
 結果ページの「発音スコア」タブに「音声を聞き比べる」セクションを追加。
-「交互に再生」ボタンで以下の順序を3回繰り返す：
+「交互に再生」ボタンで以下の順序を3回繰り返します：
 
 ```
 ネイティブ音声 → 800ms 待機 → あなたの録音 → 800ms 待機 → （繰り返し）
 ```
-
-再生中はボタンが「停止する」に変わり、途中停止が可能。
 
 ---
 
@@ -729,9 +1075,11 @@ GET /recorded_audio
 | GET | `/select` | 単語選択ページ（直接アクセス用） |
 | GET | `/audio` | 録音ページ |
 | POST | `/audio` | 録音データを保存（MediaRecorder API） |
-| **GET** | **`/recorded_audio`** | **直前の録音（test.wav）を返す** |
+| GET | **`/recorded_audio`** | **直前の録音（test.wav）を返す** |
 | POST | `/graph` | Julius 解析を実行して結果ページを返す |
 | GET | `/sample_audio/<word_id>` | ネイティブ音声を返す |
+| GET | `/upload` | 音声アップロードページ |
+| POST | `/upload` | 音声ファイルをアップロードして解析 |
 | GET | `/history` | 練習履歴ページ |
 | GET | `/history/export.csv` | 履歴を CSV でダウンロード |
 | GET | `/admin` | 管理ページ |
@@ -745,14 +1093,17 @@ GET /recorded_audio
 
 | 限界 | 内容 | 今後の対策 |
 |------|------|-----------|
-| 参照音声が1本 | 話者の個人差がそのまま「正解」になる | 同じ単語を複数話者で録音して平均化 |
-| 話者性別補正なし | 男女で声道長が違いF1/F2が100〜200Hzずれる | 推定ピッチ範囲から補正係数を自動適用 |
+| 参照音声が1本 | 話者の個人差がそのまま「正解」になる | 複数話者（VOICEVOX の別キャラクター等）で録音して平均化 |
+| 話者性別補正なし | 男女で声道長が違い F1/F2 が100〜200Hz ずれる | 推定ピッチ範囲から補正係数を自動適用 |
 | パラメータが推測値 | 重み・閾値を正解データで検証できていない | 評価付き録音を20〜30例収集してチューニング |
 | Julius の精度 | 学習者音声に対するアライメント精度が低い | Montreal Forced Aligner（MFA）への移行 |
-| シングルユーザー | test.wav が上書きされると比較再生が前のものになる | セッションごとにファイル名を分ける |
+| シングルユーザー | test.wav が上書きされると比較再生が前の録音になる | セッションごとにファイル名を分ける |
+| `source="recorded"` 単語の削除不可 | `vocab.py` の `delete_word()` で弾かれる | 管理者権限フラグの実装 |
 
 ---
 
 ## ライセンス
 
 MIT License
+
+Julius 音響モデル・セグメンテーションキット：MIT License（`engine/License.md` 参照）
