@@ -2,8 +2,8 @@
 app.py — Flask ルーティング
 
 【変更点】
-  calc_vowel_score() に pitch_ceiling_user=ceiling_learn を追加。
-  core/formant.py の①性別補正を有効化するための1引数追加。
+  - perl_run() → run_alignment() に変更（MFA対応）
+  - calc_vowel_score() に pitch_ceiling_user=ceiling_learn を追加（性別補正）
 """
 from __future__ import annotations
 
@@ -21,16 +21,16 @@ from config import (
     TEST_LAB_PATH, TEST_LOG_PATH, TEST_SEGMENT_WAV_PATH,
     TEST_WAV_PATH, WORD_ID_MEMO_PATH,
 )
-from core.audio    import convert_to_16kHz, read_sample, segment_audio
-from core.vocab    import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word
-from core.alignment import lab_load, log_load, perl_run, extract_julius_score
-from core.pitch    import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
+from core.audio     import convert_to_16kHz, read_sample, segment_audio
+from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word
+from core.alignment import lab_load, log_load, run_alignment, extract_julius_score
+from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate
-from core.formant  import extract_mora_formants, calc_vowel_score, calc_voice_quality
-from core.timbre   import dtw_ascending_order
-from core.quest    import check_and_update_quests, load_active_quests
-from core.history  import save_record, load_history, get_last_score, get_stats
-from core.utils    import pct_length, sleep_second
+from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
+from core.timbre    import dtw_ascending_order
+from core.quest     import check_and_update_quests, load_active_quests
+from core.history   import save_record, load_history, get_last_score, get_stats
+from core.utils     import pct_length, sleep_second
 
 JULIUS_GATE_THRESHOLD = -3000
 
@@ -212,7 +212,7 @@ def upload_file():
         file.save(str(TEST_WAV_PATH))
         convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
         sleep_second()
-        perl_run()
+        run_alignment()   # ← perl_run() から変更
         return render_template("upload.html", words=words, message="アップロード完了")
     except Exception as exc:
         traceback.print_exc()
@@ -227,7 +227,7 @@ def record_audio():
         file = request.files["file"]
         file.save(str(TEST_WAV_PATH))
         convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
-        perl_run()
+        run_alignment()   # ← perl_run() から変更
         return "OK!"
     except Exception as exc:
         traceback.print_exc()
@@ -355,7 +355,7 @@ def audio_analysis():
             vowel_score, vowel_feedback = calc_vowel_score(
                 native_formants,
                 user_formants,
-                pitch_ceiling_user=ceiling_learn,   # ← ①性別補正に使用
+                pitch_ceiling_user=ceiling_learn,
             )
         except Exception:
             vowel_score, vowel_feedback = 10.0, "母音の評価中にエラーが発生しました。"
