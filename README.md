@@ -33,6 +33,7 @@
 | VOICEVOX | 0.14 以上（サンプル音声の自動生成に必要） |
 | MeCab | UniDic 辞書と組み合わせて使用 |
 | Praat | parselmouth 経由で自動インストール |
+| MFA | Montreal Forced Aligner 3.3.x（**オプション**・conda 環境が必要） |
 
 ---
 
@@ -139,7 +140,25 @@ Delta MFCC（Δ・ΔΔ）を含む 36 次元で生成します。
 python scripts/regenerate_mfcc.py
 ```
 
-### 8. 動作確認
+### 8. MFA のセットアップ（オプション・精度優先の場合）
+
+Julius より高精度なアライメントが必要な場合に導入します。
+導入しない場合は Julius がそのまま使われます（`USE_MFA = False`）。
+
+```bash
+# conda 環境を作成
+conda create -n mfa -c conda-forge montreal-forced-aligner python=3.10
+conda activate mfa
+
+# モデルのダウンロード確認
+python scripts/setup_mfa.py
+```
+
+完了後に `config.py` の `USE_MFA = True` に変更します。
+
+> **Note:** MFA を使う場合はアプリを **`conda activate mfa` した環境**で起動してください。
+
+### 9. 動作確認
 
 インストール後は診断スクリプトで環境を確認できます。
 
@@ -168,6 +187,11 @@ PITCH_CEILING_DEFAULT = 400.0   # Hz
 
 # Flask シークレットキー（本番環境では必ず変更）
 FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "change-this-secret-key")
+
+# MFA（Montreal Forced Aligner）
+# True  → MFA を優先。失敗時は Julius にフォールバック
+# False → Julius のみ（デフォルト）
+USE_MFA: bool = False
 ```
 
 ### 音響モデルのパス
@@ -270,7 +294,7 @@ python app.py
 |----|------|---------|
 | アクセント | 50点 | 核位置・ピッチ相関・H/L 一致率・安定度 |
 | 長さ | 30点 | 各モーラの時間割合比較（長音・促音を2倍重視） |
-| 母音品質 | 20点 | F1/F2 フォルマントの Bark スケール距離（30/50/70%の3点平均） |
+| 母音品質 | 20点 | F1/F2 フォルマントの Bark スケール距離（30/50/70%の3点平均・**性別補正・サンプル数重み付け**あり） |
 
 グレード：**S** (≥90) / **A** (≥75) / **B** (≥60) / **C** (≥40) / **D** (<40)
 
@@ -369,6 +393,9 @@ sp-ps/
 ├── scripts/
 │   ├── segment_julius.pl              # Julius 音素アライメント Perl スクリプト
 │   ├── regenerate_mfcc.py             # MFCC バイナリ一括再生成
+│   ├── regenerate_all_tts.py          # 全単語 VOICEVOX 一括再生成（話者変更時）
+│   ├── check_voicevox_speakers.py     # 使用可能な VOICEVOX 話者一覧を表示
+│   ├── setup_mfa.py                   # MFA インストール確認・モデルダウンロード
 │   ├── regenerate_all_samples.py      # サンプル音声・アライメント一括再生成
 │   ├── repair_alignment.py            # 特定単語のアライメント修復
 │   ├── mkdir_test.py                  # フォルダ一括作成（初期セットアップ用）
@@ -405,7 +432,8 @@ sp-ps/
 ```
 録音音声（test.wav）
   ↓
-Julius アライメント（perl_run() → test.lab / test.log 生成）
+run_alignment()（USE_MFA=True → MFA、False → Julius にフォールバック）
+  ↓ test.lab / test.log を生成（MFA の場合は TextGrid を Julius 互換形式に変換）
   ↓
 品質チェック：extract_julius_score() で対数尤度を取得
   Julius スコア < -3000 → スコア計算スキップ・再録音ガイドを表示
@@ -512,6 +540,33 @@ score = 20 × exp(−1.2 × dist)
 
 Bark スケールを使う理由：Hz は F1（低周波）と F2（高周波）で知覚的な重みが異なるため、
 Hz のままでは「聞こえ方の差」を正しく評価できません。
+
+**話者性別によるフォルマント補正**
+
+`estimate_pitch_range()` が返す `pitch_ceiling_user` を `calc_vowel_score()` に渡し、
+200Hz 以下の場合は男性と判定してネイティブ F1/F2 に補正係数（`_MALE_FORMANT_SCALE = 0.85`）を適用します。
+
+```
+pitch_ceiling_user ≤ 200Hz → 男性と判定 → native_F1 × 0.85 / native_F2 × 0.85 で比較
+pitch_ceiling_user > 200Hz → 女性と判定 → 補正なし（VOICEVOX の声域に合わせた比較）
+```
+
+補正係数 0.85 の根拠：Peterson & Barney (1952) ほか音響音声学の研究によると、
+男性のフォルマントは女性の約 82〜87%。保守的な値として 0.85 を採用。
+
+**有効サンプル数による信頼度重み付け**
+
+30/50/70% の 3 点のうち有効な測定点が少ないモーラほど距離計算への影響を下げます。
+
+```
+信頼度 = min(native有効サンプル数, user有効サンプル数) / 3
+
+3点すべて有効 → weight = 1.0
+2点有効       → weight = 0.67
+1点のみ有効   → weight = 0.33
+
+mean_dist = Σ(dist × weight) / Σ(weight)  ← 加重平均
+```
 
 **フォルマント抽出の3点サンプリング**
 
@@ -1066,6 +1121,92 @@ GET /recorded_audio
 
 ---
 
+### 全単語 VOICEVOX 統一（`scripts/regenerate_all_tts.py`）
+
+`source="recorded"`（人間録音）の単語（word1〜word30）を含む全 53 単語を、
+同一の VOICEVOX 話者で再生成しました。
+
+**変更内容**
+- `data/raw_audio/sound/` の全音声・アライメント（.lab・.log）を上書き再生成
+- `web/static/sample/` のサンプル音声を新音声に同期
+- `words_db.json` の全単語の `source` を `"tts"` に統一
+- `core/accent.py` の `VOICEVOX_SPEAKER` を指定 ID に自動更新
+
+**関連スクリプト**
+
+```bash
+# 使用可能な話者一覧を確認する
+python scripts/check_voicevox_speakers.py
+
+# 全単語を指定話者で再生成する（SPEAKER_ID を変更してから実行）
+python scripts/regenerate_all_tts.py
+python scripts/regenerate_mfcc.py   # 必ずセットで実行
+```
+
+---
+
+### 話者性別によるフォルマント補正（`core/formant.py`）
+
+| | 変更前 | 変更後 |
+|--|--------|--------|
+| 性別判定 | なし | `pitch_ceiling_user ≤ 200Hz` → 男性と判定 |
+| 補正係数 | なし | `native_F1/F2 × 0.85` を適用 |
+| 根拠 | — | Peterson & Barney (1952)：男性フォルマント ≈ 女性の 82〜87% |
+
+VOICEVOX（女性寄りの声）を基準にしているため、男性ユーザーが録音すると
+F1/F2 が体系的にずれて母音スコアが不当に低く出る問題を解消しました。
+
+`app.py` の `calc_vowel_score()` 呼び出しに `pitch_ceiling_user=ceiling_learn` を追加することで有効化しています。
+
+---
+
+### 有効サンプル数による信頼度重み付け（`core/formant.py`）
+
+| 有効サンプル数 | 変更前 | 変更後 |
+|-------------|--------|--------|
+| 3点 | weight = 1.0 | weight = 1.0 |
+| 2点 | weight = 1.0 | weight = 0.67 |
+| 1点のみ | weight = 1.0 | weight = 0.33 |
+
+子音が長いモーラや短いモーラで有効測定点が 1 点だけになった場合に
+ノイズを拾った値が過大に影響するのを防ぎます。
+
+---
+
+### MFA（Montreal Forced Aligner）対応（`core/alignment.py`）
+
+Julius の代わりに MFA を使えるようになりました。`config.py` の `USE_MFA` フラグで切り替えます。
+
+**追加した関数**
+
+| 関数 | 説明 |
+|------|------|
+| `mfa_run()` | MFA でアライメントを実行し、TextGrid を生成する |
+| `textgrid_to_lab()` | TextGrid → Julius 互換 .lab に変換する |
+| `_synthetic_log_from_lab()` | .lab から `log_load()` が読める合成 .log を生成する |
+| `run_alignment()` | MFA を試し、失敗したら Julius にフォールバックする |
+
+**フォールバック設計**
+
+```
+run_alignment()
+  ├─ USE_MFA=True  → mfa_run() 成功 → TextGrid → .lab + 合成.log
+  │                → mfa_run() 失敗 → perl_run() → .lab + .log
+  └─ USE_MFA=False → perl_run() → .lab + .log（従来通り）
+```
+
+**app.py の変更**
+
+`perl_run()` の呼び出しを `run_alignment()` に変更した 2 箇所のみ。
+`lab_load()` / `log_load()` は変更なし。
+
+**MFA 使用時の注意**
+
+- 合成 .log のスコアは固定値 `-1000.00` のため、Julius 品質ゲート（`-3000`）は常に通過する
+- MFA は `conda activate mfa` した環境でアプリを起動する必要がある
+
+---
+
 ## 主要 API ルート一覧
 
 | メソッド | パス | 説明 |
@@ -1091,14 +1232,21 @@ GET /recorded_audio
 
 ## 既知の限界
 
-| 限界 | 内容 | 今後の対策 |
-|------|------|-----------|
-| 参照音声が1本 | 話者の個人差がそのまま「正解」になる | 複数話者（VOICEVOX の別キャラクター等）で録音して平均化 |
-| 話者性別補正なし | 男女で声道長が違い F1/F2 が100〜200Hz ずれる | 推定ピッチ範囲から補正係数を自動適用 |
-| パラメータが推測値 | 重み・閾値を正解データで検証できていない | 評価付き録音を20〜30例収集してチューニング |
-| Julius の精度 | 学習者音声に対するアライメント精度が低い | Montreal Forced Aligner（MFA）への移行 |
-| シングルユーザー | test.wav が上書きされると比較再生が前の録音になる | セッションごとにファイル名を分ける |
-| `source="recorded"` 単語の削除不可 | `vocab.py` の `delete_word()` で弾かれる | 管理者権限フラグの実装 |
+| 限界 | 内容 | 状態 |
+|------|------|------|
+| 参照音声が1本 | 同一話者の VOICEVOX 音声が「唯一の正解」になる | 複数話者の平均化で改善予定 |
+| パラメータが推測値 | 重み・閾値を正解データで検証できていない | 評価付き録音 20〜30 例収集でチューニング予定 |
+| シングルユーザー | `test.wav` が上書きされると比較再生が前の録音になる | セッション ID でファイルを分ける方針で対応予定 |
+| `source="recorded"` 単語の削除不可 | `vocab.py` の `delete_word()` で弾かれる | 管理者権限フラグの実装で対応予定 |
+| MFA 起動環境の制約 | `conda activate mfa` した環境でないと MFA が動かない | 通常の Python 環境から呼び出せる形に整理予定 |
+
+**解決済みの限界**
+
+| 項目 | 対応内容 |
+|------|---------|
+| ~~話者性別補正なし~~ | `pitch_ceiling_user` による自動性別判定と補正係数（×0.85）を実装済み |
+| ~~Julius の精度~~ | MFA（Montreal Forced Aligner）への移行を実装済み（`USE_MFA = True` で有効化） |
+| ~~参照音声の話者混在~~ | 全 53 単語を同一 VOICEVOX 話者で統一済み |
 
 ---
 
