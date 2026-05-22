@@ -1,9 +1,9 @@
 """
 app.py — Flask ルーティング
 
-【追加】
-  /recorded_audio : 直前の録音（test.wav）を返す。
-                    結果ページの「比較再生」ボタン (4) で使用。
+【変更点】
+  calc_vowel_score() に pitch_ceiling_user=ceiling_learn を追加。
+  core/formant.py の①性別補正を有効化するための1引数追加。
 """
 from __future__ import annotations
 
@@ -89,13 +89,13 @@ def _accent_pattern_for_word(accent, reading: str) -> list[str]:
         return result
 
 def _get_suggestions(word_id: str, score_result: dict, words_list: list) -> list[dict]:
-    current    = get_word(word_id)
+    current = get_word(word_id)
     if not current:
         return []
     current_accent = current.get("accent")
-    stats      = get_stats()
+    stats       = get_stats()
     word_counts = stats.get("word_counts", {})
-    candidates = [w for w in words_list if w["word_id"] != word_id and w.get("accent") == current_accent]
+    candidates  = [w for w in words_list if w["word_id"] != word_id and w.get("accent") == current_accent]
     candidates.sort(key=lambda w: word_counts.get(w["word_id"], 0))
     if len(candidates) < 3:
         others = [w for w in words_list if w["word_id"] != word_id and w not in candidates]
@@ -236,10 +236,7 @@ def record_audio():
 
 @app.route("/recorded_audio")
 def recorded_audio():
-    """
-    直前の録音（test.wav）を返す。
-    結果ページの比較再生ボタン (4) で使用する。
-    """
+    """直前の録音（test.wav）を返す。結果ページの比較再生ボタンで使用。"""
     if TEST_WAV_PATH.exists():
         return send_file(str(TEST_WAV_PATH), mimetype="audio/wav")
     return "録音データが見つかりません", 404
@@ -355,7 +352,11 @@ def audio_analysis():
         try:
             native_formants = extract_mora_formants(audio_sample, mora_list1, max_formant=max_formant_sample)
             user_formants   = extract_mora_formants(audio_learn,  mora_list2, max_formant=max_formant_learn)
-            vowel_score, vowel_feedback = calc_vowel_score(native_formants, user_formants)
+            vowel_score, vowel_feedback = calc_vowel_score(
+                native_formants,
+                user_formants,
+                pitch_ceiling_user=ceiling_learn,   # ← ①性別補正に使用
+            )
         except Exception:
             vowel_score, vowel_feedback = 10.0, "母音の評価中にエラーが発生しました。"
 
