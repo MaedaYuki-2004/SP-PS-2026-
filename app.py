@@ -2,8 +2,8 @@
 app.py — Flask ルーティング
 
 【変更点】
-  - perl_run() → run_alignment() に変更（MFA対応）
-  - calc_vowel_score() に pitch_ceiling_user=ceiling_learn を追加（性別補正）
+  calc_vowel_score() に pitch_ceiling_native=ceiling_sample を追加。
+  ネイティブとユーザー両方の性別を考慮した補正を有効化する。
 """
 from __future__ import annotations
 
@@ -212,7 +212,7 @@ def upload_file():
         file.save(str(TEST_WAV_PATH))
         convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
         sleep_second()
-        run_alignment()   # ← perl_run() から変更
+        run_alignment()
         return render_template("upload.html", words=words, message="アップロード完了")
     except Exception as exc:
         traceback.print_exc()
@@ -227,7 +227,7 @@ def record_audio():
         file = request.files["file"]
         file.save(str(TEST_WAV_PATH))
         convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
-        run_alignment()   # ← perl_run() から変更
+        run_alignment()
         return "OK!"
     except Exception as exc:
         traceback.print_exc()
@@ -355,7 +355,8 @@ def audio_analysis():
             vowel_score, vowel_feedback = calc_vowel_score(
                 native_formants,
                 user_formants,
-                pitch_ceiling_user=ceiling_learn,
+                pitch_ceiling_native=ceiling_sample,  # ← ネイティブの性別判定
+                pitch_ceiling_user=ceiling_learn,      # ← ユーザーの性別判定
             )
         except Exception:
             vowel_score, vowel_feedback = 10.0, "母音の評価中にエラーが発生しました。"

@@ -2,42 +2,31 @@
 core/formant.py
 フォルマント（F1/F2）分析と声質評価を担当するモジュール。
 
-【改善①：話者性別によるフォルマント補正】
-  変更前：男性・女性問わず同じ距離計算をしていた。
-          VOICEVOXの声（女性寄り）を基準にしているため、
-          男性ユーザーが録音するとF1/F2が体系的に低くなり
-          母音スコアが常に低く出る問題があった。
+【性別補正ロジックの修正】
+  変更前：ユーザーの性別のみを見て補正していた。
+          「ネイティブ音声は女性寄り」という前提が誤りだった。
+          サンプル音声が男性の場合、補正が逆効果になっていた。
 
-  変更後：estimate_pitch_range()が返すpitch_ceiling_userを受け取り、
-          200Hz以下の場合は男性と判定してネイティブのF1/F2に
-          補正係数（MALE_F1_SCALE / MALE_F2_SCALE）を適用する。
+  変更後：ネイティブとユーザー両方の性別を検出し、
+          組み合わせに応じて補正係数を決定する。
 
-  【補正係数の根拠】
-  Peterson & Barney (1952) ほか音響音声学の研究によると、
-  男性の平均フォルマントは女性の約82〜87%。
-  ここでは保守的に0.85を採用。
-  単語ごとに変わらない定数なので _MALE_FORMANT_SCALE で一元管理。
+  【補正ロジック】
+  ネイティブ・ユーザーの性別を pitch_ceiling で判定
+  （ceiling ≤ 200Hz → 男性、> 200Hz → 女性）
 
-  【判定しきい値：200Hz】
-  estimate_pitch_range() が返す ceiling の目安：
-    女性話者 → 350〜550Hz 程度
-    男性話者 → 150〜250Hz 程度
-  200Hz を境界にすることで誤判定を最小化できる。
+  ┌─────────┬─────────┬─────────────────────────────┐
+  │ネイティブ│ユーザー  │ 補正                        │
+  ├─────────┼─────────┼─────────────────────────────┤
+  │ 男性    │ 男性    │ なし（同性・そのまま比較）   │
+  │ 女性    │ 女性    │ なし（同性・そのまま比較）   │
+  │ 女性    │ 男性    │ ネイティブ × 0.85           │
+  │ 男性    │ 女性    │ ネイティブ × 1.18（÷0.85）  │
+  └─────────┴─────────┴─────────────────────────────┘
 
-【改善②：有効サンプル数による信頼度重み付け】
-  変更前：30/50/70%の3点のうち有効値が1点だけでも、
-          3点すべて有効なモーラと同じ重みで距離の平均を計算していた。
-
-  変更後：モーラごとの有効サンプル数を信頼度スコアに変換し、
-          加重平均で最終距離を算出する。
-
-          信頼度 = min(native有効数, user有効数) / 3.0
-            → 3点すべて有効 : weight = 1.0
-            → 2点有効       : weight = 0.67
-            → 1点のみ有効   : weight = 0.33
-
-  子音が長いモーラや短いモーラで1点しか取れないケースで
-  ノイズを拾った値が過大に影響するのを防ぐ。
+  【補正の限界（重要）】
+  0.85 は集団平均値のため個人差を完全には吸収できない。
+  「性別による評価の偏りを軽減した」であり、
+  「完全に公平にした」ではない点に注意すること。
 """
 from __future__ import annotations
 
@@ -50,10 +39,12 @@ _VOWEL_CHARS = {'a', 'i', 'u', 'e', 'o'}
 # モーラ内でフォルマントを測定するサンプル点の割合
 _SAMPLE_RATIOS = [0.30, 0.50, 0.70]
 
-# ── ① 性別補正係数 ─────────────────────────────────────────────────
+# ── 性別補正係数 ─────────────────────────────────────────────────────
 # 男性のフォルマントは女性の約85%（Peterson & Barney 1952 ほかより）
 _MALE_FORMANT_SCALE = 0.85
-# pitch_ceiling_user がこの値以下なら男性と判定する（Hz）
+
+# pitch_ceiling がこの値以下なら男性と判定する（Hz）
+# ※ 近似値のため誤判定が起きる可能性がある（限界を把握して使うこと）
 _MALE_CEILING_THRESHOLD = 200.0
 
 
@@ -78,6 +69,53 @@ def _get_formant_at_time(formant, t: float) -> tuple[float | None, float | None]
         return None, None
 
 
+def _detect_gender(pitch_ceiling: float | None) -> str:
+    """
+    pitch_ceiling から話者の性別を推定する。
+
+    Returns
+    -------
+    "male" / "female" / "unknown"
+    """
+    if pitch_ceiling is None:
+        return "unknown"
+    return "male" if pitch_ceiling <= _MALE_CEILING_THRESHOLD else "female"
+
+
+def _calc_correction(
+    native_ceiling: float | None,
+    user_ceiling:   float | None,
+) -> tuple[float, str]:
+    """
+    ネイティブとユーザーの性別の組み合わせから補正係数を返す。
+
+    Returns
+    -------
+    (correction_factor, gender_note)
+      correction_factor : ネイティブのF1/F2にかける係数
+      gender_note       : フィードバックに添える補足文字列
+    """
+    native_gender = _detect_gender(native_ceiling)
+    user_gender   = _detect_gender(user_ceiling)
+
+    if native_gender == "unknown" or user_gender == "unknown":
+        # 性別不明の場合は補正しない
+        return 1.0, ""
+
+    if native_gender == user_gender:
+        # 同性 → 補正不要
+        return 1.0, ""
+
+    if native_gender == "female" and user_gender == "male":
+        # ネイティブ女性・ユーザー男性
+        # → ネイティブのF1/F2を × 0.85 して男性スケールに合わせる
+        return _MALE_FORMANT_SCALE, "（男性補正済み）"
+
+    # ネイティブ男性・ユーザー女性
+    # → ネイティブのF1/F2を ÷ 0.85（× 1.18）して女性スケールに合わせる
+    return 1.0 / _MALE_FORMANT_SCALE, "（女性補正済み）"
+
+
 def extract_mora_formants(
     sound_file: str,
     mora_list: list,
@@ -85,7 +123,7 @@ def extract_mora_formants(
 ) -> list[dict]:
     """
     各モーラの安定した母音区間で F1・F2 フォルマントを抽出する。
-    モーラ区間の30%・50%・70%の3点を測定して有効値の平均を返す。
+    モーラ区間の 30%・50%・70%の3点を測定して有効値の平均を返す。
     """
     snd     = parselmouth.Sound(sound_file)
     formant = snd.to_formant_burg(
@@ -133,41 +171,36 @@ def extract_mora_formants(
 
 
 def calc_vowel_score(
-    native_formants:    list[dict],
-    user_formants:      list[dict],
-    max_score:          float = 20.0,
-    bark_scale_f1:      float = 3.0,
-    bark_scale_f2:      float = 4.0,
-    pitch_ceiling_user: float | None = None,   # ← ① 性別補正に使用
+    native_formants:     list[dict],
+    user_formants:       list[dict],
+    max_score:           float = 20.0,
+    bark_scale_f1:       float = 3.0,
+    bark_scale_f2:       float = 4.0,
+    pitch_ceiling_native: float | None = None,  # ← ネイティブの性別判定に使用
+    pitch_ceiling_user:   float | None = None,  # ← ユーザーの性別判定に使用
 ) -> tuple[float, str]:
     """
     ネイティブと録音の F1/F2 を Bark スケールで比較して母音品質スコアを算出する。
 
-    【改善①】pitch_ceiling_user が 200Hz 以下なら男性と判定し、
-              ネイティブの F1/F2 に補正係数 (_MALE_FORMANT_SCALE) を適用する。
-              これにより男性ユーザーでも公平なスコアが得られる。
+    【性別補正】
+    ネイティブとユーザーの pitch_ceiling を比較し、
+    性別の組み合わせに応じた補正係数をネイティブのF1/F2に適用する。
 
-    【改善②】モーラごとの有効サンプル数を信頼度重みに変換し、
-              加重平均で最終距離を算出する。
-              有効サンプルが少ないモーラほど距離計算への影響が小さくなる。
+    同性同士 → 補正なし
+    ネイティブ女性・ユーザー男性 → ネイティブ × 0.85
+    ネイティブ男性・ユーザー女性 → ネイティブ × 1.18
 
-    dist  = √( (ΔBark_F1 / 3.0)² + (ΔBark_F2 / 4.0)² )
-    score = 20 × exp(−1.2 × mean_dist)
+    【サンプル数重み付け】
+    有効サンプル数が少ないモーラほど距離計算への影響を下げる。
     """
-    # ── ① 性別判定と補正係数の決定 ─────────────────────────────────
-    if (pitch_ceiling_user is not None
-            and pitch_ceiling_user <= _MALE_CEILING_THRESHOLD):
-        f1_correction = _MALE_FORMANT_SCALE
-        f2_correction = _MALE_FORMANT_SCALE
-        is_male       = True
-    else:
-        f1_correction = 1.0
-        f2_correction = 1.0
-        is_male       = False
+    # ── 性別補正係数を決定 ────────────────────────────────────────
+    correction, gender_note = _calc_correction(
+        pitch_ceiling_native, pitch_ceiling_user
+    )
 
     n           = min(len(native_formants), len(user_formants))
     distances:  list[float] = []
-    weights:    list[float] = []   # ② サンプル数重み
+    weights:    list[float] = []
     mora_dists: list[tuple[float, str]] = []
 
     for i in range(n):
@@ -178,13 +211,14 @@ def calc_vowel_score(
         if not _has_vowel(label):
             continue
 
-        # ① 補正済みのネイティブ F1/F2
         native_f1_raw = native["f1"]
         native_f2_raw = native["f2"]
         if native_f1_raw is None or native_f2_raw is None:
             continue
-        native_f1 = native_f1_raw * f1_correction
-        native_f2 = native_f2_raw * f2_correction
+
+        # 性別補正を適用
+        native_f1 = native_f1_raw * correction
+        native_f2 = native_f2_raw * correction
 
         user_f1 = user["f1"]
         user_f2 = user["f2"]
@@ -200,10 +234,9 @@ def calc_vowel_score(
         db2  = (native_b2 - user_b2) / bark_scale_f2
         dist = float(np.sqrt(db1 ** 2 + db2 ** 2))
 
-        # ── ② 信頼度重みの計算 ──────────────────────────────────────
-        n_native = native.get("f1_n_samples", 3)
-        n_user   = user.get("f1_n_samples",   3)
-        # 少ない方を基準に信頼度を決める（0.33 / 0.67 / 1.0）
+        # サンプル数重み付け
+        n_native   = native.get("f1_n_samples", 3)
+        n_user     = user.get("f1_n_samples",   3)
         confidence = min(n_native, n_user) / len(_SAMPLE_RATIOS)
 
         distances.append(dist)
@@ -213,22 +246,19 @@ def calc_vowel_score(
     if not distances:
         return round(max_score * 0.5, 1), "母音の評価データが不十分でした。"
 
-    # ── ② 加重平均で最終距離を算出 ─────────────────────────────────
+    # 加重平均で最終距離を算出
     total_weight = float(sum(weights))
-    if total_weight > 0:
-        mean_dist = float(
-            sum(d * w for d, w in zip(distances, weights)) / total_weight
-        )
-    else:
-        mean_dist = float(np.mean(distances))
+    mean_dist = (
+        float(sum(d * w for d, w in zip(distances, weights)) / total_weight)
+        if total_weight > 0
+        else float(np.mean(distances))
+    )
 
     score = round(max_score * float(np.exp(-mean_dist * 1.2)), 1)
     score = max(0.5, min(max_score, score))
 
     worst_dist, worst_label = max(mora_dists, key=lambda x: x[0])
 
-    # フィードバック生成
-    gender_note = "（男性補正済み）" if is_male else ""
     if mean_dist < 0.3:
         feedback = f"母音の発音が正確です{gender_note}。口の形が正しく作れています。"
     elif mean_dist < 0.7:
