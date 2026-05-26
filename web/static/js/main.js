@@ -20,19 +20,134 @@ const MIN_SPEECH_MS      = 500;    // ms：この時間以上発話してから�
 
 async function main() {
   try {
-    const canvas     = document.querySelector('#visualizer');
-    const canvasCtx  = canvas.getContext('2d');
-    const btnStart   = document.querySelector('#buttonStart');
-    const btnStop    = document.querySelector('#buttonStop');
-    const btnGraph   = document.querySelector('#buttongraph');
-    const audio      = document.querySelector('#audio');
-    const volumeBar  = document.querySelector('#volumeBar');       // B
-    const volumeFill = document.querySelector('#volumeFill');      // B
-    const autoStop   = document.querySelector('#autoStopCountdown'); // C
+    const canvas        = document.querySelector('#visualizer');
+    const canvasCtx     = canvas.getContext('2d');
+    const btnStart      = document.querySelector('#buttonStart');
+    const btnStop       = document.querySelector('#buttonStop');
+    const btnGraph      = document.querySelector('#buttongraph');
+    const audio         = document.querySelector('#audio');
+    const videoPreview  = document.querySelector('#cameraPreview');
+    const cameraPrediction = document.querySelector('#cameraPrediction');
+    const cameraError   = document.querySelector('#cameraError');
+    const cameraOverlay = document.querySelector('#cameraOverlay');
+    const cameraOverlayCtx = cameraOverlay?.getContext('2d');
+    const volumeBar     = document.querySelector('#volumeBar');       // B
+    const volumeFill    = document.querySelector('#volumeFill');      // B
+    const autoStop      = document.querySelector('#autoStopCountdown'); // C
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video:false, audio:true });
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+    } catch (err) {
+      console.warn('カメラ付きのアクセスに失敗しました。音声のみで録音します。', err);
+      stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+      if (cameraError) {
+        cameraError.style.display = 'block';
+        cameraError.textContent = 'カメラにアクセスできませんでした。音声録音のみ行います。';
+      }
+    }
     const [track] = stream.getAudioTracks();
     const settings = track.getSettings();
+    let lastFaceMeshTimestamp = 0;
+    const FACE_MESH_INTERVAL_MS = 100;
+
+    const faceMesh = new FaceMesh({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    faceMesh.onResults(onFaceMeshResults);
+
+    if (videoPreview && stream.getVideoTracks().length > 0) {
+      videoPreview.srcObject = stream;
+      videoPreview.muted = true;
+      videoPreview.playsInline = true;
+      videoPreview.style.display = 'block';
+      try {
+        await videoPreview.play();
+      } catch (playError) {
+        console.warn('カメラ再生開始に失敗しました', playError);
+      }
+      if (cameraPrediction) {
+        cameraPrediction.textContent = '予測：準備中...';
+      }
+    }
+
+    function onFaceMeshResults(results) {
+      if (!cameraPrediction) return;
+      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+        cameraPrediction.textContent = '予測：顔または口が検出されません';
+        if (cameraOverlayCtx) {
+          cameraOverlayCtx.clearRect(0, 0, cameraOverlay.width, cameraOverlay.height);
+        }
+        return;
+      }
+      const vowel = predictVowelFromLandmarks(results.multiFaceLandmarks[0]);
+      cameraPrediction.textContent = `予測：${vowel}`;
+      drawLipPoints(results.multiFaceLandmarks[0]);
+    }
+
+    function updateCameraOverlaySize() {
+      if (!videoPreview || !cameraOverlay) return;
+      const width = videoPreview.videoWidth || videoPreview.clientWidth;
+      const height = videoPreview.videoHeight || videoPreview.clientHeight;
+      cameraOverlay.width = width;
+      cameraOverlay.height = height;
+      cameraOverlay.style.display = width && height ? 'block' : 'none';
+    }
+
+    function drawLipPoints(landmarks) {
+      if (!cameraOverlayCtx || !videoPreview) return;
+      updateCameraOverlaySize();
+      cameraOverlayCtx.clearRect(0, 0, cameraOverlay.width, cameraOverlay.height);
+      cameraOverlayCtx.fillStyle = 'rgba(0, 255, 0, 0.85)';
+      cameraOverlayCtx.strokeStyle = 'rgba(0, 255, 0, 0.9)';
+      cameraOverlayCtx.lineWidth = 2;
+      const points = [13, 14, 61, 291];
+      for (const index of points) {
+        const pt = landmarks[index];
+        const x = pt.x * cameraOverlay.width;
+        const y = pt.y * cameraOverlay.height;
+        cameraOverlayCtx.beginPath();
+        cameraOverlayCtx.arc(x, y, 5, 0, Math.PI * 2);
+        cameraOverlayCtx.fill();
+        cameraOverlayCtx.stroke();
+      }
+    }
+
+    function predictVowelTree(node, features) {
+      if (node.leaf) return node.value;
+      const branch = features[node.feature] <= node.threshold ? node.left : node.right;
+      return predictVowelTree(branch, features);
+    }
+
+    function predictVowelFromLandmarks(landmarks) {
+      if (!window.VOWEL_FOREST || !window.VOWEL_CLASSES) {
+        return '準備中';
+      }
+      const w = videoPreview.videoWidth;
+      const h = videoPreview.videoHeight;
+      const top = landmarks[13];
+      const bottom = landmarks[14];
+      const left = landmarks[61];
+      const right = landmarks[291];
+      const vertical = Math.hypot((bottom.x - top.x) * w, (bottom.y - top.y) * h);
+      const horizontal = Math.hypot((right.x - left.x) * w, (right.y - left.y) * h);
+      const ratio = vertical / (horizontal + 1e-6);
+      const features = [vertical, horizontal, ratio];
+      const votes = new Array(window.VOWEL_CLASSES.length).fill(0);
+      for (const tree of window.VOWEL_FOREST) {
+        const leafValue = predictVowelTree(tree, features);
+        const labelIndex = leafValue.indexOf(Math.max(...leafValue));
+        if (labelIndex >= 0) votes[labelIndex]++;
+      }
+      const winner = votes.indexOf(Math.max(...votes));
+      return window.VOWEL_CLASSES[winner] || '--';
+    }
 
     const audioContext = new AudioContext({ sampleRate:16000 });
     await audioContext.audioWorklet.addModule('/static/js/audio_recorder.js');
@@ -76,6 +191,10 @@ async function main() {
     function drawLoop() {
       animFrame = requestAnimationFrame(drawLoop);
       analyser.getByteTimeDomainData(timeData);
+      if (videoPreview && videoPreview.readyState >= 2 && performance.now() - lastFaceMeshTimestamp > FACE_MESH_INTERVAL_MS) {
+        faceMesh.send({ image: videoPreview }).catch(() => {});
+        lastFaceMeshTimestamp = performance.now();
+      }
 
       // --- 波形描画 ---
       const W = canvas.width, H = canvas.height;
@@ -173,6 +292,9 @@ async function main() {
       speechStart  = null;
       silenceStart = null;
       buffers.splice(0, buffers.length);
+      if (cameraPrediction) {
+        cameraPrediction.textContent = '予測：準備中...';
+      }
 
       const param = audioRecorder.parameters.get('isRecording');
       param.setValueAtTime(1, audioContext.currentTime);
@@ -184,6 +306,9 @@ async function main() {
       isRecording  = false;
       speechStart  = null;
       silenceStart = null;
+      if (cameraPrediction) {
+        cameraPrediction.textContent = '予測：停止中';
+      }
 
       audio.setAttribute('controlsList', 'nodownload');
       const param = audioRecorder.parameters.get('isRecording');
@@ -201,6 +326,10 @@ async function main() {
 
   } catch (err) {
     console.error(err);
+    if (cameraError) {
+      cameraError.style.display = 'block';
+      cameraError.textContent = 'マイクまたはカメラにアクセスできませんでした。ブラウザの権限を確認してください。';
+    }
     const msg = document.getElementById('micError');
     if (msg) { msg.style.display = 'block'; msg.textContent = 'マイクにアクセスできませんでした。ブラウザの権限を確認してください。'; }
   }

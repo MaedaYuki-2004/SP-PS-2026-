@@ -9,3 +9,6 @@ pydub
 scipy
 gunicorn
 click
+opencv-python
+mediapipe
+scikit-learn

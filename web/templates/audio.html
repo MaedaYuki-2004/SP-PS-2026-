@@ -99,6 +99,15 @@
 
     #micError { display:none; background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0; border-radius:var(--r-sm); padding:12px 16px; font-size:13px; margin-top:12px; }
 
+    .camera-section { width:100%; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); border-radius:var(--r-lg); padding:16px; margin-top:16px; }
+    .camera-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; }
+    .camera-preview-wrap { position:relative; width:100%; aspect-ratio:16/9; overflow:hidden; border-radius:var(--r-sm); background:#000; }
+    #cameraPreview, #cameraOverlay { position:absolute; inset:0; width:100%; height:100%; border-radius:var(--r-sm); object-fit:cover; }
+    #cameraPreview { display:none; background:#000; }
+    #cameraOverlay { display:none; pointer-events:none; }
+    .camera-output { margin-top:12px; font-size:20px; font-weight:700; color:#000; text-align:center; }
+    .camera-error { display:none; margin-top:10px; font-size:12px; color:#F7C794; }
+
     @media (max-width:480px) { .word-display { font-size:48px; } .top-nav { padding:0 16px; } .shortcut-hint { display:none; } }
   </style>
 </head>
@@ -143,6 +152,16 @@
       <span class="sample-label">サンプル音声</span>
       <audio class="sample-audio" controls preload="none" src="/sample_audio/{{ word_id or '' }}"></audio>
     </div>
+  </div>
+
+  <div class="camera-section">
+    <div class="camera-label">録音中のカメラ映像と母音判定</div>
+    <div class="camera-preview-wrap">
+      <video id="cameraPreview" playsinline muted autoplay></video>
+      <canvas id="cameraOverlay"></canvas>
+    </div>
+    <div id="cameraPrediction" class="camera-output">予測：--</div>
+    <div id="cameraError" class="camera-error"></div>
   </div>
 
   <div class="visualizer-section">
@@ -197,6 +216,8 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.min.js"></script>
+<script src="static/js/vowel_model.js"></script>
 <script>
   // ── 録音状態の視覚フィードバック ─────────────────────────────────────
   let recTimer = null, recSeconds = 0;

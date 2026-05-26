@@ -9,7 +9,7 @@ Stat: init_phmm: base phones:    43 used in logical
 Stat: init_phmm: finished reading HMM definitions
 STAT: *** AM00 _default loaded
 STAT: *** loading LM00 _default
-STAT: reading [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dfa] and [C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dict]...
+STAT: reading [C:\Users\Owner\Documents\GitHub\SP-PS-2026-\data\raw_audio\wav/test.dfa] and [C:\Users\Owner\Documents\GitHub\SP-PS-2026-\data\raw_audio\wav/test.dict]...
 Stat: init_voca: read 3 words
 STAT: done
 STAT: Gram #0 test registered
@@ -62,8 +62,8 @@ Configuration of Modules
  Language Model:
  - LM00 "_default"
 	grammar #1:
-	    dfa  = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dfa
-	    dict = C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.dict
+	    dfa  = C:\Users\Owner\Documents\GitHub\SP-PS-2026-\data\raw_audio\wav/test.dfa
+	    dict = C:\Users\Owner\Documents\GitHub\SP-PS-2026-\data\raw_audio\wav/test.dict
 
  Recognizer:
  - SR00 "_default" (AM00, LM00)
@@ -210,34 +210,34 @@ Notice for feature extraction (01),
 
 ------
 ### read waveform input
-Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.wav
-STAT: 26112 samples (1.63 sec.)
+Stat: adin_file: input speechfile: C:\Users\Owner\Documents\GitHub\SP-PS-2026-\data\raw_audio\wav/test.wav
+STAT: 172928 samples (10.81 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
-pass1_best_phonemeseq: silB | g a q k o: | silE
-pass1_best_score: -4395.372070
+pass1_best_phonemeseq: silB | k a i k e: | silE
+pass1_best_score: -24648.359375
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 161
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 1079
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
-phseq1: silB | g a q k o: | silE
+phseq1: silB | k a i k e: | silE
 cmscore1: 1.000 1.000 1.000
-score1: -4395.368652
+score1: -24648.515625
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   55]  -26.169285  silB
-[  56   58]  -33.111004  g
-[  59   81]  -28.099907  a
-[  82  144]  -27.498508  q
-[ 145  153]  -27.121988  k
-[ 154  156]  -33.010254  o:
-[ 157  160]  -27.181641  silE
-re-computed AM score: -4395.372070
+[   0   73]  -21.079559  silB
+[  74  113]  -25.422085  k
+[ 114  145]  -29.675774  a
+[ 146  228]  -29.832184  i
+[ 229  234]  -25.492514  k
+[ 235  237]  -24.839682  e:
+[ 238 1078]  -21.900616  silE
+re-computed AM score: -24648.359375
 === end forced alignment ===
 
 

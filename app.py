@@ -7,12 +7,18 @@ app.py — Flask ルーティング
 """
 from __future__ import annotations
 
+import base64
 import csv
 import io
+import math
+import pickle
 import re
 import traceback
 from pathlib import Path
 
+import cv2
+import mediapipe as mp
+import numpy as np
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
 
 from config import (
@@ -33,6 +39,37 @@ from core.history   import save_record, load_history, get_last_score, get_stats
 from core.utils     import pct_length, sleep_second
 
 JULIUS_GATE_THRESHOLD = -3000
+
+# ── 母音判定モデルと MediaPipe ─────────────────────────────────────
+VOWEL_MODEL_PATH = Path(__file__).parent / 'vowel_model.pkl'
+try:
+    with open(VOWEL_MODEL_PATH, 'rb') as f:
+        _VOWEL_MODEL = pickle.load(f)
+except FileNotFoundError:
+    _VOWEL_MODEL = None
+    print("warning: vowel_model.pkl not found; /predict_vowel will return no prediction")
+
+mp_face_mesh = mp.solutions.face_mesh
+_FACE_MESH = mp_face_mesh.FaceMesh(
+    max_num_faces=1,
+    refine_landmarks=True,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5,
+)
+
+VOWEL_MAP = {
+    'あ': 'A',
+    'い': 'I',
+    'う': 'U',
+    'え': 'E',
+    'お': 'O',
+    '無音': 'Silent',
+}
+
+def _calc_distance(p1, p2, w, h):
+    x1, y1 = int(p1.x * w), int(p1.y * h)
+    x2, y2 = int(p2.x * w), int(p2.y * h)
+    return math.hypot(x2 - x1, y2 - y1)
 
 app = Flask(
     __name__,
@@ -240,6 +277,51 @@ def recorded_audio():
     if TEST_WAV_PATH.exists():
         return send_file(str(TEST_WAV_PATH), mimetype="audio/wav")
     return "録音データが見つかりません", 404
+
+
+@app.route('/predict_vowel', methods=['POST'])
+def predict_vowel():
+    if _VOWEL_MODEL is None:
+        return jsonify({'error': 'vowel_model.pkl not loaded', 'vowel': None}), 503
+
+    data = request.get_json(silent=True)
+    if not data or 'image' not in data:
+        return jsonify({'error': 'image data is required', 'vowel': None}), 400
+
+    image_data = data['image']
+    if ',' in image_data:
+        image_data = image_data.split(',', 1)[1]
+
+    try:
+        image_bytes = base64.b64decode(image_data)
+        img_array = np.frombuffer(image_bytes, dtype=np.uint8)
+        frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        if frame is None:
+            raise ValueError('画像のデコードに失敗しました')
+
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = _FACE_MESH.process(image_rgb)
+        if not results.multi_face_landmarks:
+            return jsonify({'vowel': None})
+
+        face_landmarks = results.multi_face_landmarks[0]
+        h, w, _ = frame.shape
+        top_lip = face_landmarks.landmark[13]
+        bottom_lip = face_landmarks.landmark[14]
+        left_lip = face_landmarks.landmark[61]
+        right_lip = face_landmarks.landmark[291]
+
+        vertical_dist = _calc_distance(top_lip, bottom_lip, w, h)
+        horizontal_dist = _calc_distance(left_lip, right_lip, w, h)
+        ratio = vertical_dist / (horizontal_dist + 1e-6)
+
+        prediction = _VOWEL_MODEL.predict([[vertical_dist, horizontal_dist, ratio]])
+        predicted_label = prediction[0]
+        response_label = VOWEL_MAP.get(predicted_label, predicted_label)
+        return jsonify({'vowel': response_label})
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({'error': str(exc), 'vowel': None}), 500
 
 
 @app.route("/graph", methods=["GET", "POST"])
