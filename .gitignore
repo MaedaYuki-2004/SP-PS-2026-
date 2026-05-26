@@ -1,219 +1,67 @@
-# https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,git,opencv によって作成されました
-# https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode,git,opencv で編集
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SP-PS .gitignore
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-### Git ###
-# バックアップ用にGitによって作成されました。Gitでバックアップを無効にするには：
-# $ git config --global mergetool.keepBackup false
-*.オリジナル
+# ── SP-PS 一時ファイル ────────────────────────────
+# 録音・解析のたびに上書きされる一時ファイル
+data/raw_audio/wav/test.wav
+data/raw_audio/wav/test.lab
+data/raw_audio/wav/test.log
+data/raw_audio/wav/test.txt
+data/raw_audio/test2.wav
+data/raw_audio/wav/test2.wav
 
-# 競合のマージツール使用時にgitによって作成されます
-*。バックアップ。*
-*。ベース。*
-*。地元。*
-*.リモート.*
-*_BACKUP_*.txt
-*_BASE_*.txt
-*_LOCAL_*.txt
-*_REMOTE_*.txt
+# 選択中の単語IDを保持する一時ファイル
+data/config/word_id.txt
 
-### OpenCV ###
-#MacとLinux向けのOpenCV
-#ビルドフォルダとリリースフォルダ
-*/CMakeFiles
-*/CMakeCache.txt
-*/メイクファイル
-*/cmake_install.cmake
-.DS_Store
-
-### Python ###
-# バイトコンパイル済み/最適化済み/DLLファイル
+# ── Python ───────────────────────────────────────
 __pycache__/
-*.py[コード]
-*$py.class
+*.py[cod]
+*.pyo
+*.pyd
+*.so
 
-# C言語拡張機能
-*。それで
-
-# 流通／包装
-.Python
-建てる/
-卵を発育させる/
-配布/
-ダウンロード/
-卵/
-.卵/
-lib/
-lib64/
-部品/
-sdist/
-var/
-ホイール/
-share/python-wheels/
+# 配布・パッケージング
+build/
+dist/
 *.egg-info/
-.installed.cfg
-*。卵
-マニフェスト
+*.egg
+.eggs/
+MANIFEST
 
-# PyInstaller
-# 通常、これらのファイルはテンプレートからPythonスクリプトによって書き込まれます
-# PyInstaller が exe をビルドする前に、日付やその他の情報を挿入します。
-*.マニフェスト
-*.spec
-
-# インストーラーのログ
-pip-log.txt
-pip-delete-this-directory.txt
-
-# 単体テスト／カバレッジレポート
-htmlcov/
-.tox/
-.nox/
-。カバレッジ
-。カバレッジ。*
-。キャッシュ
-nosetests.xml
-coverage.xml
-*。カバー
-*.py、カバー
-。仮説/
-.pytest_cache/
-カバー/
-
-# 翻訳
-*.mo
-*。ポット
-
-# Django関連:
-*。ログ
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask関連:
-実例/
-.webassets-cache
-
-# Scrapy関連のもの:
-.scrapy
-
-# Sphinxドキュメント
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-ターゲット/
-
-# Jupyter Notebook
-.ipynb_チェックポイント
-
-# IPython
-プロファイルデフォルト/
-ipython_config.py
-
-# pyenv
-# ライブラリまたはパッケージの場合、コードが
-# 複数の環境で実行することを想定しています。そうでない場合は、以下の環境にチェックインしてください。
-# .python-version
-
-# pipenv
-# pypa/pipenv#598 によると、Pipfile.lock をバージョン管理に含めることが推奨されています。
-# ただし、コラボレーションの場合、プラットフォーム固有の依存関係または依存関係がある場合
-# クロスプラットフォームのサポートがないため、pipenv は動作しない依存関係をインストールする可能性があります。
-# 必要な依存関係をすべてインストールします。
-#Pipfile.lock
-
-#詩
-# Pipfile.lock と同様に、poetry.lock もバージョン管理に含めることが一般的に推奨されます。
-# これは再現性を確保するためにバイナリ パッケージに特に推奨されます。
-# ライブラリでは一般的に無視されます。
-# https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#詩.lock
-
-# PDM
-# Pipfile.lock と同様に、pdm.lock もバージョン管理に含めることが一般的に推奨されます。
-#pdm.lock
-# pdm はプロジェクト全体の構成を .pdm.toml に保存しますが、含めないことを推奨します
-# バージョン管理下にあります。
-# https://pdm.fming.dev/#use-with-ide
-.pdm.toml
-
-# PEP 582; 例: github.com/David-OConnor/pyflow および github.com/pdm-project/pdm で使用されています
-__pypackages__/
-
-# セロリ関連
-セロリビートスケジュール
-セロリビート.pid
-
-# SageMathで解析されたファイル
-*.sage.py
-
-# 環境
+# 仮想環境
 .env
 .venv
 env/
 venv/
-環境/
-env.bak/
-venv.bak/
+ENV/
 
-# Spyderプロジェクト設定
-.spyderproject
-.spyproject
+# テスト・カバレッジ
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
 
-# ローププロジェクトの設定
-.ropeproject
-
-# mkdocs ドキュメント
-/サイト
-
-# マイピー
+# 型チェッカー
 .mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyreタイプチェッカー
-.pyre/
-
-# pytype 静的型アナライザー
 .pytype/
-
-# Cythonのデバッグシンボル
-cython_debug/
-
-# PyCharm
-# JetBrains固有のテンプレートは、別のJetBrains.gitignoreで管理されており、
-# https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore で見つけることができます
-# グローバルな gitignore に追加することも、このファイルにマージすることもできます。より強力な対策としては
-# オプション (非推奨) 以下の行のコメントを解除すると、アイデアフォルダ全体を無視できます。
-＃。アイデア/
-
-### Pythonパッチ ###
-# Poetry ローカル設定ファイル - https://python-poetry.org/docs/configuration/#local-configuration
-poetry.toml
-
-# ラフ
-.ruff_cache/
-
-# LSP設定ファイル
+.pyre/
 pyrightconfig.json
 
-### VisualStudioCode ###
+# ── Visual Studio Code ───────────────────────────
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-!.vscode/*.code-snippets
+.history/
 
-# Visual Studio Code のローカル履歴
-。歴史/
+# ── OS ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Visual Studio Code拡張機能を構築しました
-*.vsix
-
-### VisualStudioCode パッチ ###
-# ファイルのローカル履歴をすべて無視する
-。歴史
-.イオン化物
-
-# https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,git,opencv の終了
+# ── その他 ──────────────────────────────────────
+*.log
+*.orig
+*.bak
