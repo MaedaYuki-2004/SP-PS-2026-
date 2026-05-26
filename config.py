@@ -113,4 +113,4 @@ PITCH_CEILING_FEMALE:  float = 400.0
 FLASK_SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY", "change-this-secret-key")
 
 # config.py の末尾に追加
-USE_MFA: bool = True
+USE_MFA: bool = False
