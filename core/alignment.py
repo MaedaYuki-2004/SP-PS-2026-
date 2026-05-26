@@ -52,6 +52,7 @@ from config import (
     PERL_SCRIPT_PATH,
     TEST_LAB_PATH,
     TEST_LOG_PATH,
+    TEST_WAV_PATH,
     USE_MFA,
     VOWELS,
 )
@@ -259,13 +260,18 @@ def mfa_run() -> None:
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_dir        = Path(tmpdir)
+        text_path      = tmp_dir / "test.txt"    # ← 追加：テキストファイル
         textgrid_path  = tmp_dir / "test.TextGrid"
+
+        # display テキストをファイルに書き出す
+        # MFA align_one の第2引数はファイルパスのため、文字列をそのまま渡せない
+        text_path.write_text(display, encoding="utf-8")
 
         # MFA align_one で単一ファイルをアライメント
         cmd = [
             "mfa", "align_one",
             str(wav_path),
-            display,
+            str(text_path),    # ← 文字列 → ファイルパスに変更
             "japanese_mfa",    # 辞書
             "japanese_mfa",    # 音響モデル
             str(textgrid_path),
