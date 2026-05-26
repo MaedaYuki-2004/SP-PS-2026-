@@ -48,7 +48,33 @@ git clone https://github.com/MaedaYuki-2004/SP-PS-2026-.git
 cd SP-PS-2026-
 ```
 
-### 2. Julius の配置
+### 2. Python 依存パッケージのインストール
+
+```bash
+pip install -r requirements.txt
+```
+
+MeCab の辞書データを別途ダウンロードします（初回のみ）。
+
+```bash
+python -m unidic download
+```
+
+| パッケージ | 用途 |
+|-----------|------|
+| flask | Web サーバー |
+| praat-parselmouth | ピッチ・フォルマント抽出 |
+| librosa | 音声読み込み・MFCC 抽出 |
+| fastdtw | DTW 距離計算（音色評価） |
+| scipy | 統計計算（Pearson 相関など） |
+| numpy | 数値計算全般 |
+| pydub | 音声フォーマット変換 |
+| soundfile | 音声ファイルの読み書き |
+| noisereduce | ノイズ除去 |
+| mecab-python3 | アクセント型の自動取得 |
+| unidic | MeCab 用 UniDic 辞書 |
+
+### 3. Julius の配置
 
 Julius は音素アライメント（音声と音素の対応付け）に使用します。
 
@@ -75,7 +101,7 @@ sudo apt-get update
 sudo apt-get install -y julius julius-dev
 ```
 
-### 3. Perl のインストール
+### 4. Perl のインストール
 
 **Windows**（Strawberry Perl 推奨）
 https://strawberryperl.com/ からインストール。
@@ -86,52 +112,36 @@ https://strawberryperl.com/ からインストール。
 sudo apt-get install -y perl
 ```
 
-### 4. MeCab + UniDic のインストール
+### 5. ffmpeg のインストール
 
-アクセント型の自動取得（`core/accent.py`）に使用します。
+pydub の音声変換処理に必要です。
 
-```bash
-# MeCab 本体
-pip install mecab-python3
+**Windows**
 
-# UniDic 辞書
-pip install unidic
-python -m unidic download
+```powershell
+# winget を使う場合（推奨）
+winget install Gyan.FFmpeg
+
+# または https://ffmpeg.org/download.html から手動でダウンロードして
+# 解凍後、bin/ フォルダを PATH に追加する
 ```
 
-### 5. Python 依存パッケージのインストール
+**Ubuntu / Debian**
 
 ```bash
-pip install -r requirements.txt
-```
-
-`requirements.txt` に含まれないが必要なパッケージ：
-
-```bash
-pip install mecab-python3 unidic soundfile
-```
-
-| パッケージ | 用途 |
-|-----------|------|
-| flask | Web サーバー |
-| praat-parselmouth | Praat 連携（ピッチ・フォルマント抽出） |
-| librosa | 音声読み込み・MFCC 抽出 |
-| fastdtw | DTW 距離計算（音色評価） |
-| scipy | 統計計算（Pearson 相関など） |
-| numpy | 数値計算全般 |
-| noisereduce | ノイズ除去 |
-| pydub | 音声フォーマット変換 |
-| mecab-python3 | アクセント型の自動取得 |
-| unidic | MeCab 用 UniDic 辞書 |
-
-### 6. ffmpeg のインストール（pydub の依存）
-
-```bash
-# Ubuntu / Debian
 sudo apt-get install -y ffmpeg
-
-# Windows: https://ffmpeg.org/download.html
 ```
+
+### 6. VOICEVOX のインストール
+
+サンプル音声の自動生成に使用します。
+
+1. https://voicevox.hiroshiba.jp/ からインストーラーをダウンロードする
+2. インストール後に起動する（常時起動している必要があります）
+3. デフォルトポート `50021` で起動していることを確認する
+
+> **Note:** VOICEVOX が起動していない状態でも既存の音声ファイルは使えます。
+> 新しい単語を管理画面から追加する場合にのみ VOICEVOX が必要です。
 
 ### 7. MFCC バイナリの生成
 

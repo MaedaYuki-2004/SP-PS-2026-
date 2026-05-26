@@ -1,11 +1,21 @@
+# Web フレームワーク
 Flask
+
+# 音声処理
 librosa
-matplotlib
-noisereduce
-numpy
 praat-parselmouth
-fastdtw
 pydub
+soundfile
+noisereduce
+
+# 数値計算・統計
+numpy
 scipy
-gunicorn
-click
+fastdtw
+
+# 可視化
+matplotlib
+
+# 自然言語処理（アクセント型取得）
+mecab-python3
+unidic
