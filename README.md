@@ -18,7 +18,9 @@
 7. [スコアロジック](#スコアロジック)
 8. [システム内部の処理フロー](#システム内部の処理フロー)
 9. [主要な変更点（実装ログ）](#主要な変更点実装ログ)
-10. [既知の限界](#既知の限界)
+10. [主要 API ルート一覧](#主要-api-ルート一覧)
+11. [既知の限界](#既知の限界)
+12. [ブランチ運用ルール](#ブランチ運用ルール)
 
 ---
 
@@ -1294,6 +1296,109 @@ _calc_correction(pitch_ceiling_native, pitch_ceiling_user)
 | ~~話者性別補正なし~~ | ネイティブ・ユーザー両方の性別を自動判定し、組み合わせに応じた補正係数を適用済み |
 | ~~性別補正がネイティブ女性前提だった~~ | `pitch_ceiling_native` を追加し、サンプル音声が男性の場合も正しく補正するよう修正済み |
 | ~~参照音声の話者混在~~ | 全 53 単語を同一 VOICEVOX 話者で統一済み |
+
+---
+
+## ブランチ運用ルール
+
+### ブランチの種類と命名規則
+
+| プレフィックス | 用途 | 例 |
+|-------------|------|-----|
+| `feature/` | 新機能の追加 | `feature/quest-system` |
+| `fix/` | バグ修正 | `fix/formant-gender-correction` |
+| `refactor/` | 動作を変えないコードの整理 | `refactor/alignment-cleanup` |
+| `docs/` | ドキュメントのみの変更 | `docs/readme-update` |
+
+**命名のルール**
+
+- すべて小文字・単語はハイフン（`-`）でつなぐ
+- 何をするブランチか一目でわかる名前にする
+- 長すぎない（3〜4単語程度）
+
+```bash
+# 良い例
+feature/mfa-alignment
+fix/mfa-and-formant-correction
+feature/unify-tts-voice
+
+# 悪い例
+fix/bug          ← 何のバグか不明
+feature/update   ← 何を更新するか不明
+Feature/MFA      ← 大文字・単語がつながっていない
+```
+
+---
+
+### ブランチの作成からマージまでの流れ
+
+```bash
+# 1. main を最新にする
+git checkout main
+git pull origin main
+
+# 2. ブランチを切る
+git checkout -b feature/xxxx
+
+# 3. 作業・コミット
+git add <files>
+git commit -m "feat: ○○を追加"
+
+# 4. プッシュ
+git push origin feature/xxxx
+
+# 5. main にマージ
+git checkout main
+git merge feature/xxxx
+git push origin main
+```
+
+---
+
+### コミットメッセージの書き方
+
+1行目にプレフィックスをつけて、何をしたか端的に書く。
+
+| プレフィックス | 用途 |
+|-------------|------|
+| `feat:` | 新機能 |
+| `fix:` | バグ修正 |
+| `refactor:` | リファクタリング |
+| `docs:` | ドキュメント変更 |
+| `chore:` | ビルドや設定ファイルの変更 |
+
+```bash
+# 良い例
+feat: MFA（Montreal Forced Aligner）対応を追加
+fix: 性別補正でネイティブ音声の性別も考慮するよう修正
+docs: README にブランチルールを追記
+
+# 悪い例
+update          ← 何を更新したか不明
+fix bug         ← プレフィックスがない
+色々修正した    ← 内容が不明
+```
+
+複数の変更がある場合は本文に箇条書きで補足する。
+
+```bash
+git commit -m "fix: MFAバグ修正・性別補正ロジック修正
+
+- core/alignment.py: TEST_WAV_PATH をインポートに追加
+- core/alignment.py: mfa align_one の引数をファイルパスに修正
+- core/formant.py: ネイティブ・ユーザー両方の性別を判定するよう変更"
+```
+
+---
+
+### やってはいけないこと
+
+| NG | 理由 |
+|----|------|
+| main に直接 commit & push | 変更履歴が追いにくくなる |
+| 1つのブランチに複数の無関係な変更を混ぜる | レビューや差し戻しが難しくなる |
+| バイナリファイル（`.bin`・`.wav`）以外の動作確認用一時ファイルをコミット | リポジトリが肥大化する |
+| コミットせずに長期間作業を続ける | 差分が大きくなりすぎてコンフリクトが起きやすくなる |
 
 ---
 
