@@ -117,8 +117,24 @@
     </svg>
     単語選択に戻る
   </a>
-  <span style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);">Step 2 — 録音</span>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);">Step 2 — 録音</span>
+    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button>
+  </div>
 </nav>
+<script>
+  (function() {
+    const root  = document.documentElement;
+    const btn   = document.getElementById('themeToggle');
+    const saved = localStorage.getItem('sp-ps-theme');
+    if (saved === 'dark') { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; }
+    btn.addEventListener('click', () => {
+      const isDark = root.getAttribute('data-theme') === 'dark';
+      if (isDark) { root.removeAttribute('data-theme'); btn.textContent='🌙'; localStorage.setItem('sp-ps-theme','light'); }
+      else        { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; localStorage.setItem('sp-ps-theme','dark'); }
+    });
+  })();
+</script>
 
 <div class="record-page">
   <div class="steps">

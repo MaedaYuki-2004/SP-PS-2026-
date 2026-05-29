@@ -66,8 +66,22 @@
 <body>
 <nav class="top-nav">
   <a href="/select" class="nav-link"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>ホーム</a>
-  <div class="nav-actions"><a href="/history" class="nav-link">履歴</a></div>
+  <div class="nav-actions"><a href="/history" class="nav-link">履歴</a><button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button></div>
 </nav>
+<script>
+  (function() {
+    const root  = document.documentElement;
+    const btn   = document.getElementById('themeToggle');
+    if (!btn) return;
+    const saved = localStorage.getItem('sp-ps-theme');
+    if (saved === 'dark') { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; }
+    btn.addEventListener('click', () => {
+      const isDark = root.getAttribute('data-theme') === 'dark';
+      if (isDark) { root.removeAttribute('data-theme'); btn.textContent='🌙'; localStorage.setItem('sp-ps-theme','light'); }
+      else        { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; localStorage.setItem('sp-ps-theme','dark'); }
+    });
+  })();
+</script>
 <div class="page-header">
   <div><div class="page-header-title">単語管理</div><div class="page-header-sub">単語の追加・編集・削除（追加時はVOICEVOXが必要）</div></div>
 </div>

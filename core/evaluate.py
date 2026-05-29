@@ -513,10 +513,68 @@ def calc_length_score(
     worst_idx  = int(np.argmax(diffs * weights))
     worst_diff = float(diffs[worst_idx])
 
+    # ── 絶対時間チェック：長音・促音の比率を通常モーラと比較 ──────────
+    # 通常モーラ（長音・促音・撥音以外）の平均長さを基準にする
+    special_labels = {"q", "N"}
+    normal_indices = [
+        i for i in range(n)
+        if mora_labels is not None
+        and ":" not in mora_labels[i]
+        and mora_labels[i] not in special_labels
+    ]
+    normal_user_avg = float(np.mean(user[[i for i in normal_indices]])) if normal_indices else 0.0
+
+    abs_long_errors: list[tuple[int, str]] = []   # (mora_idx, "短い"|"長い")
+    abs_soku_errors: list[tuple[int, str]] = []
+
+    if normal_user_avg > 0 and mora_labels is not None:
+        for i in range(n):
+            label = mora_labels[i]
+            ratio = user[i] / normal_user_avg
+
+            if ":" in label:
+                # 長音は通常モーラの 1.5〜3.0 倍が目安
+                if ratio < 1.5:
+                    abs_long_errors.append((i, "短い"))
+                elif ratio > 3.2:
+                    abs_long_errors.append((i, "長い"))
+
+            elif label == "q":
+                # 促音（っ）は通常モーラの 0.6〜1.8 倍が目安
+                if ratio < 0.6:
+                    abs_soku_errors.append((i, "短い"))
+                elif ratio > 1.8:
+                    abs_soku_errors.append((i, "長い"))
+
     long_errors = [i for i in range(n) if mora_labels is not None and ":" in mora_labels[i] and diffs[i] > 4.0]
     soku_errors = [i for i in range(n) if mora_labels is not None and mora_labels[i] == "q" and diffs[i] > 4.0]
 
-    if long_errors:
+    # 絶対時間エラーを優先してフィードバック
+    if abs_long_errors:
+        idx, kind = abs_long_errors[0]
+        if kind == "短い":
+            feedback = (
+                f"{idx + 1}拍目の長音が短すぎます。"
+                f"前後の音の約2倍の長さを意識してしっかり伸ばしてください。"
+            )
+        else:
+            feedback = (
+                f"{idx + 1}拍目の長音が長すぎます。"
+                f"前後の音の約2倍程度を目安にしてください。"
+            )
+    elif abs_soku_errors:
+        idx, kind = abs_soku_errors[0]
+        if kind == "短い":
+            feedback = (
+                f"{idx + 1}拍目の促音（っ）が短すぎます。"
+                f"前後の音と同じくらいの間（ま）を意識して詰めてください。"
+            )
+        else:
+            feedback = (
+                f"{idx + 1}拍目の促音（っ）が長すぎます。"
+                f"詰まりを短くしてください。"
+            )
+    elif long_errors:
         idx = long_errors[0]
         d   = "短すぎます。しっかり伸ばして" if user[idx] < native[idx] else "長すぎます。少し短く"
         feedback = f"{idx + 1}拍目の長音が{d}発音してください。"

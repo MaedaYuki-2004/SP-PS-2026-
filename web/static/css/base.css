@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
 
-/* ── Design Tokens ─────────────────────────────────── */
+/* ── Design Tokens（ライトモード） ─────────────────────── */
 :root {
   --bg:          #F3F0E8;
   --bg-card:     #FDFCFA;
@@ -31,6 +31,61 @@
   --mono: 'DM Mono', monospace;
   --dur:  180ms;
   --ease: cubic-bezier(.25,.1,.25,1);
+}
+
+/* ── ダークモード ────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg:          #0F1117;
+  --bg-card:     #1A1D26;
+  --bg-muted:    #252833;
+  --text:        #E8E4DE;
+  --text-2:      #A8A29A;
+  --text-3:      #6B6560;
+  --navy:        #2A4A8A;
+  --navy-mid:    #3A5FA0;
+  --accent:      #E05535;
+  --accent-bg:   #2D1A14;
+  --green:       #3D8A65;
+  --green-bg:    #162A20;
+  --blue:        #3A72AD;
+  --blue-bg:     #162030;
+  --quest:       #C48A00;
+  --quest-mid:   #D9A000;
+  --quest-bg:    #2A2000;
+  --quest-border: #8A6800;
+  --border:      #2E3240;
+  --border-light: #232633;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.4);
+  --shadow:    0 4px 20px rgba(0,0,0,.5);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.6);
+}
+
+/* ダークモード時のナビ背景 */
+[data-theme="dark"] .top-nav {
+  background: rgba(15,17,23,.92);
+  border-bottom-color: var(--border);
+}
+
+/* ダークモード時のトグルボタン */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: none;
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 15px;
+  transition: background var(--dur), border-color var(--dur);
+}
+.theme-toggle:hover {
+  background: var(--bg-muted);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 /* ── Reset ─────────────────────────────────────────── */

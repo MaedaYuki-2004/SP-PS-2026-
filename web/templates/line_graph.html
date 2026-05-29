@@ -213,8 +213,22 @@
     {% endif %}
     <a href="/history" class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">履歴</a>
     <a href="/select"  class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">ホーム</a>
+    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え" style="border-color:rgba(255,255,255,.2);color:#fff;">🌙</button>
   </div>
 </div>
+<script>
+  (function() {
+    const root  = document.documentElement;
+    const btn   = document.getElementById('themeToggle');
+    const saved = localStorage.getItem('sp-ps-theme');
+    if (saved === 'dark') { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; }
+    btn.addEventListener('click', () => {
+      const isDark = root.getAttribute('data-theme') === 'dark';
+      if (isDark) { root.removeAttribute('data-theme'); btn.textContent='🌙'; localStorage.setItem('sp-ps-theme','light'); }
+      else        { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; localStorage.setItem('sp-ps-theme','dark'); }
+    });
+  })();
+</script>
 
 <div class="tab-bar">
   <button class="sec-tab active" onclick="showSection('score',this)">発音スコア</button>
