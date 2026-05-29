@@ -392,6 +392,53 @@
     </div>
   </div>
   {% endif %}
+
+  <!-- ④ モーラ別スコア -->
+  {% if mora_scores %}
+  <div style="margin-top:24px;">
+    <div class="panel-heading" style="font-size:13px; margin-bottom:12px;">モーラ別スコア</div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <thead>
+          <tr style="background:var(--navy); color:#fff;">
+            <th style="padding:8px 12px; text-align:left; border-radius:var(--r-sm) 0 0 0;">モーラ</th>
+            <th style="padding:8px 12px; text-align:center;">アクセント</th>
+            <th style="padding:8px 12px; text-align:center;">長さ</th>
+            <th style="padding:8px 12px; text-align:center;">母音</th>
+            <th style="padding:8px 12px; text-align:center; border-radius:0 var(--r-sm) 0 0;">総合</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in mora_scores %}
+          {% set is_worst = worst_mora and m.mora_index == worst_mora.mora_index %}
+          <tr style="background:{% if is_worst %}rgba(192,61,32,.06){% elif loop.index is odd %}var(--bg-card){% else %}#fff{% endif %}; {% if is_worst %}border-left:3px solid var(--accent);{% endif %}">
+            <td style="padding:8px 12px; font-weight:{% if is_worst %}700{% else %}400{% endif %}; color:{% if is_worst %}var(--accent){% else %}var(--text){% endif %};">
+              {{ m.label }}{% if is_worst %} ⚠️{% endif %}
+            </td>
+            {% for key in ['accent','length','vowel','total'] %}
+            {% set val = m[key] %}
+            {% if val is none %}
+            <td style="padding:8px 12px; text-align:center; color:var(--text-3);">—</td>
+            {% else %}
+            {% set color = '#2D6A4F' if val >= 75 else ('#1E5C9E' if val >= 50 else '#C03D20') %}
+            <td style="padding:8px 12px; text-align:center;">
+              <span style="font-family:var(--mono); font-weight:{% if key=='total' %}700{% else %}400{% endif %}; color:{{ color }};">{{ val }}</span>
+              <div style="background:var(--border-light); border-radius:2px; height:3px; margin-top:3px;">
+                <div style="background:{{ color }}; width:{{ val|int }}%; height:3px; border-radius:2px;"></div>
+              </div>
+            </td>
+            {% endif %}
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if worst_mora %}
+    <p style="margin-top:8px; font-size:11px; color:var(--accent);">⚠️ 「{{ worst_mora.label }}」が最も改善が必要なモーラです（総合 {{ worst_mora.total }} 点）</p>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 
 <!-- ── Pitch native ── -->
@@ -440,7 +487,7 @@
 </div>
 
 <script id="python-data" type="application/json">
-{"start1":{{ start1|tojson|safe }},"end1":{{ end1|tojson|safe }},"start2":{{ start2|tojson|safe }},"end2":{{ end2|tojson|safe }},"Native_mora_values":{{ Native_mora_values|tojson|safe }},"mora_labels":{{ mora_labels|tojson|safe }},"Native_time":{{ Native_time|tojson|safe }},"Native_pitch":{{ Native_pitch|tojson|safe }},"Native_phoneme_values":{{ Native_phoneme_values|tojson|safe }},"phoneme_labels":{{ phoneme_labels|tojson|safe }},"User_mora_values":{{ User_mora_values|tojson|safe }},"User_time":{{ User_time|tojson|safe }},"User_pitch":{{ User_pitch|tojson|safe }},"User_phoneme_values":{{ User_phoneme_values|tojson|safe }},"mora_values":{{ mora_values|tojson|safe }},"x_axis":{{ x_axis|tojson|safe }},"pitch_fin":{{ pitch_fin|tojson|safe }},"pitch_fin2":{{ pitch_fin2|tojson|safe }},"Native_mora_length":{{ Native_mora_length|tojson|safe }},"User_mora_length":{{ User_mora_length|tojson|safe }},"Native_phoneme_length":{{ Native_phoneme_length|tojson|safe }},"User_phoneme_length":{{ User_phoneme_length|tojson|safe }},"words":{{ words|tojson|safe }},"sort_distance":{{ sort_distance|tojson|safe }},"bar_color":{{ bar_color|tojson|safe }},{% if score %}"accent_pct":{{ (score.accent_score/50*100)|round|int }},"length_pct":{{ (score.length_score/30*100)|round|int }},"vowel_pct":{{ (score.vowel_score/20*100)|round|int }}{% else %}"accent_pct":0,"length_pct":0,"vowel_pct":0{% endif %}}
+{"start1":{{ start1|tojson|safe }},"end1":{{ end1|tojson|safe }},"start2":{{ start2|tojson|safe }},"end2":{{ end2|tojson|safe }},"Native_mora_values":{{ Native_mora_values|tojson|safe }},"mora_labels":{{ mora_labels|tojson|safe }},"Native_time":{{ Native_time|tojson|safe }},"Native_pitch":{{ Native_pitch|tojson|safe }},"Native_phoneme_values":{{ Native_phoneme_values|tojson|safe }},"phoneme_labels":{{ phoneme_labels|tojson|safe }},"User_mora_values":{{ User_mora_values|tojson|safe }},"User_time":{{ User_time|tojson|safe }},"User_pitch":{{ User_pitch|tojson|safe }},"User_phoneme_values":{{ User_phoneme_values|tojson|safe }},"mora_values":{{ mora_values|tojson|safe }},"x_axis":{{ x_axis|tojson|safe }},"pitch_fin":{{ pitch_fin|tojson|safe }},"pitch_fin2":{{ pitch_fin2|tojson|safe }},"Native_mora_length":{{ Native_mora_length|tojson|safe }},"User_mora_length":{{ User_mora_length|tojson|safe }},"Native_phoneme_length":{{ Native_phoneme_length|tojson|safe }},"User_phoneme_length":{{ User_phoneme_length|tojson|safe }},"words":{{ words|tojson|safe }},"sort_distance":{{ sort_distance|tojson|safe }},"bar_color":{{ bar_color|tojson|safe }},"worst_mora":{{ worst_mora|tojson|safe }},{% if score %}"accent_pct":{{ (score.accent_score/50*100)|round|int }},"length_pct":{{ (score.length_score/30*100)|round|int }},"vowel_pct":{{ (score.vowel_score/20*100)|round|int }}{% else %}"accent_pct":0,"length_pct":0,"vowel_pct":0{% endif %}}
 </script>
 <script>
 var d = JSON.parse(document.getElementById('python-data').textContent);
@@ -553,7 +600,7 @@ new Chart(document.getElementById('NativeMoraChart'),{type:'line',data:{labels:d
 new Chart(document.getElementById('NativePhonemeChart'),{type:'line',data:{labels:d.Native_time,datasets:[{data:d.Native_pitch,fill:true,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start1-.1,max:d.end1+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.Native_phoneme_values,d.phoneme_labels,'rgba(192,61,32,.5)')},legend:{display:false}}})});
 new Chart(document.getElementById('UserMoraChart'),{type:'line',data:{labels:d.User_time,datasets:[{data:d.User_pitch,fill:true,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start2-.1,max:d.end2+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.User_mora_values,d.mora_labels,'rgba(42,130,130,.6)')},legend:{display:false}}})});
 new Chart(document.getElementById('UserPhonemeChart'),{type:'line',data:{labels:d.User_time,datasets:[{data:d.User_pitch,fill:true,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start2-.1,max:d.end2+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.User_phoneme_values,d.phoneme_labels,'rgba(42,130,130,.6)')},legend:{display:false}}})});
-new Chart(document.getElementById('PitchLengthChart'),{type:'line',data:{labels:d.x_axis,datasets:[{label:'Sample',data:d.pitch_fin,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2},{label:'You',data:d.pitch_fin2,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{min:-5,type:'linear',title:{display:true,text:'Frame'}},y:{title:{display:true,text:'Normalized Pitch'}}},plugins:{annotation:{annotations:ann(d.mora_values,d.mora_labels,'rgba(192,61,32,.4)')}}})});
+new Chart(document.getElementById('PitchLengthChart'),{type:'line',data:{labels:d.x_axis,datasets:[{label:'Sample',data:d.pitch_fin,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2},{label:'You',data:d.pitch_fin2,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{min:-5,type:'linear',title:{display:true,text:'Frame'}},y:{title:{display:true,text:'Normalized Pitch'}}},plugins:{annotation:{annotations:Object.assign({},ann(d.mora_values,d.mora_labels,'rgba(192,61,32,.4)'),d.worst_mora?{worstHighlight:{type:'box',xMin:d.worst_mora.frame_start,xMax:d.worst_mora.frame_end,backgroundColor:'rgba(192,61,32,.12)',borderColor:'rgba(192,61,32,.5)',borderWidth:2,label:{content:'⚠️ '+d.worst_mora.label,display:true,position:'start',color:'rgba(192,61,32,1)',font:{size:11,weight:'bold'}}}}:{})}}})}});
 var pal=['rgba(75,192,192,.7)','rgba(255,99,132,.7)','rgba(255,205,86,.7)','rgba(153,102,255,.7)','rgba(255,159,64,.7)'];
 var gen=(l,dat)=>l.map((lb,i)=>({label:lb,data:dat.map(v=>v[i]),backgroundColor:pal[i%pal.length],borderWidth:0}));
 new Chart(document.getElementById('groupedBarChart1'),{type:'bar',data:{labels:['Sample','You'],datasets:gen(d.mora_labels,[d.Native_mora_length,d.User_mora_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});

@@ -631,3 +631,121 @@ def calc_total_score(
         "alignment_failed":   False,
         "alignment_feedback": None,
     }
+# モーラ別スコア（④ モーラ別スコアの表示）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def calc_mora_scores(
+    pitch_fin:            list[float],
+    pitch_fin2:           list[float],
+    mora_values:          list[int],
+    native_mora_length:   list[float],
+    user_mora_length:     list[float],
+    mora_labels:          list[str],
+    native_formants:      list[dict] | None = None,
+    user_formants:        list[dict] | None = None,
+) -> list[dict]:
+    """
+    モーラ単位のスコアを計算して返す。
+
+    各モーラについて以下の3軸を 0〜100 点で評価する：
+
+      accent : pitch_fin / pitch_fin2 の当該モーラ区間での平均誤差
+               score = 100 × exp(−4 × mean_abs_diff)
+
+      length : ネイティブ/ユーザーのモーラ長比率からのズレ
+               score = 100 × exp(−3 × |1 − ratio| × weight)
+               長音・促音は weight=2、撥音は weight=1.5
+
+      vowel  : フォルマントデータがあるモーラのみ計算
+               Bark スケール距離で 0〜100 に変換
+
+      total  : 3軸の単純平均（None の軸は除外）
+
+    また、worst_mora（最もスコアが低いモーラ）の
+    フレーム範囲を返す（⑤ ピッチグラフハイライト用）。
+
+    Returns
+    -------
+    list[dict]  各モーラの { label, accent, length, vowel, total }
+    """
+    n_mora = min(len(mora_labels), len(mora_values))
+    p1 = np.array(pitch_fin,  dtype=float)
+    p2 = np.array(pitch_fin2, dtype=float)
+
+    VOWELS_SET = {'a', 'i', 'u', 'e', 'o'}
+
+    def _has_vowel(label: str) -> bool:
+        return any(v in label for v in VOWELS_SET)
+
+    def _hz_to_bark(f: float) -> float:
+        if f <= 0:
+            return 0.0
+        return 26.81 * f / (1960.0 + f) - 0.53
+
+    results: list[dict] = []
+
+    for i in range(n_mora):
+        label = mora_labels[i]
+        start = mora_values[i]
+        end   = mora_values[i + 1] if i + 1 < len(mora_values) else len(p1)
+
+        # ── アクセントスコア ─────────────────────────────────────────
+        s, e = max(0, start), min(len(p1), end)
+        if s < e:
+            diff   = np.nanmean(np.abs(p1[s:e] - p2[s:e]))
+            acc_sc = round(100.0 * float(np.exp(-4.0 * float(diff))), 1)
+        else:
+            acc_sc = None
+
+        # ── 長さスコア ───────────────────────────────────────────────
+        nat_len = float(native_mora_length[i]) if i < len(native_mora_length) else 0.0
+        usr_len = float(user_mora_length[i])   if i < len(user_mora_length)   else 0.0
+        if nat_len > 0:
+            ratio  = usr_len / nat_len
+            # 特殊モーラは重みを大きくする
+            if ":" in label or label == "q":
+                weight = 2.0
+            elif label == "N":
+                weight = 1.5
+            else:
+                weight = 1.0
+            err    = abs(1.0 - ratio) * weight
+            len_sc = round(100.0 * float(np.exp(-3.0 * err)), 1)
+        else:
+            len_sc = None
+
+        # ── 母音スコア ───────────────────────────────────────────────
+        vow_sc = None
+        if (
+            _has_vowel(label)
+            and native_formants is not None
+            and user_formants   is not None
+            and i < len(native_formants)
+            and i < len(user_formants)
+        ):
+            nf = native_formants[i]
+            uf = user_formants[i]
+            nf1, nf2 = nf.get("f1"), nf.get("f2")
+            uf1, uf2 = uf.get("f1"), uf.get("f2")
+            if nf1 and nf2 and uf1 and uf2:
+                nb1 = _hz_to_bark(nf1); nb2 = _hz_to_bark(nf2)
+                ub1 = _hz_to_bark(uf1); ub2 = _hz_to_bark(uf2)
+                dist   = float(np.sqrt(((nb1 - ub1) / 3.0) ** 2 + ((nb2 - ub2) / 4.0) ** 2))
+                vow_sc = round(100.0 * float(np.exp(-1.2 * dist)), 1)
+
+        # ── 総合 ─────────────────────────────────────────────────────
+        components = [x for x in [acc_sc, len_sc, vow_sc] if x is not None]
+        total_sc   = round(float(np.mean(components)), 1) if components else None
+
+        results.append({
+            "label":       label,
+            "mora_index":  i,
+            "frame_start": start,
+            "frame_end":   end,
+            "accent":      acc_sc,
+            "length":      len_sc,
+            "vowel":       vow_sc,
+            "total":       total_sc,
+        })
+
+    return results

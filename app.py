@@ -25,7 +25,7 @@ from core.audio     import convert_to_16kHz, read_sample, segment_audio
 from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
-from core.evaluate  import calc_total_score, calc_speaking_rate
+from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
@@ -438,6 +438,25 @@ def audio_analysis():
         score_result["alignment_failed"] = False
         score_result["julius_score"]     = julius_score
 
+        # ── ④ モーラ別スコア + ⑤ ハイライト用データ ────────────────
+        try:
+            mora_scores = calc_mora_scores(
+                pitch_fin=pitch_fin_disp.tolist(),
+                pitch_fin2=pitch_fin2_disp.tolist(),
+                mora_values=xline_mora,
+                native_mora_length=pct_length(mora_length1),
+                user_mora_length=pct_length(mora_length2),
+                mora_labels=mora1,
+                native_formants=native_formants if 'native_formants' in dir() else None,
+                user_formants=user_formants   if 'user_formants'   in dir() else None,
+            )
+            # ⑤ 最もスコアが低いモーラのフレーム範囲を取得
+            valid = [m for m in mora_scores if m["total"] is not None]
+            worst_mora = min(valid, key=lambda m: m["total"]) if valid else None
+        except Exception:
+            mora_scores  = []
+            worst_mora   = None
+
         score_delta = _score_delta(score_result.get("total"), prev_score.get("total") if prev_score else None)
 
         try:
@@ -461,7 +480,8 @@ def audio_analysis():
                                voice_quality=voice_quality,
                                speaking_rate=user_rate, rate_feedback=rate_feedback,
                                newly_completed=newly_completed, active_quests=active_quests,
-                               score_delta=score_delta, suggestions=suggestions)
+                               score_delta=score_delta, suggestions=suggestions,
+                               mora_scores=mora_scores, worst_mora=worst_mora)
 
     except Exception as exc:
         traceback.print_exc()
