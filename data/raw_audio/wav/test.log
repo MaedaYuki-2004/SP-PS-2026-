@@ -28,9 +28,9 @@ STAT: 1 MFCC modules created
 STAT: [2] create recognition processing instance(s) with AM and LM
 STAT: composing recognizer instance SR00 _default (AM00 _default, LM00 _default)
 STAT: Building HMM lexicon tree
-STAT: lexicon size: 21+0=21
+STAT: lexicon size: 18+0=18
 STAT: coordination check passed
-STAT: multi-gram: beam width set to 21 (guess) by lexicon change
+STAT: multi-gram: beam width set to 18 (guess) by lexicon change
 STAT: wchmm (re)build completed
 STAT: SR00 _default composed
 STAT: [3] initialize for acoustic HMM calculation
@@ -133,9 +133,9 @@ Language Model(s)
       category-pair matrix: 16 bytes (436 bytes allocated)
 
  Vocabulary Info:
-        vocabulary size  = 3 words, 7 models
-        average word len = 2.3 models, 7.0 states
-       maximum state num = 15 nodes per word
+        vocabulary size  = 3 words, 6 models
+        average word len = 2.0 models, 6.0 states
+       maximum state num = 12 nodes per word
        transparent words = not exist
        words under class = not exist
 
@@ -148,7 +148,7 @@ Recognizer(s)
 [SR00 "_default"]  AM00 "_default"  +  LM00 "_default"
 
  Lexicon tree:
-	 total node num =     21
+	 total node num =     18
 	  root node num =      3
 	  leaf node num =      3
 
@@ -158,7 +158,7 @@ Recognizer(s)
 
  Search parameters: 
 	    multi-path handling = no
-	(-b) trellis beam width = 21 (-1 or not specified - guessed)
+	(-b) trellis beam width = 18 (-1 or not specified - guessed)
 	(-bs)score pruning thres= disabled
 	(-n)search candidate num= 1
 	(-s)  search stack size = 500
@@ -211,33 +211,32 @@ Notice for feature extraction (01),
 ------
 ### read waveform input
 Stat: adin_file: input speechfile: C:\Users\ykmed\Downloads\sp-ps\data\raw_audio\wav/test.wav
-STAT: 26112 samples (1.63 sec.)
+STAT: 48128 samples (3.01 sec.)
 STAT: ### speech analysis (waveform -> MFCC)
 ### Recognition: 1st pass (LR beam)
 pass1_best: w_0 w_1 w_2
 pass1_best_wordseq: 0 1 2
-pass1_best_phonemeseq: silB | g a q k o: | silE
-pass1_best_score: -4395.372070
+pass1_best_phonemeseq: silB | o N d o | silE
+pass1_best_score: -8673.917969
 ### Recognition: 2nd pass (RL heuristic best-first)
-STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 161
+STAT: 00 _default: 3 generated, 3 pushed, 4 nodes popped in 299
 ALIGN: === phoneme alignment begin ===
 sentence1: w_0 w_1 w_2
 wseq1: 0 1 2
-phseq1: silB | g a q k o: | silE
+phseq1: silB | o N d o | silE
 cmscore1: 1.000 1.000 1.000
-score1: -4395.368652
+score1: -8673.908203
 === begin forced alignment ===
 -- phoneme alignment --
  id: from  to    n_score    unit
  ----------------------------------------
-[   0   55]  -26.169285  silB
-[  56   58]  -33.111004  g
-[  59   81]  -28.099907  a
-[  82  144]  -27.498508  q
-[ 145  153]  -27.121988  k
-[ 154  156]  -33.010254  o:
-[ 157  160]  -27.181641  silE
-re-computed AM score: -4395.372070
+[   0  214]  -28.703955  silB
+[ 215  217]  -29.807779  o
+[ 218  242]  -30.083731  N
+[ 243  257]  -34.415169  d
+[ 258  294]  -27.263342  o
+[ 295  298]  -34.020020  silE
+re-computed AM score: -8673.917969
 === end forced alignment ===
 
 

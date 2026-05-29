@@ -16,7 +16,7 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
 
 from config import (
-    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DISTANCE_RESULT_DIR,
+    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DATA_DIR, DISTANCE_RESULT_DIR,
     FLASK_SECRET_KEY, RAW_AUDIO_DIR, STATIC_DIR, TEMPLATES_DIR,
     TEST_LAB_PATH, TEST_LOG_PATH, TEST_SEGMENT_WAV_PATH,
     TEST_WAV_PATH, WORD_ID_MEMO_PATH,
@@ -31,6 +31,7 @@ from core.timbre    import dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
 from core.history   import save_record, load_history, get_last_score, get_stats
 from core.utils     import pct_length, sleep_second
+from core.analysis  import compute_learning_stats
 
 JULIUS_GATE_THRESHOLD = -3000
 
@@ -230,7 +231,14 @@ def history_page():
                            words=words, accent_stats=accent_stats)
 
 
-@app.route("/history/export.csv")
+@app.route("/analysis")
+def analysis_page():
+    import json
+    history    = load_history()
+    words_db_path = DATA_DIR / "config" / "words_db.json"
+    words_db   = json.loads(words_db_path.read_text(encoding="utf-8")) if words_db_path.exists() else {}
+    stats      = compute_learning_stats(history, words_db)
+    return render_template("analysis.html", stats=stats)
 def export_history_csv():
     history = load_history()
     output  = io.StringIO()

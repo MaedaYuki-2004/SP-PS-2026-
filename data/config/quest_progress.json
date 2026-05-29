@@ -31,6 +31,53 @@
       "completed_at": ""
     },
     {
+      "quest_id": "q_1779785389",
+      "title": "「バスケ」を復習しよう",
+      "description": "8日前の練習で 74点 でした。もう一度練習して 82点 以上を目指しましょう。",
+      "hint": "かなり久しぶりの練習です。まずサンプル音声を聞いてから録音してみましょう。前回の結果を参考に、弱点を意識して練習してください。",
+      "category": "review",
+      "difficulty": "normal",
+      "target_metric": "total",
+      "target_value": 82.5,
+      "start_value": 74.5,
+      "word_id": "word52",
+      "created_at": "2026-05-26T17:49:49.452825",
+      "is_completed": false,
+      "completed_at": ""
+    }
+  ],
+  "completed": [
+    {
+      "quest_id": "q_1779785370",
+      "title": "「かいけい」を復習しよう",
+      "description": "8日前の練習で 50点 でした。もう一度練習して 58点 以上を目指しましょう。",
+      "hint": "かなり久しぶりの練習です。まずサンプル音声を聞いてから録音してみましょう。前回の結果を参考に、弱点を意識して練習してください。",
+      "category": "review",
+      "difficulty": "hard",
+      "target_metric": "total",
+      "target_value": 57.9,
+      "start_value": 49.9,
+      "word_id": "word2",
+      "created_at": "2026-05-26T17:49:30.664163",
+      "is_completed": true,
+      "completed_at": "2026-05-26T17:49:49.452825"
+    },
+    {
+      "quest_id": "q_1779785143",
+      "title": "「かいけい」を復習しよう",
+      "description": "8日前の練習で 50点 でした。もう一度練習して 58点 以上を目指しましょう。",
+      "hint": "かなり久しぶりの練習です。まずサンプル音声を聞いてから録音してみましょう。前回の結果を参考に、弱点を意識して練習してください。",
+      "category": "review",
+      "difficulty": "hard",
+      "target_metric": "total",
+      "target_value": 57.9,
+      "start_value": 49.9,
+      "word_id": "word2",
+      "created_at": "2026-05-26T17:45:43.814749",
+      "is_completed": true,
+      "completed_at": "2026-05-26T17:49:30.661239"
+    },
+    {
       "quest_id": "q_1778944657",
       "title": "アクセントを完璧に仕上げよう",
       "description": "アクセントスコアを現在の 37点 から 42点 以上に上げよう。",
@@ -42,11 +89,9 @@
       "start_value": 37.2,
       "word_id": "word1",
       "created_at": "2026-05-17T00:17:37.779508",
-      "is_completed": false,
-      "completed_at": ""
-    }
-  ],
-  "completed": [
+      "is_completed": true,
+      "completed_at": "2026-05-26T17:45:43.810808"
+    },
     {
       "quest_id": "q_1778887420",
       "title": "口の形を意識して発音しよう",
