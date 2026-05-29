@@ -174,10 +174,60 @@ def history_page():
 
     word_latest = {wid: recs[-1] for wid, recs in word_history.items()}
 
+    # ── アクセント型別の平均スコアを集計 ────────────────────────────
+    _ACCENT_LABEL = {
+        0: "平板型",
+        1: "頭高型",
+        2: "中高型（2型）",
+        3: "中高型（3型）",
+        4: "中高型（4型）",
+    }
+    word_accent = {w["word_id"]: w.get("accent") for w in words}
+    accent_buckets: dict[int, dict] = {}
+    for record in history:
+        wid    = record.get("word_id")
+        accent = word_accent.get(wid)
+        total  = record.get("total")
+        if accent is None or total is None:
+            continue
+        accent = int(accent)
+        if accent not in accent_buckets:
+            accent_buckets[accent] = {
+                "label":       _ACCENT_LABEL.get(accent, f"{accent}型"),
+                "count":       0,
+                "total_sum":   0.0,
+                "accent_sum":  0.0,
+                "length_sum":  0.0,
+                "vowel_sum":   0.0,
+            }
+        b = accent_buckets[accent]
+        b["count"]      += 1
+        b["total_sum"]  += float(total)
+        b["accent_sum"] += float(record.get("accent_score") or 0)
+        b["length_sum"] += float(record.get("length_score") or 0)
+        b["vowel_sum"]  += float(record.get("vowel_score")  or 0)
+
+    accent_stats = []
+    for accent, b in sorted(accent_buckets.items()):
+        n = b["count"]
+        if n == 0:
+            continue
+        accent_stats.append({
+            "accent":     accent,
+            "label":      b["label"],
+            "count":      n,
+            "avg_total":  round(b["total_sum"]  / n, 1),
+            "avg_accent": round(b["accent_sum"] / n, 1),
+            "avg_length": round(b["length_sum"] / n, 1),
+            "avg_vowel":  round(b["vowel_sum"]  / n, 1),
+        })
+    # 平均スコアが低い順（= 苦手順）に並べる
+    accent_stats.sort(key=lambda x: x["avg_total"])
+
     return render_template("history.html",
                            history=history[:100], stats=stats,
                            word_latest=word_latest, word_history=word_history,
-                           words=words)
+                           words=words, accent_stats=accent_stats)
 
 
 @app.route("/history/export.csv")
@@ -350,8 +400,8 @@ def audio_analysis():
         max_formant_sample = 5500.0 if ceiling_sample > 400 else 5000.0
         max_formant_learn  = 5500.0 if ceiling_learn  > 400 else 5000.0
         try:
-            native_formants = extract_mora_formants(audio_sample, mora_list1, max_formant=max_formant_sample)
-            user_formants   = extract_mora_formants(audio_learn,  mora_list2, max_formant=max_formant_learn)
+            native_formants = extract_mora_formants(audio_sample, mora_list1, max_formant=max_formant_sample, use_cache=True)
+            user_formants   = extract_mora_formants(audio_learn,  mora_list2, max_formant=max_formant_learn,  use_cache=False)
             vowel_score, vowel_feedback = calc_vowel_score(
                 native_formants,
                 user_formants,

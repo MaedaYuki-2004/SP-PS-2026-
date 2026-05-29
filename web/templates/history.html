@@ -125,6 +125,41 @@
     </div>
   </div>
 
+  <!-- 苦手アクセント型の分析 -->
+  {% if accent_stats %}
+  <div class="sec-title">アクセント型別の平均スコア（苦手順）<div class="sec-title-line"></div></div>
+  <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:28px;">
+    {% for a in accent_stats %}
+    {% set pct = ((a.avg_total / 100) * 100)|int %}
+    {% set color = '#2D6A4F' if a.avg_total >= 75 else ('#1E5C9E' if a.avg_total >= 60 else '#C03D20') %}
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px; box-shadow:var(--shadow-xs);">
+      <div style="font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--text-3); margin-bottom:6px; text-transform:uppercase;">{{ a.label }}</div>
+      <div style="font-family:var(--mono); font-size:28px; font-weight:500; color:{{ color }};">{{ a.avg_total }}</div>
+      <div style="font-size:10px; color:var(--text-3); margin-bottom:10px;">点平均（{{ a.count }}回）</div>
+      <!-- スコアバー -->
+      <div style="background:var(--border-light); border-radius:4px; height:6px; margin-bottom:10px;">
+        <div style="background:{{ color }}; width:{{ pct }}%; height:6px; border-radius:4px; transition:width .4s;"></div>
+      </div>
+      <!-- 軸別 -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; text-align:center;">
+        <div>
+          <div style="font-size:9px; color:var(--text-3);">アクセント</div>
+          <div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_accent }}</div>
+        </div>
+        <div>
+          <div style="font-size:9px; color:var(--text-3);">長さ</div>
+          <div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_length }}</div>
+        </div>
+        <div>
+          <div style="font-size:9px; color:var(--text-3);">母音</div>
+          <div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_vowel }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- E: 単語別スコア推移グラフ -->
   {% if word_latest %}
   <div class="sec-title">単語別スコア推移 <div class="sec-title-line"></div></div>

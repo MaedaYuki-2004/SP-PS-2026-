@@ -57,8 +57,9 @@ async function main() {
 
     // ── 状態管理 ───────────────────────────────────────
     let isRecording    = false;
-    let speechStart    = null;   // 最初の発話を検出した時刻
-    let silenceStart   = null;   // 無音開始時刻
+    let hasRecording   = false;   // ③ 録音済みかどうか
+    let speechStart    = null;
+    let silenceStart   = null;
     let autoStopTimer  = null;
     let animFrame      = null;
 
@@ -163,6 +164,12 @@ async function main() {
 
     // ── ボタンイベント ──────────────────────────────────
     btnStart.addEventListener('click', () => {
+      // ③ 録音済みの場合は確認ダイアログを表示
+      if (hasRecording) {
+        const ok = confirm('前の録音を破棄して録音し直しますか？');
+        if (!ok) return;
+      }
+
       btnStart.setAttribute('disabled', 'disabled');
       btnStop.removeAttribute('disabled');
       btnGraph.style.display = 'none';
@@ -170,6 +177,7 @@ async function main() {
 
       // 状態リセット
       isRecording  = true;
+      hasRecording = false;
       speechStart  = null;
       silenceStart = null;
       buffers.splice(0, buffers.length);
@@ -182,6 +190,7 @@ async function main() {
       btnStop.setAttribute('disabled', 'disabled');
       btnStart.removeAttribute('disabled');
       isRecording  = false;
+      hasRecording = true;   // ③ 録音完了フラグ
       speechStart  = null;
       silenceStart = null;
 

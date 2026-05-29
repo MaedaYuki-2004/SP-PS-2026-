@@ -30,22 +30,48 @@ core/formant.py
 """
 from __future__ import annotations
 
+import hashlib
+import json as _json
 import numpy as np
 import parselmouth
 import parselmouth.praat
+from pathlib import Path
 
 _VOWEL_CHARS = {'a', 'i', 'u', 'e', 'o'}
-
-# モーラ内でフォルマントを測定するサンプル点の割合
 _SAMPLE_RATIOS = [0.30, 0.50, 0.70]
-
-# ── 性別補正係数 ─────────────────────────────────────────────────────
-# 男性のフォルマントは女性の約85%（Peterson & Barney 1952 ほかより）
 _MALE_FORMANT_SCALE = 0.85
-
-# pitch_ceiling がこの値以下なら男性と判定する（Hz）
-# ※ 近似値のため誤判定が起きる可能性がある（限界を把握して使うこと）
 _MALE_CEILING_THRESHOLD = 200.0
+
+# ── フォルマントキャッシュ ────────────────────────────────────────
+# ネイティブ音声のフォルマントは毎回同じ計算になるため、
+# 初回だけ計算して data/config/formant_cache.json に保存する。
+# ファイルの更新時刻（mtime）が変わると自動的にキャッシュを無効化する。
+_CACHE_PATH = Path(__file__).parent.parent / "data" / "config" / "formant_cache.json"
+
+
+def _cache_key(sound_file: str, max_formant: float) -> str:
+    """ファイルパス・更新時刻・max_formant からキャッシュキーを生成する。"""
+    p = Path(sound_file)
+    mtime = str(p.stat().st_mtime) if p.exists() else "0"
+    raw = f"{sound_file}:{max_formant}:{mtime}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _load_formant_cache() -> dict:
+    if _CACHE_PATH.exists():
+        try:
+            return _json.loads(_CACHE_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_formant_cache(cache: dict) -> None:
+    _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _CACHE_PATH.write_text(
+        _json.dumps(cache, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
 
 def _has_vowel(mora_label: str) -> bool:
@@ -120,11 +146,23 @@ def extract_mora_formants(
     sound_file: str,
     mora_list: list,
     max_formant: float = 5500.0,
+    use_cache: bool = False,
 ) -> list[dict]:
     """
     各モーラの安定した母音区間で F1・F2 フォルマントを抽出する。
     モーラ区間の 30%・50%・70%の3点を測定して有効値の平均を返す。
+
+    use_cache=True のとき（ネイティブ音声用）、
+    初回計算結果を data/config/formant_cache.json に保存し、
+    2回目以降はキャッシュから返す。
+    ファイルの更新時刻が変わるとキャッシュは自動で無効化される。
     """
+    if use_cache:
+        cache = _load_formant_cache()
+        key   = _cache_key(sound_file, max_formant)
+        if key in cache:
+            return cache[key]
+
     snd     = parselmouth.Sound(sound_file)
     formant = snd.to_formant_burg(
         time_step=0.005,
@@ -166,6 +204,10 @@ def extract_mora_formants(
             "f1_n_samples": len(f1_vals),
             "f2_n_samples": len(f2_vals),
         })
+
+    if use_cache:
+        cache[key] = results
+        _save_formant_cache(cache)
 
     return results
 
