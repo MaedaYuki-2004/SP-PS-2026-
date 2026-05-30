@@ -29,9 +29,10 @@ from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_score
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
-from core.history   import save_record, load_history, get_last_score, get_stats
+from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history
 from core.utils     import pct_length, sleep_second
 from core.analysis  import compute_learning_stats
+from core.confidence import bootstrap_ci, needs_more_data
 
 JULIUS_GATE_THRESHOLD = -3000
 
@@ -467,6 +468,17 @@ def audio_analysis():
 
         score_delta = _score_delta(score_result.get("total"), prev_score.get("total") if prev_score else None)
 
+        # ── 信頼区間の計算 ────────────────────────────────────────────
+        try:
+            word_hist   = load_word_history(word_id)
+            past_scores = [float(r["total"]) for r in word_hist if r.get("total") is not None]
+            all_scores  = past_scores + [float(score_result["total"])]
+            ci_result   = bootstrap_ci(all_scores)
+            ci_info     = ci_result if ci_result else needs_more_data(len(all_scores))
+        except Exception:
+            ci_result = None
+            ci_info   = None
+
         try:
             save_record(word_id, display, reading, score_result)
         except Exception:
@@ -489,7 +501,8 @@ def audio_analysis():
                                speaking_rate=user_rate, rate_feedback=rate_feedback,
                                newly_completed=newly_completed, active_quests=active_quests,
                                score_delta=score_delta, suggestions=suggestions,
-                               mora_scores=mora_scores, worst_mora=worst_mora)
+                               mora_scores=mora_scores, worst_mora=worst_mora,
+                               ci_info=ci_info)
 
     except Exception as exc:
         traceback.print_exc()
