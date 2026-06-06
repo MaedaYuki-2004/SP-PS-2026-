@@ -399,7 +399,8 @@ def audio_analysis():
                                    voice_quality={"jitter":None,"shimmer":None,"feedback":None},
                                    speaking_rate=0.0, rate_feedback=None,
                                    newly_completed=[], active_quests=_enrich_quests(load_active_quests(), word_map),
-                                   score_delta=None, suggestions=[])
+                                   score_delta=None, suggestions=[],
+                                   mora_scores=[], worst_mora=None, ci_info=None)
 
         pitch_fin_score  = smooth(comp(pitch1_sil_semi), window=3)
         pitch_fin2_score = smooth(comp(pitch3_semi),     window=3)
@@ -462,6 +463,18 @@ def audio_analysis():
             # ⑤ 最もスコアが低いモーラのフレーム範囲を取得
             valid = [m for m in mora_scores if m["total"] is not None]
             worst_mora = min(valid, key=lambda m: m["total"]) if valid else None
+            # JSON serialization のため全値をネイティブ型に変換
+            if worst_mora:
+                worst_mora = {
+                    "label":       str(worst_mora["label"]),
+                    "mora_index":  int(worst_mora["mora_index"]),
+                    "frame_start": int(worst_mora["frame_start"]),
+                    "frame_end":   int(worst_mora["frame_end"]),
+                    "accent":  float(worst_mora["accent"])  if worst_mora["accent"]  is not None else None,
+                    "length":  float(worst_mora["length"])  if worst_mora["length"]  is not None else None,
+                    "vowel":   float(worst_mora["vowel"])   if worst_mora["vowel"]   is not None else None,
+                    "total":   float(worst_mora["total"])   if worst_mora["total"]   is not None else None,
+                }
         except Exception:
             mora_scores  = []
             worst_mora   = None

@@ -798,8 +798,8 @@ def calc_mora_scores(
         results.append({
             "label":       label,
             "mora_index":  i,
-            "frame_start": start,
-            "frame_end":   end,
+            "frame_start": int(start),
+            "frame_end":   int(end),
             "accent":      acc_sc,
             "length":      len_sc,
             "vowel":       vow_sc,
