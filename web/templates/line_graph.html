@@ -236,6 +236,7 @@
   <button class="sec-tab" onclick="showSection('pitch-user',this)">あなたの音声</button>
   <button class="sec-tab" onclick="showSection('pitch-compare',this)">ピッチ比較</button>
   <button class="sec-tab" onclick="showSection('length',this)">長さ比較</button>
+  <button class="sec-tab" onclick="showSection('lips',this)">唇比較</button>
   <button class="sec-tab" onclick="showSection('timbre',this)">音色評価</button>
 </div>
 
@@ -599,6 +600,31 @@
   </div>
 </div>
 
+<!-- ── Lips compare ── -->
+<div id="sec-lips" class="section-panel">
+  <p class="panel-heading">唇比較</p><p class="panel-sub">録音画面で撮影した唇動画の形状を比較した結果です。</p>
+  <div class="chart-card">
+    {% if lip_compare %}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+      <div>
+        <div class="score-item-label">唇比較スコア</div>
+        <div class="score-item-value" style="font-size:44px;">{{ lip_compare.score }} / 100</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="feedback-label">距離</div>
+        <div class="feedback-text">{{ lip_compare.distance|round(2) }}</div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="LipCompareChart"></canvas></div>
+    {% else %}
+    <div class="feedback-card full">
+      <div class="feedback-label">唇比較データがありません</div>
+      <div class="feedback-text">録音画面で「お手本」「テスト」両方の唇動画を撮影すると、ここに比較結果が表示されます。</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
 <!-- ── Timbre ── -->
 <div id="sec-timbre" class="section-panel">
   <p class="panel-heading">音色評価（DTW距離）</p><p class="panel-sub">MFCC+DTWで各単語との音色類似度を比較。赤いバーが選択した単語です</p>
@@ -609,7 +635,7 @@
 </div>
 
 <script id="python-data" type="application/json">
-{"start1":{{ start1|tojson|safe }},"end1":{{ end1|tojson|safe }},"start2":{{ start2|tojson|safe }},"end2":{{ end2|tojson|safe }},"Native_mora_values":{{ Native_mora_values|tojson|safe }},"mora_labels":{{ mora_labels|tojson|safe }},"Native_time":{{ Native_time|tojson|safe }},"Native_pitch":{{ Native_pitch|tojson|safe }},"Native_phoneme_values":{{ Native_phoneme_values|tojson|safe }},"phoneme_labels":{{ phoneme_labels|tojson|safe }},"User_mora_values":{{ User_mora_values|tojson|safe }},"User_time":{{ User_time|tojson|safe }},"User_pitch":{{ User_pitch|tojson|safe }},"User_phoneme_values":{{ User_phoneme_values|tojson|safe }},"mora_values":{{ mora_values|tojson|safe }},"x_axis":{{ x_axis|tojson|safe }},"pitch_fin":{{ pitch_fin|tojson|safe }},"pitch_fin2":{{ pitch_fin2|tojson|safe }},"Native_mora_length":{{ Native_mora_length|tojson|safe }},"User_mora_length":{{ User_mora_length|tojson|safe }},"Native_phoneme_length":{{ Native_phoneme_length|tojson|safe }},"User_phoneme_length":{{ User_phoneme_length|tojson|safe }},"words":{{ words|tojson|safe }},"sort_distance":{{ sort_distance|tojson|safe }},"bar_color":{{ bar_color|tojson|safe }},"worst_mora":null,{% if score %}"accent_pct":{{ (score.accent_score/50*100)|round|int }},"length_pct":{{ (score.length_score/30*100)|round|int }},"vowel_pct":{{ (score.vowel_score/20*100)|round|int }}{% else %}"accent_pct":0,"length_pct":0,"vowel_pct":0{% endif %}}
+{"start1":{{ start1|tojson|safe }},"end1":{{ end1|tojson|safe }},"start2":{{ start2|tojson|safe }},"end2":{{ end2|tojson|safe }},"Native_mora_values":{{ Native_mora_values|tojson|safe }},"mora_labels":{{ mora_labels|tojson|safe }},"Native_time":{{ Native_time|tojson|safe }},"Native_pitch":{{ Native_pitch|tojson|safe }},"Native_phoneme_values":{{ Native_phoneme_values|tojson|safe }},"phoneme_labels":{{ phoneme_labels|tojson|safe }},"User_mora_values":{{ User_mora_values|tojson|safe }},"User_time":{{ User_time|tojson|safe }},"User_pitch":{{ User_pitch|tojson|safe }},"User_phoneme_values":{{ User_phoneme_values|tojson|safe }},"mora_values":{{ mora_values|tojson|safe }},"x_axis":{{ x_axis|tojson|safe }},"pitch_fin":{{ pitch_fin|tojson|safe }},"pitch_fin2":{{ pitch_fin2|tojson|safe }},"Native_mora_length":{{ Native_mora_length|tojson|safe }},"User_mora_length":{{ User_mora_length|tojson|safe }},"Native_phoneme_length":{{ Native_phoneme_length|tojson|safe }},"User_phoneme_length":{{ User_phoneme_length|tojson|safe }},"words":{{ words|tojson|safe }},"sort_distance":{{ sort_distance|tojson|safe }},"bar_color":{{ bar_color|tojson|safe }},"lip_ref_ratios":{{ lip_ref_ratios|default([])|tojson|safe }},"lip_test_ratios":{{ lip_test_ratios|default([])|tojson|safe }},"lip_score":{{ lip_compare.score if lip_compare else 'null' }},"lip_distance":{{ lip_compare.distance if lip_compare else 'null' }},"worst_mora":null,{% if score %}"accent_pct":{{ (score.accent_score/50*100)|round|int }},"length_pct":{{ (score.length_score/30*100)|round|int }},"vowel_pct":{{ (score.vowel_score/20*100)|round|int }}{% else %}"accent_pct":0,"length_pct":0,"vowel_pct":0{% endif %}}
 </script>
 
 <!-- タブ切り替え関数を独立したscriptタグに配置（JSONエラーの影響を受けない） -->
@@ -762,6 +788,33 @@ safeChart('UserPhonemeChart',{type:'line',data:{labels:d.User_time,datasets:[{da
 safeChart('PitchLengthChart',{type:'line',data:{labels:d.x_axis,datasets:[{label:'Sample',data:d.pitch_fin,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2},{label:'You',data:d.pitch_fin2,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{min:-5,type:'linear',title:{display:true,text:'Frame'}},y:{title:{display:true,text:'Normalized Pitch'}}},plugins:{annotation:{annotations:Object.assign({},ann(d.mora_values,d.mora_labels,'rgba(192,61,32,.4)'),{% if worst_mora %}{worstHighlight:{type:'box',xMin:{{ worst_mora.frame_start }},xMax:{{ worst_mora.frame_end }},backgroundColor:'rgba(192,61,32,.12)',borderColor:'rgba(192,61,32,.5)',borderWidth:2}}{% else %}{}{% endif %})}}})});
 safeChart('groupedBarChart1',{type:'bar',data:{labels:['Sample','You'],datasets:gen(d.mora_labels,[d.Native_mora_length,d.User_mora_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
 safeChart('groupedBarChart2',{type:'bar',data:{labels:['Sample','You'],datasets:gen(d.phoneme_labels,[d.Native_phoneme_length,d.User_phoneme_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
+var lipEl=document.getElementById('LipCompareChart');
+if(lipEl && Array.isArray(d.lip_ref_ratios) && Array.isArray(d.lip_test_ratios)){
+  try{
+    new Chart(lipEl,{
+      type: 'line',
+      data: {
+        labels: d.lip_ref_ratios.map((_,i)=>`フレーム${i+1}`),
+        datasets: [
+          {label:'お手本', data:d.lip_ref_ratios, borderColor:'rgba(255,159,64,1)', backgroundColor:'rgba(255,159,64,0.1)', fill:false, tension:0.2, pointRadius:3, borderWidth:2},
+          {label:'あなた', data:d.lip_test_ratios, borderColor:'rgba(75,192,192,1)', backgroundColor:'rgba(75,192,192,0.1)', fill:false, tension:0.2, pointRadius:3, borderWidth:2}
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: 'フレーム' } },
+          y: { beginAtZero: true, title: { display: true, text: '相対距離' } }
+        },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: { mode: 'index', intersect: false }
+        }
+      }
+    });
+    lipEl.style.height='320px';
+  }catch(e){console.error('LipCompareChart error:',e);} 
+}
 var dc=document.getElementById('DistanceChart');
 if(dc){try{new Chart(dc,{type:'bar',data:{labels:d.words,datasets:[{data:d.sort_distance,backgroundColor:d.bar_color,borderWidth:0,borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{title:{display:true,text:'DTW Distance'}},y:{ticks:{autoSkip:false,font:{size:11}}}},plugins:{legend:{display:false},datalabels:{display:false}}}});dc.style.height='640px';}catch(e){console.error('DistanceChart error:',e);}}
 </script>

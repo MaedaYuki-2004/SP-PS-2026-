@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}唇参照データ管理{% endblock %}
+{% block content %}
+<div class="panel">
+  <h2>唇参照データ管理</h2>
+  <p>保存された参照データの一覧。各操作はその単語IDに対して行います。</p>
+  <div id="refs-list"></div>
+  <hr>
+  <h3>参照データを上書き</h3>
+  <form id="overwrite-form">
+    <label>単語ID: <input type="text" name="word_id" required></label>
+    <label>動画ファイル: <input type="file" name="file" accept="video/*" required></label>
+    <button type="submit">上書きして保存</button>
+  </form>
+  <div id="msg" style="margin-top:12px;color:#2d6a4f;"></div>
+</div>
+
+<div id="preview-modal" style="display:none;padding:12px;background:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);position:fixed;left:50%;top:20%;transform:translateX(-50%);width:80%;max-width:720px;z-index:999;">
+  <button id="close-preview" style="float:right">閉じる</button>
+  <h4 id="preview-title">プレビュー</h4>
+  <canvas id="previewChart" style="width:100%;height:320px;"></canvas>
+</div>
+
+<script>
+async function loadRefs(){
+  const r = await fetch('/api/lip_refs');
+  const data = await r.json();
+  const container = document.getElementById('refs-list');
+  container.innerHTML = '';
+  if(!data || Object.keys(data).length===0){ container.innerHTML = '<p>保存された参照データはありません。</p>'; return; }
+  const table = document.createElement('table');
+  table.style.width='100%';
+  table.innerHTML = '<tr><th>単語ID</th><th>操作</th></tr>';
+  for(const k of Object.keys(data)){
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.textContent = k;
+    const td2 = document.createElement('td');
+    td2.innerHTML = `<button data-id="${k}" class="btn-preview">確認</button> <button data-id="${k}" class="btn-delete">削除</button>`;
+    tr.appendChild(td1); tr.appendChild(td2); table.appendChild(tr);
+  }
+  container.appendChild(table);
+  document.querySelectorAll('.btn-delete').forEach(b=>b.onclick=async e=>{
+    if(!confirm('本当に削除しますか?')) return;
+    const id=b.getAttribute('data-id');
+    const rr = await fetch('/api/lip_refs/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word_id:id})});
+    const jr = await rr.json();
+    document.getElementById('msg').textContent = jr.message || (jr.error||'');
+    loadRefs();
+  });
+  document.querySelectorAll('.btn-preview').forEach(b=>b.onclick=async e=>{
+    const id=b.getAttribute('data-id');
+    const rr = await fetch(`/api/lip_refs/${encodeURIComponent(id)}/ratios`);
+    if(!rr.ok){ alert('取得失敗'); return; }
+    const jr = await rr.json();
+    showPreview(id, jr.ratios);
+  });
+}
+
+function showPreview(id, ratios){
+  document.getElementById('preview-title').textContent = `参照プレビュー: ${id}`;
+  const modal = document.getElementById('preview-modal');
+  modal.style.display='block';
+  const canvas = document.getElementById('previewChart');
+  try{ window.previewChart && window.previewChart.destroy(); }catch(e){}
+  const labels = ratios.map((_,i)=>`フレーム${i+1}`);
+  window.previewChart = new Chart(canvas,{type:'line',data:{labels:labels,datasets:[{label:'ratio',data:ratios,borderColor:'rgba(255,159,64,1)',backgroundColor:'rgba(255,159,64,.1)',fill:false}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
+}
+
+document.getElementById('close-preview').onclick=()=>{document.getElementById('preview-modal').style.display='none';}
+
+document.getElementById('overwrite-form').onsubmit = async function(e){
+  e.preventDefault();
+  const fd = new FormData(this);
+  const resp = await fetch('/api/lip_refs/overwrite',{method:'POST',body:fd});
+  const jr = await resp.json();
+  document.getElementById('msg').textContent = jr.message || (jr.error||'');
+  loadRefs();
+}
+
+loadRefs();
+</script>
+{% endblock %}

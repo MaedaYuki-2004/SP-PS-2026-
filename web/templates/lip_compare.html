@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>唇比較 — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="static/css/base.css" rel="stylesheet">
+  <style>
+    .compare-page { max-width:860px; margin:0 auto; padding:24px; display:grid; gap:20px; }
+    .page-header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .page-header h1 { font-size:clamp(26px,4vw,34px); margin:0; }
+    .page-header a { color:var(--navy); font-size:13px; font-weight:700; text-decoration:none; }
+    .panel { background:var(--bg-card); border:1px solid var(--border); border-radius:18px; padding:20px; }
+    .panel-title { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-3); margin-bottom:14px; }
+    .video-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .video-card { display:flex; flex-direction:column; gap:12px; }
+    .video-card label { font-size:12px; font-weight:700; color:var(--text-3); }
+    video { width:100%; border-radius:16px; background:#000; }
+    .button-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-top:12px; }
+    button { border:none; border-radius:12px; padding:14px 18px; font-size:13px; font-weight:700; cursor:pointer; transition:transform .15s ease,box-shadow .15s ease; }
+    button:hover:not(:disabled) { transform:translateY(-1px); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-primary { background:var(--navy); color:#fff; }
+    .btn-secondary { background:var(--accent); color:#fff; }
+    .status { min-height:22px; color:var(--text); font-size:14px; }
+    .result-card { display:grid; gap:18px; }
+    .score-badge { font-size:48px; font-weight:800; color:var(--navy); }
+    .score-label { font-size:13px; color:var(--text-2); }
+    .graph-frame { width:100%; border:1px solid var(--border); border-radius:14px; overflow:hidden; background:#090b11; }
+    .graph-frame canvas { display:block; width:100%; height:auto; }
+    .help-text { font-size:12px; color:var(--text-3); line-height:1.6; }
+    @media (max-width:800px) { .video-grid, .button-row { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="compare-page">
+  <div class="page-header">
+    <div>
+      <p class="page-label">Step 1</p>
+      <h1>唇の動き比較</h1>
+      <p class="help-text">Webカメラで「お手本」と「テスト」を録画し、口の形状のズレをスコア化します。</p>
+    </div>
+    <a href="/select">単語選択に戻る</a>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">プレビュー</div>
+    <div class="video-grid">
+      <div class="video-card">
+        <label>カメラ映像</label>
+        <video id="preview" autoplay muted playsinline></video>
+        <div class="status" id="previewStatus">カメラに接続しています…</div>
+      </div>
+      <div class="video-card">
+        <label>録画状況</label>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button class="btn-primary" id="buttonRef">お手本を録画</button>
+          <button class="btn-secondary" id="buttonTest" disabled>テストを録画</button>
+          <button class="btn-primary" id="buttonCompare" disabled>比較する</button>
+        </div>
+        <div class="status" id="recordStatus">お手本とテストを録画してください。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel result-card" id="resultPanel" style="display:none;">
+    <div class="panel-title">比較結果</div>
+    <div>
+      <div class="score-badge" id="resultScore">--</div>
+      <div class="score-label" id="resultLabel">口の形状の一致度をスコア化しました</div>
+    </div>
+    <div class="graph-frame">
+      <canvas id="graphCanvas" width="800" height="240"></canvas>
+    </div>
+    <p class="help-text">白線が「お手本」、赤線が「テスト」です。横軸は録画フレーム、縦軸は口の開き具合の比率です。</p>
+  </div>
+</div>
+<script src="static/js/lip_compare.js"></script>
+</body>
+</html>
