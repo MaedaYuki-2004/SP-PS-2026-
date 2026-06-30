@@ -172,6 +172,121 @@ def _compute_lip_score(reference_vectors, test_vectors):
     return max(0, min(100, score)), distance
 
 
+# ── モーラ別 口の開き具合の分析 ──────────────────────────────────────────
+
+# 日本語音声学における母音別の口の開き目安（あ=最大開口, い/う=最小）
+_VOWEL_OPENNESS = {'a': 1.0, 'e': 0.55, 'o': 0.45, 'i': 0.15, 'u': 0.10}
+_LIP_SAMPLE_RATIOS = [0.30, 0.50, 0.70]  # モーラ内で測定する時刻の割合
+
+
+def _mora_expected_openness(label):
+    """モーララベルから期待される口の開き具合(0–1)を返す。母音なしは None。"""
+    for ch in label.lower():
+        if ch in _VOWEL_OPENNESS:
+            return _VOWEL_OPENNESS[ch]
+    return None
+
+
+def _extract_mora_lip_openness(video_path, mora_list_sec):
+    """
+    Julius アライメント結果のモーラ時刻を使って映像から口の開き量を取得する。
+    全フレームをメモリに読み込んで fps 変換でインデックスするため、
+    WebM の seek 精度に依存しない。
+    """
+    if not MEDIA_PIPE_AVAILABLE:
+        return []
+    try:
+        face_mesh = _get_face_mesh()
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return []
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if fps <= 0 or fps > 120:
+            fps = 30.0
+
+        frames = []
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            frames.append(frame)
+        cap.release()
+
+        if not frames:
+            return [{"label": str(m[2]), "openness": None} for m in mora_list_sec]
+
+        total = len(frames)
+        results = []
+        for mora_info in mora_list_sec:
+            start_sec = float(mora_info[0])
+            end_sec   = float(mora_info[1])
+            duration  = end_sec - start_sec
+            label     = str(mora_info[2])
+
+            samples = []
+            for ratio in _LIP_SAMPLE_RATIOS:
+                t_sec = start_sec + duration * ratio
+                fidx  = max(0, min(int(t_sec * fps), total - 1))
+                frame = frames[fidx]
+                h, w, _ = frame.shape
+                res = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                if not res.multi_face_landmarks:
+                    continue
+                lm = res.multi_face_landmarks[0].landmark
+                v  = calc_distance(lm[13], lm[14], w, h)
+                hd = calc_distance(lm[61], lm[291], w, h)
+                samples.append(v / (hd + 1e-6))
+
+            results.append({
+                "label":    label,
+                "openness": float(np.mean(samples)) if samples else None,
+            })
+
+        return results
+    except Exception:
+        traceback.print_exc()
+        return []
+
+
+def _build_lip_mora_analysis(mora_list_sec, raw_data):
+    """
+    モーラごとの期待値と実測値を比較してフィードバックを生成する。
+    実測値はセッション内の最大値で正規化（最も開いた瞬間=1.0）。
+    """
+    valid = [m["openness"] for m in raw_data if m["openness"] is not None]
+    max_v = max(valid) if valid else 1.0
+
+    result = []
+    n = min(len(mora_list_sec), len(raw_data))
+    for i in range(n):
+        label    = str(mora_list_sec[i][2])
+        raw_open = raw_data[i]["openness"]
+        expected = _mora_expected_openness(label)
+        actual   = round(raw_open / max_v, 3) if raw_open is not None and max_v > 0 else None
+
+        if expected is not None and actual is not None:
+            diff = round(actual - expected, 3)
+            if abs(diff) < 0.15:
+                status, feedback = "good", "良好"
+            elif diff < 0:
+                status, feedback = "low",  "開きが足りない"
+            else:
+                status, feedback = "high", "開きすぎ"
+        else:
+            diff = status = feedback = None
+
+        result.append({
+            "label":    label,
+            "expected": expected,
+            "actual":   actual,
+            "diff":     diff,
+            "status":   status,
+            "feedback": feedback,
+        })
+    return result
+
+
 def _save_temp_video(uploaded_file):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.webm')
     uploaded_file.save(tmp.name)
@@ -282,8 +397,10 @@ def select():
         w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
         for w in words
     }
+    lip_ref_keys = set(load_lip_refs().keys())
     return render_template("select.html", words=words, active_quests=quests,
-                           stats=stats, accent_patterns=accent_patterns)
+                           stats=stats, accent_patterns=accent_patterns,
+                           lip_ref_keys=lip_ref_keys)
 
 
 @app.route("/select")
@@ -296,8 +413,10 @@ def select_page():
         w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
         for w in words
     }
+    lip_ref_keys = set(load_lip_refs().keys())
     return render_template("select.html", words=words, active_quests=quests,
-                           stats=stats, accent_patterns=accent_patterns)
+                           stats=stats, accent_patterns=accent_patterns,
+                           lip_ref_keys=lip_ref_keys)
 
 
 @app.route("/history")
@@ -686,6 +805,15 @@ def audio_analysis():
         display    = word_entry.get("display", word_id) if word_entry else word_id
         reading    = word_entry.get("reading", word_id) if word_entry else word_id
 
+        # ── モーラ別唇開き分析（Julius タイムスタンプ + 映像フレーム） ──
+        lip_mora_analysis = []
+        if MEDIA_PIPE_AVAILABLE and test_video and os.path.exists(test_video):
+            try:
+                _raw_lip = _extract_mora_lip_openness(test_video, mora_list2)
+                lip_mora_analysis = _build_lip_mora_analysis(mora_list2, _raw_lip)
+            except Exception:
+                traceback.print_exc()
+
         common_kwargs = dict(
             original_filename=display, word_id=word_id,
             Native_pitch=pitch_native.tolist(), Native_time=time1,
@@ -702,6 +830,7 @@ def audio_analysis():
             User_mora_length=pct_length(mora_length2),
             words=word_list, sort_distance=dtw_list, bar_color=colors,
             prev_score=prev_score,
+            lip_mora_analysis=lip_mora_analysis,
         )
 
         words_list = list_words()

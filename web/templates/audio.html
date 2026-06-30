@@ -9,8 +9,7 @@
   <link href="static/css/base.css" rel="stylesheet">
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
-
-    .record-page { flex:1; display:grid; grid-template-rows:auto 1fr auto; max-width:540px; margin:0 auto; width:100%; padding:0 24px; }
+    .record-page { flex:1; display:flex; flex-direction:column; max-width:540px; margin:0 auto; width:100%; padding:0 24px 44px; }
 
     /* Steps */
     .steps { display:flex; align-items:center; padding:20px 0 0; }
@@ -22,17 +21,38 @@
     .step-line { flex:1; height:1px; background:var(--border); margin:0 8px; }
 
     /* Word */
-    .word-section { text-align:center; padding:28px 0 24px; }
-    .word-reading { font-size:12px; letter-spacing:.12em; color:var(--text-3); margin-bottom:8px; }
-    .word-display { font-size:clamp(48px,12vw,68px); font-weight:700; color:var(--navy); line-height:1.1; letter-spacing:.01em; margin-bottom:10px; }
-    .sample-wrap  { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:12px; }
+    .word-section { text-align:center; padding:22px 0 18px; }
+    .word-reading { font-size:12px; letter-spacing:.12em; color:var(--text-3); margin-bottom:6px; }
+    .word-display { font-size:clamp(48px,12vw,68px); font-weight:700; color:var(--navy); line-height:1.1; letter-spacing:.01em; margin-bottom:12px; }
+    .sample-wrap  { display:flex; align-items:center; justify-content:center; gap:10px; }
     .sample-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
     .sample-audio { height:28px; width:160px; border-radius:var(--r-xs); }
 
-    /* Visualizer */
-    .visualizer-section { display:flex; flex-direction:column; align-items:center; gap:12px; }
-    .viz-card { width:100%; background:var(--navy); border-radius:var(--r-lg); padding:18px; }
-    #visualizer { width:100%; height:72px; display:block; border-radius:var(--r-sm); }
+    /* Step guide — contextual hint */
+    .step-guide { display:flex; align-items:center; gap:10px; margin:14px 0 16px; padding:10px 14px; background:var(--bg-muted); border:1px solid var(--border-light); border-radius:var(--r); font-size:12px; color:var(--text-2); transition:background .3s; }
+    .step-guide-num { width:22px; height:22px; border-radius:50%; background:var(--navy); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .3s; }
+    .step-guide.recording { background:rgba(192,61,32,.07); border-color:rgba(192,61,32,.2); }
+    .step-guide.recording .step-guide-num { background:var(--accent); }
+    .step-guide.done { background:rgba(45,106,79,.07); border-color:rgba(45,106,79,.2); }
+    .step-guide.done .step-guide-num { background:#2D6A4F; }
+
+    /* Recording action buttons — prominent, above waveform */
+    .record-actions { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+    .record-btn-row { display:flex; gap:12px; }
+    #buttonStart, #buttonStop { flex:1; height:52px; border-radius:var(--r); font-family:var(--font); font-size:13px; font-weight:700; letter-spacing:.04em; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:8px; transition:background var(--dur),box-shadow var(--dur),transform var(--dur),opacity var(--dur); -webkit-tap-highlight-color:transparent; }
+    #buttonStart:active:not(:disabled), #buttonStop:active:not(:disabled) { transform:scale(.97); }
+    #buttonStart:disabled, #buttonStop:disabled { opacity:.3; cursor:not-allowed; }
+    #buttonStart { background:var(--accent); color:#fff; }
+    #buttonStart:not(:disabled):hover { background:#a83318; box-shadow:0 4px 16px rgba(192,61,32,.35); }
+    #buttonStop  { background:var(--navy); color:#fff; }
+    #buttonStop:not(:disabled):hover  { background:var(--navy-mid); box-shadow:0 4px 16px rgba(14,30,69,.3); }
+    .shortcut-hint { display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; color:var(--text-3); }
+    .key-badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 8px; border:1px solid var(--border); border-radius:4px; font-family:var(--mono); font-size:10px; color:var(--text-3); background:var(--bg-muted); box-shadow:0 1px 0 var(--border); letter-spacing:.04em; }
+
+    /* Waveform visualizer */
+    .visualizer-section { margin-bottom:14px; }
+    .viz-card { width:100%; background:var(--navy); border-radius:var(--r-lg); padding:16px 18px; }
+    #visualizer { width:100%; height:64px; display:block; border-radius:var(--r-sm); }
     .rec-status { display:flex; align-items:center; gap:8px; margin-top:10px; height:20px; }
     .rec-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.2); }
     .rec-dot.active { background:var(--accent); animation:blink 1s ease infinite; }
@@ -47,48 +67,22 @@
     #volumeFill { height:100%; width:0%; border-radius:100px; background:#9E9890; transition:width 60ms, background 200ms; }
     #autoStopCountdown { display:none; font-size:11px; color:rgba(255,200,100,.9); text-align:center; font-weight:600; letter-spacing:.04em; margin-top:6px; padding:5px 10px; background:rgba(255,165,0,.1); border-radius:var(--r-sm); }
 
-    .lip-section { margin-top:20px; }
-    .lip-card { background:var(--bg-card); border:1px solid var(--border); border-radius:18px; padding:18px; }
-    .lip-card label { display:block; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:12px; }
-    .lip-card video { width:100%; border-radius:14px; background:#000; min-height:180px; }
-    .lip-controls { display:flex; flex-wrap:wrap; gap:12px; margin-top:14px; }
-    .lip-status { margin-top:12px; font-size:12px; color:var(--text-3); }
-    .lip-btn { flex:1; min-width:120px; }
+    /* Lip section — compact side-by-side layout */
+    .lip-section { margin-bottom:14px; }
+    .lip-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+    .lip-card-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px 8px; border-bottom:1px solid var(--border-light); }
+    .lip-card-title { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
+    .lip-ref-tag { display:none; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#2D6A4F; background:var(--green-bg); padding:3px 9px; border-radius:100px; }
+    .lip-ref-tag.show { display:inline-flex; }
+    .lip-layout { display:grid; grid-template-columns:130px 1fr; }
+    #lipPreview { width:130px; height:98px; object-fit:cover; background:#111; border-right:1px solid var(--border-light); display:block; }
+    .lip-side { padding:12px 14px; display:flex; flex-direction:column; gap:8px; justify-content:center; }
+    .lip-auto-info { font-size:11px; color:var(--text-3); line-height:1.6; }
+    .lip-auto-info strong { color:var(--text-2); }
+    .lip-status { font-size:11px; color:var(--text-3); min-height:14px; }
 
-    /* Controls */
-    .controls { display:flex; flex-direction:column; align-items:center; gap:12px; padding:18px 0 36px; }
-    .record-btn-row { display:flex; gap:12px; width:100%; }
-    #buttonStart, #buttonStop { flex:1; height:52px; border-radius:var(--r); font-family:var(--font); font-size:13px; font-weight:700; letter-spacing:.04em; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:8px; transition:background var(--dur),box-shadow var(--dur),transform var(--dur),opacity var(--dur); -webkit-tap-highlight-color:transparent; }
-    #buttonStart:active:not(:disabled), #buttonStop:active:not(:disabled) { transform:scale(.97); }
-    #buttonStart:disabled, #buttonStop:disabled { opacity:.3; cursor:not-allowed; }
-    #buttonStart { background:var(--accent); color:#fff; }
-    #buttonStart:not(:disabled):hover { background:#a83318; box-shadow:0 4px 16px rgba(192,61,32,.35); }
-    #buttonStop  { background:var(--navy); color:#fff; }
-    #buttonStop:not(:disabled):hover  { background:var(--navy-mid); box-shadow:0 4px 16px rgba(14,30,69,.3); }
-
-    /* キーボードショートカットのヒント */
-    .shortcut-hint {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      color: var(--text-3);
-    }
-    .key-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2px 8px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--text-3);
-      background: var(--bg-muted);
-      box-shadow: 0 1px 0 var(--border);
-      letter-spacing: .04em;
-    }
-
+    /* Post-recording */
+    .post-actions { display:flex; flex-direction:column; gap:12px; }
     .replay-section { width:100%; }
     .replay-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; display:block; }
     #audio { width:100%; height:32px; border-radius:var(--r-sm); }
@@ -105,9 +99,9 @@
     .loading-text { font-size:13px; color:rgba(255,255,255,.6); font-weight:500; letter-spacing:.04em; }
     .loading-word { font-size:26px; font-weight:700; color:#fff; }
 
-    #micError { display:none; background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0; border-radius:var(--r-sm); padding:12px 16px; font-size:13px; margin-top:12px; }
+    #micError { display:none; background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0; border-radius:var(--r-sm); padding:12px 16px; font-size:13px; }
 
-    @media (max-width:480px) { .word-display { font-size:48px; } .top-nav { padding:0 16px; } .shortcut-hint { display:none; } }
+    @media (max-width:480px) { .word-display{font-size:48px;} .top-nav{padding:0 16px;} .shortcut-hint{display:none;} #lipPreview{width:110px;height:83px;} .lip-layout{grid-template-columns:110px 1fr;} }
   </style>
 </head>
 <body>
@@ -145,12 +139,12 @@
 </script>
 
 <div class="record-page">
+
+  <!-- ① ステップインジケーター -->
   <div class="steps">
     <div class="step done">
       <div class="step-num">
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       単語を選ぶ
     </div>
@@ -160,18 +154,44 @@
     <div class="step"><div class="step-num">3</div>結果を見る</div>
   </div>
 
+  <!-- ② 単語表示 + お手本音声 -->
   <div class="word-section">
     <div class="word-reading">{{ test }}</div>
     <div class="word-display">{{ display or test }}</div>
     <div class="sample-wrap">
-      <span class="sample-label">サンプル音声</span>
-      <audio class="sample-audio" controls preload="none" src="/sample_audio/{{ word_id or '' }}"></audio>
+      <span class="sample-label">お手本音声</span>
+      <audio class="sample-audio" controls preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
     </div>
   </div>
 
+  <!-- ③ 操作ガイド（状態に応じて変化） -->
+  <div class="step-guide" id="stepGuide">
+    <div class="step-guide-num" id="stepGuideNum">1</div>
+    <span id="stepGuideText">お手本音声を聴いてから、準備ができたら録音開始を押してください</span>
+  </div>
+
+  <!-- ④ 録音ボタン — 最重要UI、スクロールなしで見える位置 -->
+  <div class="record-actions">
+    <div class="record-btn-row">
+      <button type="button" id="buttonStart">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
+        録音開始
+      </button>
+      <button type="button" id="buttonStop" disabled>
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/></svg>
+        録音停止
+      </button>
+    </div>
+    <div class="shortcut-hint">
+      <span class="key-badge">Space</span><span>で開始/停止</span>
+      <span style="margin-left:10px;"><span class="key-badge">Enter</span></span><span>で解析</span>
+    </div>
+  </div>
+
+  <!-- ⑤ 波形ビジュアライザー（録音中フィードバック） -->
   <div class="visualizer-section">
     <div class="viz-card">
-      <canvas id="visualizer" width="480" height="72"></canvas>
+      <canvas id="visualizer" width="480" height="64"></canvas>
       <div class="rec-status">
         <div class="rec-dot" id="recDot"></div>
         <span class="rec-label" id="recLabel">待機中</span>
@@ -186,64 +206,64 @@
     <div id="micError"></div>
   </div>
 
+  <!-- ⑥ 唇カメラ — コンパクト横並びレイアウト、録音と同時に自動録画 -->
   <div class="lip-section">
     <div class="lip-card">
-      <label>カメラで唇の動きを収録</label>
-      <video id="lipPreview" autoplay muted playsinline></video>
-      <div class="lip-controls">
-        <button type="button" id="buttonLipRef" class="btn btn-secondary lip-btn">お手本を録画</button>
-        <button type="button" id="buttonLipTest" class="btn btn-secondary lip-btn" disabled>テストを録画</button>
+      <div class="lip-card-header">
+        <span class="lip-card-title">口の動き（録音と同時に自動録画）</span>
+        <span id="lipRefTag" class="lip-ref-tag">
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2L7.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          お手本登録済み
+        </span>
       </div>
-      <div class="lip-status" id="lipStatus">お手本動画が保存済みの場合は、テストのみ録画するだけで唇比較が実行できます。</div>
+      <div class="lip-layout">
+        <video id="lipPreview" autoplay muted playsinline></video>
+        <div class="lip-side">
+          <div class="lip-auto-info">
+            録音開始と同時に<br><strong>自動撮影されます</strong>
+          </div>
+          <button type="button" id="buttonLipRef" class="btn btn-secondary btn-sm">お手本を録画（3秒）</button>
+          <div class="lip-status" id="lipStatus"></div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="controls">
-    <div class="record-btn-row">
-      <button type="button" id="buttonStart">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
-        録音開始
-      </button>
-      <button type="button" id="buttonStop" disabled>
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/></svg>
-        録音停止
-      </button>
-    </div>
-
-    <!-- キーボードショートカットのヒント (1) -->
-    <div class="shortcut-hint">
-      <span class="key-badge">Space</span>
-      <span>で録音開始 / 停止</span>
-      <span style="margin-left:8px;"><span class="key-badge">Enter</span></span>
-      <span>で解析開始</span>
-    </div>
-
+  <!-- ⑦ 録音後のアクション -->
+  <div class="post-actions">
     <div class="replay-section">
       <span class="replay-label">録音再生</span>
       <audio controls id="audio"></audio>
     </div>
-
     <form action="/graph" method="post" enctype="multipart/form-data" class="graph-form"
-          id="graphForm"
-          onsubmit="document.getElementById('loadingOverlay').classList.add('show')">
-      <button type="submit" id="buttongraph">解析結果を見る</button>
+          id="graphForm" onsubmit="document.getElementById('loadingOverlay').classList.add('show')">
+      <button type="submit" id="buttongraph">解析結果を見る &rarr;</button>
     </form>
-
     <a href="/select" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;">別の単語を選ぶ</a>
   </div>
+
 </div>
 
 <script>
   // ── 録音状態の視覚フィードバック ─────────────────────────────────────
   let recTimer = null, recSeconds = 0;
-  const dot   = document.getElementById('recDot');
-  const label = document.getElementById('recLabel');
-  const time  = document.getElementById('recTime');
+  const dot       = document.getElementById('recDot');
+  const recLabel  = document.getElementById('recLabel');
+  const time      = document.getElementById('recTime');
+  const guide     = document.getElementById('stepGuide');
+  const guideNum  = document.getElementById('stepGuideNum');
+  const guideText = document.getElementById('stepGuideText');
+
+  function setGuide(num, text, state) {
+    if (guideNum)  guideNum.textContent = num;
+    if (guideText) guideText.textContent = text;
+    if (guide)     guide.className = 'step-guide' + (state ? ' ' + state : '');
+  }
 
   document.getElementById('buttonStart').addEventListener('click', () => {
     dot.classList.add('active');
-    label.classList.add('recording');
-    label.textContent = '録音中';
+    recLabel.classList.add('recording');
+    recLabel.textContent = '録音中';
     time.classList.add('active');
     recSeconds = 0;
     recTimer = setInterval(() => {
@@ -252,35 +272,30 @@
       const s = recSeconds % 60;
       time.textContent = `${m}:${s.toString().padStart(2,'0')}`;
     }, 1000);
+    setGuide(2, '発音したら録音停止を押してください', 'recording');
   });
 
   document.getElementById('buttonStop').addEventListener('click', () => {
     dot.classList.remove('active');
-    label.classList.remove('recording');
-    label.textContent = '録音完了';
+    recLabel.classList.remove('recording');
+    recLabel.textContent = '録音完了';
     time.classList.remove('active');
     clearInterval(recTimer);
+    setGuide(3, '解析結果を見るを押してフィードバックを確認しましょう', 'done');
   });
 
-  // ── キーボードショートカット (1) ─────────────────────────────────────
+  // ── キーボードショートカット ──────────────────────────────────────────
   document.addEventListener('keydown', (e) => {
-    // input/textarea/audio にフォーカスしているときは無効
     const tag = document.activeElement?.tagName?.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'audio' || tag === 'select') return;
-
-    const startBtn  = document.getElementById('buttonStart');
-    const stopBtn   = document.getElementById('buttonStop');
-    const graphBtn  = document.getElementById('buttongraph');
-
+    const startBtn = document.getElementById('buttonStart');
+    const stopBtn  = document.getElementById('buttonStop');
+    const graphBtn = document.getElementById('buttongraph');
     if (e.code === 'Space') {
       e.preventDefault();
-      if (!startBtn.disabled) {
-        startBtn.click();
-      } else if (!stopBtn.disabled) {
-        stopBtn.click();
-      }
+      if (!startBtn.disabled) startBtn.click();
+      else if (!stopBtn.disabled) stopBtn.click();
     }
-
     if (e.code === 'Enter') {
       e.preventDefault();
       if (graphBtn && graphBtn.style.display !== 'none') {

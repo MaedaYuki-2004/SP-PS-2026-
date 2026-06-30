@@ -196,7 +196,13 @@ async function main() {
           const result = await response.json();
           if (Array.isArray(result.ratios) && result.ratios.length > 0) {
             hasSavedRef = true;
-            setLipStatus('この単語の保存済みお手本が見つかりました。テストのみ録画できます。');
+            setLipStatus('');
+            // お手本登録済みバッジを表示し、録画ボタンを隠す
+            const tag = document.getElementById('lipRefTag');
+            if (tag) tag.classList.add('show');
+            if (btnLipRef) btnLipRef.style.display = 'none';
+          } else {
+            setLipStatus('お手本未登録 — 右の「お手本を録画」で先に3秒間登録してください');
           }
         }
       } catch (err) {
@@ -209,7 +215,8 @@ async function main() {
       if (lipStatus) lipStatus.textContent = message;
     }
 
-    function startLipRecording(mode) {
+    // durationMs: 指定ありは自動停止あり（お手本用）、null は手動停止（テスト用）
+    function startLipRecording(mode, durationMs = null) {
       if (!videoStream) return;
       if (lipRecorder) return;
       lipMode = mode;
@@ -232,11 +239,13 @@ async function main() {
       lipRecorder.start();
       setLipStatus(mode === 'ref' ? 'お手本動画を録画中…' : 'テスト動画を録画中…');
       updateLipButtons();
-      setTimeout(() => {
-        if (lipRecorder && lipRecorder.state === 'recording') {
-          lipRecorder.stop();
-        }
-      }, 3000);
+      if (durationMs) {
+        setTimeout(() => {
+          if (lipRecorder && lipRecorder.state === 'recording') {
+            lipRecorder.stop();
+          }
+        }, durationMs);
+      }
     }
 
     async function sendLipVideo(mode, blob) {
@@ -254,11 +263,14 @@ async function main() {
         }
         if (mode === 'ref') {
           lipRefUploaded = true;
-          setLipStatus('お手本動画をアップロードしました。次にテスト動画を録画してください。');
-          if (btnLipTest) btnLipTest.disabled = false;
+          // バッジ表示・録画ボタン非表示
+          const tag = document.getElementById('lipRefTag');
+          if (tag) tag.classList.add('show');
+          if (btnLipRef) btnLipRef.style.display = 'none';
+          setLipStatus('');
         } else {
           lipTestUploaded = true;
-          setLipStatus('テスト動画をアップロードしました。解析結果に唇比較が表示されます。');
+          setLipStatus('');
         }
       } catch (err) {
         console.error(err);
@@ -309,16 +321,22 @@ async function main() {
       const param = audioRecorder.parameters.get('isRecording');
       param.setValueAtTime(0, audioContext.currentTime);
 
+      // 音声停止と同時に唇テスト録画も停止（音素タイムスタンプとの同期を保つため）
+      if (lipRecorder && lipRecorder.state === 'recording') {
+        lipRecorder.stop();
+      }
+
       const blob = encodeAudio(buffers, settings);
       sendAudio(blob);
       audio.src = URL.createObjectURL(blob);
 
-      // 3秒後に解析ボタンを表示
+      // 3秒後に解析ボタンを表示（唇動画アップロード完了を待つ）
       setTimeout(() => { btnGraph.style.display = 'block'; }, 3000);
     });
 
     if (btnLipRef) {
-      btnLipRef.addEventListener('click', () => startLipRecording('ref'));
+      // お手本は手動ボタン操作 → 3秒で自動停止
+      btnLipRef.addEventListener('click', () => startLipRecording('ref', 3000));
     }
     if (btnLipTest) {
       btnLipTest.addEventListener('click', () => startLipRecording('test'));

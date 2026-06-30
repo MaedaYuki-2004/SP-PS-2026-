@@ -33,22 +33,75 @@
     .word-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
     .word-card.hidden { display:none; }
 
-    .word-card-body { padding:16px 16px 12px; flex:1; }
-    .word-card-index { font-family:var(--mono); font-size:9px; color:var(--text-3); display:block; margin-bottom:6px; }
+    .word-card-body { padding:14px 14px 10px; flex:1; }
+    .word-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; margin-bottom:4px; }
+    .word-card-index { font-family:var(--mono); font-size:9px; color:var(--text-3); display:block; padding-top:1px; }
     .word-card-text { font-size:26px; font-weight:700; color:var(--navy); line-height:1.15; letter-spacing:.01em; margin-bottom:3px; }
     .word-card-reading { font-size:11px; color:var(--text-3); letter-spacing:.04em; margin-bottom:8px; }
 
-    /* A: アクセント図解 */
+    /* アクセント図解 */
     .word-card-accent { margin-bottom:8px; }
     .accent-type-label { font-size:9px; color:var(--text-3); letter-spacing:.04em; margin-bottom:3px; display:block; }
 
-    .word-card-audio { padding:0 16px 8px; }
+    .word-card-audio { padding:0 14px 8px; }
     .word-card-audio audio { width:100%; height:26px; border-radius:var(--r-xs); }
-    .word-card-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); }
+    .word-card-footer { padding:8px 14px 12px; border-top:1px solid var(--border-light); }
     .word-record-btn { width:100%; padding:9px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:12px; font-weight:600; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:background var(--dur),box-shadow var(--dur),transform var(--dur); }
     .word-record-btn:hover { background:var(--navy-mid); box-shadow:0 2px 10px rgba(14,30,69,.2); }
     .word-record-btn:active { transform:scale(.97); }
+    /* お手本ボタン → アイコンのみ、カード右上に配置 */
+    .word-ref-btn { width:26px; height:26px; flex-shrink:0; padding:0; background:transparent; color:var(--text-3); border:1px solid var(--border); border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background var(--dur),border-color var(--dur),color var(--dur); }
+    .word-ref-btn:hover { background:var(--bg-muted); border-color:var(--navy); color:var(--navy); }
+    .word-ref-btn.has-ref { color:#2d6a4f; border-color:#2d6a4f; background:var(--green-bg); }
     .no-results { display:none; text-align:center; padding:48px; color:var(--text-3); font-size:14px; grid-column:1/-1; }
+
+    /* 単語追加ボタン */
+    .add-word-btn { padding:7px 13px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background var(--dur); }
+    .add-word-btn:hover { background:var(--navy-mid); }
+
+    /* 単語追加モーダル */
+    .aw-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:300; align-items:center; justify-content:center; }
+    .aw-modal-overlay.open { display:flex; }
+    .aw-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:24px; width:min(460px,92vw); display:flex; flex-direction:column; gap:16px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+    .aw-steps { display:flex; align-items:center; gap:8px; }
+    .aw-step { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--text-3); }
+    .aw-step.active { color:var(--navy); }
+    .aw-step.done { color:#2d6a4f; }
+    .aw-step-num { width:20px; height:20px; border-radius:50%; background:var(--bg-muted); border:1px solid var(--border); font-size:10px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .aw-step.active .aw-step-num { background:var(--navy); color:#fff; border-color:var(--navy); }
+    .aw-step.done .aw-step-num { background:#2d6a4f; color:#fff; border-color:#2d6a4f; }
+    .aw-step-arrow { color:var(--text-3); font-size:11px; padding:0 2px; }
+    .aw-title { font-size:15px; font-weight:700; color:var(--navy); }
+    .aw-fields { display:flex; flex-direction:column; gap:10px; }
+    .aw-field { display:flex; flex-direction:column; gap:4px; }
+    .aw-label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+    .aw-input { font-family:var(--font); font-size:13px; padding:10px 14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); color:var(--text); transition:border-color var(--dur),box-shadow var(--dur); }
+    .aw-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(14,30,69,.08); }
+    .aw-status { font-size:12px; min-height:18px; }
+    .aw-status.ok  { color:#2d6a4f; }
+    .aw-status.err { color:var(--accent); }
+    .aw-status.loading { color:var(--text-3); }
+    .aw-actions { display:flex; gap:10px; }
+    .aw-btn-primary { flex:1; padding:11px; background:var(--navy); color:#fff; border:none; border-radius:10px; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
+    .aw-btn-primary:disabled { opacity:.4; cursor:not-allowed; }
+    .aw-btn-secondary { padding:11px 16px; background:transparent; color:var(--text-3); border:1px solid var(--border); border-radius:10px; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .aw-btn-secondary:hover { background:var(--bg-muted); }
+
+    /* お手本登録モーダル */
+    .ref-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:300; align-items:center; justify-content:center; }
+    .ref-modal-overlay.open { display:flex; }
+    .ref-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:24px; width:min(440px,90vw); display:flex; flex-direction:column; gap:14px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+    .ref-modal-title { font-size:15px; font-weight:700; color:var(--navy); }
+    .ref-modal-sub { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .ref-modal-video { width:100%; border-radius:12px; background:#000; aspect-ratio:4/3; object-fit:cover; }
+    .ref-modal-status { font-size:12px; color:var(--text-2); min-height:18px; }
+    .ref-modal-actions { display:flex; gap:10px; }
+    .ref-modal-record-btn { flex:1; padding:11px; background:var(--accent); color:#fff; border:none; border-radius:10px; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
+    .ref-modal-record-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .ref-modal-cancel-btn { padding:11px 18px; background:transparent; color:var(--text-3); border:1px solid var(--border); border-radius:10px; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; }
+    .ref-modal-cancel-btn:hover { background:var(--bg-muted); }
+    .recording-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#e53e3e; margin-right:5px; animation:blink 1s infinite; vertical-align:middle; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 
     /* Quest sidebar */
     .quest-sidebar { padding:24px 20px; background:var(--bg); }
@@ -138,7 +191,13 @@
   <!-- 単語グリッド -->
   <div class="words-section">
     <div class="section-header">
-      <span class="section-title">単語一覧</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="section-title">単語一覧</span>
+        <button class="add-word-btn" id="btnAddWord">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          単語を追加
+        </button>
+      </div>
       <div class="search-wrap">
         <svg class="search-icon" width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         <input type="text" class="search-input" id="searchInput" placeholder="単語を検索..." oninput="filterWords()">
@@ -149,21 +208,27 @@
       {% set pattern = accent_patterns.get(w.word_id, []) %}
       <div class="word-card" data-word="{{ w.display }}" data-reading="{{ w.reading }}">
         <div class="word-card-body">
-          <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
+          <div class="word-card-top">
+            <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
+            <!-- お手本ボタン：アイコンのみ、右上に配置 -->
+            <button class="word-ref-btn {% if w.word_id in lip_ref_keys %}has-ref{% endif %}"
+                    data-word-id="{{ w.word_id }}"
+                    data-word-display="{{ w.display }}"
+                    title="{% if w.word_id in lip_ref_keys %}口のお手本登録済み（クリックで再登録）{% else %}口のお手本を登録{% endif %}">
+              {% if w.word_id in lip_ref_keys %}
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 6l3 3L9.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              {% else %}
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="2.5" width="9" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 6l-2.5 1.8V4.2L7 6z" fill="currentColor"/></svg>
+              {% endif %}
+            </button>
+          </div>
           <div class="word-card-text">{{ w.display }}</div>
           <div class="word-card-reading">{{ w.reading }}</div>
-          <!-- A: アクセント図解 -->
           {% if pattern %}
           <div class="word-card-accent">
-            <span class="accent-type-label">
-              {% if w.accent == 0 %}平板型{% elif w.accent == 1 %}頭高型{% elif w.accent is not none %}{{ w.accent }}型{% else %}型不明{% endif %}
-            </span>
+            <span class="accent-type-label">{% if w.accent == 0 %}平板型{% elif w.accent == 1 %}頭高型{% elif w.accent is not none %}{{ w.accent }}型{% else %}型不明{% endif %}</span>
             <div class="accent-viz">
-              {% for hl in pattern %}
-              <div class="av-mora">
-                <div class="av-bar {{ hl }}"></div>
-              </div>
-              {% endfor %}
+              {% for hl in pattern %}<div class="av-mora"><div class="av-bar {{ hl }}"></div></div>{% endfor %}
             </div>
           </div>
           {% endif %}
@@ -247,6 +312,336 @@ function filterWords() {
   });
   document.getElementById('noResults').style.display = vis === 0 ? 'block' : 'none';
 }
+</script>
+
+<!-- 単語追加モーダル（Step1: 登録 → Step2: お手本録画） -->
+<div class="aw-modal-overlay" id="awModalOverlay">
+  <div class="aw-modal-card">
+    <div class="aw-steps">
+      <div class="aw-step active" id="awInd1"><span class="aw-step-num">1</span>単語登録</div>
+      <span class="aw-step-arrow">›</span>
+      <div class="aw-step" id="awInd2"><span class="aw-step-num">2</span>お手本録画</div>
+    </div>
+
+    <!-- Step 1: 単語登録フォーム -->
+    <div id="awPane1">
+      <div class="aw-title">新しい単語を追加</div>
+      <div class="aw-fields">
+        <div class="aw-field">
+          <label class="aw-label">表示テキスト</label>
+          <input type="text" class="aw-input" id="awDisplay" placeholder="例：夕食、スーパー">
+        </div>
+        <div class="aw-field">
+          <label class="aw-label">ひらがな読み</label>
+          <input type="text" class="aw-input" id="awReading" placeholder="例：ゆうしょく、すーぱー">
+        </div>
+      </div>
+      <div class="aw-status" id="awStatus1"></div>
+      <div class="aw-actions">
+        <button class="aw-btn-primary" id="awRegisterBtn">登録する</button>
+        <button class="aw-btn-secondary" id="awCloseBtn1">閉じる</button>
+      </div>
+    </div>
+
+    <!-- Step 2: お手本録画 -->
+    <div id="awPane2" style="display:none;">
+      <div class="aw-title" id="awPane2Title">お手本を録画</div>
+      <video class="ref-modal-video" id="awVideo" autoplay muted playsinline></video>
+      <div class="aw-status" id="awStatus2">カメラを起動しています…</div>
+      <div class="aw-actions">
+        <button class="aw-btn-primary" id="awRecordBtn" disabled>録画開始（3秒）</button>
+        <button class="aw-btn-secondary" id="awSkipBtn">スキップして閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- お手本登録モーダル -->
+<div class="ref-modal-overlay" id="refModalOverlay">
+  <div class="ref-modal-card">
+    <div>
+      <div class="ref-modal-title" id="refModalTitle">お手本を登録</div>
+      <div class="ref-modal-sub">カメラで3秒間録画して保存します</div>
+    </div>
+    <video class="ref-modal-video" id="refModalVideo" autoplay muted playsinline></video>
+    <div class="ref-modal-status" id="refModalStatus">カメラを起動しています…</div>
+    <div class="ref-modal-actions">
+      <button class="ref-modal-record-btn" id="refModalRecordBtn" disabled>録画開始（3秒）</button>
+      <button class="ref-modal-cancel-btn" id="refModalCancelBtn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── 単語追加 + お手本録画モーダル ─────────────────────────────── */
+(function () {
+  let newWordId   = null;
+  let awStream    = null;
+  let awRecorder  = null;
+  let awChunks    = [];
+
+  const overlay     = document.getElementById('awModalOverlay');
+  const ind1        = document.getElementById('awInd1');
+  const ind2        = document.getElementById('awInd2');
+  const pane1       = document.getElementById('awPane1');
+  const pane2       = document.getElementById('awPane2');
+  const displayInp  = document.getElementById('awDisplay');
+  const readingInp  = document.getElementById('awReading');
+  const status1     = document.getElementById('awStatus1');
+  const registerBtn = document.getElementById('awRegisterBtn');
+  const closeBtn1   = document.getElementById('awCloseBtn1');
+  const videoEl     = document.getElementById('awVideo');
+  const status2     = document.getElementById('awStatus2');
+  const recordBtn   = document.getElementById('awRecordBtn');
+  const skipBtn     = document.getElementById('awSkipBtn');
+  const pane2Title  = document.getElementById('awPane2Title');
+
+  document.getElementById('btnAddWord').addEventListener('click', function () {
+    displayInp.value = '';
+    readingInp.value = '';
+    setStatus1('', '');
+    registerBtn.disabled = false;
+    pane1.style.display = '';
+    pane2.style.display = 'none';
+    ind1.className = 'aw-step active';
+    ind2.className = 'aw-step';
+    overlay.classList.add('open');
+  });
+
+  function setStatus1(msg, type) {
+    status1.textContent = msg;
+    status1.className = 'aw-status' + (type ? ' ' + type : '');
+  }
+
+  registerBtn.addEventListener('click', async function () {
+    const display = displayInp.value.trim();
+    const reading = readingInp.value.trim();
+    if (!display || !reading) { setStatus1('表示テキストと読みの両方を入力してください。', 'err'); return; }
+    registerBtn.disabled = true;
+    setStatus1(`「${display}」の音声を生成中…`, 'loading');
+    try {
+      const res = await fetch('/admin/add_word', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display, reading }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '登録に失敗しました');
+      newWordId = data.word_id;
+      setStatus1('✓ ' + (data.message || '登録しました'), 'ok');
+      // Step2 へ遷移
+      setTimeout(goToStep2, 600);
+    } catch (err) {
+      setStatus1('エラー: ' + err.message, 'err');
+      registerBtn.disabled = false;
+    }
+  });
+
+  function goToStep2() {
+    ind1.className = 'aw-step done';
+    ind2.className = 'aw-step active';
+    pane1.style.display = 'none';
+    pane2.style.display = '';
+    pane2Title.textContent = `「${displayInp.value.trim()}」のお手本を録画`;
+    status2.textContent = 'カメラを起動しています…';
+    recordBtn.disabled = true;
+    startAwCamera();
+  }
+
+  async function startAwCamera() {
+    try {
+      awStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      videoEl.srcObject = awStream;
+      status2.textContent = '準備完了。「録画開始」を押してください。';
+      recordBtn.disabled = false;
+    } catch (err) {
+      status2.textContent = 'カメラの起動に失敗しました。スキップして閉じてください。';
+    }
+  }
+
+  function stopAwCamera() {
+    if (awStream) { awStream.getTracks().forEach(t => t.stop()); awStream = null; }
+    videoEl.srcObject = null;
+  }
+
+  function closeAwModal(reload) {
+    overlay.classList.remove('open');
+    stopAwCamera();
+    if (awRecorder && awRecorder.state === 'recording') awRecorder.stop();
+    awRecorder = null;
+    awChunks = [];
+    newWordId = null;
+    if (reload) location.reload();
+  }
+
+  recordBtn.addEventListener('click', function () {
+    if (!awStream || awRecorder) return;
+    awChunks = [];
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+    awRecorder = new MediaRecorder(awStream, { mimeType });
+    awRecorder.addEventListener('dataavailable', function (e) {
+      if (e.data && e.data.size > 0) awChunks.push(e.data);
+    });
+    awRecorder.addEventListener('stop', function () {
+      const blob = new Blob(awChunks, { type: 'video/webm' });
+      uploadAwRef(blob);
+    });
+    awRecorder.start();
+    recordBtn.disabled = true;
+    skipBtn.disabled = true;
+    let remaining = 3;
+    status2.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
+    const timer = setInterval(function () {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        if (awRecorder && awRecorder.state === 'recording') awRecorder.stop();
+      } else {
+        status2.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
+      }
+    }, 1000);
+  });
+
+  async function uploadAwRef(blob) {
+    status2.textContent = 'アップロード中…';
+    const fd = new FormData();
+    fd.append('word_id', newWordId);
+    fd.append('file', blob, 'ref.webm');
+    try {
+      const res = await fetch('/api/lip_refs/overwrite', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '保存に失敗しました');
+      status2.textContent = '✓ お手本を保存しました！';
+      setTimeout(function () { closeAwModal(true); }, 1000);
+    } catch (err) {
+      status2.textContent = 'エラー: ' + err.message;
+      skipBtn.disabled = false;
+      awRecorder = null;
+    }
+  }
+
+  skipBtn.addEventListener('click', function () { closeAwModal(true); });
+  closeBtn1.addEventListener('click', function () { closeAwModal(false); });
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeAwModal(false); });
+})();
+
+/* ── 既存単語のお手本登録モーダル ──────────────────────────────── */
+(function () {
+  let activeWordId = null;
+  let stream = null;
+  let recorder = null;
+  let chunks = [];
+
+  const overlay   = document.getElementById('refModalOverlay');
+  const videoEl   = document.getElementById('refModalVideo');
+  const statusEl  = document.getElementById('refModalStatus');
+  const titleEl   = document.getElementById('refModalTitle');
+  const recordBtn = document.getElementById('refModalRecordBtn');
+  const cancelBtn = document.getElementById('refModalCancelBtn');
+
+  // 単語カードのお手本ボタンにイベントを委譲
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.word-ref-btn');
+    if (!btn) return;
+    activeWordId = btn.dataset.wordId;
+    const display = btn.dataset.wordDisplay;
+    titleEl.textContent = `「${display}」のお手本を登録`;
+    statusEl.textContent = 'カメラを起動しています…';
+    recordBtn.disabled = true;
+    cancelBtn.disabled = false;
+    overlay.classList.add('open');
+    startCamera();
+  });
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      videoEl.srcObject = stream;
+      statusEl.textContent = '準備完了。「録画開始」を押してください。';
+      recordBtn.disabled = false;
+    } catch (err) {
+      statusEl.textContent = 'カメラの起動に失敗しました。ブラウザの権限を確認してください。';
+    }
+  }
+
+  function stopCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    videoEl.srcObject = null;
+  }
+
+  function closeModal() {
+    overlay.classList.remove('open');
+    stopCamera();
+    if (recorder && recorder.state === 'recording') recorder.stop();
+    recorder = null;
+    chunks = [];
+    activeWordId = null;
+    recordBtn.disabled = true;
+    statusEl.textContent = '';
+  }
+
+  recordBtn.addEventListener('click', function () {
+    if (!stream || recorder) return;
+    chunks = [];
+
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+      ? 'video/webm;codecs=vp8' : 'video/webm';
+    recorder = new MediaRecorder(stream, { mimeType });
+    recorder.addEventListener('dataavailable', function (e) {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    });
+    recorder.addEventListener('stop', function () {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      uploadRef(blob);
+    });
+
+    recorder.start();
+    recordBtn.disabled = true;
+    cancelBtn.disabled = true;
+
+    let remaining = 3;
+    statusEl.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
+    const timer = setInterval(function () {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        if (recorder && recorder.state === 'recording') recorder.stop();
+      } else {
+        statusEl.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
+      }
+    }, 1000);
+  });
+
+  async function uploadRef(blob) {
+    statusEl.textContent = 'アップロード中…';
+    const fd = new FormData();
+    fd.append('word_id', activeWordId);
+    fd.append('file', blob, 'ref.webm');
+    try {
+      const res = await fetch('/api/lip_refs/overwrite', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '保存に失敗しました');
+      statusEl.textContent = '✓ お手本を保存しました！';
+      // ボタンの表示を「登録済み」に更新
+      const cardBtn = document.querySelector(`.word-ref-btn[data-word-id="${activeWordId}"]`);
+      if (cardBtn) {
+        cardBtn.classList.add('has-ref');
+        cardBtn.title = '口のお手本登録済み（クリックで再登録）';
+        cardBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 6l3 3L9.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      }
+      setTimeout(closeModal, 1200);
+    } catch (err) {
+      statusEl.textContent = 'エラー: ' + err.message;
+      cancelBtn.disabled = false;
+      recorder = null;
+    }
+  }
+
+  cancelBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) closeModal();
+  });
+})();
 </script>
 </body>
 </html>

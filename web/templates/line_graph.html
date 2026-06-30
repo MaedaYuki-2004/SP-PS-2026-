@@ -197,6 +197,23 @@
     .suggestion-btn:active { transform:scale(.97); }
 
     @media (max-width:720px) { .score-layout{grid-template-columns:1fr;} .feedback-grid{grid-template-columns:1fr;} .suggestions-grid{grid-template-columns:1fr;} .compare-grid{grid-template-columns:repeat(2,1fr);} .compare-player-grid{grid-template-columns:1fr;} .section-panel{padding:16px 20px;} .tab-bar{padding:0 20px;} }
+
+    /* ── モーラ別唇開き分析 ── */
+    .lip-mora-list { display:flex; flex-direction:column; gap:12px; }
+    .lip-mora-row  { display:grid; grid-template-columns:52px 1fr auto; gap:10px; align-items:center; }
+    .lip-mora-label { font-family:var(--mono); font-size:15px; font-weight:700; color:var(--navy); }
+    .lip-bar-wrap  { display:flex; flex-direction:column; gap:4px; }
+    .lip-bar-track { position:relative; height:14px; background:var(--bg-muted); border-radius:100px; }
+    .lip-bar-expected { position:absolute; top:0; left:0; height:100%; background:rgba(14,30,69,.18); border-radius:100px; }
+    .lip-bar-actual   { position:absolute; top:0; left:0; height:100%; border-radius:100px; opacity:.85; }
+    .lip-bar-actual.good { background:#2D6A4F; }
+    .lip-bar-actual.low  { background:#F97316; }
+    .lip-bar-actual.high { background:#C03D20; }
+    .lip-bar-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--text-3); }
+    .lip-feedback-badge { font-size:10px; font-weight:700; white-space:nowrap; padding:3px 10px; border-radius:100px; }
+    .lip-feedback-badge.good { background:var(--green-bg); color:var(--green); }
+    .lip-feedback-badge.low  { background:#FEF3C7; color:#B45309; }
+    .lip-feedback-badge.high { background:var(--accent-bg); color:var(--accent); }
   </style>
 </head>
 <body>
@@ -602,8 +619,51 @@
 
 <!-- ── Lips compare ── -->
 <div id="sec-lips" class="section-panel">
-  <p class="panel-heading">唇比較</p><p class="panel-sub">録音画面で撮影した唇動画の形状を比較した結果です。</p>
+  <p class="panel-heading">唇比較</p><p class="panel-sub">Julius アライメントと映像フレームを照合し、モーラごとの口の開き具合を評価します。</p>
+
+  {% if lip_mora_analysis %}
+  <!-- モーラ別口の開き具合 -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-card-header"><span class="chart-label">モーラ別 口の開き具合</span></div>
+    <p style="font-size:11px;color:var(--text-3);margin:0 0 14px;line-height:1.7;">
+      <strong>灰色バー</strong>＝日本語音声学に基づく期待値　<strong>色付きバー</strong>＝あなたの実測値<br>
+      実測値はセッション内の最大開口量を基準（100%）として正規化しています。
+    </p>
+    <div class="lip-mora-list">
+      {% for m in lip_mora_analysis %}
+      {% if m.expected is not none %}
+      <div class="lip-mora-row">
+        <div class="lip-mora-label">{{ m.label }}</div>
+        <div class="lip-bar-wrap">
+          <div class="lip-bar-track">
+            <div class="lip-bar-expected" data-pct="{{ (m.expected * 100)|round }}"></div>
+            {% if m.actual is not none %}
+            <div class="lip-bar-actual {{ m.status or '' }}" data-pct="{{ (m.actual * 100)|round }}"></div>
+            {% endif %}
+          </div>
+          <div class="lip-bar-labels">
+            <span>目安 {{ (m.expected * 100)|round }}%</span>
+            {% if m.actual is not none %}<span>実測 {{ (m.actual * 100)|round }}%</span>{% endif %}
+          </div>
+        </div>
+        {% if m.feedback %}
+        <div class="lip-feedback-badge {{ m.status or '' }}">{{ m.feedback }}</div>
+        {% else %}<div></div>{% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <script>
+      document.querySelectorAll('#sec-lips [data-pct]').forEach(function(el) {
+        el.style.width = el.getAttribute('data-pct') + '%';
+      });
+    </script>
+  </div>
+  {% endif %}
+
+  <!-- DTW 全体比較（お手本動画がある場合のみ） -->
   <div class="chart-card">
+    <div class="chart-card-header"><span class="chart-label">唇の動き全体比較（DTW）</span></div>
     {% if lip_compare %}
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
       <div>
@@ -611,15 +671,15 @@
         <div class="score-item-value" style="font-size:44px;">{{ lip_compare.score }} / 100</div>
       </div>
       <div style="text-align:right;">
-        <div class="feedback-label">距離</div>
+        <div class="feedback-label">DTW 距離</div>
         <div class="feedback-text">{{ lip_compare.distance|round(2) }}</div>
       </div>
     </div>
     <div class="chart-wrap"><canvas id="LipCompareChart"></canvas></div>
     {% else %}
     <div class="feedback-card full">
-      <div class="feedback-label">唇比較データがありません</div>
-      <div class="feedback-text">録音画面で「お手本」「テスト」両方の唇動画を撮影すると、ここに比較結果が表示されます。</div>
+      <div class="feedback-label">DTW 比較データがありません</div>
+      <div class="feedback-text">録音画面で「お手本」と「テスト」両方の唇動画を撮影すると、動き全体の比較が表示されます。</div>
     </div>
     {% endif %}
   </div>
