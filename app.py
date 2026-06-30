@@ -9,9 +9,23 @@ from __future__ import annotations
 
 import csv
 import io
+import math
+import os
 import re
+import tempfile
 import traceback
 from pathlib import Path
+
+try:
+    import cv2
+    import mediapipe as mp
+    import numpy as np
+    from fastdtw import fastdtw
+    from scipy.spatial.distance import euclidean
+    MEDIA_PIPE_AVAILABLE = True
+except ImportError:
+    cv2 = mp = np = fastdtw = euclidean = None
+    MEDIA_PIPE_AVAILABLE = False
 
 from flask import Flask, Response, jsonify, render_template, request, send_file, session
 
@@ -62,6 +76,247 @@ def _enrich_quests(quests, word_map: dict) -> list[dict]:
         d["word_display"] = word_map.get(d.get("word_id", ""), {}).get("display", d.get("word_id", ""))
         result.append(d)
     return result
+
+_face_mesh = None
+
+
+def _get_face_mesh():
+    global _face_mesh
+    if not MEDIA_PIPE_AVAILABLE:
+        raise RuntimeError("MediaPipe と OpenCV がインストールされていません。")
+    if _face_mesh is None:
+        _face_mesh = mp.solutions.face_mesh.FaceMesh(
+            max_num_faces=1,
+            refine_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
+    return _face_mesh
+
+
+def calc_distance(p1, p2, w, h):
+    x1, y1 = int(p1.x * w), int(p1.y * h)
+    x2, y2 = int(p2.x * w), int(p2.y * h)
+    return math.hypot(x2 - x1, y2 - y1)
+
+
+# MediaPipe で唇の形状を特徴量ベクトル化
+
+def get_lip_shape_vector(landmarks, w, h):
+    face_scale = calc_distance(landmarks.landmark[33], landmarks.landmark[263], w, h)
+    if face_scale == 0:
+        face_scale = 1.0
+
+    top_inner = landmarks.landmark[13]
+    bottom_inner = landmarks.landmark[14]
+    center_x = (top_inner.x + bottom_inner.x) / 2 * w
+    center_y = (top_inner.y + bottom_inner.y) / 2 * h
+
+    shape_vector = []
+    LIP_POINTS = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 185, 40, 39, 37, 0, 267, 269, 270, 409]
+    for idx in LIP_POINTS:
+        pt = landmarks.landmark[idx]
+        px, py = pt.x * w, pt.y * h
+        dist_to_center = math.hypot(px - center_x, py - center_y)
+        shape_vector.append(dist_to_center / face_scale)
+
+    return np.array(shape_vector)
+
+
+def _extract_lip_data(video_path: str, max_frames: int = 50) -> tuple[list[list[float]], list[float]]:
+    face_mesh = _get_face_mesh()
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError(f"動画を開けませんでした: {video_path}")
+
+    vectors = []
+    ratios = []
+    frame_index = 0
+
+    while len(vectors) < max_frames:
+        success, frame = cap.read()
+        if not success:
+            break
+        frame_index += 1
+        image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = face_mesh.process(image_rgb)
+        if not results.multi_face_landmarks:
+            continue
+
+        face_landmarks = results.multi_face_landmarks[0]
+        h, w, _ = frame.shape
+        vectors.append(get_lip_shape_vector(face_landmarks, w, h).tolist())
+
+        top_lip = face_landmarks.landmark[13]
+        bottom_lip = face_landmarks.landmark[14]
+        left_lip = face_landmarks.landmark[61]
+        right_lip = face_landmarks.landmark[291]
+        v_dist = calc_distance(top_lip, bottom_lip, w, h)
+        h_dist = calc_distance(left_lip, right_lip, w, h)
+        ratios.append(v_dist / (h_dist + 1e-6))
+
+        if frame_index > max_frames * 10:
+            break
+
+    cap.release()
+    if not vectors:
+        raise ValueError("顔ランドマークが検出できませんでした。録画をやり直してください。")
+    return vectors, ratios
+
+
+def _compute_lip_score(reference_vectors, test_vectors):
+    if not reference_vectors or not test_vectors:
+        raise ValueError("お手本とテストの両方が必要です。")
+    distance, _ = fastdtw(reference_vectors, test_vectors, dist=euclidean)
+    score = int(100 - distance * 2)
+    return max(0, min(100, score)), distance
+
+
+# ── モーラ別 口の開き具合の分析 ──────────────────────────────────────────
+
+# 日本語音声学における母音別の口の開き目安（あ=最大開口, い/う=最小）
+_VOWEL_OPENNESS = {'a': 1.0, 'e': 0.55, 'o': 0.45, 'i': 0.15, 'u': 0.10}
+_LIP_SAMPLE_RATIOS = [0.30, 0.50, 0.70]  # モーラ内で測定する時刻の割合
+
+
+def _mora_expected_openness(label):
+    """モーララベルから期待される口の開き具合(0–1)を返す。母音なしは None。"""
+    for ch in label.lower():
+        if ch in _VOWEL_OPENNESS:
+            return _VOWEL_OPENNESS[ch]
+    return None
+
+
+def _extract_mora_lip_openness(video_path, mora_list_sec):
+    """
+    Julius アライメント結果のモーラ時刻を使って映像から口の開き量を取得する。
+    全フレームをメモリに読み込んで fps 変換でインデックスするため、
+    WebM の seek 精度に依存しない。
+    """
+    if not MEDIA_PIPE_AVAILABLE:
+        return []
+    try:
+        face_mesh = _get_face_mesh()
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return []
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if fps <= 0 or fps > 120:
+            fps = 30.0
+
+        frames = []
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            frames.append(frame)
+        cap.release()
+
+        if not frames:
+            return [{"label": str(m[2]), "openness": None} for m in mora_list_sec]
+
+        total = len(frames)
+        results = []
+        for mora_info in mora_list_sec:
+            start_sec = float(mora_info[0])
+            end_sec   = float(mora_info[1])
+            duration  = end_sec - start_sec
+            label     = str(mora_info[2])
+
+            samples = []
+            for ratio in _LIP_SAMPLE_RATIOS:
+                t_sec = start_sec + duration * ratio
+                fidx  = max(0, min(int(t_sec * fps), total - 1))
+                frame = frames[fidx]
+                h, w, _ = frame.shape
+                res = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                if not res.multi_face_landmarks:
+                    continue
+                lm = res.multi_face_landmarks[0].landmark
+                v  = calc_distance(lm[13], lm[14], w, h)
+                hd = calc_distance(lm[61], lm[291], w, h)
+                samples.append(v / (hd + 1e-6))
+
+            results.append({
+                "label":    label,
+                "openness": float(np.mean(samples)) if samples else None,
+            })
+
+        return results
+    except Exception:
+        traceback.print_exc()
+        return []
+
+
+def _build_lip_mora_analysis(mora_list_sec, raw_data):
+    """
+    モーラごとの期待値と実測値を比較してフィードバックを生成する。
+    実測値はセッション内の最大値で正規化（最も開いた瞬間=1.0）。
+    """
+    valid = [m["openness"] for m in raw_data if m["openness"] is not None]
+    max_v = max(valid) if valid else 1.0
+
+    result = []
+    n = min(len(mora_list_sec), len(raw_data))
+    for i in range(n):
+        label    = str(mora_list_sec[i][2])
+        raw_open = raw_data[i]["openness"]
+        expected = _mora_expected_openness(label)
+        actual   = round(raw_open / max_v, 3) if raw_open is not None and max_v > 0 else None
+
+        if expected is not None and actual is not None:
+            diff = round(actual - expected, 3)
+            if abs(diff) < 0.15:
+                status, feedback = "good", "良好"
+            elif diff < 0:
+                status, feedback = "low",  "開きが足りない"
+            else:
+                status, feedback = "high", "開きすぎ"
+        else:
+            diff = status = feedback = None
+
+        result.append({
+            "label":    label,
+            "expected": expected,
+            "actual":   actual,
+            "diff":     diff,
+            "status":   status,
+            "feedback": feedback,
+        })
+    return result
+
+
+def _save_temp_video(uploaded_file):
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.webm')
+    uploaded_file.save(tmp.name)
+    tmp.close()
+    return tmp.name
+
+
+def _lip_refs_path() -> Path:
+    return DATA_DIR / "config" / "lip_refs.json"
+
+
+def load_lip_refs() -> dict:
+    p = _lip_refs_path()
+    try:
+        if p.exists():
+            import json
+            return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {}
+
+
+def save_lip_refs(d: dict) -> None:
+    p = _lip_refs_path()
+    try:
+        import json
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        traceback.print_exc()
 
 
 def _score_delta(current, prev) -> str | None:
@@ -142,8 +397,10 @@ def select():
         w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
         for w in words
     }
+    lip_ref_keys = set(load_lip_refs().keys())
     return render_template("select.html", words=words, active_quests=quests,
-                           stats=stats, accent_patterns=accent_patterns)
+                           stats=stats, accent_patterns=accent_patterns,
+                           lip_ref_keys=lip_ref_keys)
 
 
 @app.route("/select")
@@ -156,8 +413,10 @@ def select_page():
         w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
         for w in words
     }
+    lip_ref_keys = set(load_lip_refs().keys())
     return render_template("select.html", words=words, active_quests=quests,
-                           stats=stats, accent_patterns=accent_patterns)
+                           stats=stats, accent_patterns=accent_patterns,
+                           lip_ref_keys=lip_ref_keys)
 
 
 @app.route("/history")
@@ -240,6 +499,42 @@ def analysis_page():
     words_db   = json.loads(words_db_path.read_text(encoding="utf-8")) if words_db_path.exists() else {}
     stats      = compute_learning_stats(history, words_db)
     return render_template("analysis.html", stats=stats)
+
+@app.route("/lip_compare")
+def lip_compare_page():
+    return render_template("lip_compare.html")
+
+@app.route("/lip_compare", methods=["POST"])
+def lip_compare_process():
+    try:
+        ref_video = request.files.get('ref_video')
+        test_video = request.files.get('test_video')
+        if not ref_video or not test_video:
+            return jsonify({"error": "お手本動画とテスト動画の両方をアップロードしてください。"}), 400
+
+        ref_path = _save_temp_video(ref_video)
+        test_path = _save_temp_video(test_video)
+        try:
+            reference_vectors, reference_ratios = _extract_lip_data(ref_path)
+            test_vectors, test_ratios = _extract_lip_data(test_path)
+            score, distance = _compute_lip_score(reference_vectors, test_vectors)
+            return jsonify({
+                "score": score,
+                "distance": distance,
+                "ref_ratios": reference_ratios,
+                "test_ratios": test_ratios,
+            })
+        finally:
+            for path in (ref_path, test_path):
+                try:
+                    if os.path.exists(path):
+                        os.remove(path)
+                except OSError:
+                    pass
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
 def export_history_csv():
     history = load_history()
     output  = io.StringIO()
@@ -293,12 +588,122 @@ def record_audio():
         return f"エラー: {exc}", 500
 
 
+@app.route("/upload_lip_video", methods=["POST"])
+def upload_lip_video():
+    try:
+        mode = request.form.get("mode", "").strip()
+        if mode not in ("ref", "test"):
+            return jsonify({"error": "mode は ref または test を指定してください。"}), 400
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "動画ファイルが送信されていません。"}), 400
+
+        lip_video_paths = session.get("lip_video_paths", {})
+        old_path = lip_video_paths.get(mode)
+        if old_path and os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+        new_path = _save_temp_video(file)
+        lip_video_paths[mode] = new_path
+        session["lip_video_paths"] = lip_video_paths
+        session.modified = True
+        # 参照（ref）をアップロードした場合は抽出データを永続化しておく
+        if mode == 'ref' and MEDIA_PIPE_AVAILABLE:
+            try:
+                reference_vectors, reference_ratios = _extract_lip_data(new_path)
+                # ワードIDが設定されていれば保存
+                try:
+                    current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
+                except Exception:
+                    current_word_id = None
+                if current_word_id:
+                    refs = load_lip_refs()
+                    refs[current_word_id] = {"vectors": reference_vectors, "ratios": reference_ratios}
+                    save_lip_refs(refs)
+            except Exception:
+                # 保存失敗は致命的でないのでログ出力のみ
+                traceback.print_exc()
+        return jsonify({"message": "ok"})
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/recorded_audio")
 def recorded_audio():
     """直前の録音（test.wav）を返す。結果ページの比較再生ボタンで使用。"""
     if TEST_WAV_PATH.exists():
         return send_file(str(TEST_WAV_PATH), mimetype="audio/wav")
     return "録音データが見つかりません", 404
+
+
+# --- Lip refs admin APIs -------------------------------------------------
+@app.route('/api/lip_refs')
+def api_lip_refs_list():
+    try:
+        refs = load_lip_refs()
+        # 戻り値はキー一覧のみ
+        return jsonify({"keys": list(refs.keys())})
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/api/lip_refs/<word_id>/ratios')
+def api_lip_refs_ratios(word_id: str):
+    try:
+        refs = load_lip_refs()
+        entry = refs.get(word_id)
+        if not entry:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({"ratios": entry.get('ratios', [])})
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/api/lip_refs/delete', methods=['POST'])
+def api_lip_refs_delete():
+    try:
+        data = request.get_json() or {}
+        word_id = (data.get('word_id') or '').strip()
+        if not word_id:
+            return jsonify({"error": "word_id required"}), 400
+        refs = load_lip_refs()
+        if word_id in refs:
+            refs.pop(word_id, None)
+            save_lip_refs(refs)
+            return jsonify({"message": "deleted"})
+        return jsonify({"error": "not found"}), 404
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/api/lip_refs/overwrite', methods=['POST'])
+def api_lip_refs_overwrite():
+    try:
+        word_id = (request.form.get('word_id') or '').strip()
+        file = request.files.get('file')
+        if not word_id:
+            return jsonify({"error": "word_id required"}), 400
+        if not file:
+            return jsonify({"error": "file required"}), 400
+        # 一時保存して抽出
+        tmp = _save_temp_video(file)
+        try:
+            vectors, ratios = _extract_lip_data(tmp)
+            refs = load_lip_refs()
+            refs[word_id] = {"vectors": vectors, "ratios": ratios}
+            save_lip_refs(refs)
+            return jsonify({"message": "saved"})
+        finally:
+            try:
+                if os.path.exists(tmp): os.remove(tmp)
+            except Exception:
+                pass
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/graph", methods=["GET", "POST"])
@@ -309,6 +714,35 @@ def audio_analysis():
         word_id   = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
         num_match = re.search(r"\d+", word_id)
         num       = int(num_match.group())
+
+        lip_compare = None
+        lip_ref_ratios = []
+        lip_test_ratios = []
+        lip_paths = session.get("lip_video_paths", {})
+        ref_video = lip_paths.get("ref")
+        test_video = lip_paths.get("test")
+        reference_vectors = None
+        # 優先順序: セッションにある ref 動画 -> 保存済み参照データ
+        if MEDIA_PIPE_AVAILABLE:
+            try:
+                if ref_video and os.path.exists(ref_video):
+                    reference_vectors, lip_ref_ratios = _extract_lip_data(ref_video)
+                else:
+                    # 保存済み参照をロード
+                    refs = load_lip_refs()
+                    saved = refs.get(word_id)
+                    if saved:
+                        reference_vectors = saved.get("vectors")
+                        lip_ref_ratios = saved.get("ratios", [])
+
+                if test_video and os.path.exists(test_video):
+                    test_vectors, lip_test_ratios = _extract_lip_data(test_video)
+
+                if reference_vectors and 'test_vectors' in locals():
+                    lip_score, lip_distance = _compute_lip_score(reference_vectors, test_vectors)
+                    lip_compare = {"score": lip_score, "distance": lip_distance}
+            except Exception:
+                lip_compare = None
 
         audio_sample     = read_sample(word_id)
         audio_learn      = str(TEST_WAV_PATH)
@@ -371,6 +805,15 @@ def audio_analysis():
         display    = word_entry.get("display", word_id) if word_entry else word_id
         reading    = word_entry.get("reading", word_id) if word_entry else word_id
 
+        # ── モーラ別唇開き分析（Julius タイムスタンプ + 映像フレーム） ──
+        lip_mora_analysis = []
+        if MEDIA_PIPE_AVAILABLE and test_video and os.path.exists(test_video):
+            try:
+                _raw_lip = _extract_mora_lip_openness(test_video, mora_list2)
+                lip_mora_analysis = _build_lip_mora_analysis(mora_list2, _raw_lip)
+            except Exception:
+                traceback.print_exc()
+
         common_kwargs = dict(
             original_filename=display, word_id=word_id,
             Native_pitch=pitch_native.tolist(), Native_time=time1,
@@ -387,6 +830,7 @@ def audio_analysis():
             User_mora_length=pct_length(mora_length2),
             words=word_list, sort_distance=dtw_list, bar_color=colors,
             prev_score=prev_score,
+            lip_mora_analysis=lip_mora_analysis,
         )
 
         words_list = list_words()
@@ -400,7 +844,8 @@ def audio_analysis():
                                    speaking_rate=0.0, rate_feedback=None,
                                    newly_completed=[], active_quests=_enrich_quests(load_active_quests(), word_map),
                                    score_delta=None, suggestions=[],
-                                   mora_scores=[], worst_mora=None, ci_info=None)
+                                   mora_scores=[], worst_mora=None, ci_info=None,
+                                   lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios)
 
         pitch_fin_score  = smooth(comp(pitch1_sil_semi), window=3)
         pitch_fin2_score = smooth(comp(pitch3_semi),     window=3)
@@ -515,7 +960,8 @@ def audio_analysis():
                                newly_completed=newly_completed, active_quests=active_quests,
                                score_delta=score_delta, suggestions=suggestions,
                                mora_scores=mora_scores, worst_mora=worst_mora,
-                               ci_info=ci_info)
+                               ci_info=ci_info,
+                               lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios)
 
     except Exception as exc:
         traceback.print_exc()

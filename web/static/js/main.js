@@ -20,19 +20,28 @@ const MIN_SPEECH_MS      = 500;    // ms：この時間以上発話してから�
 
 async function main() {
   try {
-    const canvas     = document.querySelector('#visualizer');
-    const canvasCtx  = canvas.getContext('2d');
-    const btnStart   = document.querySelector('#buttonStart');
-    const btnStop    = document.querySelector('#buttonStop');
-    const btnGraph   = document.querySelector('#buttongraph');
-    const audio      = document.querySelector('#audio');
-    const volumeBar  = document.querySelector('#volumeBar');       // B
-    const volumeFill = document.querySelector('#volumeFill');      // B
-    const autoStop   = document.querySelector('#autoStopCountdown'); // C
+    const canvas      = document.querySelector('#visualizer');
+    const canvasCtx   = canvas.getContext('2d');
+    const btnStart    = document.querySelector('#buttonStart');
+    const btnStop     = document.querySelector('#buttonStop');
+    const btnGraph    = document.querySelector('#buttongraph');
+    const audio       = document.querySelector('#audio');
+    const lipPreview  = document.querySelector('#lipPreview');
+    const btnLipRef   = document.querySelector('#buttonLipRef');
+    const btnLipTest  = document.querySelector('#buttonLipTest');
+    const lipStatus   = document.querySelector('#lipStatus');
+    const volumeBar   = document.querySelector('#volumeBar');       // B
+    const volumeFill  = document.querySelector('#volumeFill');      // B
+    const autoStop    = document.querySelector('#autoStopCountdown'); // C
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video:false, audio:true });
+    const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
     const [track] = stream.getAudioTracks();
     const settings = track.getSettings();
+    const videoStream = new MediaStream(stream.getVideoTracks());
+
+    if (lipPreview) {
+      lipPreview.srcObject = videoStream;
+    }
 
     const audioContext = new AudioContext({ sampleRate:16000 });
     await audioContext.audioWorklet.addModule('/static/js/audio_recorder.js');
@@ -162,6 +171,113 @@ async function main() {
       }, 200);
     }
 
+    let lipRecorder       = null;
+    let lipChunks         = [];
+    let lipMode           = null;
+    let lipRefUploaded    = false;
+    let lipTestUploaded   = false;
+    let hasSavedRef       = false;
+    const currentWordId   = window.CURRENT_WORD_ID || '';
+
+    function updateLipButtons() {
+      if (btnLipTest) {
+        btnLipTest.disabled = !(lipRefUploaded || hasSavedRef) || !!lipRecorder;
+      }
+      if (btnLipRef) {
+        btnLipRef.disabled = !!lipRecorder;
+      }
+    }
+
+    async function checkSavedRef() {
+      if (!currentWordId) return;
+      try {
+        const response = await fetch(`/api/lip_refs/${encodeURIComponent(currentWordId)}/ratios`);
+        if (response.ok) {
+          const result = await response.json();
+          if (Array.isArray(result.ratios) && result.ratios.length > 0) {
+            hasSavedRef = true;
+            setLipStatus('');
+            // お手本登録済みバッジを表示し、録画ボタンを隠す
+            const tag = document.getElementById('lipRefTag');
+            if (tag) tag.classList.add('show');
+            if (btnLipRef) btnLipRef.style.display = 'none';
+          } else {
+            setLipStatus('お手本未登録 — 右の「お手本を録画」で先に3秒間登録してください');
+          }
+        }
+      } catch (err) {
+        console.warn('Saved ref check failed', err);
+      }
+      updateLipButtons();
+    }
+
+    function setLipStatus(message) {
+      if (lipStatus) lipStatus.textContent = message;
+    }
+
+    // durationMs: 指定ありは自動停止あり（お手本用）、null は手動停止（テスト用）
+    function startLipRecording(mode, durationMs = null) {
+      if (!videoStream) return;
+      if (lipRecorder) return;
+      lipMode = mode;
+      lipChunks.length = 0;
+      lipRecorder = new MediaRecorder(videoStream, { mimeType: 'video/webm;codecs=vp8' });
+
+      lipRecorder.addEventListener('dataavailable', event => {
+        if (event.data && event.data.size > 0) {
+          lipChunks.push(event.data);
+        }
+      });
+      lipRecorder.addEventListener('stop', () => {
+        const blob = new Blob(lipChunks, { type: 'video/webm' });
+        sendLipVideo(mode, blob);
+        lipRecorder = null;
+        lipMode = null;
+        updateLipButtons();
+      });
+
+      lipRecorder.start();
+      setLipStatus(mode === 'ref' ? 'お手本動画を録画中…' : 'テスト動画を録画中…');
+      updateLipButtons();
+      if (durationMs) {
+        setTimeout(() => {
+          if (lipRecorder && lipRecorder.state === 'recording') {
+            lipRecorder.stop();
+          }
+        }, durationMs);
+      }
+    }
+
+    async function sendLipVideo(mode, blob) {
+      try {
+        const formData = new FormData();
+        formData.append('mode', mode);
+        formData.append('file', blob, `${mode}.webm`);
+        const response = await fetch('/upload_lip_video', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || '唇動画のアップロードに失敗しました');
+        }
+        if (mode === 'ref') {
+          lipRefUploaded = true;
+          // バッジ表示・録画ボタン非表示
+          const tag = document.getElementById('lipRefTag');
+          if (tag) tag.classList.add('show');
+          if (btnLipRef) btnLipRef.style.display = 'none';
+          setLipStatus('');
+        } else {
+          lipTestUploaded = true;
+          setLipStatus('');
+        }
+      } catch (err) {
+        console.error(err);
+        setLipStatus('唇動画のアップロードに失敗しました。再度お試しください。');
+      }
+    }
+
     // ── ボタンイベント ──────────────────────────────────
     btnStart.addEventListener('click', () => {
       // ③ 録音済みの場合は確認ダイアログを表示
@@ -182,6 +298,13 @@ async function main() {
       silenceStart = null;
       buffers.splice(0, buffers.length);
 
+      // 録音開始と同時に唇のテスト動画を自動録画（保存済みお手本がある場合）
+      try {
+        if ((lipRefUploaded || hasSavedRef) && !lipRecorder) {
+          startLipRecording('test');
+        }
+      } catch (e) { console.warn('auto lip record failed', e); }
+
       const param = audioRecorder.parameters.get('isRecording');
       param.setValueAtTime(1, audioContext.currentTime);
     });
@@ -198,13 +321,29 @@ async function main() {
       const param = audioRecorder.parameters.get('isRecording');
       param.setValueAtTime(0, audioContext.currentTime);
 
+      // 音声停止と同時に唇テスト録画も停止（音素タイムスタンプとの同期を保つため）
+      if (lipRecorder && lipRecorder.state === 'recording') {
+        lipRecorder.stop();
+      }
+
       const blob = encodeAudio(buffers, settings);
       sendAudio(blob);
       audio.src = URL.createObjectURL(blob);
 
-      // 3秒後に解析ボタンを表示
+      // 3秒後に解析ボタンを表示（唇動画アップロード完了を待つ）
       setTimeout(() => { btnGraph.style.display = 'block'; }, 3000);
     });
+
+    if (btnLipRef) {
+      // お手本は手動ボタン操作 → 3秒で自動停止
+      btnLipRef.addEventListener('click', () => startLipRecording('ref', 3000));
+    }
+    if (btnLipTest) {
+      btnLipTest.addEventListener('click', () => startLipRecording('test'));
+    }
+
+    updateLipButtons();
+    checkSavedRef();
 
     drawLoop();
 
