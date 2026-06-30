@@ -217,11 +217,15 @@ async function main() {
 
     // durationMs: 指定ありは自動停止あり（お手本用）、null は手動停止（テスト用）
     function startLipRecording(mode, durationMs = null) {
-      if (!videoStream) return;
+      // ref は Julius アライメント用に音声も必要なので full stream を使う
+      // test は映像のみで十分（音声は別途 AudioWorklet で録音済み）
+      const recordStream = mode === 'ref' ? stream : videoStream;
+      if (!recordStream) return;
       if (lipRecorder) return;
       lipMode = mode;
       lipChunks.length = 0;
-      lipRecorder = new MediaRecorder(videoStream, { mimeType: 'video/webm;codecs=vp8' });
+      const mimeType = mode === 'ref' ? 'video/webm' : 'video/webm;codecs=vp8';
+      lipRecorder = new MediaRecorder(recordStream, { mimeType });
 
       lipRecorder.addEventListener('dataavailable', event => {
         if (event.data && event.data.size > 0) {

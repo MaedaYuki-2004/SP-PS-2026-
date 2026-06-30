@@ -322,6 +322,60 @@ def run_alignment() -> None:
     perl_run()
 
 
+def run_alignment_on_file(
+    wav_path: Path,
+    reading: str,
+    lab_out: Path,
+    log_out: Path,
+) -> None:
+    """
+    任意の WAV ファイルに対して Julius 強制アライメントを実行し、
+    結果を lab_out / log_out に保存する。
+
+    TEST_WAV_PATH などの固定パスに依存せず動作するため、
+    お手本口形録画のアライメントなど、通常の録音フロー以外で
+    アライメントが必要な場合に使用する。
+
+    Julius のみ対応（MFA は words_db / word_id.txt を前提とするため使用しない）。
+    """
+    if not PERL_SCRIPT_PATH.exists():
+        raise FileNotFoundError(f"Perl スクリプトが見つかりません: {PERL_SCRIPT_PATH}")
+    if not ENGINE_DIR.exists():
+        raise FileNotFoundError(f"engine/ ディレクトリが見つかりません: {ENGINE_DIR}")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        shutil.copy(str(wav_path), str(tmp / "test.wav"))
+        (tmp / "test.txt").write_text(reading, encoding="utf-8")
+
+        env = os.environ.copy()
+        env["JULIUS_BIN"] = str(JULIUS_BIN_PATH)
+
+        try:
+            subprocess.run(
+                ["perl", str(PERL_SCRIPT_PATH), str(tmp)],
+                check=True,
+                cwd=str(ENGINE_DIR),
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            stderr_msg = exc.stderr.strip() if exc.stderr else "（詳細なし）"
+            raise RuntimeError(
+                f"Julius アライメントに失敗しました。\nstderr: {stderr_msg}"
+            ) from exc
+
+        tmp_lab = tmp / "test.lab"
+        tmp_log = tmp / "test.log"
+        if not tmp_lab.exists():
+            raise RuntimeError("アライメント後 .lab が生成されませんでした")
+        shutil.copy(str(tmp_lab), str(lab_out))
+        if tmp_log.exists():
+            shutil.copy(str(tmp_log), str(log_out))
+
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Julius 関連（変更なし）
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

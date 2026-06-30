@@ -37,7 +37,7 @@ from config import (
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
 from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word
-from core.alignment import lab_load, log_load, run_alignment, extract_julius_score
+from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
@@ -285,6 +285,117 @@ def _build_lip_mora_analysis(mora_list_sec, raw_data):
             "feedback": feedback,
         })
     return result
+
+
+def _build_lip_mora_comparison(mora_list_sec, raw_user, ref_mora_data):
+    """
+    ユーザーのモーラ別口の開き量を、アライメント済みのお手本データと直接比較する。
+
+    ref_mora_data: [{"label": str, "v_h_ratio": float|None}, ...]
+      upload_lip_video (mode='ref') 時にアライメントで生成されたデータ。
+
+    両者をそれぞれのセッション最大値で正規化してから差分を計算する。
+    お手本に対応するラベルが存在しない場合は従来の期待値テーブルにフォールバック。
+    """
+    # ユーザー最大値で正規化
+    user_vals = [d["openness"] for d in raw_user if d.get("openness") is not None]
+    user_max  = max(user_vals) if user_vals else 1.0
+    if user_max < 1e-6:
+        user_max = 1.0
+
+    # お手本最大値で正規化（同ラベルが複数ある場合は平均をまとめる）
+    ref_vals = [d["v_h_ratio"] for d in ref_mora_data if d.get("v_h_ratio") is not None]
+    ref_max  = max(ref_vals) if ref_vals else 1.0
+    if ref_max < 1e-6:
+        ref_max = 1.0
+
+    # ラベル → 正規化済み参照値（複数モーラ同ラベルは平均）
+    ref_sum:   dict[str, float] = {}
+    ref_count: dict[str, int]   = {}
+    for item in ref_mora_data:
+        label = item["label"]
+        val   = item.get("v_h_ratio")
+        if val is not None:
+            ref_sum[label]   = ref_sum.get(label, 0.0) + val / ref_max
+            ref_count[label] = ref_count.get(label, 0) + 1
+    ref_norm_map = {
+        label: ref_sum[label] / ref_count[label]
+        for label in ref_sum
+    }
+
+    result = []
+    n = min(len(mora_list_sec), len(raw_user))
+    for i in range(n):
+        label    = str(mora_list_sec[i][2])
+        raw_open = raw_user[i].get("openness")
+        actual   = round(raw_open / user_max, 3) if raw_open is not None else None
+
+        # お手本参照値の決定（なければ音声学期待値へフォールバック）
+        expected = ref_norm_map.get(label)
+        if expected is None:
+            expected = _mora_expected_openness(label)
+
+        if expected is not None and actual is not None:
+            diff = round(actual - expected, 3)
+            if abs(diff) < 0.15:
+                status, feedback = "good", "良好"
+            elif diff < 0:
+                status, feedback = "low",  "開きが足りない"
+            else:
+                status, feedback = "high", "開きすぎ"
+        else:
+            diff = status = feedback = None
+
+        result.append({
+            "label":    label,
+            "expected": round(expected, 3) if expected is not None else None,
+            "actual":   actual,
+            "diff":     diff,
+            "status":   status,
+            "feedback": feedback,
+        })
+    return result
+
+
+def _webm_to_wav(webm_path: str) -> str:
+    """
+    WebM 動画ファイルから音声を抽出し、16kHz/モノラル/16bit WAV として返す。
+    pydub（FFmpeg バックエンド）を使用する。
+    戻り値は一時 WAV ファイルのパス。呼び出し元が削除すること。
+    """
+    from pydub import AudioSegment
+    audio = AudioSegment.from_file(webm_path, format="webm")
+    audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    tmp.close()
+    audio.export(tmp.name, format="wav")
+    return tmp.name
+
+
+def _align_lip_ref(wav_path: str, reading: str) -> list:
+    """
+    お手本口形録画から抽出した音声を Julius でアライメントし、
+    mora_list（[[start_sec, end_sec, label], ...]）を返す。
+    アライメント失敗時は空リストを返す。
+    """
+    tmp_lab = Path(tempfile.mktemp(suffix=".lab"))
+    tmp_log = Path(tempfile.mktemp(suffix=".log"))
+    try:
+        run_alignment_on_file(Path(wav_path), reading, tmp_lab, tmp_log)
+        if not tmp_lab.exists():
+            return []
+        (_, mora_list, *_) = lab_load(tmp_lab)
+        return mora_list
+    except Exception:
+        traceback.print_exc()
+        return []
+    finally:
+        for p in [tmp_lab, tmp_log]:
+            try:
+                if p.exists():
+                    p.unlink()
+            except Exception:
+                pass
 
 
 def _save_temp_video(uploaded_file):
@@ -614,17 +725,52 @@ def upload_lip_video():
         if mode == 'ref' and MEDIA_PIPE_AVAILABLE:
             try:
                 reference_vectors, reference_ratios = _extract_lip_data(new_path)
-                # ワードIDが設定されていれば保存
+
                 try:
                     current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
                 except Exception:
                     current_word_id = None
+
+                # ── アライメントによるモーラ別参照データを生成 ────────────
+                mora_data: list[dict] = []
+                if current_word_id:
+                    try:
+                        word_entry = get_word(current_word_id)
+                        reading    = word_entry.get("reading", "") if word_entry else ""
+                        if not reading:
+                            reading = get_reading_for_julius(current_word_id)
+                        if reading:
+                            ref_wav = _webm_to_wav(new_path)
+                            try:
+                                ref_mora_list = _align_lip_ref(ref_wav, reading)
+                                if ref_mora_list:
+                                    raw_ref = _extract_mora_lip_openness(new_path, ref_mora_list)
+                                    mora_data = [
+                                        {"label": item["label"], "v_h_ratio": item["openness"]}
+                                        for item in raw_ref
+                                    ]
+                                    print(f"[lip_ref] アライメント成功: {len(mora_data)} モーラ")
+                            finally:
+                                try:
+                                    os.remove(ref_wav)
+                                except Exception:
+                                    pass
+                    except Exception:
+                        # アライメント失敗は致命的でない
+                        traceback.print_exc()
+
                 if current_word_id:
                     refs = load_lip_refs()
-                    refs[current_word_id] = {"vectors": reference_vectors, "ratios": reference_ratios}
+                    entry: dict = {
+                        "schema_version": 2,
+                        "vectors":        reference_vectors,
+                        "ratios":         reference_ratios,
+                    }
+                    if mora_data:
+                        entry["mora_data"] = mora_data
+                    refs[current_word_id] = entry
                     save_lip_refs(refs)
             except Exception:
-                # 保存失敗は致命的でないのでログ出力のみ
                 traceback.print_exc()
         return jsonify({"message": "ok"})
     except Exception as exc:
@@ -810,7 +956,18 @@ def audio_analysis():
         if MEDIA_PIPE_AVAILABLE and test_video and os.path.exists(test_video):
             try:
                 _raw_lip = _extract_mora_lip_openness(test_video, mora_list2)
-                lip_mora_analysis = _build_lip_mora_analysis(mora_list2, _raw_lip)
+                # schema_version==2 のお手本データがあれば直接比較、なければ期待値テーブル
+                _refs       = load_lip_refs()
+                _ref_entry  = _refs.get(word_id, {})
+                _ref_mora   = (
+                    _ref_entry.get("mora_data")
+                    if _ref_entry.get("schema_version") == 2 and _ref_entry.get("mora_data")
+                    else None
+                )
+                if _ref_mora:
+                    lip_mora_analysis = _build_lip_mora_comparison(mora_list2, _raw_lip, _ref_mora)
+                else:
+                    lip_mora_analysis = _build_lip_mora_analysis(mora_list2, _raw_lip)
             except Exception:
                 traceback.print_exc()
 
