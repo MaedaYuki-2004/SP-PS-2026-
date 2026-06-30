@@ -267,11 +267,16 @@ async function main() {
         }
         if (mode === 'ref') {
           lipRefUploaded = true;
-          // バッジ表示・録画ボタン非表示
           const tag = document.getElementById('lipRefTag');
           if (tag) tag.classList.add('show');
           if (btnLipRef) btnLipRef.style.display = 'none';
-          setLipStatus('');
+          // アライメント成否をユーザーに通知
+          if (data.alignment_ok) {
+            setLipStatus(`お手本登録完了（${data.mora_count}モーラ分析済み）`);
+            setTimeout(() => setLipStatus(''), 3000);
+          } else {
+            setLipStatus('⚠ 音声認識に失敗しました。はっきり発音して録画し直してください。');
+          }
         } else {
           lipTestUploaded = true;
           setLipStatus('');

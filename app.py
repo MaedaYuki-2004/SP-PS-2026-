@@ -249,13 +249,29 @@ def _extract_mora_lip_openness(video_path, mora_list_sec):
         return []
 
 
+def _normalize_p95(vals: list) -> float:
+    """外れ値に頑健な正規化係数を返す（95 パーセンタイル）。"""
+    if not vals:
+        return 1.0
+    p95 = float(np.percentile(vals, 95)) if len(vals) >= 2 else float(vals[0])
+    return p95 if p95 > 1e-6 else 1.0
+
+
+def _lip_diff_status(diff: float) -> tuple[str, str]:
+    if abs(diff) < 0.15:
+        return "good", "良好"
+    if diff < 0:
+        return "low", "開きが足りない"
+    return "high", "開きすぎ"
+
+
 def _build_lip_mora_analysis(mora_list_sec, raw_data):
     """
-    モーラごとの期待値と実測値を比較してフィードバックを生成する。
-    実測値はセッション内の最大値で正規化（最も開いた瞬間=1.0）。
+    モーラごとの期待値（音声学テーブル）と実測値を比較してフィードバックを生成する。
+    実測値は 95 パーセンタイルで正規化（最大値の外れ値に頑健）。
     """
     valid = [m["openness"] for m in raw_data if m["openness"] is not None]
-    max_v = max(valid) if valid else 1.0
+    max_v = _normalize_p95(valid)
 
     result = []
     n = min(len(mora_list_sec), len(raw_data))
@@ -263,16 +279,11 @@ def _build_lip_mora_analysis(mora_list_sec, raw_data):
         label    = str(mora_list_sec[i][2])
         raw_open = raw_data[i]["openness"]
         expected = _mora_expected_openness(label)
-        actual   = round(raw_open / max_v, 3) if raw_open is not None and max_v > 0 else None
+        actual   = round(min(raw_open / max_v, 1.5), 3) if raw_open is not None else None
 
         if expected is not None and actual is not None:
             diff = round(actual - expected, 3)
-            if abs(diff) < 0.15:
-                status, feedback = "good", "良好"
-            elif diff < 0:
-                status, feedback = "low",  "開きが足りない"
-            else:
-                status, feedback = "high", "開きすぎ"
+            status, feedback = _lip_diff_status(diff)
         else:
             diff = status = feedback = None
 
@@ -289,71 +300,77 @@ def _build_lip_mora_analysis(mora_list_sec, raw_data):
 
 def _build_lip_mora_comparison(mora_list_sec, raw_user, ref_mora_data):
     """
-    ユーザーのモーラ別口の開き量を、アライメント済みのお手本データと直接比較する。
+    ユーザーのモーラ別口の開き量を、アライメント済みのお手本データと位置基準で比較する。
 
-    ref_mora_data: [{"label": str, "v_h_ratio": float|None}, ...]
-      upload_lip_video (mode='ref') 時にアライメントで生成されたデータ。
-
-    両者をそれぞれのセッション最大値で正規化してから差分を計算する。
-    お手本に対応するラベルが存在しない場合は従来の期待値テーブルにフォールバック。
+    【修正点】
+    - 比較はインデックス基準（mora[i] ↔ ref[i]）で行う。
+      ラベル基準の平均化を廃止し、位置が対応するモーラ同士を直接比較する。
+    - 正規化は 95 パーセンタイルを使用（最大値の外れ値に頑健）。
+    - n = min(mora_list_sec, raw_user, ref_mora_data) で3者の長さを揃える。
+      ref_mora_data のモーラ数を超える分は期待値テーブルにフォールバック。
     """
-    # ユーザー最大値で正規化
-    user_vals = [d["openness"] for d in raw_user if d.get("openness") is not None]
-    user_max  = max(user_vals) if user_vals else 1.0
-    if user_max < 1e-6:
-        user_max = 1.0
+    # 95パーセンタイル正規化（外れ値に頑健）
+    user_vals = [d["openness"]   for d in raw_user     if d.get("openness")   is not None]
+    ref_vals  = [d["v_h_ratio"]  for d in ref_mora_data if d.get("v_h_ratio") is not None]
+    user_max  = _normalize_p95(user_vals)
+    ref_max   = _normalize_p95(ref_vals)
 
-    # お手本最大値で正規化（同ラベルが複数ある場合は平均をまとめる）
-    ref_vals = [d["v_h_ratio"] for d in ref_mora_data if d.get("v_h_ratio") is not None]
-    ref_max  = max(ref_vals) if ref_vals else 1.0
-    if ref_max < 1e-6:
-        ref_max = 1.0
-
-    # ラベル → 正規化済み参照値（複数モーラ同ラベルは平均）
-    ref_sum:   dict[str, float] = {}
-    ref_count: dict[str, int]   = {}
-    for item in ref_mora_data:
-        label = item["label"]
-        val   = item.get("v_h_ratio")
-        if val is not None:
-            ref_sum[label]   = ref_sum.get(label, 0.0) + val / ref_max
-            ref_count[label] = ref_count.get(label, 0) + 1
-    ref_norm_map = {
-        label: ref_sum[label] / ref_count[label]
-        for label in ref_sum
-    }
+    # 3者の最小モーラ数で位置基準比較する範囲を決定
+    n_ref    = min(len(mora_list_sec), len(raw_user), len(ref_mora_data))
+    n_total  = min(len(mora_list_sec), len(raw_user))
 
     result = []
-    n = min(len(mora_list_sec), len(raw_user))
-    for i in range(n):
+
+    # ── 位置 i が ref_mora_data 内 → お手本と直接比較 ────────────────
+    for i in range(n_ref):
         label    = str(mora_list_sec[i][2])
         raw_open = raw_user[i].get("openness")
-        actual   = round(raw_open / user_max, 3) if raw_open is not None else None
+        actual   = round(min(raw_open / user_max, 1.5), 3) if raw_open is not None else None
 
-        # お手本参照値の決定（なければ音声学期待値へフォールバック）
-        expected = ref_norm_map.get(label)
+        ref_val  = ref_mora_data[i].get("v_h_ratio")
+        expected = round(min(ref_val / ref_max, 1.5), 3) if ref_val is not None else None
+
+        # 参照値が None のモーラは音声学期待値にフォールバック
         if expected is None:
             expected = _mora_expected_openness(label)
 
         if expected is not None and actual is not None:
             diff = round(actual - expected, 3)
-            if abs(diff) < 0.15:
-                status, feedback = "good", "良好"
-            elif diff < 0:
-                status, feedback = "low",  "開きが足りない"
-            else:
-                status, feedback = "high", "開きすぎ"
+            status, feedback = _lip_diff_status(diff)
         else:
             diff = status = feedback = None
 
         result.append({
             "label":    label,
-            "expected": round(expected, 3) if expected is not None else None,
+            "expected": expected,
             "actual":   actual,
             "diff":     diff,
             "status":   status,
             "feedback": feedback,
         })
+
+    # ── 位置 i が ref_mora_data 範囲外 → 期待値テーブルにフォールバック ──
+    for i in range(n_ref, n_total):
+        label    = str(mora_list_sec[i][2])
+        raw_open = raw_user[i].get("openness")
+        actual   = round(min(raw_open / user_max, 1.5), 3) if raw_open is not None else None
+        expected = _mora_expected_openness(label)
+
+        if expected is not None and actual is not None:
+            diff = round(actual - expected, 3)
+            status, feedback = _lip_diff_status(diff)
+        else:
+            diff = status = feedback = None
+
+        result.append({
+            "label":    label,
+            "expected": expected,
+            "actual":   actual,
+            "diff":     diff,
+            "status":   status,
+            "feedback": feedback,
+        })
+
     return result
 
 
@@ -772,6 +789,12 @@ def upload_lip_video():
                     save_lip_refs(refs)
             except Exception:
                 traceback.print_exc()
+            # アライメント成否をフロントエンドに返す
+            return jsonify({
+                "message":       "ok",
+                "alignment_ok":  bool(mora_data),
+                "mora_count":    len(mora_data),
+            })
         return jsonify({"message": "ok"})
     except Exception as exc:
         traceback.print_exc()
