@@ -177,6 +177,7 @@ async function main() {
     let lipRefUploaded    = false;
     let lipTestUploaded   = false;
     let hasSavedRef       = false;
+    let lipUploadPromise  = Promise.resolve();
     const currentWordId   = window.CURRENT_WORD_ID || '';
 
     function updateLipButtons() {
@@ -234,7 +235,7 @@ async function main() {
       });
       lipRecorder.addEventListener('stop', () => {
         const blob = new Blob(lipChunks, { type: 'video/webm' });
-        sendLipVideo(mode, blob);
+        lipUploadPromise = sendLipVideo(mode, blob);
         lipRecorder = null;
         lipMode = null;
         updateLipButtons();
@@ -336,11 +337,16 @@ async function main() {
       }
 
       const blob = encodeAudio(buffers, settings);
-      sendAudio(blob);
+      const audioPromise = sendAudio(blob);
       audio.src = URL.createObjectURL(blob);
 
-      // 3秒後に解析ボタンを表示（唇動画アップロード完了を待つ）
-      setTimeout(() => { btnGraph.style.display = 'block'; }, 3000);
+      // 音声・唇動画のアップロードが両方完了したら解析ボタンを表示
+      // 200ms 待つことで lipRecorder の 'stop' イベントが先に発火して
+      // lipUploadPromise が更新されるのを確実にする
+      setTimeout(() => {
+        Promise.all([audioPromise, lipUploadPromise])
+          .finally(() => { btnGraph.style.display = 'block'; });
+      }, 200);
     });
 
     if (btnLipRef) {
@@ -366,7 +372,7 @@ async function main() {
 // ── WAV エンコード ──────────────────────────────────────
 function encodeAudio(buffers, settings) {
   const sampleCount = buffers.reduce((acc, buf) => acc + buf.length, 0);
-  const bytesPerSample = settings.sampleSize / 8;
+  const bytesPerSample = (settings.sampleSize || 16) / 8;
   const dataLength     = sampleCount * bytesPerSample;
   const sampleRate     = 16000;
   const ab  = new ArrayBuffer(44 + dataLength);
@@ -398,7 +404,7 @@ function encodeAudio(buffers, settings) {
 function sendAudio(blob) {
   const fd = new FormData();
   fd.append('file', blob, 'test.wav');
-  fetch('/audio', { method:'POST', body:fd }).catch(console.error);
+  return fetch('/audio', { method:'POST', body:fd }).catch(console.error);
 }
 
 main();

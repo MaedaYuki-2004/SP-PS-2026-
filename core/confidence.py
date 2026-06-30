@@ -80,7 +80,7 @@ def bootstrap_ci(
         return None
 
     # ── ブートストラップ ──────────────────────────────────────────
-    rng              = np.random.default_rng(seed=42)   # 再現性のため固定シード
+    rng              = np.random.default_rng()
     bootstrap_means  = np.array([
         np.mean(rng.choice(arr, size=n, replace=True))
         for _ in range(n_bootstrap)

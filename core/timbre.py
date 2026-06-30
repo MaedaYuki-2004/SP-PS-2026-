@@ -108,13 +108,20 @@ def create_dtw_list_dynamic(
 
     for entry in words:
         try:
-            mfcc2 = np.fromfile(
-                str(entry["bin_path"]), dtype=np.float32
-            ).reshape(-1, MFCC_TOTAL_DIMS)
+            raw = np.fromfile(str(entry["bin_path"]), dtype=np.float32)
+            if raw.size == 0 or raw.size % MFCC_TOTAL_DIMS != 0:
+                print(
+                    f"[timbre] {entry['bin_path'].name}: "
+                    f"次元不一致（{raw.size} 要素, {MFCC_TOTAL_DIMS} 次元期待）"
+                    " — 旧12次元ファイルの可能性。regenerate_mfcc.py を再実行してください。"
+                )
+                dtw_list.append(float("inf"))
+                continue
+            mfcc2 = raw.reshape(-1, MFCC_TOTAL_DIMS)
             distance, _ = fastdtw(mfcc1, mfcc2, dist=euclidean)
             dtw_list.append(float(distance))
-        except Exception:
-            # 次元不一致などで読み込めない場合は最大距離扱い
+        except Exception as e:
+            print(f"[timbre] {entry['bin_path'].name}: 読み込みエラー — {e}")
             dtw_list.append(float("inf"))
 
     return dtw_list

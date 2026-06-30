@@ -451,7 +451,9 @@ def _score_delta(current, prev) -> str | None:
     if current is None or prev is None:
         return None
     diff = round(float(current) - float(prev), 1)
-    return f"+{diff}" if diff >= 0 else str(diff)
+    if diff == 0:
+        return None
+    return f"+{diff}" if diff > 0 else str(diff)
 
 
 _SMALL_KANA = set('ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ')
@@ -862,10 +864,39 @@ def api_lip_refs_overwrite():
         tmp = _save_temp_video(file)
         try:
             vectors, ratios = _extract_lip_data(tmp)
+
+            # モーラ別参照データをアライメントで生成（upload_lip_video と同じパイプライン）
+            mora_data: list[dict] = []
+            try:
+                word_entry = get_word(word_id)
+                reading    = word_entry.get("reading", "") if word_entry else ""
+                if not reading:
+                    reading = get_reading_for_julius(word_id)
+                if reading:
+                    ref_wav = _webm_to_wav(tmp)
+                    try:
+                        ref_mora_list = _align_lip_ref(ref_wav, reading)
+                        if ref_mora_list:
+                            raw_ref  = _extract_mora_lip_openness(tmp, ref_mora_list)
+                            mora_data = [
+                                {"label": item["label"], "v_h_ratio": item["openness"]}
+                                for item in raw_ref
+                            ]
+                    finally:
+                        try:
+                            os.remove(ref_wav)
+                        except Exception:
+                            pass
+            except Exception:
+                traceback.print_exc()
+
             refs = load_lip_refs()
-            refs[word_id] = {"vectors": vectors, "ratios": ratios}
+            entry: dict = {"schema_version": 2, "vectors": vectors, "ratios": ratios}
+            if mora_data:
+                entry["mora_data"] = mora_data
+            refs[word_id] = entry
             save_lip_refs(refs)
-            return jsonify({"message": "saved"})
+            return jsonify({"message": "saved", "alignment_ok": bool(mora_data), "mora_count": len(mora_data)})
         finally:
             try:
                 if os.path.exists(tmp): os.remove(tmp)
@@ -881,8 +912,6 @@ def audio_analysis():
         return "送信できませんでした", 400
     try:
         word_id   = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
-        num_match = re.search(r"\d+", word_id)
-        num       = int(num_match.group())
 
         lip_compare = None
         lip_ref_ratios = []
@@ -994,6 +1023,19 @@ def audio_analysis():
             except Exception:
                 traceback.print_exc()
 
+        # 一時唇動画ファイルを使用後に削除してセッションをクリア
+        try:
+            session.pop("lip_video_paths", None)
+            session.modified = True
+            for _p in lip_paths.values():
+                try:
+                    if _p and os.path.exists(_p):
+                        os.remove(_p)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         common_kwargs = dict(
             original_filename=display, word_id=word_id,
             Native_pitch=pitch_native.tolist(), Native_time=time1,
@@ -1076,8 +1118,8 @@ def audio_analysis():
         # ── ④ モーラ別スコア + ⑤ ハイライト用データ ────────────────
         try:
             mora_scores = calc_mora_scores(
-                pitch_fin=pitch_fin_disp.tolist(),
-                pitch_fin2=pitch_fin2_disp.tolist(),
+                pitch_fin=pitch_fin_score.tolist(),
+                pitch_fin2=pitch_fin2_score.tolist(),
                 mora_values=xline_mora,
                 native_mora_length=pct_length(mora_length1),
                 user_mora_length=pct_length(mora_length2),
