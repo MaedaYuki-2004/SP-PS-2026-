@@ -450,7 +450,7 @@ function filterWords() {
 
   async function startAwCamera() {
     try {
-      awStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      awStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       videoEl.srcObject = awStream;
       status2.textContent = '準備完了。「録画開始」を押してください。';
       recordBtn.disabled = false;
@@ -555,7 +555,7 @@ function filterWords() {
 
   async function startCamera() {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       videoEl.srcObject = stream;
       statusEl.textContent = '準備完了。「録画開始」を押してください。';
       recordBtn.disabled = false;

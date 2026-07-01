@@ -42,7 +42,7 @@ from core.alignment import lab_load, log_load, run_alignment, extract_julius_sco
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
-from core.timbre    import dtw_ascending_order
+from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
 from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history
 from core.utils     import pct_length, sleep_second
@@ -781,15 +781,21 @@ def upload_lip_video():
                             native_log = sound_dir / f"{current_word_id}.log"
                             ref_wav = _webm_to_wav(new_path)
                             try:
+                                # 音声は常にサンプルとして保存（アライメント成否に関わらず）
+                                shutil.copy2(ref_wav, native_wav)
+                                print(f"[lip_ref] サンプル音声を更新: {native_wav}")
+                                try:
+                                    mfcc = audio_mfcc(native_wav)
+                                    (AUDIO_MFCC_DIR / f"{current_word_id}.bin").parent.mkdir(parents=True, exist_ok=True)
+                                    mfcc.tofile(str(AUDIO_MFCC_DIR / f"{current_word_id}.bin"))
+                                except Exception:
+                                    pass
                                 ref_mora_list = _align_lip_ref(
                                     ref_wav, reading,
                                     lab_out=native_lab,
                                     log_out=native_log,
                                 )
                                 if ref_mora_list:
-                                    # アライメント成功時のみ正解音声を更新
-                                    shutil.copy2(ref_wav, native_wav)
-                                    print(f"[lip_ref] 正解音声を更新: {native_wav}")
                                     raw_ref = _extract_mora_lip_openness(new_path, ref_mora_list)
                                     mora_data = [
                                         {"label": item["label"], "v_h_ratio": item["openness"]}
@@ -907,13 +913,20 @@ def api_lip_refs_overwrite():
                     native_log = sound_dir / f"{word_id}.log"
                     ref_wav = _webm_to_wav(tmp)
                     try:
+                        # 音声は常にサンプルとして保存（アライメント成否に関わらず）
+                        shutil.copy2(ref_wav, native_wav)
+                        try:
+                            mfcc = audio_mfcc(native_wav)
+                            (AUDIO_MFCC_DIR / f"{word_id}.bin").parent.mkdir(parents=True, exist_ok=True)
+                            mfcc.tofile(str(AUDIO_MFCC_DIR / f"{word_id}.bin"))
+                        except Exception:
+                            pass
                         ref_mora_list = _align_lip_ref(
                             ref_wav, reading,
                             lab_out=native_lab,
                             log_out=native_log,
                         )
                         if ref_mora_list:
-                            shutil.copy2(ref_wav, native_wav)
                             raw_ref  = _extract_mora_lip_openness(tmp, ref_mora_list)
                             mora_data = [
                                 {"label": item["label"], "v_h_ratio": item["openness"]}
