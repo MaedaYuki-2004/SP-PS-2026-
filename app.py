@@ -12,6 +12,7 @@ import io
 import math
 import os
 import re
+import shutil
 import tempfile
 import traceback
 from pathlib import Path
@@ -389,28 +390,42 @@ def _webm_to_wav(webm_path: str) -> str:
     return tmp.name
 
 
-def _align_lip_ref(wav_path: str, reading: str) -> list:
+def _align_lip_ref(
+    wav_path: str,
+    reading: str,
+    lab_out: Path | None = None,
+    log_out: Path | None = None,
+) -> list:
     """
     お手本口形録画から抽出した音声を Julius でアライメントし、
     mora_list（[[start_sec, end_sec, label], ...]）を返す。
+    lab_out / log_out を指定すると、その場所に直接書き込む（削除しない）。
     アライメント失敗時は空リストを返す。
     """
-    tmp_lab = Path(tempfile.mktemp(suffix=".lab"))
-    tmp_log = Path(tempfile.mktemp(suffix=".log"))
+    use_tmp_lab = lab_out is None
+    use_tmp_log = log_out is None
+    lab_path = Path(tempfile.mktemp(suffix=".lab")) if use_tmp_lab else lab_out
+    log_path = Path(tempfile.mktemp(suffix=".log")) if use_tmp_log else log_out
     try:
-        run_alignment_on_file(Path(wav_path), reading, tmp_lab, tmp_log)
-        if not tmp_lab.exists():
+        run_alignment_on_file(Path(wav_path), reading, lab_path, log_path)
+        if not lab_path.exists():
             return []
-        (_, mora_list, *_) = lab_load(tmp_lab)
+        (_, mora_list, *_) = lab_load(lab_path)
         return mora_list
     except Exception:
         traceback.print_exc()
         return []
     finally:
-        for p in [tmp_lab, tmp_log]:
+        if use_tmp_lab:
             try:
-                if p.exists():
-                    p.unlink()
+                if lab_path.exists():
+                    lab_path.unlink()
+            except Exception:
+                pass
+        if use_tmp_log:
+            try:
+                if log_path.exists():
+                    log_path.unlink()
             except Exception:
                 pass
 
@@ -759,10 +774,22 @@ def upload_lip_video():
                         if not reading:
                             reading = get_reading_for_julius(current_word_id)
                         if reading:
+                            sound_dir  = RAW_AUDIO_DIR / "sound" / current_word_id
+                            sound_dir.mkdir(parents=True, exist_ok=True)
+                            native_wav = sound_dir / f"{current_word_id}.wav"
+                            native_lab = sound_dir / f"{current_word_id}.lab"
+                            native_log = sound_dir / f"{current_word_id}.log"
                             ref_wav = _webm_to_wav(new_path)
                             try:
-                                ref_mora_list = _align_lip_ref(ref_wav, reading)
+                                ref_mora_list = _align_lip_ref(
+                                    ref_wav, reading,
+                                    lab_out=native_lab,
+                                    log_out=native_log,
+                                )
                                 if ref_mora_list:
+                                    # アライメント成功時のみ正解音声を更新
+                                    shutil.copy2(ref_wav, native_wav)
+                                    print(f"[lip_ref] 正解音声を更新: {native_wav}")
                                     raw_ref = _extract_mora_lip_openness(new_path, ref_mora_list)
                                     mora_data = [
                                         {"label": item["label"], "v_h_ratio": item["openness"]}
@@ -873,10 +900,20 @@ def api_lip_refs_overwrite():
                 if not reading:
                     reading = get_reading_for_julius(word_id)
                 if reading:
+                    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
+                    sound_dir.mkdir(parents=True, exist_ok=True)
+                    native_wav = sound_dir / f"{word_id}.wav"
+                    native_lab = sound_dir / f"{word_id}.lab"
+                    native_log = sound_dir / f"{word_id}.log"
                     ref_wav = _webm_to_wav(tmp)
                     try:
-                        ref_mora_list = _align_lip_ref(ref_wav, reading)
+                        ref_mora_list = _align_lip_ref(
+                            ref_wav, reading,
+                            lab_out=native_lab,
+                            log_out=native_log,
+                        )
                         if ref_mora_list:
+                            shutil.copy2(ref_wav, native_wav)
                             raw_ref  = _extract_mora_lip_openness(tmp, ref_mora_list)
                             mora_data = [
                                 {"label": item["label"], "v_h_ratio": item["openness"]}
