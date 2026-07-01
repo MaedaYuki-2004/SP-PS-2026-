@@ -255,6 +255,7 @@
   <button class="sec-tab" onclick="showSection('length',this)">長さ比較</button>
   <button class="sec-tab" onclick="showSection('lips',this)">唇比較</button>
   <button class="sec-tab" onclick="showSection('timbre',this)">音色評価</button>
+  {% if native_formants or user_formants %}<button class="sec-tab" onclick="showSection('vowel',this)">母音空間</button>{% endif %}
 </div>
 
 <!-- ── Score tab ── -->
@@ -693,6 +694,102 @@
     <div class="chart-wrap"><canvas id="DistanceChart"></canvas></div>
   </div>
 </div>
+
+<!-- ── Vowel space ── -->
+{% if native_formants or user_formants %}
+<div id="sec-vowel" class="section-panel">
+  <p class="panel-heading">母音空間チャート（F1/F2）</p>
+  <p class="panel-sub">フォルマント周波数をもとに発音した母音の口腔内の形を可視化します。ネイティブに近いほど良い発音です。</p>
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <span class="chart-label">F1/F2 母音マップ</span>
+      <div style="display:flex;gap:12px;">
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(14,30,69,0.8);"></div><span>ネイティブ</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(192,61,32,0.8);"></div><span>あなた</span></div>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="vowelChart"></canvas>
+    </div>
+    <p style="font-size:11px;color:var(--text-3);margin-top:8px;">X軸（F2）・Y軸（F1）とも右・下ほど高い値。日本語母音の典型配置：あ（低F1・中F2）、い（低F1・高F2）、う（低F1・低F2）、え（中F1・高F2）、お（中F1・低F2）</p>
+  </div>
+  <script>
+  (function() {
+    var nf = {{ native_formants|default([])|tojson|safe }};
+    var uf = {{ user_formants|default([])|tojson|safe }};
+    if (!nf.length && !uf.length) return;
+
+    function toPoints(arr) {
+      return arr.filter(function(f){ return f.f1 && f.f2; })
+               .map(function(f){ return {x: f.f2, y: f.f1, _label: f.label}; });
+    }
+    var nPts = toPoints(nf);
+    var uPts = toPoints(uf);
+    if (!nPts.length && !uPts.length) return;
+
+    var ctx = document.getElementById('vowelChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'ネイティブ',
+            data: nPts,
+            backgroundColor: 'rgba(14,30,69,0.75)',
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            datalabels: { align:'top', anchor:'end',
+              formatter: function(v){ return v._label; },
+              color: '#0E1E45', font: {size:11, weight:'700'} }
+          },
+          {
+            label: 'あなた',
+            data: uPts,
+            backgroundColor: 'rgba(192,61,32,0.75)',
+            pointRadius: 7,
+            pointHoverRadius: 9,
+            datalabels: { align:'bottom', anchor:'start',
+              formatter: function(v){ return v._label; },
+              color: '#C03D20', font: {size:11, weight:'700'} }
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 1.4,
+        plugins: {
+          legend: { display: true, position: 'top' },
+          datalabels: { display: true },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var p = ctx.raw;
+                return (ctx.dataset.label || '') + ' ' + p._label +
+                       ' — F1:' + Math.round(p.y) + 'Hz, F2:' + Math.round(p.x) + 'Hz';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            reverse: true,
+            title: { display: true, text: 'F2 (Hz) →', color: 'var(--text-3)', font:{size:11} },
+            grid: { color: 'var(--border-light)' }
+          },
+          y: {
+            reverse: true,
+            title: { display: true, text: 'F1 (Hz) →', color: 'var(--text-3)', font:{size:11} },
+            grid: { color: 'var(--border-light)' }
+          }
+        }
+      },
+      plugins: [ChartDataLabels]
+    });
+  })();
+  </script>
+</div>
+{% endif %}
 
 <script id="python-data" type="application/json">
 {"start1":{{ start1|tojson|safe }},"end1":{{ end1|tojson|safe }},"start2":{{ start2|tojson|safe }},"end2":{{ end2|tojson|safe }},"Native_mora_values":{{ Native_mora_values|tojson|safe }},"mora_labels":{{ mora_labels|tojson|safe }},"Native_time":{{ Native_time|tojson|safe }},"Native_pitch":{{ Native_pitch|tojson|safe }},"Native_phoneme_values":{{ Native_phoneme_values|tojson|safe }},"phoneme_labels":{{ phoneme_labels|tojson|safe }},"User_mora_values":{{ User_mora_values|tojson|safe }},"User_time":{{ User_time|tojson|safe }},"User_pitch":{{ User_pitch|tojson|safe }},"User_phoneme_values":{{ User_phoneme_values|tojson|safe }},"mora_values":{{ mora_values|tojson|safe }},"x_axis":{{ x_axis|tojson|safe }},"pitch_fin":{{ pitch_fin|tojson|safe }},"pitch_fin2":{{ pitch_fin2|tojson|safe }},"Native_mora_length":{{ Native_mora_length|tojson|safe }},"User_mora_length":{{ User_mora_length|tojson|safe }},"Native_phoneme_length":{{ Native_phoneme_length|tojson|safe }},"User_phoneme_length":{{ User_phoneme_length|tojson|safe }},"words":{{ words|tojson|safe }},"sort_distance":{{ sort_distance|tojson|safe }},"bar_color":{{ bar_color|tojson|safe }},"lip_ref_ratios":{{ lip_ref_ratios|default([])|tojson|safe }},"lip_test_ratios":{{ lip_test_ratios|default([])|tojson|safe }},"lip_score":{{ lip_compare.score if lip_compare else 'null' }},"lip_distance":{{ lip_compare.distance if lip_compare else 'null' }},"worst_mora":null,{% if score %}"accent_pct":{{ (score.accent_score/50*100)|round|int }},"length_pct":{{ (score.length_score/30*100)|round|int }},"vowel_pct":{{ (score.vowel_score/20*100)|round|int }}{% else %}"accent_pct":0,"length_pct":0,"vowel_pct":0{% endif %}}

@@ -63,6 +63,8 @@ async function main() {
     const bufLen    = analyser.frequencyBinCount;
     const timeData  = new Uint8Array(bufLen);
     mediaStreamSource.connect(analyser);
+    window._spAnalyser    = analyser;
+    window._spSampleRate  = audioContext.sampleRate;
 
     // ── 状態管理 ───────────────────────────────────────
     let isRecording    = false;
@@ -303,6 +305,7 @@ async function main() {
 
       // 状態リセット
       isRecording  = true;
+      window._spRecording = true;
       hasRecording = false;
       speechStart  = null;
       silenceStart = null;
@@ -323,6 +326,7 @@ async function main() {
       btnStop.setAttribute('disabled', 'disabled');
       btnStart.removeAttribute('disabled');
       isRecording  = false;
+      window._spRecording = false;
       hasRecording = true;   // ③ 録音完了フラグ
       speechStart  = null;
       silenceStart = null;

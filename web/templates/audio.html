@@ -116,6 +116,17 @@
     .mora-item.active { background:var(--navy); color:#fff; }
     .mora-item.mora-sil { background:transparent !important; }
 
+    /* H/L アクセントパターンバー */
+    .hl-bar-wrap { display:flex; justify-content:center; gap:4px; margin:6px 0 2px; flex-wrap:wrap; }
+    .hl-mora-box { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .hl-badge-box { min-width:26px; height:18px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; letter-spacing:.04em; padding:0 4px; }
+    .hl-badge-box.H { background:var(--accent-bg,#FDECEA); color:var(--accent,#C03D20); }
+    .hl-badge-box.L { background:var(--bg-muted,#F4F4F6); color:var(--text-3,#9398A2); }
+    .hl-mora-label { font-size:13px; color:var(--text-2,#4A5568); font-family:var(--font); }
+
+    /* リアルタイムピッチドット */
+    #pitchCanvas { cursor:default; }
+
     @media (max-width:480px) { .word-display{font-size:48px;} .top-nav{padding:0 16px;} .shortcut-hint{display:none;} #lipPreview{width:110px;height:83px;} .lip-layout{grid-template-columns:110px 1fr;} }
   </style>
 </head>
@@ -173,6 +184,16 @@
   <div class="word-section">
     <div class="word-reading">{{ test }}</div>
     <div class="word-display">{{ display or test }}</div>
+    {% if accent_hl is defined and accent_hl %}
+    <div class="hl-bar-wrap" title="アクセントパターン（H=高 / L=低）">
+      {% for item in accent_hl %}
+      <div class="hl-mora-box">
+        <div class="hl-badge-box {{ item.hl }}">{{ item.hl }}</div>
+        <div class="hl-mora-label">{{ item.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
     <div class="ref-preview-wrap">
       <div class="ref-preview-card">
@@ -366,15 +387,64 @@
   const refAudio = document.getElementById('refAudio');
   if (!canvas || !refAudio) return;
 
-  const moraItems = Array.from(document.querySelectorAll('.mora-item'));
-  const pitch     = REF.pitch;
-  const n         = pitch.length;
+  const moraItems   = Array.from(document.querySelectorAll('.mora-item'));
+  const pitch       = REF.pitch;
+  const n           = pitch.length;
+  const pitchMinHz  = REF.pitch_min_hz || 80;
+  const pitchMaxHz  = REF.pitch_max_hz || 400;
 
-  function drawPitch() {
+  // ── リアルタイムピッチ検出（録音中） ───────────────────────────
+  const USER_TRAIL_MAX = 48;  // ~0.8秒分
+  const userTrail = [];       // {norm: 0-1} の最新 N 件
+
+  function detectPitchHz(analyser, sampleRate) {
+    const buf = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(buf);
+    const N      = buf.length;
+    const minLag = Math.floor(sampleRate / Math.min(pitchMaxHz, 500));
+    const maxLag = Math.floor(sampleRate / Math.max(pitchMinHz, 60));
+    let bestCorr = -Infinity, bestLag = -1;
+    for (let lag = minLag; lag <= maxLag && lag < N; lag++) {
+      let corr = 0;
+      const len = N - lag;
+      for (let i = 0; i < len; i++) corr += buf[i] * buf[i + lag];
+      corr /= len;
+      if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+    }
+    if (bestCorr < 0.005 || bestLag < 1) return null;
+    return sampleRate / bestLag;
+  }
+
+  function normHz(hz) {
+    if (hz === null) return null;
+    return Math.max(0, Math.min(1, (hz - pitchMinHz) / (pitchMaxHz - pitchMinHz)));
+  }
+
+  let pitchLoopId = null;
+  let pitchFrame  = 0;
+
+  function pitchLoop() {
+    pitchLoopId = requestAnimationFrame(pitchLoop);
+    if (!window._spRecording) { userTrail.length = 0; return; }
+    pitchFrame++;
+    if (pitchFrame % 3 !== 0) return;  // ~20fps 更新
+    const an = window._spAnalyser;
+    const sr = window._spSampleRate || 16000;
+    if (!an) return;
+    const hz   = detectPitchHz(an, sr);
+    const norm = normHz(hz);
+    if (norm !== null) {
+      userTrail.push(norm);
+      if (userTrail.length > USER_TRAIL_MAX) userTrail.shift();
+    }
+    drawCanvas();
+  }
+
+  function drawCanvas() {
     const W = canvas.offsetWidth  || 460;
     const H = canvas.offsetHeight || 68;
-    canvas.width  = W;
-    canvas.height = H;
+    if (canvas.width !== W) canvas.width = W;
+    if (canvas.height !== H) canvas.height = H;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
 
@@ -413,10 +483,46 @@
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.stroke();
+
+    // ── ユーザーピッチトレイル（録音中） ─────────────────
+    if (userTrail.length > 0) {
+      const trailW = Math.round(W * 0.35);  // 右端35%を使用
+      const startX = W - trailW;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(startX, 0, trailW, H);
+      ctx.clip();
+
+      for (let i = 0; i < userTrail.length; i++) {
+        const alpha = (i + 1) / userTrail.length;
+        const x = startX + (i / Math.max(userTrail.length - 1, 1)) * trailW;
+        const y = H - 4 - userTrail[i] * (H - 8);
+        ctx.beginPath();
+        ctx.arc(x, y, alpha < 0.5 ? 2 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(192,61,32,${alpha * 0.85})`;
+        ctx.fill();
+      }
+      // 最新値を大きい点で強調
+      const latest = userTrail[userTrail.length - 1];
+      const ly = H - 4 - latest * (H - 8);
+      ctx.beginPath();
+      ctx.arc(W - 6, ly, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#C03D20';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawPitch() {
+    drawCanvas();
   }
 
   requestAnimationFrame(drawPitch);
-  window.addEventListener('resize', drawPitch);
+  window.addEventListener('resize', () => { canvas.width = 0; drawPitch(); });
+  pitchLoop();
 
   let rafId = null;
 
