@@ -101,7 +101,7 @@ def _save_quests(active: list[Quest], completed: list[Quest]) -> None:
 # ── クエスト生成ロジック ──────────────────────────────────────────────
 
 def _make_quest_id() -> str:
-    return f"q_{int(time.time())}"
+    return f"q_{time.time_ns()}"
 
 
 def _accent_quest(score: float, accent_label: str, accent_fb: str, word_id: str) -> Quest:

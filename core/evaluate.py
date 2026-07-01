@@ -320,7 +320,7 @@ def calc_accent_score(
     pitch_fin: list[float] | np.ndarray | None = None,
     pitch_user_raw: np.ndarray | None = None,
     pitch_native_raw: np.ndarray | None = None,
-) -> tuple[float, str, list[str]]:
+) -> tuple[float, str, list[str], int | None]:
     """
     ピッチ曲線がアクセント型のパターンに合っているかをスコア化する。
 
@@ -335,11 +335,11 @@ def calc_accent_score(
     2. pitch_fin + pitch_fin2（後方互換）: comp済み配列で計算（変更前の動作）
     """
     if accent is None or n_mora == 0:
-        return 30.0, "アクセント型が不明のため評価できません。", []
+        return 30.0, "アクセント型が不明のため評価できません。", [], None
 
     pitch = np.array(pitch_fin2, dtype=float)
     if len(pitch) == 0 or np.all(np.isnan(pitch)):
-        return 0.0, "ピッチが検出できませんでした。マイクに近づいて発音してください。", []
+        return 0.0, "ピッチが検出できませんでした。マイクに近づいて発音してください。", [], None
 
     # H/L 分類用：NaN を補間
     nan_mask = np.isnan(pitch)
@@ -349,7 +349,7 @@ def calc_accent_score(
 
     pattern = expected_accent_pattern(accent, n_mora)
     if not pattern:
-        return 30.0, "パターンを生成できませんでした。", pattern
+        return 30.0, "パターンを生成できませんでした。", pattern, None
 
     mora_pitches = []
     boundaries   = list(mora_values) + [len(pitch)]
@@ -359,11 +359,11 @@ def calc_accent_score(
         mora_pitches.append(float(np.nanmean(pitch[s:e])) if s < e else np.nan)
 
     if not mora_pitches or all(np.isnan(p) for p in mora_pitches):
-        return 0.0, "各モーラのピッチを計算できませんでした。", pattern
+        return 0.0, "各モーラのピッチを計算できませんでした。", pattern, None
 
     valid_pitches = [p for p in mora_pitches if not np.isnan(p)]
     if not valid_pitches:
-        return 0.0, "有効なピッチ値がありませんでした。", pattern
+        return 0.0, "有効なピッチ値がありませんでした。", pattern, None
 
     # ── 基準ピッチからモーラ平均・H/Lパターン・核位置を算出 ────────
     # MeCabアクセントより参照録音のピッチを優先する。
@@ -527,7 +527,7 @@ def calc_accent_score(
         else:
             feedback = f"アクセント（{_accent_label(accent)}）をもう少し意識して発音してください。"
 
-    return final_score, feedback, pattern
+    return final_score, feedback, pattern, detected
 
 
 # ── 長さスコア算出 ────────────────────────────────────────────────────
@@ -681,7 +681,7 @@ def calc_total_score(
     vowel_score       : core/formant.py の calc_vowel_score() 結果
     vowel_feedback    : 母音品質フィードバック
     """
-    accent_raw, accent_feedback, pattern = calc_accent_score(
+    accent_raw, accent_feedback, pattern, detected_nucleus = calc_accent_score(
         pitch_fin2=pitch_fin2, mora_values=mora_values,
         accent=accent, n_mora=n_mora,
         pitch_fin=pitch_fin,
@@ -709,23 +709,6 @@ def calc_total_score(
     elif total >= 60: grade = "B"
     elif total >= 40: grade = "C"
     else:             grade = "D"
-
-    # デバッグ用：核位置再計算
-    try:
-        p  = np.array(pitch_fin2, dtype=float)
-        nm = np.isnan(p)
-        if np.any(~nm):
-            xs = np.arange(len(p))
-            p  = np.interp(xs, xs[~nm], p[~nm])
-        bounds = list(mora_values) + [len(p)]
-        mps    = [
-            float(np.nanmean(p[max(0, bounds[i]):min(len(p), bounds[i+1])]))
-            if max(0, bounds[i]) < min(len(p), bounds[i+1]) else np.nan
-            for i in range(min(n_mora, len(mora_values)))
-        ]
-        detected_nucleus = detect_accent_nucleus(mps)
-    except Exception:
-        detected_nucleus = None
 
     return {
         "total":              total,

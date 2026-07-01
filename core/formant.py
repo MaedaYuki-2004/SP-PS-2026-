@@ -68,10 +68,9 @@ def _load_formant_cache() -> dict:
 
 def _save_formant_cache(cache: dict) -> None:
     _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _CACHE_PATH.write_text(
-        _json.dumps(cache, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    tmp = _CACHE_PATH.with_suffix(".tmp")
+    tmp.write_text(_json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(_CACHE_PATH)
 
 
 def _has_vowel(mora_label: str) -> bool:

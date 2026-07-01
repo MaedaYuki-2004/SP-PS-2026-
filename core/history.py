@@ -50,9 +50,15 @@ def get_stats() -> dict:
 
     totals      = [r["total"] for r in history if r.get("total") is not None]
     word_counts: dict[str, int] = {}
+    word_best:   dict[str, float] = {}
     for r in history:
-        wid = r.get("word_id", "")
+        wid   = r.get("word_id", "")
+        total = r.get("total")
         word_counts[wid] = word_counts.get(wid, 0) + 1
+        if wid and total is not None:
+            t = float(total)
+            if wid not in word_best or t > word_best[wid]:
+                word_best[wid] = t
 
     grade_order = {"S": 0, "A": 1, "B": 2, "C": 3, "D": 4}
     grades      = [r.get("grade") for r in history if r.get("grade")]
@@ -64,6 +70,7 @@ def get_stats() -> dict:
         "avg_score":      round(sum(totals) / len(totals), 1) if totals else 0.0,
         "best_grade":     best_grade,
         "word_counts":    word_counts,
+        "word_best":      word_best,
     }
 
 

@@ -114,10 +114,15 @@ def resample_to_10ms(
         return np.full(n_frames, np.nan)
 
     resampled = np.interp(grid, times_arr[valid_idx], pitch_arr[valid_idx])
-    for gi, t in enumerate(grid):
-        nearest_idx = int(np.argmin(np.abs(times_arr - t)))
-        if nan_mask[nearest_idx]:
-            resampled[gi] = np.nan
+
+    # 各グリッド点に最も近い元フレームを O(N log N) で探索し、
+    # そのフレームが NaN（無声）なら補間値を NaN に戻す
+    ins = np.searchsorted(times_arr, grid)
+    ins = np.clip(ins, 0, len(times_arr) - 1)
+    left = np.clip(ins - 1, 0, len(times_arr) - 1)
+    use_left = np.abs(times_arr[left] - grid) < np.abs(times_arr[ins] - grid)
+    nearest = np.where(use_left, left, ins)
+    resampled[nan_mask[nearest]] = np.nan
 
     return resampled
 

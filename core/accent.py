@@ -1,14 +1,9 @@
 """
 core/accent.py
-MeCab によるアクセント型の自動取得と
-VOICEVOX による基準音声の自動生成を担当するモジュール。
+MeCab によるアクセント型の自動取得を担当するモジュール。
+（VOICEVOX 音声生成は廃止）
 """
 from __future__ import annotations
-
-import json
-import urllib.parse
-import urllib.request
-from pathlib import Path
 
 import MeCab
 import unidic
@@ -63,58 +58,3 @@ def get_accent(display: str) -> tuple[int | None, str]:
         return int(first), "mecab"
 
     return None, "unknown"
-
-
-# ── VOICEVOX 音声生成 ─────────────────────────────────────────────────
-
-VOICEVOX_URL = "http://127.0.0.1:50021"
-VOICEVOX_SPEAKER = 11  # ずんだもん（変更可）
-
-
-def is_voicevox_running() -> bool:
-    """VOICEVOX が起動しているか確認する。"""
-    try:
-        urllib.request.urlopen(f"{VOICEVOX_URL}/version", timeout=2)
-        return True
-    except Exception:
-        return False
-
-
-def generate_sample_wav(display: str, out_path: str | Path) -> None:
-    """
-    VOICEVOX を使って display のテキストを音声合成し WAV を保存する。
-
-    Parameters
-    ----------
-    display  : 発音させるテキスト（漢字・カタカナ・ひらがな）
-    out_path : 保存先パス（16kHz に変換してから保存される）
-    """
-    out_path = Path(out_path)
-
-    # audio_query（POST）
-    query_url = (
-        f"{VOICEVOX_URL}/audio_query"
-        f"?text={urllib.parse.quote(display)}"
-        f"&speaker={VOICEVOX_SPEAKER}"
-    )
-    req = urllib.request.Request(query_url, data=b"", method="POST")
-    with urllib.request.urlopen(req, timeout=10) as res:
-        query = json.loads(res.read().decode("utf-8"))
-
-    # サンプリングレートを 16kHz に指定
-    query["outputSamplingRate"] = 16000
-    query["outputStereo"]       = False
-
-    # synthesis（POST）
-    data = json.dumps(query).encode("utf-8")
-    req  = urllib.request.Request(
-        f"{VOICEVOX_URL}/synthesis?speaker={VOICEVOX_SPEAKER}",
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as res:
-        wav_data = res.read()
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_bytes(wav_data)

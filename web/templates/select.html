@@ -37,7 +37,14 @@
     .word-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; margin-bottom:4px; }
     .word-card-index { font-family:var(--mono); font-size:9px; color:var(--text-3); display:block; padding-top:1px; }
     .word-card-text { font-size:26px; font-weight:700; color:var(--navy); line-height:1.15; letter-spacing:.01em; margin-bottom:3px; }
-    .word-card-reading { font-size:11px; color:var(--text-3); letter-spacing:.04em; margin-bottom:8px; }
+    .word-card-reading { font-size:11px; color:var(--text-3); letter-spacing:.04em; margin-bottom:4px; }
+    .word-card-best { font-size:10px; color:var(--text-3); margin-bottom:6px; }
+    .word-card-best .best-score { font-weight:700; }
+    .word-card-best .best-score.grade-s { color:#f59e0b; }
+    .word-card-best .best-score.grade-a { color:#10b981; }
+    .word-card-best .best-score.grade-b { color:#3b82f6; }
+    .word-card-best .best-score.grade-c { color:var(--text-2); }
+    .word-card-best .best-score.grade-d { color:var(--accent); }
 
     /* アクセント図解 */
     .word-card-accent { margin-bottom:8px; }
@@ -255,6 +262,11 @@
           </div>
           <div class="word-card-text">{{ w.display }}</div>
           <div class="word-card-reading">{{ w.reading }}</div>
+          {% set best = (stats.word_best or {}).get(w.word_id) %}
+          {% if best is not none %}
+            {% set grade = 'S' if best >= 90 else ('A' if best >= 75 else ('B' if best >= 60 else ('C' if best >= 40 else 'D'))) %}
+            <div class="word-card-best">最高 <span class="best-score grade-{{ grade|lower }}">{{ best|int }}点</span> ({{ grade }})</div>
+          {% endif %}
           {% if pattern %}
           <div class="word-card-accent">
             <span class="accent-type-label">{% if w.accent == 0 %}平板型{% elif w.accent == 1 %}頭高型{% elif w.accent is not none %}{{ w.accent }}型{% else %}型不明{% endif %}</span>
