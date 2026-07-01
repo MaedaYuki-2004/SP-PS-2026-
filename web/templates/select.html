@@ -168,7 +168,7 @@
     .quest-item-title { font-size:12px; font-weight:700; color:var(--text); line-height:1.35; flex:1; }
     .quest-item-word { font-size:10px; color:var(--text-3); margin-bottom:6px; }
     .quest-item-word span { font-size:13px; font-weight:700; color:var(--navy); margin-left:4px; }
-    .quest-item-desc { font-size:11px; color:var(--text-2); line-height:1.6; margin-bottom:8px; }
+    .quest-item-desc { font-size:11px; color:var(--text-2); line-height:1.9; margin-bottom:8px; white-space:pre-line; }
     .quest-progress-meta { display:flex; justify-content:space-between; font-size:10px; color:var(--text-3); margin-bottom:3px; }
     .quest-progress-pct { font-family:var(--mono); font-weight:500; color:var(--quest); }
     .quest-item-footer { padding:8px 14px 10px; }
@@ -353,6 +353,7 @@
           </div>
           <div class="quest-item-word">対象<span>{{ q.word_display or q.word_id }}</span></div>
           <div class="quest-item-desc">{{ q.description }}</div>
+          <div class="quest-hint-mini" style="font-size:10px;color:var(--text-3);line-height:1.8;background:var(--bg-muted);border-left:2px solid var(--navy);padding:7px 10px;border-radius:0 var(--r-xs) var(--r-xs) 0;margin-bottom:8px;white-space:pre-line;">{{ q.hint }}</div>
           <div class="quest-progress-meta">
             <span>{{ q.start_value|round(1) }}点 → {{ q.target_value|int }}点</span>
             <span class="quest-progress-pct">

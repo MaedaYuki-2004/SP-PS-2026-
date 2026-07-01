@@ -140,16 +140,24 @@
 
     /* Feedback */
     .feedback-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
-    .feedback-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; box-shadow:var(--shadow-xs); }
+    .feedback-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px; box-shadow:var(--shadow-xs); display:flex; flex-direction:column; gap:10px; }
     .feedback-card.full { grid-column:1/-1; }
-    .feedback-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; }
-    .feedback-text { font-size:13px; color:var(--text-2); line-height:1.75; }
-    .feedback-note { font-size:11px; color:var(--text-3); margin-top:4px; }
-    .accent-pattern { display:flex; gap:5px; margin-top:10px; flex-wrap:wrap; }
+    .feedback-header { display:flex; align-items:center; gap:8px; }
+    .feedback-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+    .feedback-icon.accent { background:rgba(232,112,64,.15); }
+    .feedback-icon.length { background:rgba(30,201,154,.15); }
+    .feedback-icon.vowel  { background:rgba(93,168,248,.15); }
+    .feedback-icon.voiced { background:rgba(124,106,224,.15); }
+    .feedback-icon.rate   { background:rgba(240,160,48,.15); }
+    .feedback-icon.quality{ background:rgba(255,255,255,.08); }
+    .feedback-label { font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--text-2); flex:1; }
+    .feedback-text { font-size:13px; color:var(--text); line-height:1.8; }
+    .feedback-steps { background:var(--bg-muted); border-radius:var(--r-sm); padding:10px 12px; font-size:11px; color:var(--text-2); line-height:1.9; white-space:pre-line; border-left:2px solid var(--navy); }
+    .accent-pattern { display:flex; gap:5px; flex-wrap:wrap; }
     .mora-badge { display:flex; flex-direction:column; align-items:center; gap:3px; }
-    .mora-hl { width:26px; height:26px; border-radius:var(--r-xs); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
-    .mora-hl.H { background:var(--accent-bg); color:var(--accent); }
-    .mora-hl.L { background:var(--bg-muted);  color:var(--text-3); }
+    .mora-hl { width:28px; height:28px; border-radius:var(--r-xs); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+    .mora-hl.H { background:rgba(232,112,64,.2); color:var(--accent); }
+    .mora-hl.L { background:var(--bg-muted); color:var(--text-3); }
     .mora-label { font-size:9px; color:var(--text-3); font-family:var(--mono); }
 
     /* Quest clear */
@@ -175,7 +183,7 @@
     .quest-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:5px; }
     .quest-card-title { font-size:13px; font-weight:700; color:var(--text); line-height:1.3; flex:1; }
     .quest-card-desc { font-size:11px; color:var(--text-2); line-height:1.65; margin-bottom:8px; }
-    .quest-hint-bar { font-size:11px; color:var(--text-2); line-height:1.6; background:var(--bg); border-left:2px solid var(--border); padding:6px 10px; border-radius:0 var(--r-xs) var(--r-xs) 0; margin-bottom:8px; }
+    .quest-hint-bar { font-size:11px; color:var(--text-2); line-height:1.9; background:var(--bg-muted); border-left:2px solid var(--navy); padding:10px 12px; border-radius:0 var(--r-sm) var(--r-sm) 0; margin-bottom:8px; white-space:pre-line; }
     .quest-progress-meta { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px; }
     .quest-progress-vals { font-family:var(--mono); font-size:10px; color:var(--text-3); }
     .quest-progress-pct  { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--quest); }
@@ -367,17 +375,75 @@
   </div>
 
   <!-- フィードバック -->
+  {% set a_pct2 = (score.accent_score/50*100)|round|int %}
+  {% set l_pct2 = (score.length_score/30*100)|round|int %}
+  {% set v_pct2 = (score.vowel_score/20*100)|round|int %}
   <div class="feedback-grid">
     <div class="feedback-card full">
-      <div class="feedback-label">アクセント — {{ score.accent_label }}</div>
+      <div class="feedback-header">
+        <div class="feedback-icon accent">🎵</div>
+        <div class="feedback-label">アクセント — {{ score.accent_label }}　{{ a_pct2 }}%</div>
+      </div>
       <div class="feedback-text">{{ score.accent_feedback }}</div>
-      {% if score.accent_pattern %}<div class="accent-pattern">{% for hl in score.accent_pattern %}<div class="mora-badge"><div class="mora-hl {{ hl }}">{{ hl }}</div><div class="mora-label">{{ loop.index }}</div></div>{% endfor %}</div>{% endif %}
+      {% if score.accent_pattern %}
+      <div class="accent-pattern">
+        {% for hl in score.accent_pattern %}
+        <div class="mora-badge"><div class="mora-hl {{ hl }}">{{ hl }}</div><div class="mora-label">{{ loop.index }}</div></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if a_pct2 < 80 %}
+      <div class="feedback-steps">練習のヒント：
+① サンプル音声を何度も聞き、高低の動きを確認する
+② 解析結果のピッチグラフでお手本との形の違いを見比べる
+③ ピッチを大げさに動かして録音→徐々に自然な大きさに調整する</div>
+      {% endif %}
     </div>
-    <div class="feedback-card"><div class="feedback-label">モーラの長さ</div><div class="feedback-text">{{ score.length_feedback }}</div></div>
-    <div class="feedback-card"><div class="feedback-label">母音（口の形）</div><div class="feedback-text">{{ score.vowel_feedback }}</div><div class="feedback-note">F1/F2 の30・50・70%点の平均値で評価</div></div>
-    {% if score.voiced_feedback %}<div class="feedback-card"><div class="feedback-label">声の明瞭さ</div><div class="feedback-text">{{ score.voiced_feedback }}</div></div>{% endif %}
-    {% if rate_feedback %}<div class="feedback-card"><div class="feedback-label">発話速度</div><div class="feedback-text">{{ rate_feedback }}</div></div>{% endif %}
-    {% if voice_quality and voice_quality.feedback %}<div class="feedback-card"><div class="feedback-label">声質</div><div class="feedback-text">{{ voice_quality.feedback }}</div></div>{% endif %}
+
+    <div class="feedback-card">
+      <div class="feedback-header">
+        <div class="feedback-icon length">🎼</div>
+        <div class="feedback-label">モーラの長さ　{{ l_pct2 }}%</div>
+      </div>
+      <div class="feedback-text">{{ score.length_feedback }}</div>
+      {% if l_pct2 < 80 %}
+      <div class="feedback-steps">① 机を叩きながら1拍ずつ発音してリズムを確認
+② 長音「ー」=2拍 / 促音「っ」=1拍の間 / 撥音「ん」=1拍
+③ ゆっくり録音してグラフのモーラ幅を確認する</div>
+      {% endif %}
+    </div>
+
+    <div class="feedback-card">
+      <div class="feedback-header">
+        <div class="feedback-icon vowel">👄</div>
+        <div class="feedback-label">母音（口の形）　{{ v_pct2 }}%</div>
+      </div>
+      <div class="feedback-text">{{ score.vowel_feedback }}</div>
+      {% if v_pct2 < 80 %}
+      <div class="feedback-steps">① 鏡で口の形を確認：あ=縦大 / い=横広 / う=丸く前 / え=横中 / お=縦丸
+② 各母音をゆっくり大げさに作ってから発音する
+③ 口を通常より2倍大きく開けることを意識して録音</div>
+      {% endif %}
+    </div>
+
+    {% if score.voiced_feedback %}
+    <div class="feedback-card">
+      <div class="feedback-header"><div class="feedback-icon voiced">🔊</div><div class="feedback-label">声の明瞭さ</div></div>
+      <div class="feedback-text">{{ score.voiced_feedback }}</div>
+    </div>
+    {% endif %}
+    {% if rate_feedback %}
+    <div class="feedback-card">
+      <div class="feedback-header"><div class="feedback-icon rate">⏱</div><div class="feedback-label">発話速度</div></div>
+      <div class="feedback-text">{{ rate_feedback }}</div>
+    </div>
+    {% endif %}
+    {% if voice_quality and voice_quality.feedback %}
+    <div class="feedback-card">
+      <div class="feedback-header"><div class="feedback-icon quality">✨</div><div class="feedback-label">声質</div></div>
+      <div class="feedback-text">{{ voice_quality.feedback }}</div>
+    </div>
+    {% endif %}
   </div>
 
   {% else %}
