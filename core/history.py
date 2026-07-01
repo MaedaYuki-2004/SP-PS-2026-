@@ -46,7 +46,7 @@ def get_stats() -> dict:
     history = load_history()
     if not history:
         return {"total_sessions": 0, "unique_words": 0, "avg_score": 0.0,
-                "best_grade": None, "word_counts": {}}
+                "best_grade": None, "word_counts": {}, "word_best": {}}
 
     totals      = [r["total"] for r in history if r.get("total") is not None]
     word_counts: dict[str, int] = {}
@@ -129,7 +129,7 @@ def save_record(
 ) -> dict:
     """スコア結果を履歴の先頭に追加して保存する。"""
     record = {
-        "id":           f"rec_{int(time.time())}",
+        "id":           f"rec_{time.time_ns()}",
         "word_id":      word_id,
         "display":      display,
         "reading":      reading,
@@ -147,7 +147,8 @@ def save_record(
     history = history[:MAX_RECORDS]
 
     HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with HISTORY_PATH.open("w", encoding="utf-8") as f:
-        json.dump(history, f, ensure_ascii=False, indent=2)
+    tmp = HISTORY_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(HISTORY_PATH)
 
     return record

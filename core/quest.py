@@ -73,8 +73,9 @@ def _load_raw() -> dict:
 
 def _save_raw(data: dict) -> None:
     QUEST_PROGRESS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with QUEST_PROGRESS_PATH.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    tmp = QUEST_PROGRESS_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(QUEST_PROGRESS_PATH)
 
 
 def load_active_quests() -> list[Quest]:

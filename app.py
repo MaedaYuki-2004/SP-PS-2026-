@@ -473,9 +473,16 @@ def _score_delta(current, prev) -> str | None:
 
 _SILENCE_LABELS = {'silb', 'sile', 'sp', 'sil', 'sp2'}
 
+# お手本ピッチデータのインメモリキャッシュ: {word_id: (mtime, data)}
+_REF_PITCH_CACHE: dict[str, tuple[float, dict]] = {}
+
 
 def _get_reference_pitch_data(word_id: str) -> dict:
-    """お手本音声のピッチ曲線とモーラタイミングをJSON用辞書で返す。"""
+    """お手本音声のピッチ曲線とモーラタイミングをJSON用辞書で返す。
+
+    WAV ファイルの mtime が変わっていなければキャッシュを返す。
+    変わっていれば再計算してキャッシュを更新する。
+    """
     sound_dir = RAW_AUDIO_DIR / "sound" / word_id
     wav_path  = sound_dir / f"{word_id}.wav"
     lab_path  = sound_dir / f"{word_id}.lab"
@@ -489,6 +496,11 @@ def _get_reference_pitch_data(word_id: str) -> dict:
 
     if not lab_path.exists():
         return {"has_data": False}
+
+    mtime = wav_path.stat().st_mtime
+    cached = _REF_PITCH_CACHE.get(word_id)
+    if cached and cached[0] == mtime:
+        return cached[1]
 
     try:
         floor, ceiling  = estimate_pitch_range(str(wav_path))
@@ -525,13 +537,15 @@ def _get_reference_pitch_data(word_id: str) -> dict:
             for v in pitch_scaled
         ]
 
-        return {
+        result = {
             "has_data":     True,
             "pitch":        pitch_values,
             "duration_sec": round(duration_sec, 3),
             "n_frames":     len(pitch_values),
             "moras":        moras,
         }
+        _REF_PITCH_CACHE[word_id] = (mtime, result)
+        return result
     except Exception:
         traceback.print_exc()
         return {"has_data": False}

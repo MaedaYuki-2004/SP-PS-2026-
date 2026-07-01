@@ -335,6 +335,9 @@
     const graphBtn = document.getElementById('buttongraph');
     if (e.code === 'Space') {
       e.preventDefault();
+      // お手本音声が再生中は Space を録音トリガーに使わない
+      const refAudio = document.getElementById('refAudio');
+      if (refAudio && !refAudio.paused) { refAudio.pause(); return; }
       if (!startBtn.disabled) startBtn.click();
       else if (!stopBtn.disabled) stopBtn.click();
     }
