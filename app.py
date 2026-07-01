@@ -501,15 +501,25 @@ def _get_reference_pitch_data(word_id: str) -> dict:
         (_, mora_list, *_) = lab_load(str(lab_path))
         duration_sec = len(pitch_10ms) * 0.01
 
-        moras = [
-            {
+        # lab_load() は silB/silE をスキップするため mora_list に語頭無音が含まれない。
+        # ピッチグラフのカーソル（0→duration_sec）と視覚的に揃えるため、
+        # 語頭・語末の無音区間を明示的なスペーサーとして追加する。
+        speech_start = round(float(mora_list[0][0]), 4) if mora_list else 0.0
+        speech_end   = round(float(mora_list[-1][1]), 4) if mora_list else duration_sec
+
+        moras: list[dict] = []
+        if speech_start > 0.005:
+            moras.append({"label": "silB", "start": 0.0, "end": speech_start, "is_sil": True})
+        for m in mora_list:
+            moras.append({
                 "label":  str(m[2]),
                 "start":  round(float(m[0]), 4),
                 "end":    round(float(m[1]), 4),
-                "is_sil": str(m[2]).lower() in _SILENCE_LABELS,
-            }
-            for m in mora_list
-        ]
+                "is_sil": False,
+            })
+        if speech_end < duration_sec - 0.005:
+            moras.append({"label": "silE", "start": speech_end,
+                          "end": round(duration_sec, 4), "is_sil": True})
         pitch_values = [
             None if math.isnan(float(v)) else round(float(v), 4)
             for v in pitch_scaled
