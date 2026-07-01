@@ -84,12 +84,12 @@
   })();
 </script>
 <div class="page-header">
-  <div><div class="page-header-title">単語管理</div><div class="page-header-sub">単語の追加・編集・削除（追加時はVOICEVOXが必要）</div></div>
+  <div><div class="page-header-title">単語管理</div><div class="page-header-sub">単語の追加・編集・削除（追加時は参照動画が必要）</div></div>
 </div>
 <div class="main">
   <div class="stats-row">
     <div class="stat-card"><div class="stat-card-label">登録単語数</div><div class="stat-card-value">{{ words|length }}</div></div>
-    <div class="stat-card"><div class="stat-card-label">人間録音</div><div class="stat-card-value">{{ words|selectattr("source","eq","recorded")|list|length }}</div></div>
+    <div class="stat-card"><div class="stat-card-label">録画登録</div><div class="stat-card-value">{{ words|selectattr("source","in",["recorded","manual"])|list|length }}</div></div>
     <div class="stat-card"><div class="stat-card-label">総練習回数</div><div class="stat-card-value">{{ stats.total_sessions if stats else 0 }}</div></div>
   </div>
 
@@ -100,7 +100,12 @@
       <div class="form-field"><label class="form-label">ひらがな読み</label><input type="text" class="form-input" id="inputReading" placeholder="例：ゆうしょく、すーぱー"><span class="form-hint">長音は「ー」で表記</span></div>
       <button class="btn btn-primary btn-lg" id="btnRegister" onclick="registerWord()">追加</button>
     </div>
-    <div class="status-box loading" id="statusLoading"><div class="spinner"></div><span id="statusMsg">生成中...</span></div>
+    <div class="form-field" style="margin-top:12px;">
+      <label class="form-label">参照動画（お手本）</label>
+      <input type="file" class="form-input" id="inputVideo" accept="video/webm,video/*">
+      <span class="form-hint">音声・口形の正解データになります。カメラで録画した WebM ファイルを選択してください</span>
+    </div>
+    <div class="status-box loading" id="statusLoading"><div class="spinner"></div><span id="statusMsg">登録中...</span></div>
     <div class="status-box success" id="statusSuccess"></div>
     <div class="status-box error"   id="statusError"></div>
   </div>
@@ -123,7 +128,7 @@
           <td class="tbl-word">{{ w.display }}</td>
           <td><span style="font-family:var(--mono);font-size:11px;">{{ w.reading }}</span></td>
           <td>{% if w.accent is not none %}<span style="font-family:var(--mono);font-size:11px;">{{ w.accent }}型{% if w.accent==0 %}（平板）{% elif w.accent==1 %}（頭高）{% endif %}</span>{% else %}<span style="color:var(--text-3);">不明</span>{% endif %}</td>
-          <td>{% if w.source=="recorded" %}<span class="src-badge src-recorded">録音</span>{% else %}<span class="src-badge src-tts">自動</span>{% endif %}</td>
+          <td>{% if w.source=="recorded" %}<span class="src-badge src-recorded">初期録音</span>{% elif w.source=="manual" %}<span class="src-badge src-recorded">録画</span>{% else %}<span class="src-badge src-tts">自動</span>{% endif %}</td>
           <td>{% if w.source!="recorded" %}<div class="action-row"><button class="action-btn action-edit" onclick="openEdit('{{ w.word_id }}','{{ w.display }}','{{ w.reading }}','{{ w.accent }}')">編集</button><button class="action-btn action-del" onclick="deleteWord('{{ w.word_id }}','{{ w.display }}')">削除</button></div>{% else %}<span style="font-size:10px;color:var(--text-3);">変更不可</span>{% endif %}</td>
         </tr>
         {% endfor %}
@@ -147,7 +152,39 @@
 
 <script>
 function filterTable(){const q=document.getElementById('tableSearch').value.trim().toLowerCase();document.querySelectorAll('#wordTable tbody tr').forEach(r=>{r.style.display=!q||(r.dataset.word||'').toLowerCase().includes(q)?'':'none';});}
-async function registerWord(){const display=document.getElementById('inputDisplay').value.trim(),reading=document.getElementById('inputReading').value.trim();if(!display||!reading){showError('両方入力してください。');return;}hideAll();document.getElementById('statusLoading').classList.add('show');document.getElementById('btnRegister').disabled=true;document.getElementById('statusMsg').textContent=`「${display}」の音声を生成中...`;try{const res=await fetch('/admin/add_word',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({display,reading})});const data=await res.json();hideAll();if(res.ok){document.getElementById('statusSuccess').textContent=`「${data.message}」`;document.getElementById('statusSuccess').classList.add('show');document.getElementById('inputDisplay').value='';document.getElementById('inputReading').value='';setTimeout(()=>location.reload(),1500);}else{showError(data.error||'登録に失敗しました。');}}catch(e){hideAll();showError(`通信エラー: ${e.message}`);}finally{document.getElementById('btnRegister').disabled=false;}}
+async function registerWord(){
+  const display=document.getElementById('inputDisplay').value.trim();
+  const reading=document.getElementById('inputReading').value.trim();
+  const fileInput=document.getElementById('inputVideo');
+  const file=fileInput.files[0];
+  if(!display||!reading){showError('表示テキストとひらがな読みを入力してください。');return;}
+  if(!file){showError('参照動画ファイルを選択してください。');return;}
+  hideAll();
+  document.getElementById('statusLoading').classList.add('show');
+  document.getElementById('btnRegister').disabled=true;
+  document.getElementById('statusMsg').textContent=`「${display}」を登録中...`;
+  try{
+    const fd=new FormData();
+    fd.append('display',display);
+    fd.append('reading',reading);
+    fd.append('file',file,file.name);
+    const res=await fetch('/admin/add_word',{method:'POST',body:fd});
+    const data=await res.json();
+    hideAll();
+    if(res.ok){
+      let msg=data.message;
+      if(data.alignment_ok===false) msg+=' ※アライメント失敗（発音が不明瞭の可能性）';
+      if(data.mora_count) msg+=` / 口形 ${data.mora_count} モーラ保存`;
+      document.getElementById('statusSuccess').textContent=msg;
+      document.getElementById('statusSuccess').classList.add('show');
+      document.getElementById('inputDisplay').value='';
+      document.getElementById('inputReading').value='';
+      fileInput.value='';
+      setTimeout(()=>location.reload(),2000);
+    }else{showError(data.error||'登録に失敗しました。');}
+  }catch(e){hideAll();showError(`通信エラー: ${e.message}`);}
+  finally{document.getElementById('btnRegister').disabled=false;}
+}
 async function deleteWord(id,display){if(!confirm(`「${display}」を削除しますか？`))return;try{const res=await fetch('/admin/delete_word',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word_id:id})});const data=await res.json();if(res.ok){alert(data.message);location.reload();}else{alert('エラー: '+(data.error||'削除失敗'));}}catch(e){alert('通信エラー: '+e.message);}}
 function openEdit(id,display,reading,accent){document.getElementById('editWordId').value=id;document.getElementById('editDisplay').value=display;document.getElementById('editReading').value=reading;document.getElementById('editAccent').value=(accent==='None'||accent==='null')?'':accent;document.getElementById('editModal').classList.add('show');}
 function closeEdit(){document.getElementById('editModal').classList.remove('show');}

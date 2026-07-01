@@ -1268,12 +1268,69 @@ def admin():
 
 @app.route("/admin/add_word", methods=["POST"])
 def add_word():
+    """
+    multipart/form-data で display・reading・file（参照動画 WebM）を受け取り、
+    音声を抽出して単語を登録する。口形参照データも同時に保存する。
+    """
     try:
-        data    = request.get_json()
-        display = data.get("display", "").strip()
-        reading = data.get("reading", "").strip()
-        if not display or not reading: return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
-        return jsonify(register_word(display, reading))
+        display = (request.form.get("display") or "").strip()
+        reading = (request.form.get("reading") or "").strip()
+        file    = request.files.get("file")
+        if not display or not reading:
+            return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
+        if not file:
+            return jsonify({"error": "参照動画ファイルが必要です"}), 400
+
+        video_tmp = _save_temp_video(file)
+        try:
+            # WebM → 16kHz WAV に変換
+            ref_wav = _webm_to_wav(video_tmp)
+            try:
+                result = register_word(display, reading, Path(ref_wav))
+            finally:
+                try:
+                    os.remove(ref_wav)
+                except Exception:
+                    pass
+
+            word_id = result["word_id"]
+
+            # ── 口形参照データの生成（アライメント済み .lab を再利用） ──
+            if MEDIA_PIPE_AVAILABLE:
+                try:
+                    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
+                    native_lab = sound_dir / f"{word_id}.lab"
+                    mora_data: list[dict] = []
+                    if native_lab.exists():
+                        (_, ref_mora_list, *_) = lab_load(native_lab)
+                        if ref_mora_list:
+                            raw_ref = _extract_mora_lip_openness(video_tmp, ref_mora_list)
+                            mora_data = [
+                                {"label": item["label"], "v_h_ratio": item["openness"]}
+                                for item in raw_ref
+                            ]
+                    reference_vectors, reference_ratios = _extract_lip_data(video_tmp)
+                    refs = load_lip_refs()
+                    entry: dict = {
+                        "schema_version": 2,
+                        "vectors":        reference_vectors,
+                        "ratios":         reference_ratios,
+                    }
+                    if mora_data:
+                        entry["mora_data"] = mora_data
+                    refs[word_id] = entry
+                    save_lip_refs(refs)
+                    result["mora_count"] = len(mora_data)
+                except Exception:
+                    traceback.print_exc()
+
+            return jsonify(result)
+        finally:
+            try:
+                if os.path.exists(video_tmp):
+                    os.remove(video_tmp)
+            except Exception:
+                pass
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 

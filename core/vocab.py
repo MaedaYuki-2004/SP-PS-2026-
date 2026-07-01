@@ -3,12 +3,12 @@ core/vocab.py
 words_db.json の読み書きと単語登録フローを担当するモジュール。
 
 単語登録の流れ：
-  1. display（表示テキスト）と reading（ひらがな読み）を受け取る
+  1. display（表示テキスト）と reading（ひらがな読み）、wav_path（参照音声）を受け取る
   2. MeCab でアクセント型を自動取得
-  3. VOICEVOX でサンプル音声を自動生成
+  3. wav_path を sound/{word_id}/{word_id}.wav にコピー
   4. Julius でアライメントを自動実行
   5. MFCC を自動計算・保存
-  6. words_db.json に追記
+  6. words_db.json に追記（source: "manual"）
 """
 from __future__ import annotations
 
@@ -23,9 +23,8 @@ from config import (
     RAW_AUDIO_DIR,
     WORDS_TXT_PATH,
 )
-from core.accent import generate_sample_wav, get_accent
-from core.alignment import lab_load, perl_run
-from core.audio import convert_to_16kHz
+from core.accent import get_accent
+from core.alignment import run_alignment_on_file
 from core.timbre import audio_mfcc
 
 # ── パス定数 ─────────────────────────────────────────────────────────
@@ -76,18 +75,19 @@ def list_words() -> list[dict]:
 
 # ── 単語登録フロー ────────────────────────────────────────────────────
 
-def register_word(display: str, reading: str) -> dict:
+def register_word(display: str, reading: str, wav_path: Path) -> dict:
     """
     新しい単語を登録する。
 
     Parameters
     ----------
-    display : 表示テキスト（漢字・カタカナ・ひらがなすべてOK）
-    reading : ひらがな読み（Julius用・長音は「ー」で表記）
+    display  : 表示テキスト（漢字・カタカナ・ひらがなすべてOK）
+    reading  : ひらがな読み（Julius用・長音は「ー」で表記）
+    wav_path : 登録用音声（16kHz/モノラル/16bit PCM WAV）
 
     Returns
     -------
-    dict : 登録結果 {"word_id": ..., "accent": ..., "message": ...}
+    dict : 登録結果 {"word_id": ..., "accent": ..., "alignment_ok": ..., "message": ...}
     """
     db      = load_db()
     word_id = get_next_word_id(db)
@@ -95,42 +95,28 @@ def register_word(display: str, reading: str) -> dict:
     # ── 1. アクセント型の取得 ─────────────────────────────────────
     accent, accent_source = get_accent(display)
 
-    # ── 2. サンプル音声の生成（VOICEVOX） ────────────────────────
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    # ── 2. 音声を sound/{word_id}/ に配置 ────────────────────────
+    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
     sound_dir.mkdir(parents=True, exist_ok=True)
-    wav_path  = sound_dir / f"{word_id}.wav"
-
-    generate_sample_wav(display, wav_path)
-    convert_to_16kHz(wav_path, wav_path)
+    native_wav = sound_dir / f"{word_id}.wav"
+    shutil.copy2(wav_path, native_wav)
 
     # ── 3. ひらがな読みを txt ファイルに書き込む（Julius用） ─────
     txt_path = sound_dir / f"{word_id}.txt"
     txt_path.write_text(reading, encoding="utf-8")
 
     # ── 4. Julius でアライメント実行 ──────────────────────────────
-    # segment_julius.pl は wav/ ディレクトリを引数として受け取るが、
-    # 基準音声は sound/ 以下にあるため、一時的に wav/ にコピーして実行
-    tmp_wav  = RAW_AUDIO_DIR / "wav" / f"{word_id}.wav"
-    tmp_txt  = RAW_AUDIO_DIR / "wav" / f"{word_id}.txt"
-    shutil.copy(wav_path, tmp_wav)
-    shutil.copy(txt_path, tmp_txt)
-
+    native_lab = sound_dir / f"{word_id}.lab"
+    native_log = sound_dir / f"{word_id}.log"
+    alignment_ok = False
     try:
-        perl_run()
-        # アライメント結果を sound/ に移動
-        tmp_lab = RAW_AUDIO_DIR / "wav" / f"{word_id}.lab"
-        tmp_log = RAW_AUDIO_DIR / "wav" / f"{word_id}.log"
-        if tmp_lab.exists():
-            shutil.move(str(tmp_lab), str(sound_dir / f"{word_id}.lab"))
-        if tmp_log.exists():
-            shutil.move(str(tmp_log), str(sound_dir / f"{word_id}.log"))
-    finally:
-        # 一時ファイルを削除
-        tmp_wav.unlink(missing_ok=True)
-        tmp_txt.unlink(missing_ok=True)
+        run_alignment_on_file(native_wav, reading, native_lab, native_log)
+        alignment_ok = native_lab.exists()
+    except Exception:
+        pass
 
     # ── 5. MFCC 計算・保存 ────────────────────────────────────────
-    mfcc = audio_mfcc(wav_path)
+    mfcc = audio_mfcc(native_wav)
     bin_path = AUDIO_MFCC_DIR / f"{word_id}.bin"
     mfcc.tofile(str(bin_path))
 
@@ -140,19 +126,20 @@ def register_word(display: str, reading: str) -> dict:
         "reading":       reading,
         "accent":        accent,
         "accent_source": accent_source,
-        "source":        "tts",
+        "source":        "manual",
     }
     save_db(db)
 
-    # ── 8. 既存の設定ファイルを更新 ──────────────────────────────
+    # ── 7. 既存の設定ファイルを更新 ──────────────────────────────
     _update_audio_scp(db)
     _update_words_txt(db)
 
     return {
-        "word_id":  word_id,
-        "accent":   accent,
+        "word_id":      word_id,
+        "accent":       accent,
         "accent_source": accent_source,
-        "message":  f"{display} を {word_id} として登録しました",
+        "alignment_ok": alignment_ok,
+        "message":      f"{display} を {word_id} として登録しました",
     }
 
 
@@ -189,7 +176,7 @@ def delete_word(word_id: str) -> dict:
     if not entry:
         raise ValueError(f"{word_id} は登録されていません")
     if entry.get("source") == "recorded":
-        raise ValueError("既存の録音済み単語は削除できません")
+        raise ValueError("初期収録単語は削除できません")
 
     # ファイル削除
     sound_dir = RAW_AUDIO_DIR / "sound" / word_id
