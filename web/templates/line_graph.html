@@ -240,7 +240,7 @@
     const root  = document.documentElement;
     const btn   = document.getElementById('themeToggle');
     const saved = localStorage.getItem('sp-ps-theme');
-    if (saved === 'dark') { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; }
+    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.textContent='☀️'; }
     btn.addEventListener('click', () => {
       const isDark = root.getAttribute('data-theme') === 'dark';
       if (isDark) { root.removeAttribute('data-theme'); btn.textContent='🌙'; localStorage.setItem('sp-ps-theme','light'); }

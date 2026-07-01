@@ -35,35 +35,35 @@
 
 /* ── ダークモード ────────────────────────────────────────── */
 [data-theme="dark"] {
-  --bg:          #0F1117;
-  --bg-card:     #1A1D26;
-  --bg-muted:    #252833;
-  --text:        #E8E4DE;
-  --text-2:      #A8A29A;
-  --text-3:      #6B6560;
-  --navy:        #2A4A8A;
-  --navy-mid:    #3A5FA0;
-  --accent:      #E05535;
-  --accent-bg:   #2D1A14;
-  --green:       #3D8A65;
-  --green-bg:    #162A20;
-  --blue:        #3A72AD;
-  --blue-bg:     #162030;
-  --quest:       #C48A00;
-  --quest-mid:   #D9A000;
-  --quest-bg:    #2A2000;
-  --quest-border: #8A6800;
-  --border:      #2E3240;
-  --border-light: #232633;
-  --shadow-xs: 0 1px 2px rgba(0,0,0,.3);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,.4);
-  --shadow:    0 4px 20px rgba(0,0,0,.5);
-  --shadow-lg: 0 8px 40px rgba(0,0,0,.6);
+  --bg:          #07080F;
+  --bg-card:     #0D0E1C;
+  --bg-muted:    #131426;
+  --text:        #E2E2F2;
+  --text-2:      #8080A4;
+  --text-3:      #41415E;
+  --navy:        #7C6AE0;
+  --navy-mid:    #9D8FF0;
+  --accent:      #E87040;
+  --accent-bg:   #1C0A02;
+  --green:       #1EC99A;
+  --green-bg:    #041A12;
+  --blue:        #5DA8F8;
+  --blue-bg:     #05182A;
+  --quest:       #F0A030;
+  --quest-mid:   #F8B840;
+  --quest-bg:    #1A1200;
+  --quest-border:#806020;
+  --border:      #181828;
+  --border-light:#0F1020;
+  --shadow-xs: 0 1px 3px rgba(0,0,0,.55);
+  --shadow-sm: 0 2px 10px rgba(0,0,0,.65);
+  --shadow:    0 4px 24px rgba(0,0,0,.75);
+  --shadow-lg: 0 8px 48px rgba(0,0,0,.85);
 }
 
 /* ダークモード時のナビ背景 */
 [data-theme="dark"] .top-nav {
-  background: rgba(15,17,23,.92);
+  background: rgba(7,8,15,.92);
   border-bottom-color: var(--border);
 }
 
