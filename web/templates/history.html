@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>練習履歴 — SP-PS</title>
+  <title>練習記録 — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="static/css/base.css" rel="stylesheet">
@@ -14,8 +14,15 @@
     .page-header-sub { font-size:12px; color:rgba(255,255,255,.4); margin-top:3px; }
     .header-actions { display:flex; gap:8px; }
 
+    /* タブバー */
+    .tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border); background:var(--bg-card); padding:0 32px; }
+    .tab-btn { padding:13px 20px; background:none; border:none; border-bottom:2px solid transparent; font-family:var(--font); font-size:13px; font-weight:600; color:var(--text-3); cursor:pointer; transition:color .15s,border-color .15s; margin-bottom:-1px; }
+    .tab-btn:hover { color:var(--text); }
+    .tab-btn.active { color:var(--navy); border-bottom-color:var(--navy); }
+
     .main { max-width:1100px; margin:0 auto; padding:28px 32px; }
 
+    /* ── 練習ログタブ ── */
     .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
     .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; box-shadow:var(--shadow-xs); }
     .stat-card-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; }
@@ -26,7 +33,6 @@
     .sec-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
     .sec-title-line { flex:1; height:1px; background:var(--border-light); }
 
-    /* E: スコア推移グラフ */
     .word-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-bottom:32px; }
     .word-progress-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px; box-shadow:var(--shadow-xs); transition:box-shadow var(--dur),transform var(--dur); }
     .word-progress-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
@@ -43,13 +49,11 @@
     .wpc-practice-btn:hover { background:var(--navy-mid); }
     .wpc-practice-btn:active { transform:scale(.97); }
 
-    /* History table */
     .table-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:12px; flex-wrap:wrap; }
     .filter-wrap { position:relative; }
     .filter-input { padding:7px 12px 7px 28px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:12px; background:var(--bg-card); color:var(--text); width:180px; transition:border-color var(--dur),box-shadow var(--dur); }
     .filter-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(14,30,69,.08); }
     .filter-icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--text-3); }
-
     .hist-table-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-xs); }
     .hist-table { width:100%; border-collapse:collapse; font-size:13px; }
     .hist-table th { text-align:left; padding:10px 16px; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); background:var(--bg-muted); border-bottom:1px solid var(--border); }
@@ -64,11 +68,38 @@
     .mini-bars { display:flex; gap:3px; align-items:flex-end; height:14px; }
     .mini-bar { width:5px; border-radius:2px; }
 
+    /* ── 分析タブ ── */
+    .a-main { max-width:1100px; margin:0 auto; padding:28px 32px; }
+    .a-sec { margin-bottom:36px; }
+    .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
+    .s-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px 18px; box-shadow:var(--shadow-xs); }
+    .s-card-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; }
+    .s-card-value { font-family:var(--mono); font-size:28px; font-weight:500; color:var(--navy); }
+    .s-card-sub { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:20px 24px; box-shadow:var(--shadow-xs); margin-bottom:16px; }
+    .chart-card-title { font-size:13px; font-weight:600; color:var(--text); margin-bottom:4px; }
+    .chart-card-sub { font-size:11px; color:var(--text-3); margin-bottom:16px; }
+    .chart-wrap { position:relative; height:260px; }
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .data-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .data-table th { background:var(--navy); color:#fff; padding:8px 12px; text-align:left; font-weight:600; font-size:11px; letter-spacing:.04em; }
+    .data-table th:first-child { border-radius:var(--r-sm) 0 0 0; }
+    .data-table th:last-child { border-radius:0 var(--r-sm) 0 0; }
+    .data-table td { padding:9px 12px; border-bottom:1px solid var(--border-light); color:var(--text); }
+    .data-table tr:hover td { background:var(--bg-muted); }
+    .data-table tr:last-child td { border-bottom:none; }
+    .badge-up      { display:inline-block; background:var(--green-bg);  color:var(--green);  font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+    .badge-plateau { display:inline-block; background:var(--quest-bg);   color:var(--quest);  font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+    .badge-down    { display:inline-block; background:var(--accent-bg); color:var(--accent); font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+    .word-select-row { display:flex; gap:8px; align-items:center; margin-bottom:16px; }
+    .word-select { padding:8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:13px; background:var(--bg-card); color:var(--text); min-width:200px; }
+    .word-select:focus { outline:none; border-color:var(--navy); }
+
     .empty-state { text-align:center; padding:64px 24px; }
     .empty-title { font-size:18px; font-weight:700; color:var(--text-2); margin-bottom:10px; }
     .empty-sub { font-size:14px; color:var(--text-3); line-height:1.7; margin-bottom:24px; }
 
-    @media (max-width:800px) { .stats-row { grid-template-columns:repeat(2,1fr); } .main { padding:16px 20px; } }
+    @media (max-width:800px) { .stats-row,.summary-grid { grid-template-columns:repeat(2,1fr); } .main,.a-main { padding:16px 20px; } .two-col { grid-template-columns:1fr; } .tab-bar { padding:0 16px; } }
   </style>
 </head>
 <body>
@@ -77,7 +108,9 @@
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     ホーム
   </a>
-  <div class="nav-actions"><a href="/analysis" class="nav-link">分析</a><a href="/admin" class="nav-link">管理</a><button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button></div>
+  <div class="nav-actions">
+    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button>
+  </div>
 </nav>
 <script>
   (function() {
@@ -96,16 +129,23 @@
 
 <div class="page-header">
   <div>
-    <div class="page-header-title">練習履歴</div>
-    <div class="page-header-sub">全録音セッションの記録と成長の可視化</div>
+    <div class="page-header-title">練習記録</div>
+    <div class="page-header-sub">録音ログと学習曲線の分析</div>
   </div>
   <div class="header-actions">
-    <!-- F: CSVエクスポート -->
     <a href="/history/export.csv" class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">CSVダウンロード</a>
     <a href="/select" class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">練習する</a>
   </div>
 </div>
 
+<!-- タブバー -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabBtnLog" onclick="switchTab('log')">練習ログ</button>
+  <button class="tab-btn" id="tabBtnAnalysis" onclick="switchTab('analysis')">分析</button>
+</div>
+
+<!-- ══════════════ 練習ログタブ ══════════════ -->
+<div id="tabLog">
 <div class="main">
   {% if stats.total_sessions == 0 %}
   <div class="empty-state">
@@ -115,7 +155,6 @@
   </div>
   {% else %}
 
-  <!-- Stats -->
   <div class="stats-row">
     <div class="stat-card">
       <div class="stat-card-label">総録音回数</div>
@@ -139,7 +178,6 @@
     </div>
   </div>
 
-  <!-- 苦手アクセント型の分析 -->
   {% if accent_stats %}
   <div class="sec-title">アクセント型別の平均スコア（苦手順）<div class="sec-title-line"></div></div>
   <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:28px;">
@@ -150,31 +188,19 @@
       <div style="font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--text-3); margin-bottom:6px; text-transform:uppercase;">{{ a.label }}</div>
       <div style="font-family:var(--mono); font-size:28px; font-weight:500; color:{{ color }};">{{ a.avg_total }}</div>
       <div style="font-size:10px; color:var(--text-3); margin-bottom:10px;">点平均（{{ a.count }}回）</div>
-      <!-- スコアバー -->
       <div style="background:var(--border-light); border-radius:4px; height:6px; margin-bottom:10px;">
         <div style="background:{{ color }}; width:{{ pct }}%; height:6px; border-radius:4px; transition:width .4s;"></div>
       </div>
-      <!-- 軸別 -->
       <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; text-align:center;">
-        <div>
-          <div style="font-size:9px; color:var(--text-3);">アクセント</div>
-          <div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_accent }}</div>
-        </div>
-        <div>
-          <div style="font-size:9px; color:var(--text-3);">長さ</div>
-          <div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_length }}</div>
-        </div>
-        <div>
-          <div style="font-size:9px; color:var(--text-3);">母音</div>
-          <div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_vowel }}</div>
-        </div>
+        <div><div style="font-size:9px; color:var(--text-3);">アクセント</div><div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_accent }}</div></div>
+        <div><div style="font-size:9px; color:var(--text-3);">長さ</div><div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_length }}</div></div>
+        <div><div style="font-size:9px; color:var(--text-3);">母音</div><div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_vowel }}</div></div>
       </div>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
-  <!-- E: 単語別スコア推移グラフ -->
   {% if word_latest %}
   <div class="sec-title">単語別スコア推移 <div class="sec-title-line"></div></div>
   <div class="word-progress-grid">
@@ -191,7 +217,6 @@
       </div>
       <div class="wpc-score">{{ rec.total or 0 }}<span> / 100点</span></div>
       <div class="wpc-count">{{ count }}回練習</div>
-      <!-- E: 推移グラフ（Chart.js） -->
       <div class="wpc-chart-wrap">
         <canvas id="chart-{{ wid }}" height="60"></canvas>
       </div>
@@ -206,7 +231,6 @@
   </div>
   {% endif %}
 
-  <!-- History log -->
   <div class="table-header">
     <div class="sec-title" style="margin-bottom:0;">録音ログ（最新100件）<div class="sec-title-line"></div></div>
     <div class="filter-wrap">
@@ -214,16 +238,11 @@
       <input type="text" class="filter-input" id="filterInput" placeholder="単語を絞り込む..." oninput="filterHistory()">
     </div>
   </div>
-
   <div class="hist-table-wrap">
     <table class="hist-table" id="historyTable">
       <thead>
         <tr>
-          <th>単語</th>
-          <th>スコア</th>
-          <th>内訳</th>
-          <th>グレード</th>
-          <th>日時</th>
+          <th>単語</th><th>スコア</th><th>内訳</th><th>グレード</th><th>日時</th>
         </tr>
       </thead>
       <tbody>
@@ -247,9 +266,214 @@
   </div>
   {% endif %}
 </div>
+</div><!-- /tabLog -->
+
+<!-- ══════════════ 分析タブ ══════════════ -->
+<div id="tabAnalysis" style="display:none;">
+<div class="a-main">
+
+{% if analysis_stats.summary.total_sessions < 5 %}
+<div class="empty-state">
+  <div style="font-size:32px;margin-bottom:12px;">📊</div>
+  <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;">データが少なすぎます</div>
+  <div>分析には5回以上の練習が必要です。<br>まずはいくつかの単語を練習してみてください。</div>
+  <a href="/select" class="btn btn-primary" style="margin-top:20px;">練習を始める</a>
+</div>
+{% else %}
+
+<div class="a-sec">
+  <div class="sec-title">サマリー <div class="sec-title-line"></div></div>
+  <div class="summary-grid">
+    <div class="s-card">
+      <div class="s-card-label">総練習回数</div>
+      <div class="s-card-value">{{ analysis_stats.summary.total_sessions }}</div>
+      <div class="s-card-sub">回</div>
+    </div>
+    <div class="s-card">
+      <div class="s-card-label">平均上達速度</div>
+      <div class="s-card-value" style="color:{% if analysis_stats.summary.avg_slope and analysis_stats.summary.avg_slope > 0 %}var(--green){% else %}var(--accent){% endif %};">
+        {% if analysis_stats.summary.avg_slope %}{{ "%+.2f"|format(analysis_stats.summary.avg_slope) }}{% else %}—{% endif %}
+      </div>
+      <div class="s-card-sub">点/回</div>
+    </div>
+    <div class="s-card">
+      <div class="s-card-label">上達中 / 停滞中</div>
+      <div class="s-card-value">{{ analysis_stats.summary.n_improving }} <span style="font-size:16px;color:var(--text-3);">/ {{ analysis_stats.summary.n_plateau }}</span></div>
+      <div class="s-card-sub">単語</div>
+    </div>
+    <div class="s-card">
+      <div class="s-card-label">Sランク到達単語</div>
+      <div class="s-card-value" style="color:#F59E0B;">{{ analysis_stats.summary.n_s_rank }}</div>
+      <div class="s-card-sub">/ {{ analysis_stats.summary.total_words }} 単語</div>
+    </div>
+  </div>
+</div>
+
+<div class="a-sec">
+  <div class="sec-title">全体のスコア推移 <div class="sec-title-line"></div></div>
+  <div class="chart-card">
+    <div class="chart-card-title">練習順スコア + 5回移動平均</div>
+    <div class="chart-card-sub">すべての練習を時系列に並べたスコアの推移。移動平均線が右上がりなら全体的に上達しています。</div>
+    <div class="chart-wrap"><canvas id="overallChart"></canvas></div>
+  </div>
+</div>
+
+<div class="a-sec">
+  <div class="sec-title">アクセント型ごとの上達しやすさ <div class="sec-title-line"></div></div>
+  <div class="two-col">
+    <div class="chart-card">
+      <div class="chart-card-title">平均上達速度（傾き）</div>
+      <div class="chart-card-sub">値が大きいほど「1回の練習で多くスコアが上がる」アクセント型</div>
+      <div class="chart-wrap"><canvas id="accentSlopeChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Sランク到達率</div>
+      <div class="chart-card-sub">各アクセント型の単語のうち一度でもSランクになった割合</div>
+      <div class="chart-wrap"><canvas id="accentSRateChart"></canvas></div>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-card-title">アクセント型ごとの詳細</div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead><tr><th>アクセント型</th><th>単語数</th><th>総練習回数</th><th>平均上達速度</th><th>Sランク到達率</th></tr></thead>
+        <tbody>
+          {% for a in analysis_stats.accent_stats %}
+          <tr>
+            <td style="font-weight:600;">{{ a.label }}</td>
+            <td>{{ a.n_words }}</td>
+            <td>{{ a.n_sessions }}</td>
+            <td>
+              {% if a.avg_slope is not none %}
+              <span style="font-family:var(--mono); color:{% if a.avg_slope > 0.3 %}var(--green){% elif a.avg_slope < -0.3 %}var(--accent){% else %}var(--text-3){% endif %};">
+                {{ "%+.3f"|format(a.avg_slope) }} 点/回
+              </span>
+              {% else %}—{% endif %}
+            </td>
+            <td><span style="font-family:var(--mono);">{{ a.s_rate }}%</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if analysis_stats.s_rank_dist %}
+<div class="a-sec">
+  <div class="sec-title">Sランク到達回数の分布 <div class="sec-title-line"></div></div>
+  <div class="two-col">
+    <div class="chart-card">
+      <div class="chart-card-title">何回目の練習で初めてSランクになったか</div>
+      <div class="chart-card-sub">{{ analysis_stats.s_rank_dist.n }}単語がSランクに到達。平均{{ analysis_stats.s_rank_dist.mean }}回、中央値{{ analysis_stats.s_rank_dist.median }}回</div>
+      <div class="chart-wrap"><canvas id="sRankDistChart"></canvas></div>
+    </div>
+    <div class="s-card" style="display:flex;flex-direction:column;justify-content:center;gap:16px;padding:24px;">
+      <div><div class="s-card-label">平均</div><div class="s-card-value">{{ analysis_stats.s_rank_dist.mean }}<span style="font-size:14px;color:var(--text-3);">回</span></div></div>
+      <div><div class="s-card-label">中央値</div><div class="s-card-value">{{ analysis_stats.s_rank_dist.median }}<span style="font-size:14px;color:var(--text-3);">回</span></div></div>
+      <div><div class="s-card-label">最少 / 最多</div><div style="font-family:var(--mono);font-size:20px;color:var(--text);">{{ analysis_stats.s_rank_dist.min }} / {{ analysis_stats.s_rank_dist.max }}回</div></div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="a-sec">
+  <div class="sec-title">単語ごとの学習曲線 <div class="sec-title-line"></div></div>
+  <div class="word-select-row">
+    <select id="wordSelector" class="word-select" onchange="updateWordChart()">
+      {% for w in analysis_stats.word_stats %}
+      {% if w.n_sessions >= 2 %}
+      <option value="{{ loop.index0 }}">{{ w.display }}（{{ w.accent_label }}・{{ w.n_sessions }}回）</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  <div class="chart-card">
+    <div id="wordChartTitle" class="chart-card-title"></div>
+    <div id="wordChartSub" class="chart-card-sub"></div>
+    <div class="chart-wrap"><canvas id="wordChart"></canvas></div>
+  </div>
+</div>
+
+{% if analysis_stats.summary.n_plateau > 0 %}
+<div class="a-sec">
+  <div class="sec-title">停滞中の単語 <div class="sec-title-line"></div></div>
+  <div class="chart-card">
+    <div class="chart-card-title">直近10回で上達速度が低下している単語</div>
+    <div class="chart-card-sub">傾きが ±0.3点/回 未満を停滞と判定。クエスト機能と組み合わせて重点的に練習することを推奨します。</div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead><tr><th>単語</th><th>アクセント型</th><th>練習回数</th><th>最高スコア</th><th>直近スコア</th><th>全体傾き</th></tr></thead>
+        <tbody>
+          {% for w in analysis_stats.word_stats if w.is_plateau %}
+          <tr>
+            <td style="font-weight:600;">{{ w.display }}</td>
+            <td>{{ w.accent_label }}</td>
+            <td>{{ w.n_sessions }}</td>
+            <td style="font-family:var(--mono);">{{ w.best }}</td>
+            <td style="font-family:var(--mono);">{{ w.latest }}</td>
+            <td>{% if w.regression %}<span style="font-family:var(--mono);color:var(--text-3);">{{ "%+.3f"|format(w.regression.slope) }}</span>{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="a-sec">
+  <div class="sec-title">全単語の上達速度一覧 <div class="sec-title-line"></div></div>
+  <div class="chart-card">
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead><tr><th>単語</th><th>アクセント型</th><th>練習回数</th><th>最高</th><th>直近</th><th>上達速度</th><th>R²</th><th>状態</th></tr></thead>
+        <tbody>
+          {% for w in analysis_stats.word_stats_by_slope %}
+          <tr>
+            <td style="font-weight:600;">{{ w.display }}</td>
+            <td>{{ w.accent_label }}</td>
+            <td>{{ w.n_sessions }}</td>
+            <td style="font-family:var(--mono);">{{ w.best }}</td>
+            <td style="font-family:var(--mono);">{{ w.latest }}</td>
+            <td style="font-family:var(--mono); color:{% if w.regression and w.regression.slope > 0.3 %}var(--green){% elif w.regression and w.regression.slope < -0.3 %}var(--accent){% else %}var(--text-3){% endif %};">
+              {% if w.regression %}{{ "%+.3f"|format(w.regression.slope) }} 点/回{% else %}—{% endif %}
+            </td>
+            <td style="font-family:var(--mono);color:var(--text-3);">{% if w.regression %}{{ w.regression.r_squared }}{% else %}—{% endif %}</td>
+            <td>
+              {% if w.is_plateau %}<span class="badge-plateau">停滞</span>
+              {% elif w.regression and w.regression.slope > 0.3 %}<span class="badge-up">上達中</span>
+              {% elif w.regression and w.regression.slope < -0.3 %}<span class="badge-down">低下</span>
+              {% else %}<span style="font-size:11px;color:var(--text-3);">安定</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+</div>
+</div><!-- /tabAnalysis -->
 
 <script>
-// ── テーブル絞り込み ──────────────────────────────────
+// ── タブ切り替え ──────────────────────────────────────────────────
+let analysisChartsInited = false;
+
+function switchTab(tab) {
+  document.getElementById('tabLog').style.display      = tab === 'log'      ? '' : 'none';
+  document.getElementById('tabAnalysis').style.display = tab === 'analysis' ? '' : 'none';
+  document.getElementById('tabBtnLog').classList.toggle('active',      tab === 'log');
+  document.getElementById('tabBtnAnalysis').classList.toggle('active', tab === 'analysis');
+  if (tab === 'analysis' && !analysisChartsInited) {
+    initAnalysisCharts();
+    analysisChartsInited = true;
+  }
+}
+
+// ── テーブル絞り込み ──────────────────────────────────────────────
 function filterHistory() {
   const q = document.getElementById('filterInput').value.trim().toLowerCase();
   document.querySelectorAll('#historyTable tbody tr').forEach(row => {
@@ -257,13 +481,12 @@ function filterHistory() {
   });
 }
 
-// ── E: 単語別スコア推移グラフ ─────────────────────────
+// ── 単語別スコア推移グラフ（練習ログタブ） ─────────────────────
 const wordHistories = {{ word_history | tojson | safe }};
 
 Object.entries(wordHistories).forEach(([wid, recs]) => {
   const canvas = document.getElementById('chart-' + wid);
   if (!canvas || recs.length < 2) {
-    // 1回のみの場合は「まだ推移なし」を表示
     if (canvas && recs.length === 1) {
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#9E9890';
@@ -273,13 +496,11 @@ Object.entries(wordHistories).forEach(([wid, recs]) => {
     }
     return;
   }
-
-  const labels = recs.map((r, i) => `${i + 1}回目`);
+  const labels  = recs.map((r, i) => `${i + 1}回目`);
   const totals  = recs.map(r => r.total || 0);
   const accents = recs.map(r => ((r.accent_score || 0) / 50 * 100).toFixed(1));
   const lengths = recs.map(r => ((r.length_score || 0) / 30 * 100).toFixed(1));
   const vowels  = recs.map(r => ((r.vowel_score  || 0) / 20 * 100).toFixed(1));
-
   new Chart(canvas, {
     type: 'line',
     data: {
@@ -293,14 +514,117 @@ Object.entries(wordHistories).forEach(([wid, recs]) => {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      scales: {
-        x: { display:false },
-        y: { display:false, min:0, max:100 }
-      },
+      scales: { x: { display:false }, y: { display:false, min:0, max:100 } },
       plugins: { legend:{ display:false }, tooltip:{ mode:'index', intersect:false } }
     }
   });
 });
+
+// ── 分析チャート（分析タブ初回表示時に初期化） ──────────────────
+const analysisData = {{ analysis_stats | tojson | safe }};
+let wordChart = null;
+
+function initAnalysisCharts() {
+  const ot = analysisData.overall_trend;
+  new Chart(document.getElementById('overallChart'), {
+    type: 'line',
+    data: {
+      labels: ot.timestamps,
+      datasets: [
+        { label: 'スコア', data: ot.scores, borderColor: 'rgba(42,95,150,.4)', backgroundColor: 'rgba(42,95,150,.05)', borderWidth: 1.5, pointRadius: 2, tension: 0.2 },
+        { label: '移動平均（5回）', data: ot.moving_average, borderColor: 'rgba(14,30,69,1)', backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, tension: 0.4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { display: false }, y: { min: 0, max: 100, title: { display: true, text: 'スコア' } } },
+      plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } }
+    }
+  });
+
+  const ac = analysisData.accent_stats;
+  const acLabels = ac.map(a => a.label);
+  const acSlopes = ac.map(a => a.avg_slope ?? 0);
+  new Chart(document.getElementById('accentSlopeChart'), {
+    type: 'bar',
+    data: {
+      labels: acLabels,
+      datasets: [{ label: '平均傾き（点/回）', data: acSlopes,
+        backgroundColor: acSlopes.map(s => s > 0.3 ? 'rgba(45,106,79,.7)' : s < -0.3 ? 'rgba(192,61,32,.7)' : 'rgba(42,95,150,.5)') }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { y: { title: { display: true, text: '点/回' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+  new Chart(document.getElementById('accentSRateChart'), {
+    type: 'bar',
+    data: {
+      labels: acLabels,
+      datasets: [{ label: 'Sランク到達率（%）', data: ac.map(a => a.s_rate), backgroundColor: 'rgba(245,158,11,.6)' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { y: { min: 0, max: 100, title: { display: true, text: '%' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  {% if analysis_stats.s_rank_dist %}
+  const sd = analysisData.s_rank_dist.distribution;
+  new Chart(document.getElementById('sRankDistChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(sd).map(k => k + '回目'),
+      datasets: [{ label: '単語数', data: Object.values(sd), backgroundColor: 'rgba(245,158,11,.6)' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { y: { ticks: { stepSize: 1 }, title: { display: true, text: '単語数' } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+  {% endif %}
+
+  const eligibleWords = analysisData.word_stats.filter(w => w.n_sessions >= 2);
+  window._eligibleWords = eligibleWords;
+  if (eligibleWords.length > 0) updateWordChart();
+}
+
+function updateWordChart() {
+  const eligibleWords = window._eligibleWords;
+  if (!eligibleWords || !eligibleWords.length) return;
+  const idx = parseInt(document.getElementById('wordSelector').value);
+  const w   = eligibleWords[idx];
+  if (!w) return;
+  const scores = w.scores;
+  const x      = scores.map((_, i) => i + 1);
+  let regrLine = null;
+  if (w.regression) {
+    const { slope, intercept } = w.regression;
+    regrLine = x.map(xi => Math.min(100, Math.max(0, slope * (xi - 1) + intercept)));
+  }
+  document.getElementById('wordChartTitle').textContent = w.display + '（' + w.accent_label + '）';
+  const slope_txt = w.regression ? (w.regression.slope > 0 ? '+' : '') + w.regression.slope.toFixed(3) + ' 点/回 R²=' + w.regression.r_squared : '';
+  document.getElementById('wordChartSub').textContent = slope_txt + (w.is_plateau ? '　⚠️ 停滞中' : '');
+  const datasets = [
+    { label: 'スコア', data: scores, borderColor: 'rgba(42,95,150,.8)', backgroundColor: 'rgba(42,95,150,.1)', borderWidth: 2, pointRadius: 4, tension: 0.2 },
+  ];
+  if (regrLine) {
+    const color = w.regression.slope > 0.3 ? 'rgba(45,106,79,.8)' : w.regression.slope < -0.3 ? 'rgba(192,61,32,.8)' : 'rgba(158,152,144,.8)';
+    datasets.push({ label: '回帰直線', data: regrLine, borderColor: color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, borderDash: [6,3], tension: 0 });
+  }
+  if (wordChart) wordChart.destroy();
+  wordChart = new Chart(document.getElementById('wordChart'), {
+    type: 'line',
+    data: { labels: x.map(i => i + '回目'), datasets },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { y: { min: 0, max: 100, title: { display: true, text: 'スコア' } } },
+      plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } }
+    }
+  });
+}
+
+// URLハッシュでタブ選択
+if (location.hash === '#analysis') switchTab('analysis');
 </script>
 </body>
 </html>

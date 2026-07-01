@@ -14,6 +14,34 @@ data/raw_audio/wav/test2.wav
 # 選択中の単語IDを保持する一時ファイル
 data/config/word_id.txt
 
+# ── SP-PS ユーザーデータ（GitHub非公開） ──────────
+# 登録単語データベース
+data/config/words_db.json
+data/config/words.txt
+data/config/audio.scp
+
+# 練習履歴・クエスト進捗
+data/config/history.json
+data/config/quest_progress.json
+
+# お手本口形データ（録画から抽出したランドマーク）
+data/config/lip_refs.json
+
+# フォルマント分析キャッシュ
+data/config/formant_cache.json
+
+# 単語ごとのお手本音声（VOICEVOX生成 + Julius アライメント結果）
+data/raw_audio/sound/
+
+# 単語ごとの MFCC バイナリ（お手本音声から算出）
+data/mfcc/
+
+# ブラウザ再生用サンプル音声
+web/static/sample/
+
+# 音色評価チャート（解析のたびに再生成）
+web/static/distance_result/
+
 # ── Python ───────────────────────────────────────
 __pycache__/
 *.py[cod]

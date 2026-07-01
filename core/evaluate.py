@@ -5,8 +5,8 @@ core/evaluate.py
 【スコア構成（100点満点）】
   ・アクセントスコア（50点）：4指標の加重平均
       - アクセント核位置    (40%)
-      - ピッチ相関         (35%)
-      - H/L パターン一致率 (15%)
+      - ピッチ相関         (28%)
+      - H/L パターン一致率 (22%)
       - モーラ内安定度     (10%)
   ・長さスコア（30点）
   ・母音品質スコア（20点）
@@ -108,7 +108,8 @@ def _nucleus_score(
     if expected is None:
         return max_score / 2.0
     distance     = abs(detected - expected)
-    penalty_unit = max_score / max(n_mora, 2)
+    # 分母を (n_mora + 1) にすることで1モーラずれても満点の1/3以上を確保
+    penalty_unit = max_score / max(n_mora + 1, 3)
     return round(max(0.0, max_score - distance * penalty_unit), 1)
 
 
@@ -364,8 +365,40 @@ def calc_accent_score(
     if not valid_pitches:
         return 0.0, "有効なピッチ値がありませんでした。", pattern
 
-    # ── 【指標1】H/L パターン一致率（パーセンタイル閾値） ───────────
-    l_ratio   = pattern.count("L") / len(pattern)
+    # ── 基準ピッチからモーラ平均・H/Lパターン・核位置を算出 ────────
+    # MeCabアクセントより参照録音のピッチを優先する。
+    # お手本と異なるアクセント型がDBに入っていても正しく評価できるようにするため。
+    use_ref_pattern = False
+    ref_nucleus     = accent          # フォールバック：MeCab
+    cmp_pattern     = list(pattern)   # フォールバック：MeCab由来H/L
+
+    if pitch_fin is not None and len(pitch_fin) > 0:
+        p_ref  = np.array(pitch_fin, dtype=float)
+        nm_ref = np.isnan(p_ref)
+        if np.any(~nm_ref):
+            xs_r  = np.arange(len(p_ref))
+            p_ref = np.interp(xs_r, xs_r[~nm_ref], p_ref[~nm_ref])
+        b_ref  = list(mora_values) + [len(p_ref)]
+        ref_mp = []
+        for i in range(min(n_mora, len(mora_values))):
+            s = max(0, b_ref[i])
+            e = min(len(p_ref), b_ref[i + 1])
+            ref_mp.append(float(np.nanmean(p_ref[s:e])) if s < e else np.nan)
+
+        valid_ref = [p for p in ref_mp if not np.isnan(p)]
+        if len(valid_ref) >= 2:
+            use_ref_pattern = True
+            ref_nucleus     = detect_accent_nucleus(ref_mp)
+            # H/L分類しきい値：MeCabのL比率を流用して両者を同じ基準で分類
+            l_ratio_ref = pattern.count("L") / len(pattern)
+            thr_ref     = float(np.percentile(valid_ref, l_ratio_ref * 100))
+            cmp_pattern = [
+                ("H" if not np.isnan(p) and p > thr_ref else "L")
+                for p in ref_mp
+            ]
+
+    # ── 【指標1】H/L パターン一致率（ユーザー vs 基準） ────────────
+    l_ratio   = cmp_pattern.count("L") / len(cmp_pattern)
     threshold = float(np.percentile(valid_pitches, l_ratio * 100))
 
     actual_pattern = []
@@ -377,14 +410,14 @@ def calc_accent_score(
         else:
             actual_pattern.append("L")
 
-    match_count = sum(1 for a, e in zip(actual_pattern, pattern) if a == e)
-    total_      = min(len(actual_pattern), len(pattern))
+    match_count = sum(1 for a, e in zip(actual_pattern, cmp_pattern) if a == e)
+    total_      = min(len(actual_pattern), len(cmp_pattern))
     match_rate  = match_count / total_ if total_ > 0 else 0.0
     hl_score    = match_rate * 60.0
 
-    # ── 【指標2】アクセント核位置スコア ─────────────────────────────
+    # ── 【指標2】アクセント核位置スコア（ユーザー vs 基準核） ────────
     detected   = detect_accent_nucleus(mora_pitches)
-    nucleus_sc = _nucleus_score(detected, accent, n_mora, max_score=60.0)
+    nucleus_sc = _nucleus_score(detected, ref_nucleus, n_mora, max_score=60.0)
 
     # ── 【指標3】ピッチ相関スコア（有声フレームのみ） ────────────────
     # pitch_native_raw + pitch_user_raw が利用可能な場合は有声フレームのみで計算。
@@ -409,14 +442,14 @@ def calc_accent_score(
     if pitch_user_raw is not None and len(pitch_user_raw) > 0:
         stability_sc = _mora_stability_score(
             pitch_user_raw, mora_values, n_mora,
-            max_score=60.0, variance_threshold=1.5,
+            max_score=60.0, variance_threshold=2.0,
         )
 
-    # 加重平均
+    # 加重平均（相関より H/L パターン重視に調整）
     if corr_sc is not None and stability_sc is not None:
         raw = (nucleus_sc   * 0.40
-               + corr_sc   * 0.35
-               + hl_score  * 0.15
+               + corr_sc   * 0.28
+               + hl_score  * 0.22
                + stability_sc * 0.10)
     elif corr_sc is not None:
         raw = nucleus_sc * 0.45 + corr_sc * 0.40 + hl_score * 0.15
@@ -428,14 +461,14 @@ def calc_accent_score(
     final_score = round(min(60.0, max(0.0, raw)), 1)
 
     # フィードバック生成
-    nucleus_diff = abs(detected - accent)
+    nucleus_diff = abs(detected - ref_nucleus)
     unstable = None
     if pitch_user_raw is not None:
         unstable = _worst_unstable_mora(
-            pitch_user_raw, mora_values, n_mora, variance_threshold=1.5
+            pitch_user_raw, mora_values, n_mora, variance_threshold=2.0
         )
 
-    if final_score >= 54:
+    if final_score >= 48:
         feedback = f"アクセント（{_accent_label(accent)}）が正確に発音できています！"
     elif unstable is not None and stability_sc is not None and stability_sc < 30:
         mora_idx, _ = unstable
@@ -446,32 +479,53 @@ def calc_accent_score(
     elif nucleus_diff == 0 and match_rate >= 0.6:
         feedback = "アクセント核の位置は正しいです。ピッチの上げ下げをより明確にするとさらに良くなります。"
     elif nucleus_diff > 0:
-        if detected == 0:
-            feedback = (
-                f"ピッチの下降が弱すぎます。"
-                f"{_accent_label(accent)}では{accent}拍目の後にしっかり下げてください。"
-            )
-        elif detected < accent:
-            feedback = (
-                f"ピッチの下降が早すぎます（{detected}拍目で下降）。"
-                f"{_accent_label(accent)}：{accent}拍目まで高く保ってください。"
-            )
+        if use_ref_pattern:
+            # 基準録音と比較したフィードバック
+            if detected == 0 and ref_nucleus > 0:
+                feedback = (
+                    f"ピッチの下降が弱すぎます。"
+                    f"お手本では{ref_nucleus}拍目の後に下げています。"
+                )
+            elif detected < ref_nucleus:
+                feedback = (
+                    f"ピッチの下降が早すぎます（{detected}拍目で下降）。"
+                    f"お手本に合わせて{ref_nucleus}拍目まで高く保ってください。"
+                )
+            else:
+                feedback = (
+                    f"ピッチの下降が遅すぎます（{detected}拍目で下降）。"
+                    f"お手本に合わせて{ref_nucleus}拍目の後で下げてください。"
+                )
         else:
-            feedback = (
-                f"ピッチの下降が遅すぎます（{detected}拍目で下降）。"
-                f"{_accent_label(accent)}：{accent}拍目の後で下げてください。"
-            )
+            # MeCabアクセントと比較したフィードバック（フォールバック）
+            if detected == 0:
+                feedback = (
+                    f"ピッチの下降が弱すぎます。"
+                    f"{_accent_label(accent)}では{accent}拍目の後にしっかり下げてください。"
+                )
+            elif detected < accent:
+                feedback = (
+                    f"ピッチの下降が早すぎます（{detected}拍目で下降）。"
+                    f"{_accent_label(accent)}：{accent}拍目まで高く保ってください。"
+                )
+            else:
+                feedback = (
+                    f"ピッチの下降が遅すぎます（{detected}拍目で下降）。"
+                    f"{_accent_label(accent)}：{accent}拍目の後で下げてください。"
+                )
     else:
         wrong = [
-            i + 1 for i, (a, e) in enumerate(zip(actual_pattern, pattern))
+            i + 1 for i, (a, e) in enumerate(zip(actual_pattern, cmp_pattern))
             if a != e and a != "?"
         ]
-        feedback = (
-            f"{wrong[0]}拍目の高低が逆転しています。"
-            f"{_accent_label(accent)}（{' '.join(pattern)}）を意識してください。"
-            if wrong else
-            f"アクセント（{_accent_label(accent)}）をもう少し意識して発音してください。"
-        )
+        if wrong:
+            ref_label = "お手本" if use_ref_pattern else _accent_label(accent)
+            feedback  = (
+                f"{wrong[0]}拍目の高低が逆転しています。"
+                f"{ref_label}のパターン（{' '.join(cmp_pattern)}）を意識してください。"
+            )
+        else:
+            feedback = f"アクセント（{_accent_label(accent)}）をもう少し意識して発音してください。"
 
     return final_score, feedback, pattern
 
@@ -508,7 +562,7 @@ def calc_length_score(
 
     total_weight  = float(np.sum(weights))
     weighted_diff = float(np.sum(diffs * weights) / total_weight) if total_weight > 0 else 0.0
-    score         = max(0.0, round((1.0 - weighted_diff / 20.0) * 40, 1))
+    score         = max(0.0, round((1.0 - weighted_diff / 25.0) * 40, 1))
 
     worst_idx  = int(np.argmax(diffs * weights))
     worst_diff = float(diffs[worst_idx])
@@ -644,7 +698,7 @@ def calc_total_score(
     if pitch_user_raw is not None:
         voiced_feedback = _voiced_ratio_feedback(pitch_user_raw, mora_values, n_mora)
 
-    accent_score = round(accent_raw * 50 / 60, 1)
+    accent_score = round(min(50.0, accent_raw * 50 / 60 + 3.0), 1)
     length_score = round(length_raw * 30 / 40, 1)
     v_score      = round(vowel_score, 1) if vowel_score is not None else 10.0
 
@@ -730,6 +784,16 @@ def calc_mora_scores(
     p1 = np.array(pitch_fin,  dtype=float)
     p2 = np.array(pitch_fin2, dtype=float)
 
+    # 0-1 正規化（ネイティブとユーザーの絶対ピッチ差を除去してから形状を比較）
+    def _scale01(arr: np.ndarray) -> np.ndarray:
+        mn, mx = float(np.nanmin(arr)), float(np.nanmax(arr))
+        if mx == mn:
+            return np.zeros_like(arr)
+        return (arr - mn) / (mx - mn)
+
+    p1_sc = _scale01(p1)
+    p2_sc = _scale01(p2)
+
     VOWELS_SET = {'a', 'i', 'u', 'e', 'o'}
 
     def _has_vowel(label: str) -> bool:
@@ -748,9 +812,10 @@ def calc_mora_scores(
         end   = mora_values[i + 1] if i + 1 < len(mora_values) else len(p1)
 
         # ── アクセントスコア ─────────────────────────────────────────
-        s, e = max(0, start), min(len(p1), end)
+        # 0-1 正規化済み配列で比較することでネイティブとユーザーの声域差を除去する
+        s, e = max(0, start), min(len(p1_sc), end)
         if s < e:
-            diff   = np.nanmean(np.abs(p1[s:e] - p2[s:e]))
+            diff   = np.nanmean(np.abs(p1_sc[s:e] - p2_sc[s:e]))
             acc_sc = round(100.0 * float(np.exp(-4.0 * float(diff))), 1)
         else:
             acc_sc = None

@@ -119,7 +119,7 @@ def create_dtw_list_dynamic(
                 continue
             mfcc2 = raw.reshape(-1, MFCC_TOTAL_DIMS)
             distance, _ = fastdtw(mfcc1, mfcc2, dist=euclidean)
-            dtw_list.append(float(distance))
+            dtw_list.append(float(distance) / (len(mfcc1) + len(mfcc2)))
         except Exception as e:
             print(f"[timbre] {entry['bin_path'].name}: 読み込みエラー — {e}")
             dtw_list.append(float("inf"))

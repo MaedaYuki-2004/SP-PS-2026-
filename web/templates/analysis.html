@@ -66,10 +66,7 @@
     <span class="nav-brand-sub">発音評価システム</span>
   </a>
   <div class="nav-actions">
-    <a href="/history"  class="nav-link">履歴</a>
-    <a href="/analysis" class="nav-link" style="color:var(--navy);font-weight:600;">分析</a>
-    <a href="/upload"   class="nav-link">ファイル</a>
-    <a href="/admin"    class="nav-link">管理</a>
+    <a href="/history" class="nav-link">記録・分析</a>
     <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button>
   </div>
 </nav>
@@ -305,7 +302,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for w in stats.word_stats | sort(attribute='regression.slope', reverse=True) %}
+          {% for w in stats.word_stats_by_slope %}
           <tr>
             <td style="font-weight:600;">{{ w.display }}</td>
             <td>{{ w.accent_label }}</td>

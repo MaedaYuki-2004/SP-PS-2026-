@@ -296,7 +296,7 @@ def calc_vowel_score(
         else float(np.mean(distances))
     )
 
-    score = round(max_score * float(np.exp(-mean_dist * 1.2)), 1)
+    score = round(max_score * float(np.exp(-mean_dist * 1.0)), 1)
     score = max(0.5, min(max_score, score))
 
     worst_dist, worst_label = max(mora_dists, key=lambda x: x[0])

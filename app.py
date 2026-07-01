@@ -630,10 +630,17 @@ def history_page():
     # 平均スコアが低い順（= 苦手順）に並べる
     accent_stats.sort(key=lambda x: x["avg_total"])
 
+    # ── 分析タブ用データ ─────────────────────────────────────────────
+    import json as _json
+    _words_db_path = DATA_DIR / "config" / "words_db.json"
+    _words_db = _json.loads(_words_db_path.read_text(encoding="utf-8")) if _words_db_path.exists() else {}
+    analysis_stats = compute_learning_stats(history, _words_db)
+
     return render_template("history.html",
                            history=history[:100], stats=stats,
                            word_latest=word_latest, word_history=word_history,
-                           words=words, accent_stats=accent_stats)
+                           words=words, accent_stats=accent_stats,
+                           analysis_stats=analysis_stats)
 
 
 @app.route("/analysis")

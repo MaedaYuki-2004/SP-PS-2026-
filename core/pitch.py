@@ -261,30 +261,61 @@ def normalize_zscore(
 
 # ── 長さ整合 ──────────────────────────────────────────────────────────
 
+def _resample_chunk(chunk: np.ndarray, target_len: int) -> np.ndarray:
+    """
+    音素チャンクを target_len フレームに線形補間でリサンプリングする。
+    各出力フレームを元配列の対応位置に線形補間でマップし、
+    両隣が NaN のフレームのみ NaN を出力する。
+    """
+    src_len = len(chunk)
+    if src_len == 0:
+        return np.full(target_len, np.nan)
+    if src_len == target_len:
+        return chunk.copy()
+
+    result = np.full(target_len, np.nan)
+    for j in range(target_len):
+        src_pos = j * (src_len - 1) / (target_len - 1) if target_len > 1 else 0.0
+        i0      = int(np.floor(src_pos))
+        i1      = min(i0 + 1, src_len - 1)
+        v0, v1  = chunk[i0], chunk[i1]
+
+        if np.isnan(v0) and np.isnan(v1):
+            result[j] = np.nan                   # 両隣とも無声 → NaN
+        elif np.isnan(v0):
+            result[j] = v1                       # 片方が有声 → 有声側の値
+        elif np.isnan(v1):
+            result[j] = v0
+        else:
+            t         = src_pos - i0
+            result[j] = v0 * (1.0 - t) + v1 * t  # 両隣とも有声 → 線形補間
+
+    return result
+
+
 def length_arrange(
     pitch: list[float] | np.ndarray,
     phoneme1: list,
     phoneme2: list,
 ) -> np.ndarray:
-    """phoneme1（基準）の各音素長に合わせて pitch（録音側）を伸縮する。"""
+    """
+    phoneme1（基準）の各音素長に合わせて pitch（録音側）を線形補間でリサンプリングする。
+
+    変更前：不足分に NaN を追加、超過分を切り取り（音調の形が崩れる）。
+    変更後：各音素を _resample_chunk で等比リサンプリング（音調の形を保持）。
+    これにより「ピッチ比較（正規化）」グラフで録音タイミング差が吸収される。
+    """
     pitch_arr = np.array(pitch, dtype=float)
     usable    = min(len(phoneme1), len(phoneme2))
     if usable == 0:
         raise ValueError("音素フレーム情報が不足しています")
 
-    result = np.array([], dtype=float)
+    chunks = []
     for i in range(usable):
-        standard = int(phoneme1[i][1]) - int(phoneme1[i][0]) + 1
-        frame_in = int(phoneme2[i][1]) - int(phoneme2[i][0]) + 1
-        dif      = standard - frame_in
-        chunk    = pitch_arr[int(phoneme2[i][0]): int(phoneme2[i][1]) + 1].copy()
+        target_len = int(phoneme1[i][1]) - int(phoneme1[i][0]) + 1
+        src_start  = int(phoneme2[i][0])
+        src_end    = int(phoneme2[i][1]) + 1
+        chunk      = pitch_arr[src_start:src_end].copy()
+        chunks.append(_resample_chunk(chunk, target_len))
 
-        if dif > 0:
-            chunk = np.append(chunk, np.full(dif, np.nan))
-        elif dif < 0:
-            cut   = abs(dif)
-            chunk = chunk[cut:] if i == 0 else chunk[:len(chunk) - cut]
-
-        result = chunk if i == 0 else np.concatenate([result, chunk])
-
-    return result
+    return np.concatenate(chunks) if chunks else np.array([], dtype=float)

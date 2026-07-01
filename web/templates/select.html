@@ -49,10 +49,27 @@
     .word-record-btn { width:100%; padding:9px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:12px; font-weight:600; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:background var(--dur),box-shadow var(--dur),transform var(--dur); }
     .word-record-btn:hover { background:var(--navy-mid); box-shadow:0 2px 10px rgba(14,30,69,.2); }
     .word-record-btn:active { transform:scale(.97); }
-    /* お手本ボタン → アイコンのみ、カード右上に配置 */
-    .word-ref-btn { width:26px; height:26px; flex-shrink:0; padding:0; background:transparent; color:var(--text-3); border:1px solid var(--border); border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background var(--dur),border-color var(--dur),color var(--dur); }
-    .word-ref-btn:hover { background:var(--bg-muted); border-color:var(--navy); color:var(--navy); }
+    /* カード右上アイコンボタン群 */
+    .word-card-actions { display:flex; gap:4px; flex-shrink:0; }
+    .word-ref-btn,
+    .word-edit-btn,
+    .word-del-btn { width:26px; height:26px; padding:0; background:transparent; border:1px solid var(--border); border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background var(--dur),border-color var(--dur),color var(--dur); }
+    .word-ref-btn  { color:var(--text-3); }
+    .word-ref-btn:hover  { background:var(--bg-muted); border-color:var(--navy); color:var(--navy); }
     .word-ref-btn.has-ref { color:#2d6a4f; border-color:#2d6a4f; background:var(--green-bg); }
+    .word-edit-btn { color:var(--text-3); }
+    .word-edit-btn:hover { background:var(--bg-muted); border-color:var(--navy); color:var(--navy); }
+    .word-del-btn  { color:var(--text-3); }
+    .word-del-btn:hover  { background:#fff0ee; border-color:var(--accent); color:var(--accent); }
+
+    /* 単語編集モーダル */
+    .edit-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:400; align-items:center; justify-content:center; }
+    .edit-modal-overlay.open { display:flex; }
+    .edit-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:24px; width:min(420px,92vw); display:flex; flex-direction:column; gap:14px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+    .edit-modal-title { font-size:15px; font-weight:700; color:var(--navy); }
+    .edit-modal-status { font-size:12px; min-height:18px; }
+    .edit-modal-status.ok  { color:#2d6a4f; }
+    .edit-modal-status.err { color:var(--accent); }
     .no-results { display:none; text-align:center; padding:48px; color:var(--text-3); font-size:14px; grid-column:1/-1; }
 
     /* 単語追加ボタン */
@@ -144,11 +161,7 @@
     <span class="nav-brand-sub">発音評価システム</span>
   </a>
   <div class="nav-actions">
-    <a href="/history" class="nav-link">履歴</a>
-    <a href="/analysis" class="nav-link">分析</a>
-    <a href="/lip_compare" class="nav-link">唇比較</a>
-    <a href="/upload"  class="nav-link">ファイル</a>
-    <a href="/admin"   class="nav-link">管理</a>
+    <a href="/history" class="nav-link">記録・分析</a>
     <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button>
   </div>
 </nav>
@@ -210,17 +223,35 @@
         <div class="word-card-body">
           <div class="word-card-top">
             <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
-            <!-- お手本ボタン：アイコンのみ、右上に配置 -->
-            <button class="word-ref-btn {% if w.word_id in lip_ref_keys %}has-ref{% endif %}"
-                    data-word-id="{{ w.word_id }}"
-                    data-word-display="{{ w.display }}"
-                    title="{% if w.word_id in lip_ref_keys %}口のお手本登録済み（クリックで再登録）{% else %}口のお手本を登録{% endif %}">
-              {% if w.word_id in lip_ref_keys %}
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 6l3 3L9.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              {% else %}
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="2.5" width="9" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 6l-2.5 1.8V4.2L7 6z" fill="currentColor"/></svg>
-              {% endif %}
-            </button>
+            <div class="word-card-actions">
+              <!-- お手本ボタン -->
+              <button class="word-ref-btn {% if w.word_id in lip_ref_keys %}has-ref{% endif %}"
+                      data-word-id="{{ w.word_id }}"
+                      data-word-display="{{ w.display }}"
+                      title="{% if w.word_id in lip_ref_keys %}口のお手本登録済み（クリックで再登録）{% else %}口のお手本を登録{% endif %}">
+                {% if w.word_id in lip_ref_keys %}
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 6l3 3L9.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% else %}
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="2.5" width="9" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 6l-2.5 1.8V4.2L7 6z" fill="currentColor"/></svg>
+                {% endif %}
+              </button>
+              <!-- 編集ボタン -->
+              <button class="word-edit-btn"
+                      data-word-id="{{ w.word_id }}"
+                      data-display="{{ w.display }}"
+                      data-reading="{{ w.reading }}"
+                      data-accent="{{ w.accent if w.accent is not none else '' }}"
+                      title="編集">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+              </button>
+              <!-- 削除ボタン -->
+              <button class="word-del-btn"
+                      data-word-id="{{ w.word_id }}"
+                      data-display="{{ w.display }}"
+                      title="削除">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 3h7M4.5 3V1.5h2V3M4 3v6h3V3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
           </div>
           <div class="word-card-text">{{ w.display }}</div>
           <div class="word-card-reading">{{ w.reading }}</div>
@@ -642,6 +673,109 @@ function filterWords() {
     if (e.target === overlay) closeModal();
   });
 })();
+
+/* ── 単語編集・削除 ──────────────────────────────────────────── */
+(function () {
+  const editOverlay = document.getElementById('editModalOverlay');
+  const editStatus  = document.getElementById('editModalStatus');
+  const editDisplay = document.getElementById('editDisplayInp');
+  const editReading = document.getElementById('editReadingInp');
+  const editAccent  = document.getElementById('editAccentInp');
+  let editWordId = null;
+
+  // 編集ボタンのクリック（委譲）
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.word-edit-btn');
+    if (!btn) return;
+    editWordId = btn.dataset.wordId;
+    editDisplay.value = btn.dataset.display;
+    editReading.value = btn.dataset.reading;
+    editAccent.value  = btn.dataset.accent;
+    editStatus.textContent = '';
+    editStatus.className = 'edit-modal-status';
+    editOverlay.classList.add('open');
+  });
+
+  document.getElementById('editSaveBtn').addEventListener('click', async function () {
+    const display = editDisplay.value.trim();
+    const reading = editReading.value.trim();
+    if (!display || !reading) {
+      editStatus.textContent = '表示テキストと読みは必須です。';
+      editStatus.className = 'edit-modal-status err';
+      return;
+    }
+    try {
+      const res = await fetch('/admin/update_word', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word_id: editWordId, display, reading, accent: editAccent.value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '更新に失敗しました');
+      editStatus.textContent = '✓ 更新しました';
+      editStatus.className = 'edit-modal-status ok';
+      setTimeout(() => { editOverlay.classList.remove('open'); location.reload(); }, 800);
+    } catch (err) {
+      editStatus.textContent = 'エラー: ' + err.message;
+      editStatus.className = 'edit-modal-status err';
+    }
+  });
+
+  document.getElementById('editCancelBtn').addEventListener('click', function () {
+    editOverlay.classList.remove('open');
+  });
+  editOverlay.addEventListener('click', function (e) {
+    if (e.target === editOverlay) editOverlay.classList.remove('open');
+  });
+
+  // 削除ボタンのクリック（委譲）
+  document.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.word-del-btn');
+    if (!btn) return;
+    const wordId  = btn.dataset.wordId;
+    const display = btn.dataset.display;
+    if (!confirm(`「${display}」を削除しますか？\n関連する録音データも削除されます。`)) return;
+    try {
+      const res = await fetch('/admin/delete_word', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word_id: wordId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '削除に失敗しました');
+      location.reload();
+    } catch (err) {
+      alert('削除エラー: ' + err.message);
+    }
+  });
+})();
 </script>
+
+<!-- 単語編集モーダル -->
+<div class="edit-modal-overlay" id="editModalOverlay">
+  <div class="edit-modal-card">
+    <div class="edit-modal-title">単語を編集</div>
+    <div class="aw-fields">
+      <div class="aw-field">
+        <label class="aw-label">表示テキスト</label>
+        <input type="text" class="aw-input" id="editDisplayInp">
+      </div>
+      <div class="aw-field">
+        <label class="aw-label">ひらがな読み</label>
+        <input type="text" class="aw-input" id="editReadingInp">
+      </div>
+      <div class="aw-field">
+        <label class="aw-label">アクセント型（数字）</label>
+        <input type="number" class="aw-input" id="editAccentInp" min="0" max="9" placeholder="例：0=平板、1=頭高、2=中高2型">
+      </div>
+    </div>
+    <div class="edit-modal-status" id="editModalStatus"></div>
+    <div class="aw-actions">
+      <button class="aw-btn-primary" id="editSaveBtn">保存する</button>
+      <button class="aw-btn-secondary" id="editCancelBtn">閉じる</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

@@ -250,10 +250,17 @@ def compute_learning_stats(
         "most_plateau":    sorted(plateau_words, key=lambda w: w["n_sessions"], reverse=True)[:3],
     }
 
+    word_stats_by_slope = sorted(
+        word_stats,
+        key=lambda w: w["regression"]["slope"] if w["regression"] else -999.0,
+        reverse=True,
+    )
+
     return {
-        "word_stats":    word_stats,
-        "accent_stats":  accent_stats,
-        "s_rank_dist":   s_rank_dist,
-        "overall_trend": overall_trend,
-        "summary":       summary,
+        "word_stats":          word_stats,
+        "word_stats_by_slope": word_stats_by_slope,
+        "accent_stats":        accent_stats,
+        "s_rank_dist":         s_rank_dist,
+        "overall_trend":       overall_trend,
+        "summary":             summary,
     }
