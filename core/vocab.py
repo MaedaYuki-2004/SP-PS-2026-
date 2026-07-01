@@ -75,7 +75,7 @@ def list_words() -> list[dict]:
 
 # ── 単語登録フロー ────────────────────────────────────────────────────
 
-def register_word(display: str, reading: str, wav_path: Path) -> dict:
+def register_word(display: str, reading: str, wav_path: Path | None = None) -> dict:
     """
     新しい単語を登録する。
 
@@ -83,7 +83,8 @@ def register_word(display: str, reading: str, wav_path: Path) -> dict:
     ----------
     display  : 表示テキスト（漢字・カタカナ・ひらがなすべてOK）
     reading  : ひらがな読み（Julius用・長音は「ー」で表記）
-    wav_path : 登録用音声（16kHz/モノラル/16bit PCM WAV）
+    wav_path : 登録用音声（16kHz/モノラル/16bit PCM WAV）。
+               None の場合は DB 登録のみ。音声は後から upload_lip_video で追加する。
 
     Returns
     -------
@@ -95,30 +96,35 @@ def register_word(display: str, reading: str, wav_path: Path) -> dict:
     # ── 1. アクセント型の取得 ─────────────────────────────────────
     accent, accent_source = get_accent(display)
 
-    # ── 2. 音声を sound/{word_id}/ に配置 ────────────────────────
-    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
+    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
     sound_dir.mkdir(parents=True, exist_ok=True)
-    native_wav = sound_dir / f"{word_id}.wav"
-    shutil.copy2(wav_path, native_wav)
 
-    # ── 3. ひらがな読みを txt ファイルに書き込む（Julius用） ─────
+    # ── 2. ひらがな読みを txt ファイルに書き込む（Julius用） ─────
     txt_path = sound_dir / f"{word_id}.txt"
     txt_path.write_text(reading, encoding="utf-8")
 
-    # ── 4. Julius でアライメント実行 ──────────────────────────────
-    native_lab = sound_dir / f"{word_id}.lab"
-    native_log = sound_dir / f"{word_id}.log"
     alignment_ok = False
-    try:
-        run_alignment_on_file(native_wav, reading, native_lab, native_log)
-        alignment_ok = native_lab.exists()
-    except Exception:
-        pass
+    if wav_path is not None:
+        # ── 3. 音声を sound/{word_id}/ に配置 ────────────────────
+        native_wav = sound_dir / f"{word_id}.wav"
+        shutil.copy2(wav_path, native_wav)
 
-    # ── 5. MFCC 計算・保存 ────────────────────────────────────────
-    mfcc = audio_mfcc(native_wav)
-    bin_path = AUDIO_MFCC_DIR / f"{word_id}.bin"
-    mfcc.tofile(str(bin_path))
+        # ── 4. Julius でアライメント実行 ──────────────────────────
+        native_lab = sound_dir / f"{word_id}.lab"
+        native_log = sound_dir / f"{word_id}.log"
+        try:
+            run_alignment_on_file(native_wav, reading, native_lab, native_log)
+            alignment_ok = native_lab.exists()
+        except Exception:
+            pass
+
+        # ── 5. MFCC 計算・保存 ────────────────────────────────────
+        try:
+            mfcc = audio_mfcc(native_wav)
+            bin_path = AUDIO_MFCC_DIR / f"{word_id}.bin"
+            mfcc.tofile(str(bin_path))
+        except Exception:
+            pass
 
     # ── 6. words_db.json に追記 ───────────────────────────────────
     db[word_id] = {
@@ -135,11 +141,11 @@ def register_word(display: str, reading: str, wav_path: Path) -> dict:
     _update_words_txt(db)
 
     return {
-        "word_id":      word_id,
-        "accent":       accent,
+        "word_id":       word_id,
+        "accent":        accent,
         "accent_source": accent_source,
-        "alignment_ok": alignment_ok,
-        "message":      f"{display} を {word_id} として登録しました",
+        "alignment_ok":  alignment_ok,
+        "message":       f"{display} を {word_id} として登録しました",
     }
 
 
