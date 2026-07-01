@@ -92,6 +92,14 @@
     .edit-modal-status.err { color:var(--accent); }
     .no-results { display:none; text-align:center; padding:48px; color:var(--text-3); font-size:14px; grid-column:1/-1; }
 
+    /* タグフィルター */
+    .tag-filter-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+    .tag-chip { padding:4px 12px; border-radius:100px; font-size:11px; font-weight:700; cursor:pointer; border:1.5px solid var(--border); background:transparent; color:var(--text-3); font-family:var(--font); transition:background var(--dur),border-color var(--dur),color var(--dur); }
+    .tag-chip:hover { border-color:var(--navy); color:var(--navy); }
+    .tag-chip.active { background:var(--navy); border-color:var(--navy); color:#fff; }
+    .tag-chip-all { border-color:var(--navy); color:var(--navy); }
+    .tag-chip-all.active { background:var(--navy); color:#fff; }
+
     /* 単語追加ボタン */
     .add-word-btn { padding:7px 13px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background var(--dur); }
     .add-word-btn:hover { background:var(--navy-mid); }
@@ -266,12 +274,20 @@
         <input type="text" class="search-input" id="searchInput" placeholder="単語を検索..." oninput="filterWords()">
       </div>
     </div>
+    {% if all_tags %}
+    <div class="tag-filter-row" id="tagFilterRow">
+      <button class="tag-chip tag-chip-all active" onclick="filterByTag(null,this)">すべて</button>
+      {% for tag in all_tags %}
+      <button class="tag-chip" onclick="filterByTag('{{ tag }}',this)">{{ tag }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
     <div class="word-grid" id="wordGrid">
       {% for w in words %}
       {% set pattern = accent_patterns.get(w.word_id, []) %}
       {% set best = (stats.word_best or {}).get(w.word_id) %}
       {% set grade = ('s' if best >= 90 else ('a' if best >= 75 else ('b' if best >= 60 else ('c' if best >= 40 else 'd')))) if best is not none else '' %}
-      <div class="word-card{% if grade %} grade-{{ grade }}{% endif %}" data-word="{{ w.display }}" data-reading="{{ w.reading }}">
+      <div class="word-card{% if grade %} grade-{{ grade }}{% endif %}" data-word="{{ w.display }}" data-reading="{{ w.reading }}" data-tags="{{ (w.tags or [])|join(',') }}">
         <div class="word-card-body">
           <div class="word-card-top">
             <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
@@ -389,15 +405,26 @@
 </div>
 
 <script>
+let _activeTag = null;
+
 function filterWords() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   let vis = 0;
   document.querySelectorAll('.word-card').forEach(c => {
-    const m = !q || (c.dataset.word||'').includes(q) || (c.dataset.reading||'').includes(q);
-    c.classList.toggle('hidden', !m);
-    if(m) vis++;
+    const matchText = !q || (c.dataset.word||'').includes(q) || (c.dataset.reading||'').includes(q);
+    const matchTag  = !_activeTag || (c.dataset.tags||'').split(',').map(t=>t.trim()).includes(_activeTag);
+    const show = matchText && matchTag;
+    c.classList.toggle('hidden', !show);
+    if(show) vis++;
   });
   document.getElementById('noResults').style.display = vis === 0 ? 'block' : 'none';
+}
+
+function filterByTag(tag, btn) {
+  _activeTag = tag;
+  document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  filterWords();
 }
 </script>
 

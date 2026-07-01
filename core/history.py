@@ -71,6 +71,7 @@ def get_stats() -> dict:
         "best_grade":     best_grade,
         "word_counts":    word_counts,
         "word_best":      word_best,
+        "streak":         get_streak(),
     }
 
 
@@ -119,6 +120,52 @@ def get_spaced_repetition_candidates(
     # 日数が多い順（最も長く放置されている順）
     candidates.sort(key=lambda x: x["days_ago"], reverse=True)
     return candidates[:limit]
+
+
+def get_streak() -> int:
+    """現在の連続練習日数を返す（今日or昨日から連続している日数）。"""
+    history = load_history()
+    if not history:
+        return 0
+    from collections import OrderedDict
+    dates = OrderedDict()
+    for r in history:
+        ts = r.get("timestamp", "")[:10]
+        if ts:
+            dates[ts] = True
+    sorted_dates = sorted(dates.keys(), reverse=True)
+    if not sorted_dates:
+        return 0
+    today = datetime.now().date()
+    streak = 0
+    for i, d in enumerate(sorted_dates):
+        try:
+            dt = datetime.fromisoformat(d).date()
+        except Exception:
+            continue
+        expected = today - __import__("datetime").timedelta(days=i)
+        if dt == expected:
+            streak += 1
+        else:
+            break
+    return streak
+
+
+def get_daily_counts(days: int = 84) -> dict[str, int]:
+    """過去 days 日分の日別録音回数を {YYYY-MM-DD: count} で返す。"""
+    history = load_history()
+    counts: dict[str, int] = {}
+    for r in history:
+        ts = r.get("timestamp", "")[:10]
+        if ts:
+            counts[ts] = counts.get(ts, 0) + 1
+    from datetime import date, timedelta
+    today = date.today()
+    result = {}
+    for i in range(days):
+        d = str(today - timedelta(days=days - 1 - i))
+        result[d] = counts.get(d, 0)
+    return result
 
 
 def save_record(

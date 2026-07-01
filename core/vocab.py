@@ -213,6 +213,27 @@ def delete_word(word_id: str) -> dict:
     return {"message": f"{entry['display']} を削除しました"}
 
 
+def update_word_tags(word_id: str, tags: list[str]) -> dict:
+    """単語のタグリストを更新する。"""
+    db    = load_db()
+    entry = db.get(word_id)
+    if not entry:
+        raise ValueError(f"{word_id} は登録されていません")
+    db[word_id]["tags"] = [t.strip() for t in tags if t.strip()]
+    save_db(db)
+    return {"message": f"{entry['display']} のタグを更新しました", "tags": db[word_id]["tags"]}
+
+
+def get_all_tags() -> list[str]:
+    """全単語に付いているタグの重複なしリストを返す。"""
+    db   = load_db()
+    tags = set()
+    for entry in db.values():
+        for t in entry.get("tags", []):
+            tags.add(t)
+    return sorted(tags)
+
+
 def update_word(word_id: str, display: str, reading: str, accent) -> dict:
     """
     単語の表示テキスト・読み・アクセント型を更新する。

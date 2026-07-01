@@ -4,12 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>録音 — {{ display or test }}</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#0E1E45">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="static/css/base.css" rel="stylesheet">
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
     .record-page { flex:1; display:flex; flex-direction:column; max-width:540px; margin:0 auto; width:100%; padding:0 24px 44px; }
+
+    /* Mic quality banner */
+    .mic-quality-warn { display:none; align-items:center; gap:10px; padding:10px 16px; border-radius:var(--r); font-size:12px; font-weight:600; margin-bottom:12px; }
+    .mic-quality-warn.warn-noise { background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.35); color:#92400e; }
+    .mic-quality-warn.warn-low   { background:rgba(192,61,32,.08); border:1px solid rgba(192,61,32,.25); color:var(--accent); }
+    [data-theme="dark"] .mic-quality-warn.warn-noise { color:#fbbf24; }
+    [data-theme="dark"] .mic-quality-warn.warn-low   { color:#fca5a5; }
 
     /* Steps */
     .steps { display:flex; align-items:center; padding:20px 0 0; }
@@ -252,6 +261,9 @@
     </div>
     {% endif %}
   </div>
+
+  <!-- マイク品質バナー -->
+  <div class="mic-quality-warn" id="micQualityBanner"></div>
 
   <!-- ③ 操作ガイド（状態に応じて変化） -->
   <div class="step-guide" id="stepGuide">

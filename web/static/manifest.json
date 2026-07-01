@@ -1,0 +1,36 @@
+{
+  "name": "SP-PS 発音評価システム",
+  "short_name": "SP-PS",
+  "description": "日本語発音練習・評価アプリ（聴覚障害者向け）",
+  "start_url": "/select",
+  "display": "standalone",
+  "background_color": "#0E1E45",
+  "theme_color": "#0E1E45",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/static/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "録音する",
+      "url": "/select",
+      "description": "単語を選んで録音"
+    },
+    {
+      "name": "練習記録",
+      "url": "/history",
+      "description": "学習履歴を確認"
+    }
+  ]
+}

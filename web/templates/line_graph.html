@@ -57,12 +57,14 @@
     .score-total { font-size:28px; font-weight:700; color:#fff; position:relative; }
     .score-total span { font-size:14px; font-weight:400; color:rgba(255,255,255,.4); }
     .score-breakdown { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:16px; position:relative; }
-    .score-item { background:rgba(255,255,255,.07); border-radius:var(--r-sm); padding:10px 12px; }
-    .score-item-label { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:4px; }
-    .score-item-value { font-size:18px; font-weight:700; color:#fff; }
+    .score-item { background:rgba(255,255,255,.07); border-radius:var(--r-sm); padding:12px 12px 10px; position:relative; overflow:hidden; }
+    .score-item-label { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
+    .score-item-icon { width:14px; height:14px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:8px; flex-shrink:0; }
+    .score-item-value { font-size:22px; font-weight:700; color:#fff; line-height:1; }
     .score-item-max { font-size:10px; font-weight:400; color:rgba(255,255,255,.35); }
-    .score-bar { height:3px; background:rgba(255,255,255,.1); border-radius:100px; margin-top:5px; overflow:hidden; }
-    .score-bar-fill { height:100%; border-radius:100px; }
+    .score-bar { height:5px; background:rgba(255,255,255,.1); border-radius:100px; margin-top:8px; overflow:hidden; }
+    .score-bar-fill { height:100%; border-radius:100px; transition:width .6s cubic-bezier(.25,.1,.25,1); }
+    .score-pct { font-size:9px; color:rgba(255,255,255,.4); margin-top:3px; font-family:var(--mono); }
     .metrics-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; justify-content:center; position:relative; }
     .metric-pill { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-radius:var(--r-sm); padding:3px 10px; font-size:10px; color:rgba(255,255,255,.5); }
     .metric-pill strong { color:#fff; font-weight:600; }
@@ -284,9 +286,30 @@
       <div class="score-grade grade-{{ score.grade }}">{{ score.grade }}</div>
       <div class="score-total">{{ score.total }}<span> / 100点</span></div>
       <div class="score-breakdown">
-        <div class="score-item"><div class="score-item-label">アクセント</div><div class="score-item-value">{{ score.accent_score }}<span class="score-item-max">/50</span></div><div class="score-bar"><div class="score-bar-fill" style="width:{{ (score.accent_score/50*100)|round }}%;background:var(--accent);"></div></div></div>
-        <div class="score-item"><div class="score-item-label">長さ</div><div class="score-item-value">{{ score.length_score }}<span class="score-item-max">/30</span></div><div class="score-bar"><div class="score-bar-fill" style="width:{{ (score.length_score/30*100)|round }}%;background:#34D399;"></div></div></div>
-        <div class="score-item"><div class="score-item-label">母音</div><div class="score-item-value">{{ score.vowel_score }}<span class="score-item-max">/20</span></div><div class="score-bar"><div class="score-bar-fill" style="width:{{ (score.vowel_score/20*100)|round }}%;background:#60A5FA;"></div></div></div>
+        {% set a_pct = (score.accent_score/50*100)|round|int %}
+        {% set l_pct = (score.length_score/30*100)|round|int %}
+        {% set v_pct = (score.vowel_score/20*100)|round|int %}
+        {% set a_col = '#34D399' if a_pct >= 80 else ('#FBBF24' if a_pct >= 55 else '#F87171') %}
+        {% set l_col = '#34D399' if l_pct >= 80 else ('#FBBF24' if l_pct >= 55 else '#F87171') %}
+        {% set v_col = '#34D399' if v_pct >= 80 else ('#FBBF24' if v_pct >= 55 else '#F87171') %}
+        <div class="score-item">
+          <div class="score-item-label"><span class="score-item-icon" style="background:rgba(248,113,113,.2);color:#F87171;">音</span>アクセント</div>
+          <div class="score-item-value">{{ score.accent_score|int }}<span class="score-item-max"> /50</span></div>
+          <div class="score-bar"><div class="score-bar-fill" style="width:{{ a_pct }}%;background:{{ a_col }};"></div></div>
+          <div class="score-pct">{{ a_pct }}%</div>
+        </div>
+        <div class="score-item">
+          <div class="score-item-label"><span class="score-item-icon" style="background:rgba(52,211,153,.2);color:#34D399;">長</span>長さ</div>
+          <div class="score-item-value">{{ score.length_score|int }}<span class="score-item-max"> /30</span></div>
+          <div class="score-bar"><div class="score-bar-fill" style="width:{{ l_pct }}%;background:{{ l_col }};"></div></div>
+          <div class="score-pct">{{ l_pct }}%</div>
+        </div>
+        <div class="score-item">
+          <div class="score-item-label"><span class="score-item-icon" style="background:rgba(96,165,250,.2);color:#60A5FA;">声</span>母音</div>
+          <div class="score-item-value">{{ score.vowel_score|int }}<span class="score-item-max"> /20</span></div>
+          <div class="score-bar"><div class="score-bar-fill" style="width:{{ v_pct }}%;background:{{ v_col }};"></div></div>
+          <div class="score-pct">{{ v_pct }}%</div>
+        </div>
       </div>
       <div class="metrics-row">
         {% if speaking_rate and speaking_rate > 0 %}<div class="metric-pill">速度 <strong>{{ speaking_rate }}M/s</strong></div>{% endif %}

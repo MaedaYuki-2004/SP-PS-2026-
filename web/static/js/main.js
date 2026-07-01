@@ -368,6 +368,33 @@ async function main() {
     updateLipButtons();
     checkSavedRef();
 
+    // ── マイク品質チェック（録音前の背景ノイズ測定） ────────────
+    const qualityBanner = document.getElementById('micQualityBanner');
+    (async function checkMicQuality() {
+      const SAMPLE_MS = 1500;
+      const samples   = [];
+      const start     = Date.now();
+      while (Date.now() - start < SAMPLE_MS) {
+        analyser.getByteTimeDomainData(timeData);
+        samples.push(getRMS(timeData));
+        await new Promise(r => setTimeout(r, 80));
+      }
+      if (!qualityBanner) return;
+      const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
+      const max = Math.max(...samples);
+      if (avg < 0.002) {
+        qualityBanner.textContent = '⚠ マイクの音量が非常に小さいです。マイクが正しく接続されているか確認してください。';
+        qualityBanner.className = 'mic-quality-warn warn-low';
+        qualityBanner.style.display = 'flex';
+      } else if (avg > 0.05) {
+        qualityBanner.textContent = '⚠ 背景ノイズが大きいです。静かな場所で録音するとスコアが上がります。';
+        qualityBanner.className = 'mic-quality-warn warn-noise';
+        qualityBanner.style.display = 'flex';
+      } else {
+        qualityBanner.style.display = 'none';
+      }
+    })();
+
     drawLoop();
 
   } catch (err) {
@@ -416,3 +443,10 @@ function sendAudio(blob) {
 }
 
 main();
+
+// ── Service Worker 登録 ──────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/static/js/sw.js').catch(() => {});
+  });
+}

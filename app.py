@@ -37,14 +37,14 @@ from config import (
     TEST_WAV_PATH, WORD_ID_MEMO_PATH,
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
-from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word
+from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
-from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history
+from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts
 from core.utils     import pct_length, sleep_second
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
@@ -645,9 +645,10 @@ def select():
         for w in words
     }
     lip_ref_keys = set(load_lip_refs().keys())
+    all_tags = get_all_tags()
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
-                           lip_ref_keys=lip_ref_keys)
+                           lip_ref_keys=lip_ref_keys, all_tags=all_tags)
 
 
 @app.route("/select")
@@ -661,9 +662,10 @@ def select_page():
         for w in words
     }
     lip_ref_keys = set(load_lip_refs().keys())
+    all_tags     = get_all_tags()
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
-                           lip_ref_keys=lip_ref_keys)
+                           lip_ref_keys=lip_ref_keys, all_tags=all_tags)
 
 
 @app.route("/history")
@@ -1385,9 +1387,32 @@ def api_update_word():
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/admin/update_word_tags", methods=["POST"])
+def api_update_word_tags():
+    try:
+        data    = request.get_json(force=True, silent=True) or {}
+        word_id = data.get("word_id", "").strip()
+        tags    = data.get("tags", [])
+        if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
+        return jsonify(update_word_tags(word_id, tags))
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/tags")
+def api_get_all_tags():
+    return jsonify({"tags": get_all_tags()})
+
+
+@app.route("/api/history/calendar")
+def api_history_calendar():
+    days = min(int(request.args.get("days", 84)), 365)
+    return jsonify(get_daily_counts(days))
+
+
 @app.route("/admin")
 def admin():
-    return render_template("admin.html", words=list_words(), stats=get_stats())
+    return render_template("admin.html", words=list_words(), stats=get_stats(), all_tags=get_all_tags())
 
 
 @app.route("/admin/add_word", methods=["POST"])
