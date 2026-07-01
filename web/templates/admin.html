@@ -17,7 +17,14 @@
     .stat-card-value { font-family:var(--mono); font-size:26px; font-weight:500; color:var(--navy); }
     .add-section { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:22px; margin-bottom:22px; box-shadow:var(--shadow-xs); }
     .add-section-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:14px; }
-    .add-form-grid { display:grid; grid-template-columns:1fr 1fr auto; gap:12px; align-items:end; }
+    .add-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .rec-row { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; margin-top:14px; }
+    .rec-preview { width:160px; height:120px; border-radius:var(--r-sm); background:#000; object-fit:cover; flex-shrink:0; }
+    .rec-controls { display:flex; flex-direction:column; gap:8px; flex:1; min-width:160px; }
+    .rec-status { font-size:11px; color:var(--text-3); line-height:1.5; }
+    .rec-status.ready  { color:var(--green); }
+    .rec-status.active { color:var(--accent); font-weight:600; }
+    .file-alt-label { font-size:10px; color:var(--text-3); cursor:pointer; text-decoration:underline; display:inline-block; margin-top:2px; }
     .form-field { display:flex; flex-direction:column; gap:4px; }
     .form-label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
     .form-hint  { font-size:10px; color:var(--text-3); }
@@ -95,16 +102,23 @@
 
   <div class="add-section">
     <div class="add-section-title">新しい単語を追加</div>
+
     <div class="add-form-grid">
       <div class="form-field"><label class="form-label">表示テキスト</label><input type="text" class="form-input" id="inputDisplay" placeholder="例：夕食、スーパー"><span class="form-hint">漢字・カタカナ・ひらがな可</span></div>
       <div class="form-field"><label class="form-label">ひらがな読み</label><input type="text" class="form-input" id="inputReading" placeholder="例：ゆうしょく、すーぱー"><span class="form-hint">長音は「ー」で表記</span></div>
-      <button class="btn btn-primary btn-lg" id="btnRegister" onclick="registerWord()">追加</button>
     </div>
-    <div class="form-field" style="margin-top:12px;">
-      <label class="form-label">参照動画（お手本）</label>
-      <input type="file" class="form-input" id="inputVideo" accept="video/webm,video/*">
-      <span class="form-hint">音声・口形の正解データになります。カメラで録画した WebM ファイルを選択してください</span>
+
+    <div class="rec-row">
+      <video id="adminPreview" class="rec-preview" autoplay muted playsinline></video>
+      <div class="rec-controls">
+        <div class="form-label">お手本を録画（3秒）</div>
+        <div class="rec-status" id="recStatus">「録画開始」を押して単語を発音してください</div>
+        <button type="button" class="btn btn-ghost" id="btnStartRec" onclick="startAdminRec()">録画開始</button>
+        <label class="file-alt-label">またはファイルを選択<input type="file" id="inputVideo" accept="video/webm,video/*" style="display:none;" onchange="onFileSelect(this)"></label>
+      </div>
     </div>
+
+    <button type="button" class="btn btn-primary btn-lg" id="btnRegister" onclick="registerWord()" style="margin-top:14px;">追加</button>
     <div class="status-box loading" id="statusLoading"><div class="spinner"></div><span id="statusMsg">登録中...</span></div>
     <div class="status-box success" id="statusSuccess"></div>
     <div class="status-box error"   id="statusError"></div>
@@ -151,46 +165,125 @@
 </div>
 
 <script>
-function filterTable(){const q=document.getElementById('tableSearch').value.trim().toLowerCase();document.querySelectorAll('#wordTable tbody tr').forEach(r=>{r.style.display=!q||(r.dataset.word||'').toLowerCase().includes(q)?'':'none';});}
-async function registerWord(){
-  const display=document.getElementById('inputDisplay').value.trim();
-  const reading=document.getElementById('inputReading').value.trim();
-  const fileInput=document.getElementById('inputVideo');
-  const file=fileInput.files[0];
-  if(!display||!reading){showError('表示テキストとひらがな読みを入力してください。');return;}
-  if(!file){showError('参照動画ファイルを選択してください。');return;}
+// ── カメラ録画 ───────────────────────────────────────────────────────
+let adminStream   = null;
+let adminRecorder = null;
+let adminBlob     = null;
+
+function setRecStatus(msg, cls) {
+  const el = document.getElementById('recStatus');
+  el.textContent = msg;
+  el.className = 'rec-status' + (cls ? ' ' + cls : '');
+}
+
+async function initAdminCamera() {
+  try {
+    adminStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('adminPreview').srcObject = adminStream;
+  } catch(e) {
+    setRecStatus('カメラにアクセスできませんでした。ブラウザの権限を確認してください。');
+  }
+}
+
+function startAdminRec() {
+  if (!adminStream) {
+    initAdminCamera().then(() => { if (adminStream) startAdminRec(); });
+    return;
+  }
+  if (adminRecorder) return;
+
+  const chunks = [];
+  try {
+    adminRecorder = new MediaRecorder(adminStream, { mimeType: 'video/webm' });
+  } catch(e) {
+    adminRecorder = new MediaRecorder(adminStream);
+  }
+  adminRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+  adminRecorder.onstop = () => {
+    adminBlob = new Blob(chunks, { type: 'video/webm' });
+    adminRecorder = null;
+    document.getElementById('btnStartRec').textContent = '録り直す';
+    document.getElementById('btnStartRec').disabled = false;
+    setRecStatus('録画完了 — 「追加」ボタンで登録できます', 'ready');
+  };
+
+  adminRecorder.start();
+  document.getElementById('btnStartRec').disabled = true;
+  setRecStatus('録画中… 3秒後に自動停止', 'active');
+
+  setTimeout(() => {
+    if (adminRecorder && adminRecorder.state === 'recording') adminRecorder.stop();
+  }, 3000);
+}
+
+function onFileSelect(input) {
+  if (input.files[0]) {
+    adminBlob = input.files[0];
+    setRecStatus(`ファイル選択済み: ${input.files[0].name}`, 'ready');
+  }
+}
+
+// ── 単語登録 ─────────────────────────────────────────────────────────
+async function registerWord() {
+  const display = document.getElementById('inputDisplay').value.trim();
+  const reading = document.getElementById('inputReading').value.trim();
+  if (!display || !reading) { showError('表示テキストとひらがな読みを入力してください。'); return; }
+  if (!adminBlob) { showError('お手本を録画（または「またはファイルを選択」）してから「追加」してください。'); return; }
+
   hideAll();
   document.getElementById('statusLoading').classList.add('show');
-  document.getElementById('btnRegister').disabled=true;
-  document.getElementById('statusMsg').textContent=`「${display}」を登録中...`;
-  try{
-    const fd=new FormData();
-    fd.append('display',display);
-    fd.append('reading',reading);
-    fd.append('file',file,file.name);
-    const res=await fetch('/admin/add_word',{method:'POST',body:fd});
-    const data=await res.json();
+  document.getElementById('btnRegister').disabled = true;
+  document.getElementById('statusMsg').textContent = `「${display}」を登録中…`;
+
+  try {
+    const fd = new FormData();
+    fd.append('display', display);
+    fd.append('reading', reading);
+    fd.append('file', adminBlob, 'ref.webm');
+    const res  = await fetch('/admin/add_word', { method: 'POST', body: fd });
+    const data = await res.json();
     hideAll();
-    if(res.ok){
-      let msg=data.message;
-      if(data.alignment_ok===false) msg+=' ※アライメント失敗（発音が不明瞭の可能性）';
-      if(data.mora_count) msg+=` / 口形 ${data.mora_count} モーラ保存`;
-      document.getElementById('statusSuccess').textContent=msg;
+    if (res.ok) {
+      let msg = data.message;
+      if (data.alignment_ok === false) msg += ' ※アライメント失敗（もう一度録画してください）';
+      if (data.mora_count)             msg += ` / 口形 ${data.mora_count} モーラ保存`;
+      document.getElementById('statusSuccess').textContent = msg;
       document.getElementById('statusSuccess').classList.add('show');
-      document.getElementById('inputDisplay').value='';
-      document.getElementById('inputReading').value='';
-      fileInput.value='';
-      setTimeout(()=>location.reload(),2000);
-    }else{showError(data.error||'登録に失敗しました。');}
-  }catch(e){hideAll();showError(`通信エラー: ${e.message}`);}
-  finally{document.getElementById('btnRegister').disabled=false;}
+      document.getElementById('inputDisplay').value = '';
+      document.getElementById('inputReading').value = '';
+      adminBlob = null;
+      document.getElementById('btnStartRec').textContent = '録画開始';
+      setRecStatus('「録画開始」を押して単語を発音してください');
+      setTimeout(() => location.reload(), 2500);
+    } else {
+      showError(data.error || '登録に失敗しました。');
+    }
+  } catch(e) {
+    hideAll(); showError(`通信エラー: ${e.message}`);
+  } finally {
+    document.getElementById('btnRegister').disabled = false;
+  }
 }
+
+// ── テーブル検索 ─────────────────────────────────────────────────────
+function filterTable() {
+  const q = document.getElementById('tableSearch').value.trim().toLowerCase();
+  document.querySelectorAll('#wordTable tbody tr').forEach(r => {
+    r.style.display = !q || (r.dataset.word || '').toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// ── 単語削除・編集 ───────────────────────────────────────────────────
 async function deleteWord(id,display){if(!confirm(`「${display}」を削除しますか？`))return;try{const res=await fetch('/admin/delete_word',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word_id:id})});const data=await res.json();if(res.ok){alert(data.message);location.reload();}else{alert('エラー: '+(data.error||'削除失敗'));}}catch(e){alert('通信エラー: '+e.message);}}
 function openEdit(id,display,reading,accent){document.getElementById('editWordId').value=id;document.getElementById('editDisplay').value=display;document.getElementById('editReading').value=reading;document.getElementById('editAccent').value=(accent==='None'||accent==='null')?'':accent;document.getElementById('editModal').classList.add('show');}
 function closeEdit(){document.getElementById('editModal').classList.remove('show');}
 async function submitEdit(){const wordId=document.getElementById('editWordId').value,display=document.getElementById('editDisplay').value.trim(),reading=document.getElementById('editReading').value.trim(),accent=document.getElementById('editAccent').value.trim();if(!display||!reading){alert('必須項目を入力してください。');return;}try{const res=await fetch('/admin/update_word',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word_id:wordId,display,reading,accent:accent||null})});const data=await res.json();if(res.ok){closeEdit();alert(data.message);location.reload();}else{alert('エラー: '+(data.error||'更新失敗'));}}catch(e){alert('通信エラー: '+e.message);}}
+
 function hideAll(){['statusLoading','statusSuccess','statusError'].forEach(id=>document.getElementById(id).classList.remove('show'));}
 function showError(msg){document.getElementById('statusError').textContent=msg;document.getElementById('statusError').classList.add('show');}
+
+// ページ読み込み時にカメラを起動
+initAdminCamera();
 </script>
 </body>
 </html>
