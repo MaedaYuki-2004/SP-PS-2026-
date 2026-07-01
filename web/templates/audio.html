@@ -124,8 +124,12 @@
     .hl-badge-box.L { background:var(--bg-muted,#F4F4F6); color:var(--text-3,#9398A2); }
     .hl-mora-label { font-size:13px; color:var(--text-2,#4A5568); font-family:var(--font); }
 
-    /* リアルタイムピッチドット */
-    #pitchCanvas { cursor:default; }
+    /* ピッチグラフ凡例 */
+    .pitch-legend { display:flex; gap:14px; justify-content:flex-end; padding:2px 2px 4px; }
+    .pitch-legend-item { display:flex; align-items:center; gap:4px; font-size:9px; font-weight:700; letter-spacing:.04em; color:var(--text-3); }
+    .pitch-legend-line { width:16px; height:2.5px; border-radius:2px; }
+    .pitch-legend-line.ref  { background:rgba(14,30,69,0.55); }
+    .pitch-legend-line.user { background:#C03D20; }
 
     @media (max-width:480px) { .word-display{font-size:48px;} .top-nav{padding:0 16px;} .shortcut-hint{display:none;} #lipPreview{width:110px;height:83px;} .lip-layout{grid-template-columns:110px 1fr;} }
   </style>
@@ -208,6 +212,10 @@
         <div class="pitch-graph-wrap">
           <canvas id="pitchCanvas"></canvas>
           <div id="pitchCursor"></div>
+        </div>
+        <div class="pitch-legend">
+          <div class="pitch-legend-item"><div class="pitch-legend-line ref"></div>お手本</div>
+          <div class="pitch-legend-item"><div class="pitch-legend-line user"></div>あなた（録音中）</div>
         </div>
         <div class="mora-bar" id="moraBar">
           {% for m in ref_preview.moras %}
@@ -387,31 +395,32 @@
   const refAudio = document.getElementById('refAudio');
   if (!canvas || !refAudio) return;
 
-  const moraItems   = Array.from(document.querySelectorAll('.mora-item'));
-  const pitch       = REF.pitch;
-  const n           = pitch.length;
-  const pitchMinHz  = REF.pitch_min_hz || 80;
-  const pitchMaxHz  = REF.pitch_max_hz || 400;
+  const moraItems  = Array.from(document.querySelectorAll('.mora-item'));
+  const pitch      = REF.pitch;
+  const n          = pitch.length;
+  const pitchMinHz = REF.pitch_min_hz || 80;
+  const pitchMaxHz = REF.pitch_max_hz || 400;
 
-  // ── リアルタイムピッチ検出（録音中） ───────────────────────────
-  const USER_TRAIL_MAX = 48;  // ~0.8秒分
-  const userTrail = [];       // {norm: 0-1} の最新 N 件
-
+  // ── リアルタイムピッチ検出 ─────────────────────────────────────
+  // 正規化自己相関法（ACF）: ゼロラグ自己相関で割ることで振幅依存をなくす
   function detectPitchHz(analyser, sampleRate) {
     const buf = new Float32Array(analyser.fftSize);
     analyser.getFloatTimeDomainData(buf);
-    const N      = buf.length;
+    const N = buf.length;
+    let r0 = 0;
+    for (let i = 0; i < N; i++) r0 += buf[i] * buf[i];
+    if (Math.sqrt(r0 / N) < 0.01) return null;  // 無音
+
     const minLag = Math.floor(sampleRate / Math.min(pitchMaxHz, 500));
     const maxLag = Math.floor(sampleRate / Math.max(pitchMinHz, 60));
     let bestCorr = -Infinity, bestLag = -1;
     for (let lag = minLag; lag <= maxLag && lag < N; lag++) {
       let corr = 0;
-      const len = N - lag;
-      for (let i = 0; i < len; i++) corr += buf[i] * buf[i + lag];
-      corr /= len;
+      for (let i = 0; i < N - lag; i++) corr += buf[i] * buf[i + lag];
+      corr /= r0;  // 正規化
       if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
     }
-    if (bestCorr < 0.005 || bestLag < 1) return null;
+    if (bestCorr < 0.3 || bestLag < 1) return null;  // 有声区間でなければスキップ
     return sampleRate / bestLag;
   }
 
@@ -420,35 +429,57 @@
     return Math.max(0, Math.min(1, (hz - pitchMinHz) / (pitchMaxHz - pitchMinHz)));
   }
 
-  let pitchLoopId = null;
-  let pitchFrame  = 0;
+  // ── ユーザーピッチ履歴（録音開始からの経過時間 + 正規化ピッチ） ──
+  let recordStartTime  = null;  // 録音開始の Date.now()/1000
+  let userPitchHistory = [];    // [{t:秒, norm:0-1}]
+  let pitchFrame = 0;
 
+  // 録音ボタンを監視して開始時刻を記録
+  const startBtn = document.getElementById('buttonStart');
+  const stopBtn  = document.getElementById('buttonStop');
+  if (startBtn) startBtn.addEventListener('click', () => {
+    recordStartTime  = Date.now() / 1000;
+    userPitchHistory = [];
+    drawCanvas();
+  });
+  if (stopBtn) stopBtn.addEventListener('click', () => {
+    recordStartTime = null;  // 進捗カーソルを止める（軌跡は残す）
+    drawCanvas();
+  });
+
+  // ── メインループ（rAF 60fps、ピッチ検出は20fps） ─────────────
   function pitchLoop() {
-    pitchLoopId = requestAnimationFrame(pitchLoop);
-    if (!window._spRecording) { userTrail.length = 0; return; }
+    requestAnimationFrame(pitchLoop);
     pitchFrame++;
-    if (pitchFrame % 3 !== 0) return;  // ~20fps 更新
-    const an = window._spAnalyser;
-    const sr = window._spSampleRate || 16000;
-    if (!an) return;
-    const hz   = detectPitchHz(an, sr);
-    const norm = normHz(hz);
-    if (norm !== null) {
-      userTrail.push(norm);
-      if (userTrail.length > USER_TRAIL_MAX) userTrail.shift();
+
+    // ピッチ検出は3フレームに1回（≈20fps）
+    if (window._spRecording && recordStartTime !== null && pitchFrame % 3 === 0) {
+      const an = window._spAnalyser;
+      const sr = window._spSampleRate || 16000;
+      if (an) {
+        const hz   = detectPitchHz(an, sr);
+        const norm = normHz(hz);
+        const t    = Date.now() / 1000 - recordStartTime;
+        if (norm !== null && t >= 0 && t <= REF.duration_sec * 1.5) {
+          userPitchHistory.push({t, norm});
+        }
+      }
     }
+
+    // キャンバス再描画は毎フレーム（進捗カーソルを滑らかに）
     drawCanvas();
   }
 
+  // ── キャンバス描画 ────────────────────────────────────────────
   function drawCanvas() {
     const W = canvas.offsetWidth  || 460;
     const H = canvas.offsetHeight || 68;
-    if (canvas.width !== W) canvas.width = W;
+    if (canvas.width !== W) canvas.width  = W;
     if (canvas.height !== H) canvas.height = H;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
 
-    // Mora boundary lines
+    // モーラ境界線
     ctx.strokeStyle = 'rgba(14,30,69,0.1)';
     ctx.lineWidth = 1;
     for (const item of moraItems) {
@@ -458,9 +489,9 @@
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
 
-    // Pitch curve fill
+    // お手本ピッチ塗り
     const fillGrad = ctx.createLinearGradient(0, 0, 0, H);
-    fillGrad.addColorStop(0, 'rgba(14,30,69,0.18)');
+    fillGrad.addColorStop(0, 'rgba(14,30,69,0.15)');
     fillGrad.addColorStop(1, 'rgba(14,30,69,0.02)');
     ctx.beginPath();
     for (let i = 0; i < n; i++) {
@@ -472,9 +503,9 @@
     ctx.fillStyle = fillGrad;
     ctx.fill();
 
-    // Pitch curve line
+    // お手本ピッチ線（紺）
     ctx.beginPath();
-    ctx.strokeStyle = '#0E1E45';
+    ctx.strokeStyle = 'rgba(14,30,69,0.55)';
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     for (let i = 0; i < n; i++) {
@@ -484,46 +515,74 @@
     }
     ctx.stroke();
 
-    // ── ユーザーピッチトレイル（録音中） ─────────────────
-    if (userTrail.length > 0) {
-      const trailW = Math.round(W * 0.35);  // 右端35%を使用
-      const startX = W - trailW;
+    // ── ユーザーピッチ軌跡（録音時間軸に整合） ──────────────────
+    const validPts = userPitchHistory
+      .filter(p => p.t >= 0 && p.t <= REF.duration_sec)
+      .map(p => ({
+        x: (p.t / REF.duration_sec) * W,
+        y: H - 4 - p.norm * (H - 8),
+      }));
+
+    if (validPts.length >= 2) {
+      // 軌跡の線
       ctx.save();
       ctx.beginPath();
-      ctx.rect(startX, 0, trailW, H);
-      ctx.clip();
-
-      for (let i = 0; i < userTrail.length; i++) {
-        const alpha = (i + 1) / userTrail.length;
-        const x = startX + (i / Math.max(userTrail.length - 1, 1)) * trailW;
-        const y = H - 4 - userTrail[i] * (H - 8);
-        ctx.beginPath();
-        ctx.arc(x, y, alpha < 0.5 ? 2 : 3, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(192,61,32,${alpha * 0.85})`;
-        ctx.fill();
-      }
-      // 最新値を大きい点で強調
-      const latest = userTrail[userTrail.length - 1];
-      const ly = H - 4 - latest * (H - 8);
-      ctx.beginPath();
-      ctx.arc(W - 6, ly, 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#C03D20';
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(192,61,32,0.85)';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap  = 'round';
+      validPts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
       ctx.stroke();
+      ctx.restore();
+    }
+
+    if (validPts.length > 0) {
+      // 先端の強調ドット（録音中のみ）
+      if (window._spRecording) {
+        const last = validPts[validPts.length - 1];
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(last.x, last.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#C03D20';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // ── 録音進捗カーソル（録音中：現在位置の点線） ───────────────
+    if (window._spRecording && recordStartTime !== null) {
+      const elapsed = Date.now() / 1000 - recordStartTime;
+      const progX   = Math.min(elapsed / REF.duration_sec, 1.0) * W;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(192,61,32,0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(progX, 0);
+      ctx.lineTo(progX, H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // 「● REC」ラベル
+      ctx.save();
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillStyle = '#C03D20';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText('● REC', W - 5, 4);
       ctx.restore();
     }
   }
 
-  function drawPitch() {
-    drawCanvas();
-  }
-
-  requestAnimationFrame(drawPitch);
-  window.addEventListener('resize', () => { canvas.width = 0; drawPitch(); });
+  requestAnimationFrame(drawCanvas);
+  window.addEventListener('resize', () => { canvas.width = 0; drawCanvas(); });
   pitchLoop();
 
+  // ── refAudio カーソル ─────────────────────────────────────────
   let rafId = null;
 
   function tick() {
@@ -535,9 +594,7 @@
       const e = parseFloat(item.dataset.end);
       item.classList.toggle('active', !item.classList.contains('mora-sil') && t >= s && t < e);
     }
-    if (!refAudio.paused && !refAudio.ended) {
-      rafId = requestAnimationFrame(tick);
-    }
+    if (!refAudio.paused && !refAudio.ended) rafId = requestAnimationFrame(tick);
   }
 
   const ICON_PLAY  = '<svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg> 再生';
