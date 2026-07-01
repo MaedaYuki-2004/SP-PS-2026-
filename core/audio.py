@@ -39,26 +39,28 @@ def word_select(word_id: str) -> str:
 def read_sample(word_id: str) -> str:
     """
     audio.scp から word_id に対応する基準音声の絶対パスを返す。
+    行の形式は "<tab区切り行番号><tab>path" または "path" の両方に対応。
+    word_id をパス中の文字列として検索し、見つからない場合は IndexError。
     """
     if not AUDIO_SCP_PATH.exists():
         raise FileNotFoundError(f"audio.scp が見つかりません: {AUDIO_SCP_PATH}")
 
-    match = re.search(r"\d+", word_id)
-    if not match:
-        return ""
+    lines = AUDIO_SCP_PATH.read_text(encoding="utf-8").splitlines()
 
-    file_idx  = int(match.group()) - 1
-    wav_paths = AUDIO_SCP_PATH.read_text(encoding="utf-8").splitlines()
+    for line in lines:
+        # "1\tsound/word51/word51.wav" または "sound/word51/word51.wav" 両対応
+        parts = line.split("\t")
+        raw_path = parts[-1].strip()
+        if not raw_path:
+            continue
+        # パス中に word_id が含まれているか確認
+        if word_id in raw_path.replace("\\", "/"):
+            sample_path_str = raw_path.replace("\\", "/")
+            if sample_path_str.startswith("audio/"):
+                sample_path_str = sample_path_str[6:]
+            return str((RAW_AUDIO_DIR / sample_path_str).resolve())
 
-    if file_idx < 0 or file_idx >= len(wav_paths):
-        raise IndexError("audio.scp の範囲外です")
-
-    # 古い "audio/" プレフィックスを自動除去
-    sample_path_str = wav_paths[file_idx].replace("\\", "/")
-    if sample_path_str.startswith("audio/"):
-        sample_path_str = sample_path_str[6:]
-
-    return str((RAW_AUDIO_DIR / sample_path_str).resolve())
+    raise IndexError(f"audio.scp に {word_id} が見つかりません")
 
 
 def convert_to_16kHz(input_path: str | Path, output_path: str | Path) -> bool:
