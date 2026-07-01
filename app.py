@@ -1363,7 +1363,7 @@ def sample_audio(word_id: str):
 @app.route("/admin/delete_word", methods=["POST"])
 def api_delete_word():
     try:
-        data    = request.get_json()
+        data    = request.get_json(force=True, silent=True) or {}
         word_id = data.get("word_id", "").strip()
         if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
         return jsonify(delete_word(word_id))

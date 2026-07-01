@@ -290,6 +290,8 @@ async function main() {
       }
     }
 
+    const vizCard = document.querySelector('.viz-card');
+
     // ── ボタンイベント ──────────────────────────────────
     btnStart.addEventListener('click', () => {
       // ③ 録音済みの場合は確認ダイアログを表示
@@ -302,6 +304,7 @@ async function main() {
       btnStop.removeAttribute('disabled');
       btnGraph.style.display = 'none';
       if (autoStop) autoStop.style.display = 'none';
+      if (vizCard) vizCard.classList.add('recording');
 
       // 状態リセット
       isRecording  = true;
@@ -325,6 +328,7 @@ async function main() {
     btnStop.addEventListener('click', () => {
       btnStop.setAttribute('disabled', 'disabled');
       btnStart.removeAttribute('disabled');
+      if (vizCard) vizCard.classList.remove('recording');
       isRecording  = false;
       window._spRecording = false;
       hasRecording = true;   // ③ 録音完了フラグ

@@ -12,14 +12,27 @@
     .page-header-sub   { font-size:11px; color:rgba(255,255,255,.4); margin-top:3px; }
     .main { max-width:1100px; margin:0 auto; padding:26px 32px; }
     .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
-    .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:14px 18px; box-shadow:var(--shadow-xs); }
-    .stat-card-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:5px; }
-    .stat-card-value { font-family:var(--mono); font-size:26px; font-weight:500; color:var(--navy); }
+    .stat-card { border:none; border-radius:var(--r-lg); padding:20px 22px; transition:box-shadow .2s,transform .18s; }
+    .stat-card:hover { transform:translateY(-4px); }
+    .stat-card:nth-child(1) { background:linear-gradient(150deg,#f0f4ff,#dde6ff); box-shadow:0 2px 14px rgba(14,30,69,.1),0 0 0 1px rgba(14,30,69,.1); }
+    .stat-card:nth-child(2) { background:linear-gradient(150deg,#f0fdf8,#d1fae5); box-shadow:0 2px 14px rgba(5,150,105,.1),0 0 0 1px rgba(5,150,105,.1); }
+    .stat-card:nth-child(3) { background:linear-gradient(150deg,#fffdf0,#fef3c7); box-shadow:0 2px 14px rgba(154,107,0,.1),0 0 0 1px rgba(154,107,0,.1); }
+    .stat-card:nth-child(1):hover { box-shadow:0 10px 36px rgba(14,30,69,.18),0 0 0 1px rgba(14,30,69,.14); }
+    .stat-card:nth-child(2):hover { box-shadow:0 10px 36px rgba(5,150,105,.18),0 0 0 1px rgba(5,150,105,.14); }
+    .stat-card:nth-child(3):hover { box-shadow:0 10px 36px rgba(154,107,0,.18),0 0 0 1px rgba(154,107,0,.14); }
+    .stat-card-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px; }
+    .stat-card-value { font-family:var(--mono); font-size:40px; font-weight:500; line-height:1; }
+    .stat-card:nth-child(1) .stat-card-value { color:var(--navy); }
+    .stat-card:nth-child(2) .stat-card-value { color:var(--green); }
+    .stat-card:nth-child(3) .stat-card-value { color:var(--quest); }
     .add-section { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:22px; margin-bottom:22px; box-shadow:var(--shadow-xs); }
     .add-section-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:14px; }
     .add-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     .rec-row { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; margin-top:14px; }
-    .rec-preview { width:160px; height:120px; border-radius:var(--r-sm); background:#000; object-fit:cover; flex-shrink:0; }
+    .rec-preview-container { position:relative; width:160px; height:120px; border-radius:var(--r-sm); overflow:hidden; background:#000; flex-shrink:0; }
+    .rec-preview { width:100%; height:100%; object-fit:cover; display:block; }
+    #adminOverlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+    #adminFaceStatus { position:absolute; bottom:0; left:0; right:0; padding:1px 0 3px; font-size:7px; font-weight:700; letter-spacing:.04em; color:#fff; text-align:center; text-shadow:0 1px 2px rgba(0,0,0,.9); background:linear-gradient(transparent,rgba(0,0,0,.5)); pointer-events:none; }
     .rec-controls { display:flex; flex-direction:column; gap:8px; flex:1; min-width:160px; }
     .rec-status { font-size:11px; color:var(--text-3); line-height:1.5; }
     .rec-status.ready  { color:var(--green); }
@@ -45,28 +58,34 @@
     .tbl-search-icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--text-3); }
     .word-table-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-xs); }
     .word-table { width:100%; border-collapse:collapse; font-size:12px; }
-    .word-table th { text-align:left; padding:9px 14px; font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); background:var(--bg-muted); border-bottom:1px solid var(--border); }
-    .word-table td { padding:10px 14px; border-bottom:1px solid var(--border-light); color:var(--text-2); vertical-align:middle; }
+    .word-table th { text-align:left; padding:10px 16px; font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); background:var(--bg-muted); border-bottom:1px solid var(--border); }
+    .word-table td { padding:12px 16px; border-bottom:1px solid var(--border-light); color:var(--text-2); vertical-align:middle; transition:background .12s; }
     .word-table tr:last-child td { border-bottom:none; }
     .word-table tr:hover td { background:var(--bg); }
+    .word-table tbody tr:nth-child(even) td { background:rgba(0,0,0,.018); }
+    .word-table tbody tr:nth-child(even):hover td { background:var(--bg); }
     .tbl-word { font-size:15px; font-weight:700; color:var(--navy); }
     .tbl-id   { font-family:var(--mono); font-size:10px; color:var(--text-3); }
     .src-badge { display:inline-block; font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 7px; border-radius:3px; }
     .src-recorded { background:var(--green-bg); color:var(--green); }
     .src-tts      { background:var(--bg-muted);  color:var(--text-3); }
     .action-row { display:flex; gap:5px; }
-    .action-btn { padding:4px 9px; border-radius:var(--r-xs); font-family:var(--font); font-size:10px; font-weight:600; cursor:pointer; border:1px solid; transition:background var(--dur),transform var(--dur); }
-    .action-btn:active { transform:scale(.96); }
+    .action-btn { padding:5px 11px; border-radius:var(--r-sm); font-family:var(--font); font-size:10px; font-weight:700; cursor:pointer; border:1px solid; transition:background var(--dur),transform var(--dur),box-shadow var(--dur); min-height:30px; }
+    .action-btn:active { transform:scale(.95); }
     .action-edit { background:var(--bg-muted); color:var(--text-2); border-color:var(--border); }
-    .action-edit:hover { background:var(--border); }
-    .action-del  { background:var(--accent-bg); color:var(--accent); border-color:#F0C0B0; }
-    .action-del:hover  { background:var(--accent); color:#fff; }
+    .action-edit:hover { background:var(--navy); color:#fff; border-color:var(--navy); }
+    .action-del  { background:transparent; color:var(--accent); border-color:var(--accent); }
+    .action-del:hover  { background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(192,61,32,.25); }
+    .action-del.del-pending { background:var(--accent) !important; color:#fff !important; }
     .modal-overlay { display:none; position:fixed; inset:0; background:rgba(14,30,69,.5); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     .modal-overlay.show { display:flex; }
     .modal-box { background:var(--bg-card); border-radius:var(--r-lg); padding:26px; width:90%; max-width:420px; box-shadow:var(--shadow-lg); }
     .modal-title { font-size:16px; font-weight:700; color:var(--navy); margin-bottom:18px; }
     .modal-fields { display:flex; flex-direction:column; gap:12px; }
     .modal-actions { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+    [data-theme="dark"] .stat-card:nth-child(1) { background:rgba(14,30,69,.35); box-shadow:0 2px 14px rgba(0,0,0,.3),0 0 0 1px rgba(42,74,138,.25); }
+    [data-theme="dark"] .stat-card:nth-child(2) { background:rgba(5,150,105,.12); box-shadow:0 2px 14px rgba(0,0,0,.3),0 0 0 1px rgba(61,138,101,.2); }
+    [data-theme="dark"] .stat-card:nth-child(3) { background:rgba(154,107,0,.12); box-shadow:0 2px 14px rgba(0,0,0,.3),0 0 0 1px rgba(196,138,0,.2); }
     @media (max-width:700px) { .add-form-grid{grid-template-columns:1fr;} .stats-row{grid-template-columns:1fr 1fr;} .main{padding:16px;} }
   </style>
 </head>
@@ -108,7 +127,11 @@
     </div>
 
     <div class="rec-row">
-      <video id="adminPreview" class="rec-preview" autoplay muted playsinline></video>
+      <div class="rec-preview-container">
+        <video id="adminPreview" class="rec-preview" autoplay muted playsinline></video>
+        <canvas id="adminOverlay"></canvas>
+        <div id="adminFaceStatus">顔を枠内に合わせてください</div>
+      </div>
       <div class="rec-controls">
         <div class="form-label">お手本を録画（3秒）</div>
         <div class="rec-status" id="recStatus">「録画開始」を押して単語を発音してください</div>
@@ -142,7 +165,7 @@
           <td><span style="font-family:var(--mono);font-size:11px;">{{ w.reading }}</span></td>
           <td>{% if w.accent is not none %}<span style="font-family:var(--mono);font-size:11px;">{{ w.accent }}型{% if w.accent==0 %}（平板）{% elif w.accent==1 %}（頭高）{% endif %}</span>{% else %}<span style="color:var(--text-3);">不明</span>{% endif %}</td>
           <td>{% if w.source=="recorded" %}<span class="src-badge src-recorded">初期録音</span>{% elif w.source=="manual" %}<span class="src-badge src-recorded">録画</span>{% else %}<span class="src-badge src-tts">自動</span>{% endif %}</td>
-          <td>{% if w.source!="recorded" %}<div class="action-row"><button class="action-btn action-edit" onclick="openEdit('{{ w.word_id }}','{{ w.display }}','{{ w.reading }}','{{ w.accent }}')">編集</button><button class="action-btn action-del" onclick="deleteWord('{{ w.word_id }}','{{ w.display }}')">削除</button></div>{% else %}<span style="font-size:10px;color:var(--text-3);">変更不可</span>{% endif %}</td>
+          <td>{% if w.source!="recorded" %}<div class="action-row"><button class="action-btn action-edit" onclick="openEdit('{{ w.word_id }}','{{ w.display }}','{{ w.reading }}','{{ w.accent }}')">編集</button><button class="action-btn action-del" onclick="deleteWord('{{ w.word_id }}','{{ w.display }}',this)">削除</button></div>{% else %}<span style="font-size:10px;color:var(--text-3);">変更不可</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -273,7 +296,20 @@ function filterTable() {
 }
 
 // ── 単語削除・編集 ───────────────────────────────────────────────────
-async function deleteWord(id,display){if(!confirm(`「${display}」を削除しますか？`))return;try{const res=await fetch('/admin/delete_word',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word_id:id})});const data=await res.json();if(res.ok){alert(data.message);location.reload();}else{alert('エラー: '+(data.error||'削除失敗'));}}catch(e){alert('通信エラー: '+e.message);}}
+let _adminDelPending=null,_adminDelTimer=null;
+async function deleteWord(id,display,btn){
+  if(_adminDelPending!==id){
+    if(_adminDelTimer){clearTimeout(_adminDelTimer);}
+    const prev=document.querySelector('.action-del.del-pending');
+    if(prev){prev.classList.remove('del-pending');prev.textContent='削除';}
+    _adminDelPending=id;
+    btn.classList.add('del-pending');btn.textContent='確認？';
+    _adminDelTimer=setTimeout(function(){btn.classList.remove('del-pending');btn.textContent='削除';_adminDelPending=null;},2500);
+    return;
+  }
+  clearTimeout(_adminDelTimer);btn.classList.remove('del-pending');btn.textContent='削除';_adminDelPending=null;
+  try{const res=await fetch('/admin/delete_word',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word_id:id})});const data=await res.json();if(res.ok){location.reload();}else{alert('エラー: '+(data.error||'削除失敗'));}}catch(e){alert('通信エラー: '+e.message);}
+}
 function openEdit(id,display,reading,accent){document.getElementById('editWordId').value=id;document.getElementById('editDisplay').value=display;document.getElementById('editReading').value=reading;document.getElementById('editAccent').value=(accent==='None'||accent==='null')?'':accent;document.getElementById('editModal').classList.add('show');}
 function closeEdit(){document.getElementById('editModal').classList.remove('show');}
 async function submitEdit(){const wordId=document.getElementById('editWordId').value,display=document.getElementById('editDisplay').value.trim(),reading=document.getElementById('editReading').value.trim(),accent=document.getElementById('editAccent').value.trim();if(!display||!reading){alert('必須項目を入力してください。');return;}try{const res=await fetch('/admin/update_word',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word_id:wordId,display,reading,accent:accent||null})});const data=await res.json();if(res.ok){closeEdit();alert(data.message);location.reload();}else{alert('エラー: '+(data.error||'更新失敗'));}}catch(e){alert('通信エラー: '+e.message);}}
@@ -283,6 +319,134 @@ function showError(msg){document.getElementById('statusError').textContent=msg;d
 
 // ページ読み込み時にカメラを起動
 initAdminCamera();
+</script>
+
+<script>
+(function() {
+  var CAM  = document.getElementById('adminPreview');
+  var CNVS = document.getElementById('adminOverlay');
+  var STS  = document.getElementById('adminFaceStatus');
+  if (!CAM || !CNVS) return;
+  var ctx = CNVS.getContext('2d');
+  if (!ctx) return;
+
+  var W = 160, H = 120, fm = null, busy = false, lm = null, frm = 0;
+
+  var OVAL = [[10,338],[338,297],[297,332],[332,284],[284,251],[251,389],[389,356],[356,454],[454,323],[323,361],[361,288],[288,397],[397,365],[365,379],[379,378],[378,400],[400,377],[377,152],[152,148],[148,176],[176,149],[149,150],[150,136],[136,172],[172,58],[58,132],[132,93],[93,234],[234,127],[127,162],[162,21],[21,54],[54,103],[103,67],[67,109],[109,10]];
+  var LIP_OUTER = [[61,185],[185,40],[40,39],[39,37],[37,0],[0,267],[267,269],[269,270],[270,409],[409,291],[291,375],[375,321],[321,405],[405,314],[314,17],[17,84],[84,181],[181,91],[91,146],[146,61]];
+  var LIP_INNER = [[78,191],[191,80],[80,81],[81,82],[82,13],[13,312],[312,311],[311,310],[310,415],[415,308],[308,324],[324,318],[318,402],[402,317],[317,14],[14,87],[87,178],[178,88],[88,95],[95,78]];
+  var NOSE = [[168,6],[6,5],[5,4],[4,1],[1,19],[19,94],[94,49],[94,279],[49,48],[279,278]];
+
+  function sz() {
+    var p  = CNVS.parentElement;
+    var nw = (p && p.offsetWidth)  || 160;
+    var nh = (p && p.offsetHeight) || 120;
+    if (nw < 1) nw = 160;
+    if (nh < 1) nh = 120;
+    CNVS.width = nw; CNVS.height = nh;
+    W = nw; H = nh;
+  }
+
+  function drawConn(conns, color, lw) {
+    if (!lm) return;
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (var i = 0; i < conns.length; i++) {
+      var pa = lm[conns[i][0]], pb = lm[conns[i][1]];
+      if (!pa || !pb) continue;
+      ctx.moveTo(pa.x * W, pa.y * H);
+      ctx.lineTo(pb.x * W, pb.y * H);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function guide() {
+    ctx.clearRect(0, 0, W, H);
+    var cx = W * 0.5, cy = H * 0.44;
+    var rx = W * 0.32, ry = H * 0.44;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(215,70,40,0.65)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + ry * 0.38, rx * 0.52, ry * 0.16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    if (STS) STS.textContent = '顔を枠内に合わせてください';
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    if (!lm) { guide(); return; }
+    var x454 = lm[454] ? lm[454].x : 1;
+    var x234 = lm[234] ? lm[234].x : 0;
+    var ratio = (x454 - x234);
+    var bColor, statusTxt;
+    if (ratio > 0.82) {
+      bColor = 'rgba(251,191,36,0.85)'; statusTxt = '近すぎます — 少し離れてください';
+    } else if (ratio < 0.38) {
+      bColor = 'rgba(251,191,36,0.85)'; statusTxt = '遠すぎます — 近づいてください';
+    } else {
+      bColor = 'rgba(52,211,153,0.75)'; statusTxt = '✓ 位置OK';
+    }
+    ctx.save();
+    ctx.strokeStyle = bColor; ctx.lineWidth = 2.5;
+    ctx.strokeRect(1.5, 1.5, W - 3, H - 3);
+    ctx.restore();
+    drawConn(OVAL,      'rgba(255,255,255,0.32)', 1.0);
+    drawConn(NOSE,      'rgba(255,255,255,0.32)', 1.0);
+    drawConn(LIP_OUTER, 'rgba(215,70,40,0.65)',   1.8);
+    drawConn(LIP_INNER, 'rgba(215,70,40,0.45)',   1.2);
+    if (STS) STS.textContent = statusTxt;
+  }
+
+  function tick() {
+    requestAnimationFrame(tick);
+    if (++frm % 3 !== 0) return;
+    if (!fm || busy) { if (!lm) guide(); return; }
+    if (!CAM.srcObject || CAM.readyState < 2 || CAM.paused) { guide(); return; }
+    busy = true;
+    try { fm.send({ image: CAM }); } catch(e) { busy = false; }
+  }
+
+  function initMP() {
+    if (fm || typeof FaceMesh === 'undefined') return;
+    fm = new FaceMesh({
+      locateFile: function(f) {
+        return 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/' + f;
+      }
+    });
+    fm.setOptions({ maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    fm.onResults(function(res) {
+      busy = false;
+      lm = (res.multiFaceLandmarks && res.multiFaceLandmarks[0]) || null;
+      draw();
+    });
+  }
+
+  sz();
+  guide();  // 初回同期描画（rAF 待ちなし）
+  tick();
+
+  var mpScript = document.createElement('script');
+  mpScript.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
+  mpScript.crossOrigin = 'anonymous';
+  mpScript.onload = function() { initMP(); };
+  document.head.appendChild(mpScript);
+
+  setInterval(function() { if (!fm) initMP(); }, 1000);
+
+  window.addEventListener('resize', function() { sz(); if (!lm) guide(); });
+})();
 </script>
 </body>
 </html>

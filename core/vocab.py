@@ -184,23 +184,31 @@ def delete_word(word_id: str) -> dict:
     if entry.get("source") == "recorded":
         raise ValueError("初期収録単語は削除できません")
 
-    # ファイル削除
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
-    import shutil as _shutil
-    if sound_dir.exists():
-        _shutil.rmtree(str(sound_dir))
-
-    bin_path = AUDIO_MFCC_DIR / f"{word_id}.bin"
-    bin_path.unlink(missing_ok=True)
-
-    from config import STATIC_DIR
-    tts_path = STATIC_DIR / "tts" / f"{word_id}.wav"
-    tts_path.unlink(missing_ok=True)
-
+    # DBから削除（ファイル削除より先に行い、ファイルが消せなくても単語は消える）
     del db[word_id]
     save_db(db)
     _update_audio_scp(db)
     _update_words_txt(db)
+
+    # ファイル削除（Windows でブラウザがファイルを掴んでいる場合も無視して続行）
+    import shutil as _shutil
+    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    try:
+        if sound_dir.exists():
+            _shutil.rmtree(str(sound_dir))
+    except OSError:
+        pass
+
+    try:
+        (AUDIO_MFCC_DIR / f"{word_id}.bin").unlink(missing_ok=True)
+    except OSError:
+        pass
+
+    try:
+        from config import STATIC_DIR
+        (STATIC_DIR / "tts" / f"{word_id}.wav").unlink(missing_ok=True)
+    except OSError:
+        pass
 
     return {"message": f"{entry['display']} を削除しました"}
 
