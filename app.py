@@ -471,6 +471,62 @@ def _score_delta(current, prev) -> str | None:
     return f"+{diff}" if diff > 0 else str(diff)
 
 
+_SILENCE_LABELS = {'silb', 'sile', 'sp', 'sil', 'sp2'}
+
+
+def _get_reference_pitch_data(word_id: str) -> dict:
+    """お手本音声のピッチ曲線とモーラタイミングをJSON用辞書で返す。"""
+    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    wav_path  = sound_dir / f"{word_id}.wav"
+    lab_path  = sound_dir / f"{word_id}.lab"
+
+    if not wav_path.exists():
+        static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
+        if static_path.exists():
+            wav_path = static_path
+        else:
+            return {"has_data": False}
+
+    if not lab_path.exists():
+        return {"has_data": False}
+
+    try:
+        floor, ceiling  = estimate_pitch_range(str(wav_path))
+        pitch_hz, times = praat_pitch(str(wav_path), pitch_floor=floor, pitch_ceiling=ceiling)
+        pitch_10ms      = resample_to_10ms(pitch_hz, times)
+        pitch_filled    = comp(pitch_10ms)
+        pitch_smoothed  = smooth(pitch_filled, window=5)
+        pitch_scaled    = scale(pitch_smoothed)
+
+        (_, mora_list, *_) = lab_load(str(lab_path))
+        duration_sec = len(pitch_10ms) * 0.01
+
+        moras = [
+            {
+                "label":  str(m[2]),
+                "start":  round(float(m[0]), 4),
+                "end":    round(float(m[1]), 4),
+                "is_sil": str(m[2]).lower() in _SILENCE_LABELS,
+            }
+            for m in mora_list
+        ]
+        pitch_values = [
+            None if math.isnan(float(v)) else round(float(v), 4)
+            for v in pitch_scaled
+        ]
+
+        return {
+            "has_data":     True,
+            "pitch":        pitch_values,
+            "duration_sec": round(duration_sec, 3),
+            "n_frames":     len(pitch_values),
+            "moras":        moras,
+        }
+    except Exception:
+        traceback.print_exc()
+        return {"has_data": False}
+
+
 _SMALL_KANA = set('ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ')
 
 def _mora_count(reading: str) -> int:
@@ -532,7 +588,9 @@ def select():
         display    = word_entry.get("display", reading) if word_entry else reading
         WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
         (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
-        return render_template("audio.html", test=reading, display=display, word_id=word_id)
+        ref_preview = _get_reference_pitch_data(word_id)
+        return render_template("audio.html", test=reading, display=display, word_id=word_id,
+                               ref_preview=ref_preview)
 
     words    = list_words()
     word_map = {w["word_id"]: w for w in words}

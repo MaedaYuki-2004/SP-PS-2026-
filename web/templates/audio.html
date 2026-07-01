@@ -101,6 +101,21 @@
 
     #micError { display:none; background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0; border-radius:var(--r-sm); padding:12px 16px; font-size:13px; }
 
+    /* お手本カラオケピッチグラフ */
+    .ref-preview-wrap { margin-top:10px; }
+    .ref-preview-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:12px 14px 10px; }
+    .ref-preview-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .ref-preview-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
+    .ref-play-btn { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 12px; border-radius:100px; background:var(--navy); color:#fff; font-family:var(--font); font-size:11px; font-weight:700; border:none; cursor:pointer; transition:background var(--dur); letter-spacing:.04em; -webkit-tap-highlight-color:transparent; }
+    .ref-play-btn:hover { background:var(--navy-mid); }
+    .pitch-graph-wrap { position:relative; width:100%; height:68px; border-radius:var(--r-sm); overflow:hidden; margin-bottom:6px; background:rgba(14,30,69,.04); }
+    #pitchCanvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+    #pitchCursor { position:absolute; top:0; bottom:0; width:2px; background:#C03D20; left:0; pointer-events:none; will-change:left; }
+    .mora-bar { display:flex; width:100%; overflow:hidden; border-radius:var(--r-xs); background:var(--bg-muted); }
+    .mora-item { text-align:center; font-size:11px; font-weight:500; padding:3px 0; color:var(--text-3); border-radius:3px; transition:background .08s, color .08s; overflow:hidden; white-space:nowrap; flex-shrink:0; }
+    .mora-item.active { background:var(--navy); color:#fff; }
+    .mora-item.mora-sil { background:transparent !important; }
+
     @media (max-width:480px) { .word-display{font-size:48px;} .top-nav{padding:0 16px;} .shortcut-hint{display:none;} #lipPreview{width:110px;height:83px;} .lip-layout{grid-template-columns:110px 1fr;} }
   </style>
 </head>
@@ -158,10 +173,37 @@
   <div class="word-section">
     <div class="word-reading">{{ test }}</div>
     <div class="word-display">{{ display or test }}</div>
+    {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
+    <div class="ref-preview-wrap">
+      <div class="ref-preview-card">
+        <div class="ref-preview-top">
+          <span class="ref-preview-label">お手本を確認</span>
+          <button id="refPlayBtn" type="button" class="ref-play-btn">
+            <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg>
+            再生
+          </button>
+        </div>
+        <audio id="refAudio" preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
+        <div class="pitch-graph-wrap">
+          <canvas id="pitchCanvas"></canvas>
+          <div id="pitchCursor"></div>
+        </div>
+        <div class="mora-bar" id="moraBar">
+          {% for m in ref_preview.moras %}
+            <span class="mora-item {% if m.is_sil %}mora-sil{% endif %}"
+                  data-start="{{ m.start }}"
+                  data-end="{{ m.end }}"
+                  style="width:{{ ((m.end - m.start) / ref_preview.duration_sec * 100)|round(2) }}%">{% if not m.is_sil %}{{ m.label }}{% endif %}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% else %}
     <div class="sample-wrap">
       <span class="sample-label">お手本音声</span>
       <audio class="sample-audio" controls preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
     </div>
+    {% endif %}
   </div>
 
   <!-- ③ 操作ガイド（状態に応じて変化） -->
@@ -308,5 +350,111 @@
 <script>window.CURRENT_WORD_ID = {{ word_id|tojson|safe }};</script>
 <script src="static/js/audio_recorder.js"></script>
 <script src="static/js/main.js"></script>
+
+<script>
+// ── お手本カラオケピッチグラフ ─────────────────────────────────────
+(function() {
+  const REF = {{ ref_preview|default(none)|tojson|safe }};
+  if (!REF || !REF.has_data) return;
+
+  const canvas   = document.getElementById('pitchCanvas');
+  const cursor   = document.getElementById('pitchCursor');
+  const playBtn  = document.getElementById('refPlayBtn');
+  const refAudio = document.getElementById('refAudio');
+  if (!canvas || !refAudio) return;
+
+  const moraItems = Array.from(document.querySelectorAll('.mora-item'));
+  const pitch     = REF.pitch;
+  const n         = pitch.length;
+
+  function drawPitch() {
+    const W = canvas.offsetWidth  || 460;
+    const H = canvas.offsetHeight || 68;
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    // Mora boundary lines
+    ctx.strokeStyle = 'rgba(14,30,69,0.1)';
+    ctx.lineWidth = 1;
+    for (const item of moraItems) {
+      if (item.classList.contains('mora-sil')) continue;
+      const s = parseFloat(item.dataset.start);
+      const x = Math.round((s / REF.duration_sec) * W) + 0.5;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+
+    // Pitch curve fill
+    const fillGrad = ctx.createLinearGradient(0, 0, 0, H);
+    fillGrad.addColorStop(0, 'rgba(14,30,69,0.18)');
+    fillGrad.addColorStop(1, 'rgba(14,30,69,0.02)');
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = (i / Math.max(n - 1, 1)) * W;
+      const y = H - 4 - (pitch[i] || 0) * (H - 8);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+    ctx.fillStyle = fillGrad;
+    ctx.fill();
+
+    // Pitch curve line
+    ctx.beginPath();
+    ctx.strokeStyle = '#0E1E45';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < n; i++) {
+      const x = (i / Math.max(n - 1, 1)) * W;
+      const y = H - 4 - (pitch[i] || 0) * (H - 8);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  requestAnimationFrame(drawPitch);
+  window.addEventListener('resize', drawPitch);
+
+  let rafId = null;
+
+  function tick() {
+    const t   = refAudio.currentTime;
+    const pct = Math.min(t / REF.duration_sec, 1.0);
+    cursor.style.left = (pct * 100) + '%';
+    for (const item of moraItems) {
+      const s = parseFloat(item.dataset.start);
+      const e = parseFloat(item.dataset.end);
+      item.classList.toggle('active', !item.classList.contains('mora-sil') && t >= s && t < e);
+    }
+    if (!refAudio.paused && !refAudio.ended) {
+      rafId = requestAnimationFrame(tick);
+    }
+  }
+
+  const ICON_PLAY  = '<svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg> 再生';
+  const ICON_PAUSE = '<svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor"><rect x="1" y="0.5" width="2.5" height="8"/><rect x="5.5" y="0.5" width="2.5" height="8"/></svg> 一時停止';
+
+  refAudio.addEventListener('play', () => {
+    playBtn.innerHTML = ICON_PAUSE;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+  });
+  refAudio.addEventListener('pause', () => {
+    playBtn.innerHTML = ICON_PLAY;
+    if (rafId) cancelAnimationFrame(rafId);
+  });
+  refAudio.addEventListener('ended', () => {
+    playBtn.innerHTML = ICON_PLAY;
+    cursor.style.left = '0%';
+    moraItems.forEach(i => i.classList.remove('active'));
+    if (rafId) cancelAnimationFrame(rafId);
+  });
+
+  playBtn.addEventListener('click', () => {
+    if (refAudio.paused || refAudio.ended) refAudio.play().catch(() => {});
+    else refAudio.pause();
+  });
+})();
+</script>
 </body>
 </html>
