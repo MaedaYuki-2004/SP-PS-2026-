@@ -8,14 +8,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="static/css/base.css" rel="stylesheet">
   <style>
-    .hero { padding:32px 32px 24px; border-bottom:1px solid var(--border-light); display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; }
-    .hero-eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); margin-bottom:6px; }
-    .hero-title { font-size:clamp(22px,3.5vw,28px); font-weight:700; color:var(--navy); }
-    .hero-sub { font-size:13px; color:var(--text-3); margin-top:4px; }
-    .hero-stats { display:flex; align-items:center; gap:20px; }
+    .hero { padding:28px 32px 26px; border-bottom:none; background:var(--navy); display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; position:relative; overflow:hidden; }
+    .hero::after { content:''; position:absolute; right:-60px; top:-60px; width:280px; height:280px; border-radius:50%; background:rgba(255,255,255,.03); pointer-events:none; }
+    .hero-eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-bottom:6px; }
+    .hero-title { font-size:clamp(24px,3.5vw,34px); font-weight:700; color:#fff; }
+    .hero-sub { font-size:13px; color:rgba(255,255,255,.4); margin-top:4px; }
+    .hero-stats { display:flex; align-items:center; gap:24px; border-left:1px solid rgba(255,255,255,.12); padding-left:24px; }
     .stat-item { text-align:right; }
-    .stat-num { font-family:var(--mono); font-size:20px; font-weight:500; color:var(--navy); display:block; }
-    .stat-lbl { font-size:10px; color:var(--text-3); letter-spacing:.04em; }
+    .stat-num { font-family:var(--mono); font-size:26px; font-weight:500; color:#fff; display:block; }
+    .stat-lbl { font-size:10px; color:rgba(255,255,255,.4); letter-spacing:.04em; }
 
     .main-layout { display:grid; grid-template-columns:1fr 320px; min-height:calc(100vh - 148px); }
 
@@ -28,23 +29,33 @@
     .search-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(14,30,69,.08); }
     .search-icon { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--text-3); }
 
-    .word-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; }
-    .word-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; display:flex; flex-direction:column; transition:box-shadow var(--dur),transform var(--dur),border-color var(--dur); }
-    .word-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
+    .word-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+    .word-card { background:var(--bg-card); border:none; box-shadow:0 2px 14px rgba(14,30,69,.07),0 0 0 1px rgba(14,30,69,.06); border-radius:20px; overflow:hidden; display:flex; flex-direction:column; transition:box-shadow .22s,transform .2s; }
+    .word-card:hover { box-shadow:0 14px 44px rgba(14,30,69,.16),0 0 0 1px rgba(14,30,69,.1); transform:translateY(-6px); }
+    .word-card:active { transform:translateY(-2px); }
     .word-card.hidden { display:none; }
+    /* スコア別グラジェント背景 */
+    .word-card.grade-s { background:linear-gradient(160deg,#fffdf0,#fef3c7); box-shadow:0 2px 14px rgba(217,119,6,.12),0 0 0 1px rgba(217,119,6,.14); }
+    .word-card.grade-a { background:linear-gradient(160deg,#f0fdf8,#d1fae5); box-shadow:0 2px 14px rgba(5,150,105,.1),0 0 0 1px rgba(5,150,105,.12); }
+    .word-card.grade-b { background:linear-gradient(160deg,#eff6ff,#dbeafe); box-shadow:0 2px 14px rgba(37,99,235,.1),0 0 0 1px rgba(37,99,235,.12); }
+    .word-card.grade-d { background:linear-gradient(160deg,#fff5f5,#fee2e2); box-shadow:0 2px 14px rgba(220,38,38,.1),0 0 0 1px rgba(220,38,38,.12); }
+    .word-card.grade-s:hover { box-shadow:0 14px 44px rgba(217,119,6,.2),0 0 0 1px rgba(217,119,6,.18); }
+    .word-card.grade-a:hover { box-shadow:0 14px 44px rgba(5,150,105,.18),0 0 0 1px rgba(5,150,105,.16); }
+    .word-card.grade-b:hover { box-shadow:0 14px 44px rgba(37,99,235,.18),0 0 0 1px rgba(37,99,235,.16); }
+    .word-card.grade-d:hover { box-shadow:0 14px 44px rgba(220,38,38,.18),0 0 0 1px rgba(220,38,38,.16); }
 
-    .word-card-body { padding:14px 14px 10px; flex:1; }
+    .word-card-body { padding:16px 16px 10px; flex:1; }
     .word-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; margin-bottom:4px; }
     .word-card-index { font-family:var(--mono); font-size:9px; color:var(--text-3); display:block; padding-top:1px; }
-    .word-card-text { font-size:26px; font-weight:700; color:var(--navy); line-height:1.15; letter-spacing:.01em; margin-bottom:3px; }
-    .word-card-reading { font-size:11px; color:var(--text-3); letter-spacing:.04em; margin-bottom:4px; }
-    .word-card-best { font-size:10px; color:var(--text-3); margin-bottom:6px; }
-    .word-card-best .best-score { font-weight:700; }
-    .word-card-best .best-score.grade-s { color:#f59e0b; }
-    .word-card-best .best-score.grade-a { color:#10b981; }
-    .word-card-best .best-score.grade-b { color:#3b82f6; }
-    .word-card-best .best-score.grade-c { color:var(--text-2); }
-    .word-card-best .best-score.grade-d { color:var(--accent); }
+    .word-card-text { font-size:34px; font-weight:700; color:var(--navy); line-height:1.15; letter-spacing:.01em; margin-bottom:4px; }
+    .word-card-reading { font-size:11px; color:var(--text-3); letter-spacing:.04em; margin-bottom:6px; }
+    .word-card-best { font-size:10px; color:var(--text-3); margin-bottom:7px; }
+    .word-card-best .best-score { display:inline-block; padding:3px 10px; border-radius:100px; font-size:11px; font-weight:800; letter-spacing:.03em; }
+    .word-card-best .best-score.grade-s { background:rgba(217,119,6,.15); color:#92400e; }
+    .word-card-best .best-score.grade-a { background:rgba(5,150,105,.15); color:#065f46; }
+    .word-card-best .best-score.grade-b { background:rgba(37,99,235,.14); color:#1e40af; }
+    .word-card-best .best-score.grade-c { background:var(--bg-muted); color:var(--text-2); }
+    .word-card-best .best-score.grade-d { background:rgba(220,38,38,.12); color:#991b1b; }
 
     /* アクセント図解 */
     .word-card-accent { margin-bottom:8px; }
@@ -52,10 +63,10 @@
 
     .word-card-audio { padding:0 14px 8px; }
     .word-card-audio audio { width:100%; height:26px; border-radius:var(--r-xs); }
-    .word-card-footer { padding:8px 14px 12px; border-top:1px solid var(--border-light); }
-    .word-record-btn { width:100%; padding:9px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:12px; font-weight:600; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:background var(--dur),box-shadow var(--dur),transform var(--dur); }
-    .word-record-btn:hover { background:var(--navy-mid); box-shadow:0 2px 10px rgba(14,30,69,.2); }
-    .word-record-btn:active { transform:scale(.97); }
+    .word-card-footer { padding:0; border-top:none; }
+    .word-record-btn { width:100%; padding:16px; background:linear-gradient(135deg,#C03D20 0%,#e84a2a 100%); color:#fff; border:none; border-radius:0 0 20px 20px; font-family:var(--font); font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:filter .15s,transform .08s; min-height:54px; }
+    .word-record-btn:hover { filter:brightness(1.12); }
+    .word-record-btn:active { transform:scaleY(.97); filter:brightness(.93); }
     /* カード右上アイコンボタン群 */
     .word-card-actions { display:flex; gap:4px; flex-shrink:0; }
     .word-ref-btn,
@@ -66,8 +77,10 @@
     .word-ref-btn.has-ref { color:#2d6a4f; border-color:#2d6a4f; background:var(--green-bg); }
     .word-edit-btn { color:var(--text-3); }
     .word-edit-btn:hover { background:var(--bg-muted); border-color:var(--navy); color:var(--navy); }
-    .word-del-btn  { color:var(--text-3); }
+    .word-del-btn  { color:var(--text-3); position:relative; }
     .word-del-btn:hover  { background:#fff0ee; border-color:var(--accent); color:var(--accent); }
+    .word-del-btn.delete-pending { background:#fee2e2 !important; border-color:#dc2626 !important; color:#dc2626 !important; }
+    .word-del-btn.delete-pending::before { content:'もう一度押すと削除'; position:absolute; bottom:calc(100% + 6px); right:0; background:#dc2626; color:#fff; font-size:8px; font-weight:700; padding:3px 7px; border-radius:4px; white-space:nowrap; pointer-events:none; z-index:10; }
 
     /* 単語編集モーダル */
     .edit-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:400; align-items:center; justify-content:center; }
@@ -132,8 +145,8 @@
     .quest-board-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:4px; }
     .quest-board-sub { font-size:10px; color:var(--text-3); margin-bottom:16px; }
 
-    .quest-item { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); margin-bottom:10px; overflow:hidden; transition:box-shadow var(--dur),transform var(--dur); }
-    .quest-item:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
+    .quest-item { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); margin-bottom:10px; overflow:hidden; transition:box-shadow .22s,transform .18s; }
+    .quest-item:hover { box-shadow:0 6px 20px rgba(14,30,69,.1); transform:translateY(-2px); }
     .quest-item[data-cat="accent"] { border-left:3px solid var(--accent); }
     .quest-item[data-cat="length"] { border-left:3px solid var(--green); }
     .quest-item[data-cat="vowel"]  { border-left:3px solid var(--blue); }
@@ -157,7 +170,37 @@
     .quest-empty-sub { font-size:11px; color:var(--text-3); line-height:1.6; }
 
     @media (max-width:900px) { .main-layout { grid-template-columns:1fr; } .words-section { border-right:none; } .quest-sidebar { border-top:1px solid var(--border-light); } }
-    @media (max-width:600px) { .hero { padding:20px; } .words-section { padding:16px 20px; } .hero-stats { display:none; } }
+    @media (max-width:600px) {
+      .hero { padding:20px 20px 18px; gap:12px; }
+      .words-section { padding:16px 16px; }
+      .hero-stats { display:none; }
+      .word-grid { grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:10px; }
+      .word-card-text { font-size:26px; }
+      .word-record-btn { min-height:50px; font-size:12px; }
+      .search-input { width:160px; font-size:12px; }
+      .section-header { gap:8px; }
+    }
+    @media (max-width:380px) {
+      .word-grid { grid-template-columns:1fr 1fr; }
+    }
+
+    /* ダークモード: カード・テキスト調整 */
+    [data-theme="dark"] .word-card { box-shadow:0 2px 14px rgba(0,0,0,.3),0 0 0 1px rgba(255,255,255,.07); }
+    /* ダークモード: グレードカード背景を暗いトーンに */
+    [data-theme="dark"] .word-card.grade-s { background:rgba(217,119,6,.1); box-shadow:0 2px 14px rgba(217,119,6,.1),0 0 0 1px rgba(217,119,6,.14); }
+    [data-theme="dark"] .word-card.grade-a { background:rgba(5,150,105,.1); box-shadow:0 2px 14px rgba(5,150,105,.08),0 0 0 1px rgba(5,150,105,.12); }
+    [data-theme="dark"] .word-card.grade-b { background:rgba(37,99,235,.1); box-shadow:0 2px 14px rgba(37,99,235,.08),0 0 0 1px rgba(37,99,235,.12); }
+    [data-theme="dark"] .word-card.grade-d { background:rgba(220,38,38,.1); box-shadow:0 2px 14px rgba(220,38,38,.08),0 0 0 1px rgba(220,38,38,.12); }
+    [data-theme="dark"] .word-card.grade-s .word-card-best .best-score.grade-s { background:rgba(217,119,6,.2); color:#fcd34d; }
+    [data-theme="dark"] .word-card.grade-a .word-card-best .best-score.grade-a { background:rgba(5,150,105,.2); color:#6ee7b7; }
+    [data-theme="dark"] .word-card.grade-b .word-card-best .best-score.grade-b { background:rgba(37,99,235,.2); color:#93c5fd; }
+    [data-theme="dark"] .word-card.grade-d .word-card-best .best-score.grade-d { background:rgba(220,38,38,.2); color:#fca5a5; }
+    [data-theme="dark"] .word-card-text { color:var(--text); }
+
+    /* 録画ガイドオーバーレイ */
+    .rec-vid-wrap { position:relative; width:100%; }
+    .rec-vid-wrap canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; border-radius:12px; }
+    .vid-status { position:absolute; bottom:0; left:0; right:0; padding:2px 0 5px; font-size:9px; font-weight:700; letter-spacing:.04em; color:#fff; text-align:center; text-shadow:0 1px 3px rgba(0,0,0,.9); background:linear-gradient(transparent,rgba(0,0,0,.6)); pointer-events:none; z-index:2; border-radius:0 0 12px 12px; }
   </style>
 </head>
 <body>
@@ -226,7 +269,9 @@
     <div class="word-grid" id="wordGrid">
       {% for w in words %}
       {% set pattern = accent_patterns.get(w.word_id, []) %}
-      <div class="word-card" data-word="{{ w.display }}" data-reading="{{ w.reading }}">
+      {% set best = (stats.word_best or {}).get(w.word_id) %}
+      {% set grade = ('s' if best >= 90 else ('a' if best >= 75 else ('b' if best >= 60 else ('c' if best >= 40 else 'd')))) if best is not none else '' %}
+      <div class="word-card{% if grade %} grade-{{ grade }}{% endif %}" data-word="{{ w.display }}" data-reading="{{ w.reading }}">
         <div class="word-card-body">
           <div class="word-card-top">
             <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
@@ -262,10 +307,9 @@
           </div>
           <div class="word-card-text">{{ w.display }}</div>
           <div class="word-card-reading">{{ w.reading }}</div>
-          {% set best = (stats.word_best or {}).get(w.word_id) %}
           {% if best is not none %}
-            {% set grade = 'S' if best >= 90 else ('A' if best >= 75 else ('B' if best >= 60 else ('C' if best >= 40 else 'D'))) %}
-            <div class="word-card-best">最高 <span class="best-score grade-{{ grade|lower }}">{{ best|int }}点</span> ({{ grade }})</div>
+            {% set grade_label = 'S' if grade == 's' else (grade|upper) %}
+            <div class="word-card-best">最高 <span class="best-score grade-{{ grade }}">{{ best|int }}点 {{ grade_label }}</span></div>
           {% endif %}
           {% if pattern %}
           <div class="word-card-accent">
@@ -389,7 +433,11 @@ function filterWords() {
     <!-- Step 2: お手本録画 -->
     <div id="awPane2" style="display:none;">
       <div class="aw-title" id="awPane2Title">お手本を録画</div>
-      <video class="ref-modal-video" id="awVideo" autoplay muted playsinline></video>
+      <div class="rec-vid-wrap">
+        <video class="ref-modal-video" id="awVideo" autoplay muted playsinline></video>
+        <canvas id="awGuideCanvas"></canvas>
+        <div id="awGuideStatus" class="vid-status">顔を枠内に合わせてください</div>
+      </div>
       <div class="aw-status" id="awStatus2">カメラを起動しています…</div>
       <div class="aw-actions">
         <button class="aw-btn-primary" id="awRecordBtn" disabled>録画開始（3秒）</button>
@@ -406,7 +454,11 @@ function filterWords() {
       <div class="ref-modal-title" id="refModalTitle">お手本を登録</div>
       <div class="ref-modal-sub">カメラで3秒間録画して保存します</div>
     </div>
-    <video class="ref-modal-video" id="refModalVideo" autoplay muted playsinline></video>
+    <div class="rec-vid-wrap">
+      <video class="ref-modal-video" id="refModalVideo" autoplay muted playsinline></video>
+      <canvas id="refGuideCanvas"></canvas>
+      <div id="refGuideStatus" class="vid-status">顔を枠内に合わせてください</div>
+    </div>
     <div class="ref-modal-status" id="refModalStatus">カメラを起動しています…</div>
     <div class="ref-modal-actions">
       <button class="ref-modal-record-btn" id="refModalRecordBtn" disabled>録画開始（3秒）</button>
@@ -489,6 +541,7 @@ function filterWords() {
     status2.textContent = 'カメラを起動しています…';
     recordBtn.disabled = true;
     startAwCamera();
+    if (window._faceGuide) window._faceGuide.activate('awVideo', 'awGuideCanvas', 'awGuideStatus');
   }
 
   async function startAwCamera() {
@@ -594,6 +647,7 @@ function filterWords() {
     cancelBtn.disabled = false;
     overlay.classList.add('open');
     startCamera();
+    if (window._faceGuide) window._faceGuide.activate('refModalVideo', 'refGuideCanvas', 'refGuideStatus');
   });
 
   async function startCamera() {
@@ -687,17 +741,19 @@ function filterWords() {
 })();
 
 /* ── 単語編集・削除 ──────────────────────────────────────────── */
-(function () {
-  const editOverlay = document.getElementById('editModalOverlay');
-  const editStatus  = document.getElementById('editModalStatus');
-  const editDisplay = document.getElementById('editDisplayInp');
-  const editReading = document.getElementById('editReadingInp');
-  const editAccent  = document.getElementById('editAccentInp');
-  let editWordId = null;
+/* NOTE: #editModalOverlay はこのスクリプトより後に定義されるため
+   DOMContentLoaded 内で要素を取得する。 */
+document.addEventListener('DOMContentLoaded', function () {
+  var editOverlay = document.getElementById('editModalOverlay');
+  var editStatus  = document.getElementById('editModalStatus');
+  var editDisplay = document.getElementById('editDisplayInp');
+  var editReading = document.getElementById('editReadingInp');
+  var editAccent  = document.getElementById('editAccentInp');
+  var editWordId  = null;
 
   // 編集ボタンのクリック（委譲）
   document.addEventListener('click', function (e) {
-    const btn = e.target.closest('.word-edit-btn');
+    var btn = e.target.closest('.word-edit-btn');
     if (!btn) return;
     editWordId = btn.dataset.wordId;
     editDisplay.value = btn.dataset.display;
@@ -709,24 +765,24 @@ function filterWords() {
   });
 
   document.getElementById('editSaveBtn').addEventListener('click', async function () {
-    const display = editDisplay.value.trim();
-    const reading = editReading.value.trim();
+    var display = editDisplay.value.trim();
+    var reading = editReading.value.trim();
     if (!display || !reading) {
       editStatus.textContent = '表示テキストと読みは必須です。';
       editStatus.className = 'edit-modal-status err';
       return;
     }
     try {
-      const res = await fetch('/admin/update_word', {
+      var res = await fetch('/admin/update_word', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ word_id: editWordId, display, reading, accent: editAccent.value }),
       });
-      const data = await res.json();
+      var data = await res.json();
       if (!res.ok) throw new Error(data.error || '更新に失敗しました');
       editStatus.textContent = '✓ 更新しました';
       editStatus.className = 'edit-modal-status ok';
-      setTimeout(() => { editOverlay.classList.remove('open'); location.reload(); }, 800);
+      setTimeout(function () { editOverlay.classList.remove('open'); location.reload(); }, 800);
     } catch (err) {
       editStatus.textContent = 'エラー: ' + err.message;
       editStatus.className = 'edit-modal-status err';
@@ -740,13 +796,30 @@ function filterWords() {
     if (e.target === editOverlay) editOverlay.classList.remove('open');
   });
 
-  // 削除ボタンのクリック（委譲）
+  // 削除ボタン — ダブルクリック確認パターン（confirm() ダイアログ不使用）
+  let _delPending = null, _delTimer = null;
+  function _clearPending() {
+    if (_delPending) { _delPending.classList.remove('delete-pending'); _delPending = null; }
+    clearTimeout(_delTimer);
+  }
+
   document.addEventListener('click', async function (e) {
     const btn = e.target.closest('.word-del-btn');
-    if (!btn) return;
-    const wordId  = btn.dataset.wordId;
-    const display = btn.dataset.display;
-    if (!confirm(`「${display}」を削除しますか？\n関連する録音データも削除されます。`)) return;
+    if (!btn) { _clearPending(); return; }
+
+    const wordId = btn.dataset.wordId;
+
+    if (_delPending !== btn) {
+      // 1回目: 確認待ち状態に入る
+      _clearPending();
+      _delPending = btn;
+      btn.classList.add('delete-pending');
+      _delTimer = setTimeout(_clearPending, 2500);
+      return;
+    }
+
+    // 2回目: 削除実行
+    _clearPending();
     try {
       const res = await fetch('/admin/delete_word', {
         method: 'POST',
@@ -760,7 +833,7 @@ function filterWords() {
       alert('削除エラー: ' + err.message);
     }
   });
-})();
+}); // DOMContentLoaded
 </script>
 
 <!-- 単語編集モーダル -->
@@ -789,5 +862,138 @@ function filterWords() {
   </div>
 </div>
 
+<script>
+/* ── 録画モーダル用 顔・距離ガイド ─────────────────────────── */
+(function() {
+  var CAM = null, CNVS = null, STS = null, ctx = null;
+  var W = 0, H = 0, fm = null, busy = false, lm = null, frm = 0;
+
+  var OVAL = [[10,338],[338,297],[297,332],[332,284],[284,251],[251,389],[389,356],[356,454],[454,323],[323,361],[361,288],[288,397],[397,365],[365,379],[379,378],[378,400],[400,377],[377,152],[152,148],[148,176],[176,149],[149,150],[150,136],[136,172],[172,58],[58,132],[132,93],[93,234],[234,127],[127,162],[162,21],[21,54],[54,103],[103,67],[67,109],[109,10]];
+  var LIP_OUTER = [[61,185],[185,40],[40,39],[39,37],[37,0],[0,267],[267,269],[269,270],[270,409],[409,291],[291,375],[375,321],[321,405],[405,314],[314,17],[17,84],[84,181],[181,91],[91,146],[146,61]];
+  var LIP_INNER = [[78,191],[191,80],[80,81],[81,82],[82,13],[13,312],[312,311],[311,310],[310,415],[415,308],[308,324],[324,318],[318,402],[402,317],[317,14],[14,87],[87,178],[178,88],[88,95],[95,78]];
+  var NOSE = [[168,6],[6,5],[5,4],[4,1],[1,19],[19,94],[94,49],[94,279],[49,48],[279,278]];
+
+  function sz() {
+    if (!CNVS) return;
+    var p = CNVS.parentElement;
+    var nw = (p && p.offsetWidth)  || 0;
+    var nh = (p && p.offsetHeight) || 0;
+    if (nw !== W || nh !== H) {
+      CNVS.width = nw; CNVS.height = nh;
+      W = nw; H = nh;
+    }
+  }
+
+  function drawConn(conns, color, lw) {
+    if (!lm || !ctx) return;
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (var i = 0; i < conns.length; i++) {
+      var pa = lm[conns[i][0]], pb = lm[conns[i][1]];
+      if (!pa || !pb) continue;
+      ctx.moveTo(pa.x * W, pa.y * H);
+      ctx.lineTo(pb.x * W, pb.y * H);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function guide() {
+    if (!ctx || W < 1 || H < 1) return;
+    ctx.clearRect(0, 0, W, H);
+    var cx = W * 0.5, cy = H * 0.44;
+    var rx = W * 0.32, ry = H * 0.44;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = Math.max(1.5, W * 0.004);
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(215,70,40,0.65)';
+    ctx.lineWidth = Math.max(1.2, W * 0.003);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + ry * 0.38, rx * 0.52, ry * 0.16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    if (STS) STS.textContent = '顔を枠内に合わせてください';
+  }
+
+  function draw() {
+    if (!ctx || W < 1 || H < 1) return;
+    ctx.clearRect(0, 0, W, H);
+    if (!lm) { guide(); return; }
+    var x454 = lm[454] ? lm[454].x : 1;
+    var x234 = lm[234] ? lm[234].x : 0;
+    var ratio = x454 - x234;
+    var bColor, statusTxt;
+    if (ratio > 0.82) {
+      bColor = 'rgba(251,191,36,0.85)'; statusTxt = '近すぎます — 少し離れてください';
+    } else if (ratio < 0.38) {
+      bColor = 'rgba(251,191,36,0.85)'; statusTxt = '遠すぎます — 近づいてください';
+    } else {
+      bColor = 'rgba(52,211,153,0.75)'; statusTxt = '✓ 位置OK';
+    }
+    ctx.save();
+    ctx.strokeStyle = bColor; ctx.lineWidth = Math.max(2, W * 0.005);
+    ctx.strokeRect(2, 2, W - 4, H - 4);
+    ctx.restore();
+    drawConn(OVAL,      'rgba(255,255,255,0.30)', Math.max(1, W * 0.002));
+    drawConn(NOSE,      'rgba(255,255,255,0.30)', Math.max(1, W * 0.002));
+    drawConn(LIP_OUTER, 'rgba(215,70,40,0.65)',   Math.max(1.5, W * 0.004));
+    drawConn(LIP_INNER, 'rgba(215,70,40,0.45)',   Math.max(1, W * 0.003));
+    if (STS) STS.textContent = statusTxt;
+  }
+
+  function tick() {
+    requestAnimationFrame(tick);
+    if (++frm % 3 !== 0) return;
+    sz();
+    if (W < 1 || H < 1) return;
+    if (!fm || busy) { if (!lm) guide(); return; }
+    if (!CAM || !CAM.srcObject || CAM.readyState < 2 || CAM.paused) { guide(); return; }
+    busy = true;
+    try { fm.send({ image: CAM }); } catch(e) { busy = false; }
+  }
+
+  function initFM() {
+    if (fm || typeof FaceMesh === 'undefined') return;
+    fm = new FaceMesh({
+      locateFile: function(f) {
+        return 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/' + f;
+      }
+    });
+    fm.setOptions({ maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    fm.onResults(function(res) {
+      busy = false;
+      lm = (res.multiFaceLandmarks && res.multiFaceLandmarks[0]) || null;
+      draw();
+    });
+  }
+
+  /* モーダルが開くたびに呼ばれる — ターゲットを切り替える */
+  window._faceGuide = {
+    activate: function(videoId, canvasId, statusId) {
+      CAM  = document.getElementById(videoId);
+      CNVS = document.getElementById(canvasId);
+      STS  = document.getElementById(statusId);
+      ctx  = CNVS ? CNVS.getContext('2d') : null;
+      lm   = null; busy = false; W = 0; H = 0;
+    }
+  };
+
+  tick();
+
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
+  s.crossOrigin = 'anonymous';
+  s.onload = function() { initFM(); };
+  document.head.appendChild(s);
+  setInterval(function() { if (!fm) initFM(); }, 1000);
+})();
+</script>
 </body>
 </html>

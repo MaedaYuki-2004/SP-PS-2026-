@@ -21,11 +21,12 @@
     .step-line { flex:1; height:1px; background:var(--border); margin:0 8px; }
 
     /* Word */
-    .word-section { text-align:center; padding:22px 0 18px; }
-    .word-reading { font-size:12px; letter-spacing:.12em; color:var(--text-3); margin-bottom:6px; }
-    .word-display { font-size:clamp(48px,12vw,68px); font-weight:700; color:var(--navy); line-height:1.1; letter-spacing:.01em; margin-bottom:12px; }
+    .word-section { text-align:center; padding:28px 0 24px; margin:0 -24px 20px; background:var(--navy); border-radius:0 0 32px 32px; position:relative; overflow:hidden; }
+    .word-section::before { content:''; position:absolute; right:-80px; top:-80px; width:340px; height:340px; border-radius:50%; background:rgba(255,255,255,.03); pointer-events:none; }
+    .word-reading { font-size:12px; letter-spacing:.14em; color:rgba(255,255,255,.45); margin-bottom:8px; }
+    .word-display { font-size:clamp(54px,14vw,82px); font-weight:700; color:#fff; line-height:1.05; letter-spacing:.01em; margin-bottom:16px; text-shadow:0 2px 16px rgba(0,0,0,.25); }
     .sample-wrap  { display:flex; align-items:center; justify-content:center; gap:10px; }
-    .sample-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
+    .sample-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.4); }
     .sample-audio { height:28px; width:160px; border-radius:var(--r-xs); }
 
     /* Step guide — contextual hint */
@@ -38,20 +39,24 @@
 
     /* Recording action buttons — prominent, above waveform */
     .record-actions { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
-    .record-btn-row { display:flex; gap:12px; }
-    #buttonStart, #buttonStop { flex:1; height:52px; border-radius:var(--r); font-family:var(--font); font-size:13px; font-weight:700; letter-spacing:.04em; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:8px; transition:background var(--dur),box-shadow var(--dur),transform var(--dur),opacity var(--dur); -webkit-tap-highlight-color:transparent; }
+    .record-btn-row { display:flex; gap:10px; }
+    #buttonStart, #buttonStop { flex:1; border-radius:var(--r); font-family:var(--font); font-weight:800; letter-spacing:.06em; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:8px; transition:filter .15s,box-shadow var(--dur),transform var(--dur),opacity var(--dur); -webkit-tap-highlight-color:transparent; }
     #buttonStart:active:not(:disabled), #buttonStop:active:not(:disabled) { transform:scale(.97); }
     #buttonStart:disabled, #buttonStop:disabled { opacity:.3; cursor:not-allowed; }
-    #buttonStart { background:var(--accent); color:#fff; }
-    #buttonStart:not(:disabled):hover { background:#a83318; box-shadow:0 4px 16px rgba(192,61,32,.35); }
-    #buttonStop  { background:var(--navy); color:#fff; }
+    @keyframes pulse-ready { 0%,70%,100%{box-shadow:0 6px 20px rgba(192,61,32,.35)} 35%{box-shadow:0 6px 30px rgba(192,61,32,.6),0 0 0 9px rgba(192,61,32,.1)} }
+    #buttonStart { background:linear-gradient(135deg,#C03D20 0%,#e84a2a 100%); color:#fff; height:64px; font-size:15px; }
+    #buttonStart:not(:disabled) { animation:pulse-ready 2.4s ease infinite; }
+    #buttonStart:not(:disabled):hover, #buttonStart:not(:disabled):active { animation:none; filter:brightness(1.1); box-shadow:0 6px 22px rgba(192,61,32,.45); }
+    #buttonStop  { background:var(--navy); color:#fff; height:64px; font-size:14px; }
     #buttonStop:not(:disabled):hover  { background:var(--navy-mid); box-shadow:0 4px 16px rgba(14,30,69,.3); }
     .shortcut-hint { display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; color:var(--text-3); }
     .key-badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 8px; border:1px solid var(--border); border-radius:4px; font-family:var(--mono); font-size:10px; color:var(--text-3); background:var(--bg-muted); box-shadow:0 1px 0 var(--border); letter-spacing:.04em; }
 
     /* Waveform visualizer */
+    @keyframes rec-glow { 0%,100%{box-shadow:0 0 0 0 rgba(192,61,32,.45)} 50%{box-shadow:0 0 0 5px rgba(192,61,32,.18)} }
     .visualizer-section { margin-bottom:14px; }
-    .viz-card { width:100%; background:var(--navy); border-radius:var(--r-lg); padding:16px 18px; }
+    .viz-card { width:100%; background:var(--navy); border-radius:var(--r-lg); padding:16px 18px; transition:box-shadow .4s; }
+    .viz-card.recording { animation:rec-glow 1.6s ease infinite; }
     #visualizer { width:100%; height:64px; display:block; border-radius:var(--r-sm); }
     .rec-status { display:flex; align-items:center; gap:8px; margin-top:10px; height:20px; }
     .rec-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.2); }
@@ -65,7 +70,7 @@
     .volume-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.3); white-space:nowrap; }
     .volume-track { flex:1; height:4px; background:rgba(255,255,255,.1); border-radius:100px; overflow:hidden; }
     #volumeFill { height:100%; width:0%; border-radius:100px; background:#9E9890; transition:width 60ms, background 200ms; }
-    #autoStopCountdown { display:none; font-size:11px; color:rgba(255,200,100,.9); text-align:center; font-weight:600; letter-spacing:.04em; margin-top:6px; padding:5px 10px; background:rgba(255,165,0,.1); border-radius:var(--r-sm); }
+    #autoStopCountdown { display:none; font-size:12px; color:#fbbf24; text-align:center; font-weight:700; letter-spacing:.05em; margin-top:8px; padding:6px 12px; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.25); border-radius:var(--r-sm); }
 
     /* Lip section — compact side-by-side layout */
     .lip-section { margin-bottom:14px; }
@@ -74,8 +79,11 @@
     .lip-card-title { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
     .lip-ref-tag { display:none; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#2D6A4F; background:var(--green-bg); padding:3px 9px; border-radius:100px; }
     .lip-ref-tag.show { display:inline-flex; }
-    .lip-layout { display:grid; grid-template-columns:130px 1fr; }
-    #lipPreview { width:130px; height:98px; object-fit:cover; background:#111; border-right:1px solid var(--border-light); display:block; }
+    .lip-layout { display:grid; grid-template-columns:160px 1fr; }
+    .lip-preview-container { position:relative; width:160px; height:120px; overflow:hidden; background:#111; border-right:1px solid var(--border-light); flex-shrink:0; }
+    #lipPreview { width:100%; height:100%; object-fit:cover; display:block; }
+    #lipOverlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+    #faceStatus { position:absolute; bottom:0; left:0; right:0; padding:1px 0 3px; font-size:7px; font-weight:700; letter-spacing:.04em; color:#fff; text-align:center; text-shadow:0 1px 2px rgba(0,0,0,.9); background:linear-gradient(transparent,rgba(0,0,0,.5)); pointer-events:none; }
     .lip-side { padding:12px 14px; display:flex; flex-direction:column; gap:8px; justify-content:center; }
     .lip-auto-info { font-size:11px; color:var(--text-3); line-height:1.6; }
     .lip-auto-info strong { color:var(--text-2); }
@@ -116,7 +124,32 @@
     .mora-item.active { background:var(--navy); color:#fff; }
     .mora-item.mora-sil { background:transparent !important; }
 
-    @media (max-width:480px) { .word-display{font-size:48px;} .top-nav{padding:0 16px;} .shortcut-hint{display:none;} #lipPreview{width:110px;height:83px;} .lip-layout{grid-template-columns:110px 1fr;} }
+    /* H/L アクセントパターンバー */
+    .hl-bar-wrap { display:flex; justify-content:center; gap:4px; margin:6px 0 2px; flex-wrap:wrap; }
+    .hl-mora-box { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .hl-badge-box { min-width:26px; height:18px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; letter-spacing:.04em; padding:0 4px; }
+    .hl-badge-box.H { background:var(--accent-bg,#FDECEA); color:var(--accent,#C03D20); }
+    .hl-badge-box.L { background:var(--bg-muted,#F4F4F6); color:var(--text-3,#9398A2); }
+    .hl-mora-label { font-size:13px; color:var(--text-2,#4A5568); font-family:var(--font); }
+
+    /* ピッチグラフ凡例 */
+    .pitch-legend { display:flex; gap:14px; justify-content:flex-end; padding:2px 2px 4px; }
+    .pitch-legend-item { display:flex; align-items:center; gap:4px; font-size:9px; font-weight:700; letter-spacing:.04em; color:var(--text-3); }
+    .pitch-legend-line { width:16px; height:2.5px; border-radius:2px; }
+    .pitch-legend-line.ref  { background:rgba(14,30,69,0.55); }
+    .pitch-legend-line.user { background:#C03D20; }
+
+    @media (max-width:480px) {
+      .word-display{font-size:52px;}
+      .word-section{margin:0 -16px 18px;border-radius:0 0 24px 24px;padding:22px 0 20px;}
+      .top-nav{padding:0 16px;}
+      .shortcut-hint{display:none;}
+      .lip-preview-container{width:110px;height:83px;}
+      .lip-layout{grid-template-columns:110px 1fr;}
+      #buttonStart, #buttonStop { height:58px; font-size:14px; border-radius:var(--r-lg); }
+      .record-page { padding:0 16px 36px; }
+      .word-section { padding:16px 0 14px; }
+    }
   </style>
 </head>
 <body>
@@ -173,6 +206,16 @@
   <div class="word-section">
     <div class="word-reading">{{ test }}</div>
     <div class="word-display">{{ display or test }}</div>
+    {% if accent_hl is defined and accent_hl %}
+    <div class="hl-bar-wrap" title="アクセントパターン（H=高 / L=低）">
+      {% for item in accent_hl %}
+      <div class="hl-mora-box">
+        <div class="hl-badge-box {{ item.hl }}">{{ item.hl }}</div>
+        <div class="hl-mora-label">{{ item.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
     <div class="ref-preview-wrap">
       <div class="ref-preview-card">
@@ -187,6 +230,10 @@
         <div class="pitch-graph-wrap">
           <canvas id="pitchCanvas"></canvas>
           <div id="pitchCursor"></div>
+        </div>
+        <div class="pitch-legend">
+          <div class="pitch-legend-item"><div class="pitch-legend-line ref"></div>お手本</div>
+          <div class="pitch-legend-item"><div class="pitch-legend-line user"></div>あなた（録音中）</div>
         </div>
         <div class="mora-bar" id="moraBar">
           {% for m in ref_preview.moras %}
@@ -259,7 +306,11 @@
         </span>
       </div>
       <div class="lip-layout">
-        <video id="lipPreview" autoplay muted playsinline></video>
+        <div class="lip-preview-container">
+          <video id="lipPreview" autoplay muted playsinline></video>
+          <canvas id="lipOverlay"></canvas>
+          <div id="faceStatus">顔を枠内に合わせてください</div>
+        </div>
         <div class="lip-side">
           <div class="lip-auto-info">
             録音開始と同時に<br><strong>自動撮影されます</strong>
@@ -366,19 +417,91 @@
   const refAudio = document.getElementById('refAudio');
   if (!canvas || !refAudio) return;
 
-  const moraItems = Array.from(document.querySelectorAll('.mora-item'));
-  const pitch     = REF.pitch;
-  const n         = pitch.length;
+  const moraItems  = Array.from(document.querySelectorAll('.mora-item'));
+  const pitch      = REF.pitch;
+  const n          = pitch.length;
+  const pitchMinHz = REF.pitch_min_hz || 80;
+  const pitchMaxHz = REF.pitch_max_hz || 400;
 
-  function drawPitch() {
+  // ── リアルタイムピッチ検出 ─────────────────────────────────────
+  // 正規化自己相関法（ACF）: ゼロラグ自己相関で割ることで振幅依存をなくす
+  function detectPitchHz(analyser, sampleRate) {
+    const buf = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(buf);
+    const N = buf.length;
+    let r0 = 0;
+    for (let i = 0; i < N; i++) r0 += buf[i] * buf[i];
+    if (Math.sqrt(r0 / N) < 0.01) return null;  // 無音
+
+    const minLag = Math.floor(sampleRate / Math.min(pitchMaxHz, 500));
+    const maxLag = Math.floor(sampleRate / Math.max(pitchMinHz, 60));
+    let bestCorr = -Infinity, bestLag = -1;
+    for (let lag = minLag; lag <= maxLag && lag < N; lag++) {
+      let corr = 0;
+      for (let i = 0; i < N - lag; i++) corr += buf[i] * buf[i + lag];
+      corr /= r0;  // 正規化
+      if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
+    }
+    if (bestCorr < 0.3 || bestLag < 1) return null;  // 有声区間でなければスキップ
+    return sampleRate / bestLag;
+  }
+
+  function normHz(hz) {
+    if (hz === null) return null;
+    return Math.max(0, Math.min(1, (hz - pitchMinHz) / (pitchMaxHz - pitchMinHz)));
+  }
+
+  // ── ユーザーピッチ履歴（録音開始からの経過時間 + 正規化ピッチ） ──
+  let recordStartTime  = null;  // 録音開始の Date.now()/1000
+  let userPitchHistory = [];    // [{t:秒, norm:0-1}]
+  let pitchFrame = 0;
+
+  // 録音ボタンを監視して開始時刻を記録
+  const startBtn = document.getElementById('buttonStart');
+  const stopBtn  = document.getElementById('buttonStop');
+  if (startBtn) startBtn.addEventListener('click', () => {
+    recordStartTime  = Date.now() / 1000;
+    userPitchHistory = [];
+    drawCanvas();
+  });
+  if (stopBtn) stopBtn.addEventListener('click', () => {
+    recordStartTime = null;  // 進捗カーソルを止める（軌跡は残す）
+    drawCanvas();
+  });
+
+  // ── メインループ（rAF 60fps、ピッチ検出は20fps） ─────────────
+  function pitchLoop() {
+    requestAnimationFrame(pitchLoop);
+    pitchFrame++;
+
+    // ピッチ検出は3フレームに1回（≈20fps）
+    if (window._spRecording && recordStartTime !== null && pitchFrame % 3 === 0) {
+      const an = window._spAnalyser;
+      const sr = window._spSampleRate || 16000;
+      if (an) {
+        const hz   = detectPitchHz(an, sr);
+        const norm = normHz(hz);
+        const t    = Date.now() / 1000 - recordStartTime;
+        if (norm !== null && t >= 0 && t <= REF.duration_sec * 1.5) {
+          userPitchHistory.push({t, norm});
+        }
+      }
+    }
+
+    // キャンバス再描画は毎フレーム（進捗カーソルを滑らかに）
+    drawCanvas();
+  }
+
+  // ── キャンバス描画 ────────────────────────────────────────────
+  function drawCanvas() {
     const W = canvas.offsetWidth  || 460;
     const H = canvas.offsetHeight || 68;
-    canvas.width  = W;
-    canvas.height = H;
+    if (canvas.width !== W) canvas.width  = W;
+    if (canvas.height !== H) canvas.height = H;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
 
-    // Mora boundary lines
+    // モーラ境界線
     ctx.strokeStyle = 'rgba(14,30,69,0.1)';
     ctx.lineWidth = 1;
     for (const item of moraItems) {
@@ -388,9 +511,9 @@
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
 
-    // Pitch curve fill
+    // お手本ピッチ塗り
     const fillGrad = ctx.createLinearGradient(0, 0, 0, H);
-    fillGrad.addColorStop(0, 'rgba(14,30,69,0.18)');
+    fillGrad.addColorStop(0, 'rgba(14,30,69,0.15)');
     fillGrad.addColorStop(1, 'rgba(14,30,69,0.02)');
     ctx.beginPath();
     for (let i = 0; i < n; i++) {
@@ -402,9 +525,9 @@
     ctx.fillStyle = fillGrad;
     ctx.fill();
 
-    // Pitch curve line
+    // お手本ピッチ線（紺）
     ctx.beginPath();
-    ctx.strokeStyle = '#0E1E45';
+    ctx.strokeStyle = 'rgba(14,30,69,0.55)';
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     for (let i = 0; i < n; i++) {
@@ -413,11 +536,75 @@
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.stroke();
+
+    // ── ユーザーピッチ軌跡（録音時間軸に整合） ──────────────────
+    const validPts = userPitchHistory
+      .filter(p => p.t >= 0 && p.t <= REF.duration_sec)
+      .map(p => ({
+        x: (p.t / REF.duration_sec) * W,
+        y: H - 4 - p.norm * (H - 8),
+      }));
+
+    if (validPts.length >= 2) {
+      // 軌跡の線
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(192,61,32,0.85)';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap  = 'round';
+      validPts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (validPts.length > 0) {
+      // 先端の強調ドット（録音中のみ）
+      if (window._spRecording) {
+        const last = validPts[validPts.length - 1];
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(last.x, last.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#C03D20';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // ── 録音進捗カーソル（録音中：現在位置の点線） ───────────────
+    if (window._spRecording && recordStartTime !== null) {
+      const elapsed = Date.now() / 1000 - recordStartTime;
+      const progX   = Math.min(elapsed / REF.duration_sec, 1.0) * W;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(192,61,32,0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(progX, 0);
+      ctx.lineTo(progX, H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // 「● REC」ラベル
+      ctx.save();
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillStyle = '#C03D20';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText('● REC', W - 5, 4);
+      ctx.restore();
+    }
   }
 
-  requestAnimationFrame(drawPitch);
-  window.addEventListener('resize', drawPitch);
+  requestAnimationFrame(drawCanvas);
+  window.addEventListener('resize', () => { canvas.width = 0; drawCanvas(); });
+  pitchLoop();
 
+  // ── refAudio カーソル ─────────────────────────────────────────
   let rafId = null;
 
   function tick() {
@@ -429,9 +616,7 @@
       const e = parseFloat(item.dataset.end);
       item.classList.toggle('active', !item.classList.contains('mora-sil') && t >= s && t < e);
     }
-    if (!refAudio.paused && !refAudio.ended) {
-      rafId = requestAnimationFrame(tick);
-    }
+    if (!refAudio.paused && !refAudio.ended) rafId = requestAnimationFrame(tick);
   }
 
   const ICON_PLAY  = '<svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg> 再生';
@@ -457,6 +642,221 @@
     if (refAudio.paused || refAudio.ended) refAudio.play().catch(() => {});
     else refAudio.pause();
   });
+})();
+</script>
+
+<script>
+// ── カメラ距離・顔位置ガイド ──────────────────────────────────────
+(function () {
+  'use strict';
+
+  const video    = document.getElementById('lipPreview');
+  const overlay  = document.getElementById('lipOverlay');
+  const statusEl = document.getElementById('faceStatus');
+  if (!video || !overlay) return;
+
+  const ctx = overlay.getContext('2d');
+  let W = 160, H = 120;
+  let lm   = null;   // 現在のランドマーク配列（正規化 0-1）
+  let busy = false;  // faceMesh.send() 重複防止
+  let fm   = null;   // FaceMesh インスタンス
+  let tick = 0;
+
+  // ─── ランドマーク接続定義（app.py と同じ MediaPipe インデックス）
+  const OVAL = [
+    [10,338],[338,297],[297,332],[332,284],[284,251],[251,389],[389,356],
+    [356,454],[454,323],[323,361],[361,288],[288,397],[397,365],[365,379],
+    [379,378],[378,400],[400,377],[377,152],[152,148],[148,176],[176,149],
+    [149,150],[150,136],[136,172],[172,58],[58,132],[132,93],[93,234],
+    [234,127],[127,162],[162,21],[21,54],[54,103],[103,67],[67,109],[109,10],
+  ];
+  const LIP_OUTER = [
+    [61,185],[185,40],[40,39],[39,37],[37,0],[0,267],[267,269],[269,270],
+    [270,409],[409,291],[291,375],[375,321],[321,405],[405,314],[314,17],
+    [17,84],[84,181],[181,91],[91,146],[146,61],
+  ];
+  const LIP_INNER = [
+    [78,191],[191,80],[80,81],[81,82],[82,13],[13,312],[312,311],[311,310],
+    [310,415],[415,308],[308,324],[324,318],[318,402],[402,317],[317,14],
+    [14,87],[87,178],[178,88],[88,95],[95,78],
+  ];
+  const NOSE = [
+    [168,6],[6,5],[5,4],[4,1],[1,19],[19,94],  // 鼻筋 + 鼻先
+    [94,49],[94,279],                            // 小鼻への広がり
+    [49,48],[279,278],                           // 小鼻端
+  ];
+
+  function resize() {
+    W = overlay.offsetWidth  || 160;
+    H = overlay.offsetHeight || 120;
+    overlay.width  = W;
+    overlay.height = H;
+  }
+
+  function strokeRR(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y,     x + w, y + r,     r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  function drawConn(conns, color, lw) {
+    if (!lm) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.lineJoin  = 'round';
+    ctx.lineCap   = 'round';
+    ctx.beginPath();
+    for (const [a, b] of conns) {
+      const pa = lm[a], pb = lm[b];
+      if (!pa || !pb) continue;
+      ctx.moveTo(pa.x * W, pa.y * H);
+      ctx.lineTo(pb.x * W, pb.y * H);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // カメラ起動前 / 顔未検出時の静的ガイド
+  function drawStatic() {
+    ctx.clearRect(0, 0, W, H);
+    const cx = W * 0.5, cy = H * 0.44;
+    const rx = W * 0.32, ry = H * 0.44;
+    ctx.save();
+    // 顔輪郭ガイド（白、目立つよう濃いめ）
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // 口位置ヒント（赤）
+    ctx.strokeStyle = 'rgba(215,70,40,0.65)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + ry * 0.38, rx * 0.52, ry * 0.16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    if (statusEl) statusEl.textContent = '顔を枠内に合わせてください';
+  }
+
+  // 顔検出後のオーバーレイ描画
+  function drawFace() {
+    ctx.clearRect(0, 0, W, H);
+    if (!lm) { drawStatic(); return; }
+
+    // 顔幅（左端234 ↔ 右端454）で距離を推定
+    const faceW = ((lm[454]?.x ?? 1) - (lm[234]?.x ?? 0)) * W;
+    const ratio = faceW / W;
+
+    let bColor, statusTxt;
+    if (ratio > 0.82) {
+      bColor    = 'rgba(251,191,36,0.85)';
+      statusTxt = '近すぎます — 少し離れてください';
+    } else if (ratio < 0.38) {
+      bColor    = 'rgba(251,191,36,0.85)';
+      statusTxt = '遠すぎます — 近づいてください';
+    } else {
+      bColor    = 'rgba(52,211,153,0.75)';
+      statusTxt = '✓ 位置OK';
+    }
+
+    // 距離フィードバック用ボーダー
+    ctx.save();
+    ctx.strokeStyle = bColor;
+    ctx.lineWidth   = 2.5;
+    strokeRR(1.5, 1.5, W - 3, H - 3, 4);
+    ctx.restore();
+
+    // 輪郭・鼻・唇をうっすら描画
+    drawConn(OVAL,      'rgba(255,255,255,0.32)', 1.0);
+    drawConn(NOSE,      'rgba(255,255,255,0.32)', 1.0);
+    drawConn(LIP_OUTER, 'rgba(215,70,40,0.65)',   1.8);
+    drawConn(LIP_INNER, 'rgba(215,70,40,0.45)',   1.2);
+
+    if (statusEl) statusEl.textContent = statusTxt;
+  }
+
+  function initFM() {
+    if (typeof FaceMesh === 'undefined') {
+      console.info('[faceGuide] MediaPipe 未ロード — 静的ガイドのみ');
+      return;
+    }
+    fm = new FaceMesh({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
+    });
+    fm.setOptions({
+      maxNumFaces:            1,
+      refineLandmarks:        false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence:  0.5,
+    });
+    fm.onResults(res => {
+      busy = false;
+      lm   = (res.multiFaceLandmarks && res.multiFaceLandmarks[0]) || null;
+      drawFace();
+    });
+  }
+
+  function rafLoop() {
+    requestAnimationFrame(rafLoop);
+    if (++tick % 3 !== 0) return;  // 30fps → 10fps 処理
+    if (!fm || busy) { if (!lm) drawStatic(); return; }
+    if (!video.srcObject || video.readyState < 2 || video.paused) {
+      drawStatic();
+      return;
+    }
+    busy = true;
+    try { fm.send({ image: video }); } catch(e) { busy = false; }
+  }
+
+  function loadScript(src, timeoutMs = 10000) {
+    return Promise.race([
+      new Promise((ok, fail) => {
+        const s = document.createElement('script');
+        s.src = src; s.crossOrigin = 'anonymous';
+        s.onload = ok; s.onerror = fail;
+        document.head.appendChild(s);
+      }),
+      new Promise((_, r) => setTimeout(() => r(new Error('timeout')), timeoutMs)),
+    ]);
+  }
+
+  async function start() {
+    // 初回レイアウト確定まで1フレーム待つ（offsetWidth が 0 を返すケース対策）
+    await new Promise(r => requestAnimationFrame(r));
+    resize();
+
+    // rAF ループを先に起動 — 静的ガイドを即座に描画し続ける
+    rafLoop();
+
+    // カメラストリームが来るまで待機
+    while (!video.srcObject || video.readyState < 1) {
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // MediaPipe をバックグラウンドでロード（10 秒でタイムアウト）
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js');
+    } catch (_) {
+      console.info('[faceGuide] MediaPipe 未ロード — 静的ガイドのみ');
+    }
+
+    initFM();
+    // rafLoop はすでに動いているので再起動不要
+  }
+
+  start();
+  window.addEventListener('resize', () => { resize(); drawFace(); });
 })();
 </script>
 </body>

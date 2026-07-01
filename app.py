@@ -537,12 +537,18 @@ def _get_reference_pitch_data(word_id: str) -> dict:
             for v in pitch_scaled
         ]
 
+        valid_hz = [float(v) for v in pitch_smoothed if not math.isnan(float(v))]
+        pitch_min_hz = round(min(valid_hz), 1) if valid_hz else 80.0
+        pitch_max_hz = round(max(valid_hz), 1) if valid_hz else 400.0
+
         result = {
             "has_data":     True,
             "pitch":        pitch_values,
             "duration_sec": round(duration_sec, 3),
             "n_frames":     len(pitch_values),
             "moras":        moras,
+            "pitch_min_hz": pitch_min_hz,
+            "pitch_max_hz": pitch_max_hz,
         }
         _REF_PITCH_CACHE[word_id] = (mtime, result)
         return result
@@ -555,6 +561,16 @@ _SMALL_KANA = set('ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ')
 
 def _mora_count(reading: str) -> int:
     return max(1, sum(1 for c in reading if c not in _SMALL_KANA))
+
+def _split_moras(reading: str) -> list[str]:
+    moras: list[str] = []
+    for ch in reading:
+        if ch in _SMALL_KANA:
+            if moras:
+                moras[-1] += ch
+        else:
+            moras.append(ch)
+    return moras
 
 def _accent_pattern_for_word(accent, reading: str) -> list[str]:
     n = _mora_count(reading)
@@ -612,9 +628,13 @@ def select():
         display    = word_entry.get("display", reading) if word_entry else reading
         WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
         (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
+        accent_val = word_entry.get("accent") if word_entry else None
+        hl_list = _accent_pattern_for_word(accent_val, reading)
+        mora_labels_list = _split_moras(reading)
+        accent_hl = [{"label": l, "hl": h} for l, h in zip(mora_labels_list, hl_list)]
         ref_preview = _get_reference_pitch_data(word_id)
         return render_template("audio.html", test=reading, display=display, word_id=word_id,
-                               ref_preview=ref_preview)
+                               ref_preview=ref_preview, accent_hl=accent_hl)
 
     words    = list_words()
     word_map = {w["word_id"]: w for w in words}
@@ -1322,6 +1342,8 @@ def audio_analysis():
                                score_delta=score_delta, suggestions=suggestions,
                                mora_scores=mora_scores, worst_mora=worst_mora,
                                ci_info=ci_info,
+                               native_formants=native_formants if 'native_formants' in dir() else None,
+                               user_formants=user_formants if 'user_formants' in dir() else None,
                                lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios)
 
     except Exception as exc:
@@ -1341,7 +1363,7 @@ def sample_audio(word_id: str):
 @app.route("/admin/delete_word", methods=["POST"])
 def api_delete_word():
     try:
-        data    = request.get_json()
+        data    = request.get_json(force=True, silent=True) or {}
         word_id = data.get("word_id", "").strip()
         if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
         return jsonify(delete_word(word_id))
