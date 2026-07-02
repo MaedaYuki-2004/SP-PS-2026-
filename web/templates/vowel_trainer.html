@@ -215,6 +215,27 @@
       <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
   </div>
+  <div style="text-align:center;padding-bottom:8px;">
+    <button onclick="startCalibration()" style="font-size:11px;font-weight:600;padding:5px 14px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-family:var(--font);" id="recalBtn">⚙ 口の形を再登録</button>
+    <span id="calBadge" style="font-size:10px;color:var(--text-3);margin-left:8px;"></span>
+  </div>
+</div>
+
+<!-- キャリブレーションオーバーレイ -->
+<div id="calOverlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(7,8,15,.97);flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;">
+  <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);">口の形キャリブレーション</div>
+  <div id="calProgress" style="font-size:12px;color:var(--text-3);">1 / 5</div>
+  <div id="calVowel" style="font-size:110px;font-weight:700;line-height:1;color:var(--text);transition:color .2s;"></div>
+  <div id="calInstruction" style="font-size:14px;color:var(--text-2);max-width:300px;line-height:1.8;"></div>
+  <div id="calStatus" style="font-size:12px;color:var(--text-3);min-height:18px;"></div>
+  <div id="calBar" style="display:none;width:220px;height:7px;background:var(--border);border-radius:100px;overflow:hidden;">
+    <div id="calBarFill" style="height:100%;background:var(--green);border-radius:100px;width:0%;transition:width .08s;"></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:6px;">
+    <button id="calRecordBtn" onclick="startCalRecording()" style="padding:13px 28px;border-radius:var(--r);border:none;background:var(--navy);color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.02em;">記録する</button>
+    <button onclick="skipCalibration()" style="padding:13px 16px;border-radius:var(--r);border:1.5px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);font-size:12px;cursor:pointer;">スキップ</button>
+  </div>
+  <div style="margin-top:4px;font-size:11px;color:var(--text-3);max-width:280px;line-height:1.6;">普段通りの自然な発音で大丈夫です。大げさに開ける必要はありません。</div>
 </div>
 
 <!-- 完了画面 -->
@@ -489,14 +510,133 @@ function showComplete() {
 }
 
 /* ══════════════════════════════════════════════════════
-   母音分類器（改良版）
+   キャリブレーション
+   初回または「再登録」ボタンで起動。
+   あいうえおを順番に発音してもらい、各人の自然な
+   h/w/zProt 値を localStorage に保存。
+   保存した値をガウス分類の中心 (mu) として使う。
+══════════════════════════════════════════════════════ */
+const CAL_KEY    = 'sp-ps-vowel-cal-v2';
+const CAL_VOWELS = ['あ','い','う','え','お'];
+const CAL_FRAMES = 35;  // 約1.2秒分のフレーム数
+
+let _calData      = null;  // {あ:{h,w,zProt}, …}
+let _isCalibrating= false;
+let _calStep      = -1;
+let _calFrames    = [];
+
+function loadCalibration() {
+  try {
+    const s = localStorage.getItem(CAL_KEY);
+    if (s) _calData = JSON.parse(s);
+  } catch(e) { _calData = null; }
+  updateCalBadge();
+}
+
+function saveCalibration(data) {
+  _calData = data;
+  localStorage.setItem(CAL_KEY, JSON.stringify(data));
+  updateCalBadge();
+}
+
+function updateCalBadge() {
+  const el = document.getElementById('calBadge');
+  if (!el) return;
+  el.textContent = _calData ? '（登録済み ✓）' : '（未登録）';
+}
+
+function startCalibration() {
+  _isCalibrating = true;
+  _calStep = 0;
+  _calFrames = [];
+  const ov = document.getElementById('calOverlay');
+  ov.style.display = 'flex';
+  showCalStep();
+}
+
+function skipCalibration() {
+  _isCalibrating = false;
+  document.getElementById('calOverlay').style.display = 'none';
+}
+
+function showCalStep() {
+  const vowel = CAL_VOWELS[_calStep];
+  const color = (VOWEL_DEF[vowel] || {}).color || 'var(--text)';
+  document.getElementById('calVowel').textContent = vowel;
+  document.getElementById('calVowel').style.color  = color;
+  document.getElementById('calProgress').textContent = `${_calStep + 1} / ${CAL_VOWELS.length}`;
+  document.getElementById('calInstruction').textContent =
+    `「${vowel}」と発音して、その口の形のままキープしてください。準備ができたら「記録する」を押してください。`;
+  document.getElementById('calStatus').textContent = '';
+  document.getElementById('calBar').style.display = 'none';
+  document.getElementById('calBarFill').style.width = '0%';
+  document.getElementById('calRecordBtn').disabled = false;
+}
+
+function startCalRecording() {
+  _calFrames = [];
+  document.getElementById('calRecordBtn').disabled = true;
+  document.getElementById('calBar').style.display = 'block';
+  document.getElementById('calStatus').textContent = 'その口の形をキープ…';
+
+  const fill = document.getElementById('calBarFill');
+  const check = setInterval(() => {
+    const pct = Math.min(_calFrames.length / CAL_FRAMES * 100, 100);
+    fill.style.width = pct + '%';
+    if (_calFrames.length >= CAL_FRAMES) {
+      clearInterval(check);
+      finishCalStep();
+    }
+  }, 50);
+}
+
+function median(arr) {
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
+function finishCalStep() {
+  const vowel = CAL_VOWELS[_calStep];
+  if (_calFrames.length > 5) {
+    if (!_calData) _calData = {};
+    _calData[vowel] = {
+      h:     median(_calFrames.map(f => f.h)),
+      w:     median(_calFrames.map(f => f.w)),
+      zProt: median(_calFrames.map(f => f.zProt)),
+    };
+  }
+
+  _calStep++;
+  if (_calStep >= CAL_VOWELS.length) {
+    // 全母音完了
+    saveCalibration(_calData);
+    document.getElementById('calOverlay').style.display = 'none';
+    _isCalibrating = false;
+    document.getElementById('calStatus').textContent = '登録完了！';
+  } else {
+    showCalStep();
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   母音分類器
    - 複数ランドマークの平均で安定した h/w を算出
-   - MediaPipe の z座標（奥行き）で唇突出（う）を補正
-   - ガウス尤度スコアリングでハードしきい値を廃止
-   - 12フレームの多数決スムージングでノイズを除去
+   - z座標（奥行き）で唇突出（う）を補正
+   - キャリブレーション値があればそれを mu として使用
+   - ガウス尤度スコアリング + 12フレーム多数決
 ══════════════════════════════════════════════════════ */
 const _vowelBuf = [];
 const _SMOOTH_N = 12;
+
+// キャリブレーションなしのフォールバック mu 値
+const _DEFAULT_MU = {
+  'あ': { h: 0.40, w: 0.72, zProt: 0.00 },
+  'い': { h: 0.07, w: 0.86, zProt: -0.01 },
+  'う': { h: 0.09, w: 0.42, zProt: 0.02 },
+  'え': { h: 0.21, w: 0.68, zProt: 0.00 },
+  'お': { h: 0.31, w: 0.54, zProt: 0.00 },
+};
+
 let _debugOn = false;
 
 function toggleDebug() {
@@ -506,27 +646,21 @@ function toggleDebug() {
 }
 
 function getLipMetrics(lm) {
-  // 基準: 左右の目頭間距離（IOD）で正規化
   const ioD = Math.hypot(lm[263].x - lm[33].x, lm[263].y - lm[33].y);
   if (ioD < 0.01) return null;
 
-  // 口の高さ: y座標差のみを3ペアで平均（水平な唇に hypot は不要）
-  //   13=内側上唇中央  14=内側下唇中央
-  //   82=左寄り内側上  87=左寄り内側下
-  //  312=右寄り内側上 317=右寄り内側下
+  // 高さ: y差のみ・3ペア平均
   const h = (
     Math.abs(lm[13].y - lm[14].y) +
     Math.abs(lm[82].y - lm[87].y) +
     Math.abs(lm[312].y - lm[317].y)
   ) / 3 / ioD;
 
-  // 口の幅: x座標差のみ（口角 61=左 291=右）
+  // 幅: x差のみ（口角）
   const w = Math.abs(lm[61].x - lm[291].x) / ioD;
 
-  // 唇突出度: 口角 z − 唇中央 z（正 = 中央が前に出ている = 「う」の形）
-  const lipCenterZ = (lm[13].z + lm[14].z) / 2;
-  const lipCornerZ = (lm[61].z + lm[291].z) / 2;
-  const zProt = lipCornerZ - lipCenterZ;
+  // 唇突出度: 口角z − 唇中央z（正 = 中央が前 = う）
+  const zProt = (lm[61].z + lm[291].z) / 2 - (lm[13].z + lm[14].z) / 2;
 
   return { h, w, ratio: h / (w + 0.001), zProt };
 }
@@ -537,26 +671,30 @@ function _gauss(x, mu, sigma) {
 
 function classifyRaw(m) {
   const { h, w, zProt } = m;
-  if (h < 0.04) return 'closed';
+  if (h < 0.025) return 'closed';
 
-  // 各母音のガウス尤度スコア（mu は日本語話者の典型値・sigma は許容幅）
-  // あ: 縦に大きく・横も広め
-  // い: 縦は小さく・横は非常に広い
-  // う: 縦も横も小さく・唇が前に出る
-  // え: 中程度の縦と横
-  // お: 縦やや大きく・横は中程度
-  const scores = {
-    'あ': _gauss(h, 0.40, 0.13) * _gauss(w, 0.72, 0.15),
-    'い': _gauss(h, 0.07, 0.05) * _gauss(w, 0.86, 0.13),
-    'う': _gauss(h, 0.09, 0.05) * _gauss(w, 0.42, 0.11) * (1 + Math.max(0, zProt) * 5),
-    'え': _gauss(h, 0.21, 0.09) * _gauss(w, 0.68, 0.13),
-    'お': _gauss(h, 0.31, 0.10) * _gauss(w, 0.54, 0.11),
-  };
+  const mu = (_calData && Object.keys(_calData).length >= 3) ? _calData : _DEFAULT_MU;
+
+  const scores = {};
+  for (const [v, mv] of Object.entries(mu)) {
+    // sigma を mu に比例させることで自然なスケールに適応
+    const sh = Math.max(0.025, mv.h * 0.42);
+    const sw = Math.max(0.04,  mv.w * 0.22);
+    scores[v] = _gauss(h, mv.h, sh) * _gauss(w, mv.w, sw);
+    if (v === 'う') scores[v] *= (1 + Math.max(0, zProt - (mv.zProt || 0)) * 5);
+  }
 
   return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
 }
 
 function classifyVowel(lm) {
+  // キャリブレーション記録中はフレームを蓄積
+  if (_isCalibrating) {
+    const m = getLipMetrics(lm);
+    if (m && m.h > 0.02) _calFrames.push(m);
+    return null;
+  }
+
   const m = getLipMetrics(lm);
   if (!m) return null;
 
@@ -564,41 +702,28 @@ function classifyVowel(lm) {
 
   // デバッグ表示
   if (_debugOn) {
-    const dbg = document.getElementById('debugOverlay');
-    const scores2 = {};
-    if (raw !== 'closed') {
-      ['あ','い','う','え','お'].forEach(v => {
-        const { h, w, zProt } = m;
-        if (v==='あ') scores2[v] = (_gauss(h,0.40,0.13)*_gauss(w,0.72,0.15)).toFixed(3);
-        if (v==='い') scores2[v] = (_gauss(h,0.07,0.05)*_gauss(w,0.86,0.13)).toFixed(3);
-        if (v==='う') scores2[v] = (_gauss(h,0.09,0.05)*_gauss(w,0.42,0.11)*(1+Math.max(0,zProt)*5)).toFixed(3);
-        if (v==='え') scores2[v] = (_gauss(h,0.21,0.09)*_gauss(w,0.68,0.13)).toFixed(3);
-        if (v==='お') scores2[v] = (_gauss(h,0.31,0.10)*_gauss(w,0.54,0.11)).toFixed(3);
-      });
+    const mu = (_calData && Object.keys(_calData).length >= 3) ? _calData : _DEFAULT_MU;
+    const sc = {};
+    for (const [v, mv] of Object.entries(mu)) {
+      const sh = Math.max(0.025, mv.h * 0.42);
+      const sw = Math.max(0.04,  mv.w * 0.22);
+      let s = _gauss(m.h, mv.h, sh) * _gauss(m.w, mv.w, sw);
+      if (v==='う') s *= (1 + Math.max(0, m.zProt - (mv.zProt||0)) * 5);
+      sc[v] = s.toFixed(3);
     }
-    dbg.innerHTML =
+    document.getElementById('debugOverlay').innerHTML =
       `h=${m.h.toFixed(3)} w=${m.w.toFixed(3)} z=${m.zProt.toFixed(3)}<br>` +
-      `あ:${scores2['あ']||'-'} い:${scores2['い']||'-'} う:${scores2['う']||'-'} え:${scores2['え']||'-'} お:${scores2['お']||'-'}<br>` +
-      `raw=${raw} →`;
+      `あ:${sc['あ']} い:${sc['い']} う:${sc['う']} え:${sc['え']} お:${sc['お']}<br>` +
+      `raw=${raw} → <b style="color:#ff0">${raw}</b>`;
   }
 
-  if (raw === 'closed') {
-    _vowelBuf.length = 0;
-    return 'closed';
-  }
+  if (raw === 'closed') { _vowelBuf.length = 0; return 'closed'; }
 
-  // 多数決スムージング
   _vowelBuf.push(raw);
   if (_vowelBuf.length > _SMOOTH_N) _vowelBuf.shift();
   const counts = {};
   for (const v of _vowelBuf) counts[v] = (counts[v] || 0) + 1;
-  const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-
-  if (_debugOn) {
-    document.getElementById('debugOverlay').innerHTML += ` <b style="color:#ff0">${best}</b>`;
-  }
-
-  return best;
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
 }
 
 /* ══════════════════════════════════════════════════════
@@ -679,24 +804,30 @@ const camera = new Camera(video, {
   width: 640, height: 480,
 });
 
-camera.start().then(() => {
-  document.getElementById('camStatus').textContent = '認識中';
-}).catch(err => {
-  document.getElementById('camStatus').textContent = 'カメラエラー';
-  document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
-  console.error(err);
-});
-
 /* ══════════════════════════════════════════════════════
    初期化
 ══════════════════════════════════════════════════════ */
+loadCalibration();
+
 if (practiceItems.length === 0) {
-  // 母音がひとつもない単語（ん、っのみなど）
   document.getElementById('mainArea').innerHTML =
     '<div class="skip-notice" style="margin:24px;">この単語に練習できる母音がありません。</div>';
 } else {
   updateTargetUI();
 }
+
+// カメラ起動（1回のみ）
+camera.start().then(() => {
+  document.getElementById('camStatus').textContent = '認識中';
+  // キャリブレーション未登録なら自動起動
+  if (!_calData && practiceItems.length > 0) {
+    setTimeout(() => startCalibration(), 1000);
+  }
+}).catch(err => {
+  document.getElementById('camStatus').textContent = 'カメラエラー';
+  document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
+  console.error(err);
+});
 </script>
 </body>
 </html>
