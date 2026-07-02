@@ -133,6 +133,8 @@
     .aw-step.active .aw-step-num { background:var(--navy); color:#fff; border-color:var(--navy); }
     .aw-step.done .aw-step-num { background:#2d6a4f; color:#fff; border-color:#2d6a4f; }
     .aw-step-arrow { color:var(--text-3); font-size:11px; padding:0 2px; }
+    .aw-done-icon { width:52px; height:52px; margin:4px auto 12px; border-radius:50%; background:var(--green-bg); color:var(--green); font-size:26px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+    .aw-done-count { font-size:12px; color:var(--text-3); }
     .aw-title { font-size:15px; font-weight:700; color:var(--navy); }
     .aw-fields { display:flex; flex-direction:column; gap:10px; }
     .aw-field { display:flex; flex-direction:column; gap:4px; }
@@ -703,7 +705,18 @@ document.getElementById('btnContinuous').addEventListener('click', () => {
       <div class="aw-status" id="awStatus2">カメラを起動しています…</div>
       <div class="aw-actions">
         <button class="aw-btn-primary" id="awRecordBtn" disabled>録画開始（3秒）</button>
-        <button class="aw-btn-secondary" id="awSkipBtn">スキップして閉じる</button>
+        <button class="aw-btn-secondary" id="awSkipBtn">スキップ</button>
+      </div>
+    </div>
+
+    <!-- Step 3: 完了（連続追加） -->
+    <div id="awPane3" style="display:none;text-align:center;">
+      <div class="aw-done-icon">✓</div>
+      <div class="aw-title" id="awDoneTitle" style="margin-bottom:4px;">追加しました</div>
+      <div class="aw-done-count" id="awDoneCount"></div>
+      <div class="aw-actions" style="margin-top:18px;">
+        <button class="aw-btn-primary" id="awAddAnotherBtn">＋ 続けて単語を追加</button>
+        <button class="aw-btn-secondary" id="awFinishBtn">完了して一覧に戻る</button>
       </div>
     </div>
   </div>
@@ -736,39 +749,56 @@ document.getElementById('btnContinuous').addEventListener('click', () => {
   let awStream    = null;
   let awRecorder  = null;
   let awChunks    = [];
+  let addedCount  = 0;
 
-  const overlay     = document.getElementById('awModalOverlay');
-  const ind1        = document.getElementById('awInd1');
-  const ind2        = document.getElementById('awInd2');
-  const pane1       = document.getElementById('awPane1');
-  const pane2       = document.getElementById('awPane2');
-  const displayInp  = document.getElementById('awDisplay');
-  const readingInp  = document.getElementById('awReading');
-  const status1     = document.getElementById('awStatus1');
-  const registerBtn = document.getElementById('awRegisterBtn');
-  const closeBtn1   = document.getElementById('awCloseBtn1');
-  const videoEl     = document.getElementById('awVideo');
-  const status2     = document.getElementById('awStatus2');
-  const recordBtn   = document.getElementById('awRecordBtn');
-  const skipBtn     = document.getElementById('awSkipBtn');
-  const pane2Title  = document.getElementById('awPane2Title');
+  const overlay      = document.getElementById('awModalOverlay');
+  const ind1         = document.getElementById('awInd1');
+  const ind2         = document.getElementById('awInd2');
+  const pane1        = document.getElementById('awPane1');
+  const pane2        = document.getElementById('awPane2');
+  const pane3        = document.getElementById('awPane3');
+  const displayInp   = document.getElementById('awDisplay');
+  const readingInp   = document.getElementById('awReading');
+  const status1      = document.getElementById('awStatus1');
+  const registerBtn  = document.getElementById('awRegisterBtn');
+  const closeBtn1    = document.getElementById('awCloseBtn1');
+  const videoEl      = document.getElementById('awVideo');
+  const status2      = document.getElementById('awStatus2');
+  const recordBtn    = document.getElementById('awRecordBtn');
+  const skipBtn      = document.getElementById('awSkipBtn');
+  const pane2Title   = document.getElementById('awPane2Title');
+  const doneTitle    = document.getElementById('awDoneTitle');
+  const doneCount    = document.getElementById('awDoneCount');
+  const addAnotherBtn= document.getElementById('awAddAnotherBtn');
+  const finishBtn    = document.getElementById('awFinishBtn');
 
-  document.getElementById('btnAddWord').addEventListener('click', function () {
+  function openStep1(resetCount) {
+    if (resetCount) addedCount = 0;
     displayInp.value = '';
     readingInp.value = '';
     setStatus1('', '');
     registerBtn.disabled = false;
     pane1.style.display = '';
     pane2.style.display = 'none';
+    pane3.style.display = 'none';
     ind1.className = 'aw-step active';
     ind2.className = 'aw-step';
     overlay.classList.add('open');
-  });
+    setTimeout(function () { displayInp.focus(); }, 50);
+  }
+
+  document.getElementById('btnAddWord').addEventListener('click', function () { openStep1(true); });
+  addAnotherBtn.addEventListener('click', function () { openStep1(false); });
+  finishBtn.addEventListener('click', function () { closeAwModal(addedCount > 0); });
 
   function setStatus1(msg, type) {
     status1.textContent = msg;
     status1.className = 'aw-status' + (type ? ' ' + type : '');
   }
+
+  readingInp.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !registerBtn.disabled) registerBtn.click();
+  });
 
   registerBtn.addEventListener('click', async function () {
     const display = displayInp.value.trim();
@@ -832,6 +862,21 @@ document.getElementById('btnContinuous').addEventListener('click', () => {
     if (reload) location.reload();
   }
 
+  function goToStep3(withRef) {
+    stopAwCamera();
+    addedCount++;
+    pane1.style.display = 'none';
+    pane2.style.display = 'none';
+    pane3.style.display = '';
+    ind1.className = 'aw-step done';
+    ind2.className = 'aw-step done';
+    doneTitle.textContent = `「${displayInp.value.trim()}」を追加しました${withRef ? '（お手本つき）' : ''}`;
+    doneCount.textContent = `これまでに ${addedCount} 件 追加しました`;
+    awRecorder = null;
+    awChunks = [];
+    newWordId = null;
+  }
+
   recordBtn.addEventListener('click', function () {
     if (!awStream || awRecorder) return;
     awChunks = [];
@@ -870,7 +915,7 @@ document.getElementById('btnContinuous').addEventListener('click', () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '保存に失敗しました');
       status2.textContent = '✓ お手本を保存しました！';
-      setTimeout(function () { closeAwModal(true); }, 1000);
+      setTimeout(function () { goToStep3(true); }, 700);
     } catch (err) {
       status2.textContent = 'エラー: ' + err.message;
       skipBtn.disabled = false;
@@ -878,9 +923,9 @@ document.getElementById('btnContinuous').addEventListener('click', () => {
     }
   }
 
-  skipBtn.addEventListener('click', function () { closeAwModal(true); });
-  closeBtn1.addEventListener('click', function () { closeAwModal(false); });
-  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeAwModal(false); });
+  skipBtn.addEventListener('click', function () { goToStep3(false); });
+  closeBtn1.addEventListener('click', function () { closeAwModal(addedCount > 0); });
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeAwModal(addedCount > 0); });
 })();
 
 /* ── 既存単語のお手本登録モーダル ──────────────────────────────── */
