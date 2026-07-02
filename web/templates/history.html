@@ -6,7 +6,7 @@
   <title>練習記録 — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link href="static/css/base.css" rel="stylesheet">
+  <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     .page-header { background:var(--bg); border-bottom:1px solid var(--border); padding:32px 32px 28px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; position:relative; overflow:hidden; }
@@ -682,5 +682,6 @@ function updateWordChart() {
 // URLハッシュでタブ選択
 if (location.hash === '#analysis') switchTab('analysis');
 </script>
+<script src="/static/js/tabbar.js" defer></script>
 </body>
 </html>

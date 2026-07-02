@@ -6,19 +6,21 @@
   <title>SP-PS — 日本語発音練習</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link href="static/css/base.css" rel="stylesheet">
+  <link href="/static/css/base.css" rel="stylesheet">
   <style>
     /* ── Hero ── */
-    .hero { padding:64px 40px 56px; background:var(--bg); border-bottom:1px solid var(--border); text-align:center; position:relative; overflow:hidden; }
-    .hero::before { content:''; position:absolute; top:-120px; left:-100px; width:520px; height:520px; border-radius:50%; background:radial-gradient(circle,rgba(124,106,224,.14) 0%,transparent 65%); pointer-events:none; }
-    .hero::after  { content:''; position:absolute; bottom:-80px; right:-80px; width:380px; height:380px; border-radius:50%; background:radial-gradient(circle,rgba(232,112,64,.09) 0%,transparent 65%); pointer-events:none; }
-    .hero-eyebrow { font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--navy); margin-bottom:12px; position:relative; }
-    .hero-title { font-size:clamp(30px,4.5vw,52px); font-weight:700; background:linear-gradient(135deg,var(--text) 0%,var(--navy-mid) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; line-height:1.15; margin-bottom:10px; position:relative; }
-    .hero-sub { font-size:14px; color:var(--text-3); margin-bottom:36px; position:relative; }
-    .hero-stats { display:flex; justify-content:center; gap:16px; border-left:none; padding-left:0; flex-wrap:wrap; position:relative; }
-    .stat-item { text-align:center; padding:14px 22px; background:var(--bg-card); border:1px solid var(--border); border-radius:14px; min-width:90px; }
-    .stat-num { font-family:var(--mono); font-size:26px; font-weight:500; color:var(--text); display:block; }
-    .stat-lbl { font-size:10px; color:var(--text-3); letter-spacing:.04em; display:block; margin-top:3px; }
+    .hero { max-width:1200px; margin:0 auto; padding:18px 32px 0; }
+    .hero-card { position:relative; overflow:hidden; border-radius:var(--r-lg); padding:30px 34px 26px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%); color:#fff; box-shadow:var(--shadow); }
+    .hero-card::before { content:''; position:absolute; right:-90px; top:-100px; width:320px; height:320px; border-radius:50%; background:rgba(255,255,255,.08); pointer-events:none; }
+    .hero-card::after  { content:''; position:absolute; left:-70px; bottom:-140px; width:260px; height:260px; border-radius:50%; background:rgba(255,255,255,.05); pointer-events:none; }
+    .hero-eyebrow { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.6); margin-bottom:8px; position:relative; }
+    .hero-title { font-size:clamp(24px,4vw,38px); font-weight:900; color:#fff; line-height:1.25; margin-bottom:4px; position:relative; }
+    .hero-sub { font-size:13px; color:rgba(255,255,255,.6); margin-bottom:20px; position:relative; }
+    .hero-stats { display:flex; justify-content:flex-start; gap:10px; flex-wrap:wrap; position:relative; }
+    .stat-item { display:inline-flex; align-items:baseline; gap:7px; padding:8px 16px; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.14); border-radius:100px; backdrop-filter:blur(4px); }
+    .stat-num { font-family:var(--mono); font-size:17px; font-weight:500; color:#fff; }
+    .stat-lbl { font-size:11px; color:rgba(255,255,255,.65); letter-spacing:.04em; font-weight:600; }
+    .stat-item.streak-hot { background:rgba(255,179,64,.25); border-color:rgba(255,179,64,.4); }
 
     /* ── Layout ── */
     .main-layout { display:block; max-width:1200px; margin:0 auto; padding:28px 32px 48px; }
@@ -206,10 +208,11 @@
     .quest-empty { display:none; }
 
     @media (max-width:700px) {
-      .hero { padding:40px 20px 36px; }
-      .hero-stats { gap:10px; }
-      .stat-item { padding:10px 14px; min-width:72px; }
-      .stat-num { font-size:22px; }
+      .hero { padding:12px 16px 0; }
+      .hero-card { padding:22px 20px 20px; }
+      .hero-stats { gap:7px; }
+      .stat-item { padding:6px 12px; }
+      .stat-num { font-size:15px; }
       .main-layout { padding:20px 16px 40px; }
       .word-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
       .word-card-text { font-size:36px; }
@@ -252,16 +255,30 @@
 </script>
 
 <div class="hero">
-  <p class="hero-eyebrow">SP-PS 発音練習</p>
-  <h1 class="hero-title">練習する単語を選ぼう</h1>
-  <p class="hero-sub">録音してネイティブ音声と比較し、スコアで確認できます</p>
-  <div class="hero-stats">
-    <div class="stat-item"><span class="stat-num">{{ words|length }}</span><span class="stat-lbl">登録単語</span></div>
-    <div class="stat-item"><span class="stat-num">{{ stats.total_sessions if stats else 0 }}</span><span class="stat-lbl">総練習回数</span></div>
-    <div class="stat-item"><span class="stat-num">{{ stats.streak if stats else 0 }}</span><span class="stat-lbl">連続日数</span></div>
-    <div class="stat-item"><span class="stat-num">{{ active_quests|length }}</span><span class="stat-lbl">進行中クエスト</span></div>
+  <div class="hero-card">
+    <p class="hero-eyebrow" id="heroDate">SP-PS 発音練習</p>
+    <h1 class="hero-title" id="heroGreeting">今日も練習を始めよう</h1>
+    <p class="hero-sub">録音してネイティブ音声と比較し、スコアで確認できます</p>
+    <div class="hero-stats">
+      {% set streak = stats.streak if stats else 0 %}
+      <div class="stat-item{% if streak >= 3 %} streak-hot{% endif %}"><span class="stat-num">{% if streak >= 3 %}🔥{% endif %}{{ streak }}</span><span class="stat-lbl">連続日数</span></div>
+      <div class="stat-item"><span class="stat-num">{{ stats.total_sessions if stats else 0 }}</span><span class="stat-lbl">総練習回数</span></div>
+      <div class="stat-item"><span class="stat-num">{{ words|length }}</span><span class="stat-lbl">登録単語</span></div>
+      <div class="stat-item"><span class="stat-num">{{ active_quests|length }}</span><span class="stat-lbl">クエスト</span></div>
+    </div>
   </div>
 </div>
+<script>
+  (function() {
+    const d = new Date();
+    const days = ['日','月','火','水','木','金','土'];
+    document.getElementById('heroDate').textContent =
+      `${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）`;
+    const h = d.getHours();
+    const g = h < 5 ? 'こんばんは' : h < 11 ? 'おはようございます' : h < 18 ? 'こんにちは' : 'こんばんは';
+    document.getElementById('heroGreeting').textContent = `${g}！今日も練習しましょう`;
+  })();
+</script>
 
 <div class="main-layout">
   <!-- 単語グリッド -->
@@ -1164,5 +1181,6 @@ document.addEventListener('DOMContentLoaded', function () {
   setInterval(function() { if (!fm) initFM(); }, 1000);
 })();
 </script>
+<script src="/static/js/tabbar.js" defer></script>
 </body>
 </html>

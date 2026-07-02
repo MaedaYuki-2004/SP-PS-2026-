@@ -6,7 +6,7 @@
   <title>解析結果 — {{ original_filename }} — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link href="static/css/base.css" rel="stylesheet">
+  <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -1134,5 +1134,6 @@ function setCmpSpeed(speed, btn) {
 /* ── 最終練習時刻を記録（通知リマインダー用） ── */
 localStorage.setItem('sp-ps-last-practice', String(Date.now()));
 </script>
+<script src="/static/js/tabbar.js" defer></script>
 </body>
 </html>
