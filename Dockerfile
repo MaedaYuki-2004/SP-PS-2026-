@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmecab-dev \
     mecab-ipadic-utf8 \
     ffmpeg \
-    julius \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
