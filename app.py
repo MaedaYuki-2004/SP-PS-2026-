@@ -1589,6 +1589,10 @@ def add_word():
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
+# gunicorn / 直接起動の両方でディレクトリを確保する
+ensure_directories()
+
 if __name__ == "__main__":
-    ensure_directories()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    _port  = int(os.environ.get("PORT", 5000))
+    _debug = os.environ.get("FLASK_ENV", "development") == "development"
+    app.run(host="0.0.0.0", port=_port, debug=_debug)
