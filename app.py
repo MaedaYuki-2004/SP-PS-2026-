@@ -684,10 +684,22 @@ def select():
     all_tags     = get_all_tags()
     word_scores  = get_word_recent_scores(limit=5)
     weak_sounds  = _get_weak_sound_cards(words)
+    lesson       = _get_daily_lesson_safe(words)
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
-                           word_scores=word_scores, weak_sounds=weak_sounds)
+                           word_scores=word_scores, weak_sounds=weak_sounds,
+                           lesson=lesson)
+
+
+def _get_daily_lesson_safe(words: list[dict]) -> dict | None:
+    try:
+        from core.lesson import get_daily_lesson
+        lesson = get_daily_lesson(words)
+        return lesson if lesson.get("steps") else None
+    except Exception:
+        traceback.print_exc()
+        return None
 
 
 def _get_weak_sound_cards(words: list[dict], limit: int = 3) -> list[dict]:
@@ -719,10 +731,12 @@ def select_page():
     all_tags     = get_all_tags()
     word_scores  = get_word_recent_scores(limit=5)
     weak_sounds  = _get_weak_sound_cards(words)
+    lesson       = _get_daily_lesson_safe(words)
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
-                           word_scores=word_scores, weak_sounds=weak_sounds)
+                           word_scores=word_scores, weak_sounds=weak_sounds,
+                           lesson=lesson)
 
 
 @app.route("/history")
@@ -1115,6 +1129,14 @@ def api_vowel_trainer_complete():
         vowels = {mv["vowel"] for mv in _get_mora_vowels(reading) if mv.get("vowel")}
 
         completed = record_vowel_trainer_completion(word_id, vowels)
+
+        # 今日のレッスンの mouth ステップにも反映
+        try:
+            from core.lesson import mark_mouth_done
+            mark_mouth_done(word_id)
+        except Exception:
+            pass
+
         return jsonify({
             "ok": True,
             "completed_quests": [q.title for q in completed],

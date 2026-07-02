@@ -207,6 +207,43 @@
 
     .quest-empty { display:none; }
 
+    /* ── 今日のレッスン ── */
+    .lesson-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px 22px; box-shadow:var(--shadow-sm); }
+    .lesson-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px; }
+    .lesson-title { font-size:16px; font-weight:900; color:var(--text); }
+    .lesson-sub { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .lesson-count { font-family:var(--mono); font-size:26px; font-weight:500; color:var(--navy); flex-shrink:0; line-height:1; }
+    .lesson-count span { font-size:14px; color:var(--text-3); }
+    .lesson-count.all-done { color:var(--green); }
+    .lesson-steps { list-style:none; display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+    .lesson-step { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:var(--r); background:var(--bg-muted); border:1.5px solid transparent; transition:all .2s; }
+    .lesson-step.next { border-color:var(--navy); background:var(--navy-soft); }
+    .lesson-step.done { opacity:.55; }
+    .ls-num { width:26px; height:26px; border-radius:50%; background:var(--bg-card); border:1.5px solid var(--border); color:var(--text-3); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .lesson-step.next .ls-num { background:var(--navy); border-color:var(--navy); color:#fff; }
+    .lesson-step.done .ls-num { background:var(--green); border-color:var(--green); color:#fff; }
+    .ls-body { flex:1; min-width:0; display:flex; flex-direction:column; }
+    .ls-title { font-size:13px; font-weight:700; color:var(--text); }
+    .ls-title b { color:var(--navy); margin-left:2px; }
+    .lesson-step.done .ls-title { text-decoration:line-through; }
+    .ls-reason { font-size:10.5px; color:var(--text-3); }
+    .ls-btn { flex-shrink:0; padding:6px 16px; border-radius:100px; border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; transition:all .15s; }
+    .ls-btn:hover { border-color:var(--navy); color:var(--navy); }
+    .lesson-step.next .ls-btn { background:var(--navy); border-color:var(--navy); color:#fff; }
+    .lesson-cta { display:flex; width:100%; align-items:center; justify-content:center; padding:15px; border-radius:var(--r); border:none; background:linear-gradient(135deg,var(--navy),var(--navy-mid)); color:#fff; font-family:var(--font); font-size:14px; font-weight:800; letter-spacing:.02em; cursor:pointer; text-decoration:none; box-shadow:0 4px 18px color-mix(in srgb, var(--navy) 35%, transparent); transition:filter .15s,transform .15s; }
+    .lesson-cta:hover { filter:brightness(1.07); }
+    .lesson-cta:active { transform:scale(.985); }
+    .lesson-done-msg { text-align:center; padding:13px; border-radius:var(--r); background:var(--green-bg); color:var(--green); font-size:13px; font-weight:700; }
+
+    /* ── 折りたたみセクション ── */
+    .fold-section { border:1px solid var(--border-light); border-radius:var(--r); background:var(--bg-card); }
+    .fold-summary { padding:13px 18px; font-size:13px; font-weight:700; color:var(--text-2); cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; user-select:none; }
+    .fold-summary::-webkit-details-marker { display:none; }
+    .fold-summary::before { content:'▸'; color:var(--text-3); transition:transform .2s; }
+    .fold-section[open] .fold-summary::before { transform:rotate(90deg); }
+    .fold-hint { font-size:10.5px; font-weight:400; color:var(--text-3); }
+    .fold-section .weak-section, .fold-section .quest-section { padding-left:18px; padding-right:18px; padding-bottom:14px; }
+
     /* ── 今日の重点練習（苦手音カード） ── */
     .weak-section { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:18px 20px; box-shadow:var(--shadow-xs); }
     .weak-header { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
@@ -298,13 +335,58 @@
   })();
 </script>
 
+{% if lesson %}
+<div class="main-layout" style="padding-top:16px;padding-bottom:0;">
+  <div class="lesson-card">
+    <div class="lesson-head">
+      <div>
+        <div class="lesson-title">📋 今日のレッスン</div>
+        <div class="lesson-sub">あなたの練習記録から自動で組みました。上から順に進めるだけでOK</div>
+      </div>
+      <div class="lesson-count{% if lesson.all_done %} all-done{% endif %}">{{ lesson.done_count }}<span>/{{ lesson.total }}</span></div>
+    </div>
+
+    <ol class="lesson-steps">
+      {% set next_step = (lesson.steps | rejectattr('done') | list | first) %}
+      {% for s in lesson.steps %}
+      <li class="lesson-step{% if s.done %} done{% elif next_step and s.word_id == next_step.word_id and s.type == next_step.type %} next{% endif %}">
+        <span class="ls-num">{% if s.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
+        <span class="ls-body">
+          <span class="ls-title">{{ s.title }}<b>「{{ s.display }}」</b></span>
+          <span class="ls-reason">{{ s.reason }}</span>
+        </span>
+        {% if not s.done %}
+          {% if s.kind == 'mouth' %}
+          <a href="/vowel_trainer/{{ s.word_id }}" class="ls-btn">開始</a>
+          {% else %}
+          <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ s.word_id }}"><button type="submit" class="ls-btn">開始</button></form>
+          {% endif %}
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+
+    {% if lesson.all_done %}
+    <div class="lesson-done-msg">🎉 今日のレッスン完了！おつかれさまでした。下の単語一覧から自由練習もできます</div>
+    {% elif next_step %}
+      {% if next_step.kind == 'mouth' %}
+      <a href="/vowel_trainer/{{ next_step.word_id }}" class="lesson-cta">▶ {% if lesson.done_count > 0 %}続きから{% else %}レッスンを始める{% endif %} — {{ next_step.title }}「{{ next_step.display }}」</a>
+      {% else %}
+      <form action="/" method="post" style="margin:0;">
+        <input type="hidden" name="Words" value="{{ next_step.word_id }}">
+        <button type="submit" class="lesson-cta">▶ {% if lesson.done_count > 0 %}続きから{% else %}レッスンを始める{% endif %} — {{ next_step.title }}「{{ next_step.display }}」</button>
+      </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% if weak_sounds %}
 <div class="main-layout" style="padding-top:16px;padding-bottom:0;">
-  <div class="weak-section">
-    <div class="weak-header">
-      <span class="weak-title">🎯 今日の重点練習</span>
-      <span class="weak-sub">これまでの練習で苦手な音を分析しました</span>
-    </div>
+  <details class="fold-section">
+  <summary class="fold-summary">🎯 苦手な音の分析 <span class="fold-hint">タップで開く</span></summary>
+  <div class="weak-section" style="border:none;box-shadow:none;padding-top:12px;">
     <div class="weak-cards">
       {% for ws in weak_sounds %}
       <div class="weak-card">
@@ -332,6 +414,7 @@
       {% endfor %}
     </div>
   </div>
+  </details>
 </div>
 {% endif %}
 
@@ -464,11 +547,9 @@
 
 {% if active_quests %}
 <div class="main-layout" style="padding-top:0;">
-  <div class="quest-section">
-    <div class="quest-section-header">
-      <span class="quest-board-title">進行中のクエスト</span>
-      <span class="quest-board-sub">— 次回の録音で自動クリア判定</span>
-    </div>
+  <details class="fold-section">
+  <summary class="fold-summary">🏅 チャレンジ実績（{{ active_quests|length }}件進行中） <span class="fold-hint">練習すると自動で進みます — 選ぶ必要はありません</span></summary>
+  <div class="quest-section" style="margin-top:8px;padding-top:12px;border-top:none;">
     <div class="quest-scroll">
       {% for q in active_quests %}
       <div class="quest-item" data-cat="{{ q.category }}">
@@ -526,6 +607,7 @@
       {% endfor %}
     </div>
   </div>
+  </details>
 </div>
 {% endif %}
 

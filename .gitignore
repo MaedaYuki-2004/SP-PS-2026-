@@ -23,6 +23,7 @@ data/config/audio.scp
 # 練習履歴・クエスト進捗
 data/config/history.json
 data/config/quest_progress.json
+data/config/daily_lesson.json
 
 # お手本口形データ（録画から抽出したランドマーク）
 data/config/lip_refs.json
