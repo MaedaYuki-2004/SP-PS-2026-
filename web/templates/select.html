@@ -21,6 +21,24 @@
     .stat-num { font-family:var(--mono); font-size:17px; font-weight:500; color:#fff; }
     .stat-lbl { font-size:11px; color:rgba(255,255,255,.65); letter-spacing:.04em; font-weight:600; }
     .stat-item.streak-hot { background:rgba(255,179,64,.25); border-color:rgba(255,179,64,.4); }
+    .hero-main-row { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; position:relative; }
+    .hero-text-col { flex:1; min-width:0; }
+    .hero-score { text-align:center; flex-shrink:0; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); border-radius:var(--r-lg); padding:14px 22px 12px; backdrop-filter:blur(4px); }
+    .hero-score-num { font-family:var(--mono); font-size:42px; font-weight:500; color:#fff; line-height:1; }
+    .hero-score-unit { font-size:15px; color:rgba(255,255,255,.6); }
+    .hero-score-label { font-size:10.5px; font-weight:700; color:rgba(255,255,255,.75); margin-top:4px; letter-spacing:.04em; }
+    .hero-trend { font-family:var(--mono); font-size:10px; padding:1px 7px; border-radius:100px; margin-left:4px; }
+    .hero-trend.up   { background:rgba(43,217,165,.3); color:#7CF5D0; }
+    .hero-trend.down { background:rgba(255,122,85,.3); color:#FFB09A; }
+    .hero-weekly { margin-top:12px; padding:9px 14px; background:rgba(255,255,255,.09); border-radius:var(--r); font-size:11.5px; color:rgba(255,255,255,.75); position:relative; }
+    .hero-weekly b { color:#fff; font-weight:700; }
+    .hero-weekly .wk-up   { color:#7CF5D0; }
+    .hero-weekly .wk-down { color:#FFB09A; }
+    @media (max-width:700px) {
+      .hero-main-row { flex-direction:column; gap:10px; }
+      .hero-score { align-self:stretch; display:flex; align-items:baseline; justify-content:center; gap:10px; padding:10px 16px; }
+      .hero-score-num { font-size:30px; }
+    }
 
     /* ── Layout ── */
     .main-layout { display:block; max-width:1200px; margin:0 auto; padding:28px 32px 48px; }
@@ -287,7 +305,7 @@
   <a href="/" class="nav-brand">
     <span class="nav-brand-main">SP-PS</span>
     <span class="nav-divider"></span>
-    <span class="nav-brand-sub">発音評価システム</span>
+    <span class="nav-brand-sub">音×映像 発音トレーニング</span>
   </a>
   <div class="nav-actions">
     <a href="/history" class="nav-link">記録・分析</a>
@@ -311,16 +329,38 @@
 
 <div class="hero">
   <div class="hero-card">
-    <p class="hero-eyebrow" id="heroDate">SP-PS 発音練習</p>
-    <h1 class="hero-title" id="heroGreeting">今日も練習を始めよう</h1>
-    <p class="hero-sub">録音してネイティブ音声と比較し、スコアで確認できます</p>
+    <div class="hero-main-row">
+      <div class="hero-text-col">
+        <p class="hero-eyebrow" id="heroDate">SP-PS 発音練習</p>
+        <h1 class="hero-title" id="heroGreeting">今日も練習を始めよう</h1>
+        <p class="hero-sub">音声🎙 と 口の形👄 の両面から、あなたの発音を見える化します</p>
+      </div>
+      {% if overall %}
+      <div class="hero-score">
+        <div class="hero-score-num">{{ overall.score|int }}<span class="hero-score-unit">点</span></div>
+        <div class="hero-score-label">
+          総合発音力・{{ overall.level }}
+          {% if overall.trend is not none and overall.trend > 0 %}<span class="hero-trend up">▲{{ overall.trend }}</span>
+          {% elif overall.trend is not none and overall.trend < 0 %}<span class="hero-trend down">▼{{ overall.trend|abs }}</span>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
     <div class="hero-stats">
       {% set streak = stats.streak if stats else 0 %}
-      <div class="stat-item{% if streak >= 3 %} streak-hot{% endif %}"><span class="stat-num">{% if streak >= 3 %}🔥{% endif %}{{ streak }}</span><span class="stat-lbl">連続日数</span></div>
+      <div class="stat-item{% if streak >= 3 %} streak-hot{% endif %}" title="1日休んでも途切れません"><span class="stat-num">{% if streak >= 3 %}🔥{% endif %}{{ streak }}</span><span class="stat-lbl">連続日数</span></div>
       <div class="stat-item"><span class="stat-num">{{ stats.total_sessions if stats else 0 }}</span><span class="stat-lbl">総練習回数</span></div>
       <div class="stat-item"><span class="stat-num">{{ words|length }}</span><span class="stat-lbl">登録単語</span></div>
       <div class="stat-item"><span class="stat-num">{{ active_quests|length }}</span><span class="stat-lbl">クエスト</span></div>
     </div>
+    {% if weekly %}
+    <div class="hero-weekly">
+      📅 今週：<b>{{ weekly.sessions }}回</b>（{{ weekly.days }}日）練習
+      {% if weekly.avg is not none %} ・ 平均 <b>{{ weekly.avg|int }}点</b>{% endif %}
+      {% if weekly.delta is not none %} ・ 先週比 <b class="{{ 'wk-up' if weekly.delta >= 0 else 'wk-down' }}">{{ '+' if weekly.delta >= 0 }}{{ weekly.delta }}点</b>{% endif %}
+      {% if weekly.improved_sound %} ・ 一番伸びた音 <b>「{{ weekly.improved_sound.kana }}」+{{ weekly.improved_sound.gain|int }}点</b> 👏{% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 <script>

@@ -27,6 +27,19 @@
     .section-panel { display:none; padding:24px 32px; max-width:1040px; margin:0 auto; }
     .section-panel.active { display:block; }
     .panel-heading { font-size:17px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+
+    /* ── 良かった点バー（褒め優先） ── */
+    .praise-bar { display:flex; align-items:flex-start; gap:12px; margin:14px 0 18px; padding:14px 18px; border-radius:var(--r); background:var(--green-bg); border:1px solid var(--green); }
+    .praise-icon { font-size:24px; line-height:1.2; flex-shrink:0; }
+    .praise-text { font-size:13px; color:var(--text-2); line-height:1.7; }
+    .praise-text b { color:var(--green); }
+
+    /* ── 紙吹雪 ── */
+    .confetti-piece { position:fixed; top:-20px; z-index:999; font-size:18px; pointer-events:none; animation:confetti-fall linear forwards; }
+    @keyframes confetti-fall {
+      0%   { transform:translateY(0) rotate(0deg); opacity:1; }
+      100% { transform:translateY(105vh) rotate(720deg); opacity:.5; }
+    }
     .panel-sub { font-size:12px; color:var(--text-3); margin-bottom:20px; }
 
     .chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:20px; box-shadow:var(--shadow-xs); margin-bottom:14px; }
@@ -287,7 +300,24 @@
 
   {% elif score %}
   <p class="panel-heading">発音スコア</p>
-  <p class="panel-sub">アクセント・長さ・母音品質の3軸で評価しています</p>
+  <p class="panel-sub">音声🎙（アクセント・長さ）と口の形👄（母音品質）の両面から評価しています</p>
+
+  {# ── 良かった点を最初に表示（褒める→直すの順） ── #}
+  {% set _pa = (score.accent_score/50*100)|round|int %}
+  {% set _pl = (score.length_score/30*100)|round|int %}
+  {% set _pv = (score.vowel_score/20*100)|round|int %}
+  {% set _axes = [('アクセント', _pa, '🎵'), ('長さ・リズム', _pl, '⏱'), ('母音（口の形）', _pv, '👄')] %}
+  {% set _best = _axes | sort(attribute='1', reverse=true) | first %}
+  <div class="praise-bar">
+    <span class="praise-icon">👏</span>
+    <span class="praise-text">
+      <b>{{ _best[2] }} {{ _best[0] }}が {{ _best[1] }}% — 今回の一番の強みです！</b>
+      {% if score_delta and score_delta.startswith('+') %}
+      前回から <b>{{ score_delta }}点</b> アップしました。
+      {% endif %}
+      {% if score.grade in ('S','A') %}この調子で仕上げていきましょう。{% else %}良いところは保ちつつ、下の弱点を1つずつ直しましょう。{% endif %}
+    </span>
+  </div>
 
   <div class="score-layout">
     <div class="score-hero">
@@ -1149,6 +1179,29 @@ function setCmpSpeed(speed, btn) {
 
 /* ── 最終練習時刻を記録（通知リマインダー用） ── */
 localStorage.setItem('sp-ps-last-practice', String(Date.now()));
+</script>
+<script>
+// ── 好成績の完了演出（紙吹雪） ──
+(function() {
+  const grade = {{ (score.grade if score else '') | tojson }};
+  const delta = {{ (score_delta or '') | tojson }};
+  const isGreat = grade === 'S' || grade === 'A' || (delta && delta.startsWith('+') && parseFloat(delta) >= 8);
+  if (!isGreat) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const emojis = grade === 'S' ? ['🎉','⭐','🏆','✨'] : ['🎉','✨','👏'];
+  for (let i = 0; i < 26; i++) {
+    const el = document.createElement('span');
+    el.className = 'confetti-piece';
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.animationDuration = (2 + Math.random() * 2.5) + 's';
+    el.style.animationDelay = (Math.random() * 0.8) + 's';
+    el.style.fontSize = (13 + Math.random() * 14) + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 6000);
+  }
+})();
 </script>
 <script src="/static/js/tabbar.js" defer></script>
 </body>

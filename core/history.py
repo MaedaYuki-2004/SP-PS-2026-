@@ -123,32 +123,145 @@ def get_spaced_repetition_candidates(
 
 
 def get_streak() -> int:
-    """現在の連続練習日数を返す（今日or昨日から連続している日数）。"""
+    """現在の連続練習日数を返す（ソフトストリーク方式）。
+
+    Duolingo のストリークフリーズと同様の効果を狙い、
+    1日だけの空きはストリークを途切れさせない（橋渡しする）。
+    カウントされるのは実際に練習した日数のみ。
+    """
+    from datetime import timedelta
     history = load_history()
     if not history:
         return 0
-    from collections import OrderedDict
-    dates = OrderedDict()
+
+    dates: set = set()
     for r in history:
         ts = r.get("timestamp", "")[:10]
         if ts:
-            dates[ts] = True
-    sorted_dates = sorted(dates.keys(), reverse=True)
-    if not sorted_dates:
+            dates.add(ts)
+    if not dates:
         return 0
+
     today = datetime.now().date()
-    streak = 0
-    for i, d in enumerate(sorted_dates):
+    date_objs = set()
+    for d in dates:
         try:
-            dt = datetime.fromisoformat(d).date()
+            date_objs.add(datetime.fromisoformat(d).date())
         except Exception:
             continue
-        expected = today - __import__("datetime").timedelta(days=i)
-        if dt == expected:
+
+    # 今日か昨日に練習していなければストリークなし
+    # （昨日までの場合も1日ブリッジで今日はまだセーフ）
+    if today not in date_objs and (today - timedelta(days=1)) not in date_objs \
+            and (today - timedelta(days=2)) not in date_objs:
+        return 0
+
+    streak  = 0
+    gap     = 0
+    cursor  = today
+    while True:
+        if cursor in date_objs:
             streak += 1
+            gap = 0
         else:
+            gap += 1
+            if gap > 1:   # 2日以上の空白で終了（1日はブリッジ）
+                break
+        cursor -= timedelta(days=1)
+        if streak > 3650:
             break
     return streak
+
+
+def get_overall_score() -> dict | None:
+    """総合発音力スコアを返す（ELSA Score 方式）。
+
+    直近30回の加重平均（新しいほど重い）でスコアを算出し、
+    レベルラベルと直近のトレンド（前半 vs 後半の差）を添える。
+    """
+    history = load_history()
+    totals  = [float(r["total"]) for r in history[:30] if r.get("total") is not None]
+    if len(totals) < 3:
+        return None
+
+    # 加重平均: 最新レコードの重みを大きく
+    weights = [1.0 / (1.0 + i * 0.1) for i in range(len(totals))]
+    score   = sum(t * w for t, w in zip(totals, weights)) / sum(weights)
+
+    if score >= 90:   level = "達人"
+    elif score >= 80: level = "上級"
+    elif score >= 65: level = "中級"
+    elif score >= 50: level = "初中級"
+    else:             level = "基礎"
+
+    # トレンド: 直近10回 vs その前10回
+    trend = None
+    if len(totals) >= 10:
+        recent = sum(totals[:5])  / 5
+        prev   = sum(totals[5:10]) / 5
+        trend  = round(recent - prev, 1)
+
+    return {"score": round(score, 1), "level": level, "trend": trend}
+
+
+def get_weekly_report() -> dict | None:
+    """今週（直近7日）の練習サマリーを返す。
+
+    Returns: {sessions, days, avg, delta_vs_prev_week, improved_sound}
+    """
+    from datetime import timedelta
+    history = load_history()
+    if not history:
+        return None
+
+    now        = datetime.now()
+    week_ago   = now - timedelta(days=7)
+    two_weeks  = now - timedelta(days=14)
+
+    this_week, prev_week = [], []
+    for r in history:
+        try:
+            ts = datetime.fromisoformat(r.get("timestamp", ""))
+        except Exception:
+            continue
+        if ts >= week_ago:
+            this_week.append(r)
+        elif ts >= two_weeks:
+            prev_week.append(r)
+
+    if not this_week:
+        return None
+
+    tw_totals = [float(r["total"]) for r in this_week if r.get("total") is not None]
+    pw_totals = [float(r["total"]) for r in prev_week if r.get("total") is not None]
+    avg   = round(sum(tw_totals) / len(tw_totals), 1) if tw_totals else None
+    delta = round(avg - sum(pw_totals) / len(pw_totals), 1) if (avg is not None and pw_totals) else None
+    days  = len({r.get("timestamp", "")[:10] for r in this_week})
+
+    # 一番伸びた音: 今週 vs それ以前のモーラ別平均を比較
+    improved_sound = None
+    try:
+        def _mora_avgs(records):
+            agg: dict[str, list[float]] = {}
+            for r in records:
+                for m in r.get("mora_scores", []):
+                    k, t = m.get("kana", ""), m.get("total")
+                    if k and k not in ("ん", "っ", "ー") and t is not None:
+                        agg.setdefault(k, []).append(float(t))
+            return {k: sum(v) / len(v) for k, v in agg.items() if len(v) >= 2}
+
+        tw_avg = _mora_avgs(this_week)
+        base_avg = _mora_avgs(prev_week + history[len(this_week) + len(prev_week):])
+        gains = [(k, tw_avg[k] - base_avg[k]) for k in tw_avg if k in base_avg]
+        gains = [(k, g) for k, g in gains if g > 3]
+        if gains:
+            k, g = max(gains, key=lambda x: x[1])
+            improved_sound = {"kana": k, "gain": round(g, 1)}
+    except Exception:
+        pass
+
+    return {"sessions": len(this_week), "days": days, "avg": avg,
+            "delta": delta, "improved_sound": improved_sound}
 
 
 def get_word_recent_scores(limit: int = 5) -> dict[str, list[float]]:

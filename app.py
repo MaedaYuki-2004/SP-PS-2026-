@@ -44,7 +44,7 @@ from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_score
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
-from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_word_recent_scores
+from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_word_recent_scores, get_overall_score, get_weekly_report
 from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
@@ -689,7 +689,8 @@ def select():
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
                            word_scores=word_scores, weak_sounds=weak_sounds,
-                           lesson=lesson)
+                           lesson=lesson,
+                           overall=get_overall_score(), weekly=get_weekly_report())
 
 
 def _get_daily_lesson_safe(words: list[dict]) -> dict | None:
@@ -736,7 +737,8 @@ def select_page():
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
                            word_scores=word_scores, weak_sounds=weak_sounds,
-                           lesson=lesson)
+                           lesson=lesson,
+                           overall=get_overall_score(), weekly=get_weekly_report())
 
 
 @app.route("/history")
