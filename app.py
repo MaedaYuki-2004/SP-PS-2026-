@@ -157,11 +157,18 @@ def _extract_lip_data(video_path: str, max_frames: int = 50) -> tuple[list[list[
 
 
 def _compute_lip_score(reference_vectors, test_vectors):
+    """唇形状ベクトル列の DTW 距離からスコアを算出する。
+
+    DTW 距離はフレーム数に比例して増えるため、経路長で正規化して
+    録画の長さに依存しないスコアにする（1ステップあたりの平均距離）。
+    """
     if not reference_vectors or not test_vectors:
         raise ValueError("お手本とテストの両方が必要です。")
-    distance, _ = fastdtw(reference_vectors, test_vectors, dist=euclidean)
-    score = int(100 - distance * 2)
-    return max(0, min(100, score)), distance
+    distance, path = fastdtw(reference_vectors, test_vectors, dist=euclidean)
+    per_step = distance / max(1, len(path))
+    # per_step の目安: 0.05=ほぼ一致 / 0.15=近い / 0.3以上=大きく異なる
+    score = int(round(100 - per_step * 200))
+    return max(0, min(100, score)), round(per_step, 4)
 
 
 # ── モーラ別 口の開き具合の分析 ──────────────────────────────────────────

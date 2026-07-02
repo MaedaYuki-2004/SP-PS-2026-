@@ -50,10 +50,14 @@ _CACHE_PATH = Path(__file__).parent.parent / "data" / "config" / "formant_cache.
 
 
 def _cache_key(sound_file: str, max_formant: float) -> str:
-    """ファイルパス・更新時刻・max_formant からキャッシュキーを生成する。"""
+    """ファイルパス・更新時刻・max_formant からキャッシュキーを生成する。
+
+    末尾の "v2" は抽出ロジックのバージョン。妥当性フィルタ導入（v2）で
+    旧キャッシュを無効化するために付与している。
+    """
     p = Path(sound_file)
     mtime = str(p.stat().st_mtime) if p.exists() else "0"
-    raw = f"{sound_file}:{max_formant}:{mtime}"
+    raw = f"{sound_file}:{max_formant}:{mtime}:v2"
     return hashlib.md5(raw.encode()).hexdigest()
 
 
@@ -178,30 +182,32 @@ def extract_mora_formants(
         label    = str(mora_info[2])
         duration = end - start
 
-        f1_vals: list[float] = []
-        f2_vals: list[float] = []
-
+        # F1/F2 をペアで収集し、母音としてあり得ない測定値を除外する。
+        # 子音の渡り部分・オクターブ誤検出などのノイズ対策。
+        pairs: list[tuple[float, float]] = []
         for ratio in _SAMPLE_RATIOS:
             t = start + duration * ratio
             t = max(snd.start_time, min(snd.end_time, t))
             f1, f2 = _get_formant_at_time(formant, t)
-            if f1 is not None:
-                f1_vals.append(f1)
-            if f2 is not None:
-                f2_vals.append(f2)
+            if f1 is None or f2 is None:
+                continue
+            if not (150.0 <= f1 <= 1200.0 and 400.0 <= f2 <= 3500.0 and f2 > f1 + 150.0):
+                continue
+            pairs.append((f1, f2))
 
-        f1_mean = float(np.mean(f1_vals)) if f1_vals else None
-        f2_mean = float(np.mean(f2_vals)) if f2_vals else None
+        # 平均ではなく中央値（外れ値1点の影響を抑える）
+        f1_med = float(np.median([p[0] for p in pairs])) if pairs else None
+        f2_med = float(np.median([p[1] for p in pairs])) if pairs else None
 
         results.append({
             "label":        label,
             "start":        start,
             "end":          end,
             "center":       start + duration * 0.5,
-            "f1":           f1_mean,
-            "f2":           f2_mean,
-            "f1_n_samples": len(f1_vals),
-            "f2_n_samples": len(f2_vals),
+            "f1":           f1_med,
+            "f2":           f2_med,
+            "f1_n_samples": len(pairs),
+            "f2_n_samples": len(pairs),
         })
 
     if use_cache:
@@ -234,12 +240,30 @@ def calc_vowel_score(
     【サンプル数重み付け】
     有効サンプル数が少ないモーラほど距離計算への影響を下げる。
     """
-    # ── 性別補正係数を決定 ────────────────────────────────────────
-    correction, gender_note = _calc_correction(
-        pitch_ceiling_native, pitch_ceiling_user
-    )
+    n = min(len(native_formants), len(user_formants))
 
-    n           = min(len(native_formants), len(user_formants))
+    # ── 話者スケール補正（連続値） ────────────────────────────────
+    # 性別の2値判定をやめ、この録音ペア自体からスケール係数を推定する。
+    # 同じ母音同士の F1/F2 比（user/native）の中央値 ≒ 声道長の違い。
+    # これにより境界上の話者で補正が ON/OFF に切り替わる問題を解消する。
+    _ratios: list[float] = []
+    for _i in range(n):
+        _na, _us = native_formants[_i], user_formants[_i]
+        if not _has_vowel(_na.get("label", "")):
+            continue
+        for _k in ("f1", "f2"):
+            _nf, _uf = _na.get(_k), _us.get(_k)
+            if _nf and _uf and _nf > 0:
+                _ratios.append(_uf / _nf)
+
+    if len(_ratios) >= 2:
+        correction  = float(np.clip(np.median(_ratios), 0.80, 1.25))
+        gender_note = "（話者差補正済み）" if abs(correction - 1.0) > 0.03 else ""
+    else:
+        # データ不足時は従来の性別ベース補正にフォールバック
+        correction, gender_note = _calc_correction(
+            pitch_ceiling_native, pitch_ceiling_user
+        )
     distances:  list[float] = []
     weights:    list[float] = []
     mora_dists: list[tuple[float, str]] = []

@@ -458,6 +458,21 @@ def calc_accent_score(
     else:
         raw = nucleus_sc * 0.60 + hl_score * 0.40
 
+    # ── 平坦ピッチゲート ──────────────────────────────────────────
+    # ユーザーのピッチがほぼ動いていない場合、パーセンタイル分割の
+    # H/L 分類は偶然一致で得点してしまう。有声フレームのレンジ
+    # （P90 − P10）が 1.5 半音未満なら「平坦」と判定し、スコアに
+    # 上限を設けて専用フィードバックを返す。
+    flat_range = None
+    if pitch_user_raw is not None:
+        _arr_u = np.array(pitch_user_raw, dtype=float)
+        _vu    = _arr_u[~np.isnan(_arr_u)]
+        if len(_vu) >= 10:
+            flat_range = float(np.percentile(_vu, 90) - np.percentile(_vu, 10))
+    is_flat = flat_range is not None and flat_range < 1.5
+    if is_flat:
+        raw = min(raw, 25.0)
+
     final_score = round(min(60.0, max(0.0, raw)), 1)
 
     # フィードバック生成
@@ -468,7 +483,13 @@ def calc_accent_score(
             pitch_user_raw, mora_values, n_mora, variance_threshold=2.0
         )
 
-    if final_score >= 48:
+    if is_flat:
+        feedback = (
+            f"声の高さがほぼ一定です（変化 {flat_range:.1f}半音）。"
+            f"ピッチ比較グラフを見ながら、高い拍と低い拍の差を"
+            f"大げさにつける練習から始めましょう。"
+        )
+    elif final_score >= 48:
         feedback = f"アクセント（{_accent_label(accent)}）が正確に発音できています！"
     elif unstable is not None and stability_sc is not None and stability_sc < 30:
         mora_idx, _ = unstable
