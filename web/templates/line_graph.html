@@ -493,66 +493,6 @@
   <div class="feedback-card"><div class="feedback-text">スコアを計算できませんでした。</div></div>
   {% endif %}
 
-  {% if newly_completed %}
-  <div style="margin-top:16px;">
-    {% for q in newly_completed %}
-    <div class="quest-clear-banner">
-      <div class="quest-clear-check"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3.5 3.5 5.5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <div><span class="quest-clear-badge">Quest Clear</span><div class="quest-clear-title">{{ q.title }}</div><div class="quest-clear-sub">目標 {{ q.target_value|int }}点 を達成。次のクエストが発行されました。</div></div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {% if active_quests %}
-  <div class="quests-header"><span class="quests-sec-title">進行中のクエスト</span><span style="font-size:11px;color:var(--text-3);">次回の録音で自動クリア判定</span></div>
-  <div class="quest-cards-grid">
-    {% for q in active_quests %}
-    {% if q.category == "mouth" %}
-      {% set cur = q.progress_count %}
-      {% set pct = ((q.progress_count / q.target_value * 100) if q.target_value else 0)|round|int %}
-      {% set pct = [[pct,0]|max,100]|min %}
-    {% elif q.category == "sound" %}
-      {% set cur = q.progress_count if q.progress_count else q.start_value %}
-      {% set span=(q.target_value-q.start_value) %}
-      {% if span>0 %}{% set _raw=((cur-q.start_value)/span*100)|round|int %}{% set _raw=[_raw,0]|max %}{% set pct=[_raw,100]|min %}{% else %}{% set pct=100 %}{% endif %}
-    {% elif score %}
-      {% if q.target_metric=="accent_score" %}{% set cur=score.accent_score %}
-      {% elif q.target_metric=="length_score" %}{% set cur=score.length_score %}
-      {% elif q.target_metric=="vowel_score"  %}{% set cur=score.vowel_score %}
-      {% else %}{% set cur=score.total %}{% endif %}
-      {% set span=(q.target_value-q.start_value) %}
-      {% if span>0 %}{% set _raw=((cur-q.start_value)/span*100)|round|int %}{% set _raw=[_raw,0]|max %}{% set pct=[_raw,100]|min %}{% else %}{% set pct=100 %}{% endif %}
-    {% else %}{% set cur=q.start_value %}{% set pct=0 %}{% endif %}
-    <div class="quest-card" data-cat="{{ q.category }}">
-      <div class="quest-card-body">
-        <div class="quest-card-top">
-          <div class="quest-card-title">{{ q.title }}</div>
-          <span class="cat-badge cat-{{ q.category }}">
-            {% if q.category=="accent" %}Ac{% elif q.category=="length" %}Le{% elif q.category=="vowel" %}Vo{% elif q.category=="review" %}復習{% elif q.category=="sound" %}音{% elif q.category=="mouth" %}口{% else %}All{% endif %}
-          </span>
-        </div>
-        <div class="quest-card-desc">{{ q.description }}</div>
-        <div class="quest-hint-bar">{{ q.hint }}</div>
-        {% if q.category == "mouth" %}
-        <div class="quest-progress-meta"><span class="quest-progress-vals">{{ cur|int }} / {{ q.target_value|int }} 回 完走</span><span class="quest-progress-pct">{{ pct }}%</span></div>
-        {% else %}
-        <div class="quest-progress-meta"><span class="quest-progress-vals">{{ cur|round(1) }}点 / {{ q.target_value|int }}点</span><span class="quest-progress-pct">{{ pct }}%</span></div>
-        {% endif %}
-        <div class="progress-bar"><div class="progress-fill" style="width:{{ pct }}%;"></div></div>
-      </div>
-      <div class="quest-card-footer">
-        <span class="diff-badge diff-{{ q.difficulty }}">{% if q.difficulty=="easy" %}初級{% elif q.difficulty=="normal" %}中級{% else %}上級{% endif %}</span>
-        {% if q.category == "mouth" and q.word_id %}
-        <a href="/vowel_trainer/{{ q.word_id }}" class="btn btn-sm btn-quest" style="text-decoration:none;">口の形を練習</a>
-        {% else %}
-        <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ q.word_id }}"><button type="submit" class="btn btn-sm btn-quest">再練習</button></form>
-        {% endif %}
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
 
   {% if suggestions %}
   <div class="suggestions-section">

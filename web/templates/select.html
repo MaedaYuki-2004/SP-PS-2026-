@@ -352,7 +352,6 @@
       <div class="stat-item{% if streak >= 3 %} streak-hot{% endif %}" title="1日休んでも途切れません"><span class="stat-num">{% if streak >= 3 %}🔥{% endif %}{{ streak }}</span><span class="stat-lbl">連続日数</span></div>
       <div class="stat-item"><span class="stat-num">{{ stats.total_sessions if stats else 0 }}</span><span class="stat-lbl">総練習回数</span></div>
       <div class="stat-item"><span class="stat-num">{{ words|length }}</span><span class="stat-lbl">登録単語</span></div>
-      <div class="stat-item"><span class="stat-num">{{ active_quests|length }}</span><span class="stat-lbl">クエスト</span></div>
     </div>
     {% if weekly %}
     <div class="hero-weekly">
@@ -588,71 +587,6 @@
 
 </div>
 
-{% if active_quests %}
-<div class="main-layout" style="padding-top:0;">
-  <details class="fold-section">
-  <summary class="fold-summary">🏅 チャレンジ実績（{{ active_quests|length }}件進行中） <span class="fold-hint">練習すると自動で進みます — 選ぶ必要はありません</span></summary>
-  <div class="quest-section" style="margin-top:8px;padding-top:12px;border-top:none;">
-    <div class="quest-scroll">
-      {% for q in active_quests %}
-      <div class="quest-item" data-cat="{{ q.category }}">
-        <div class="quest-item-body">
-          <div class="quest-item-top">
-            <div class="quest-item-title">{{ q.title }}</div>
-            <span class="cat-badge cat-{{ q.category }}">
-              {% if q.category=="accent" %}Ac{% elif q.category=="length" %}Le{% elif q.category=="vowel" %}Vo{% elif q.category=="sound" %}音{% elif q.category=="mouth" %}口{% else %}All{% endif %}
-            </span>
-          </div>
-          <div class="quest-item-word">対象<span>{% if q.target_sound %}「{{ q.target_sound }}」{% if q.word_display %}（{{ q.word_display }} など）{% endif %}{% else %}{{ q.word_display or q.word_id }}{% endif %}</span></div>
-          <div class="quest-item-desc">{{ q.description }}</div>
-          <div class="quest-hint-mini" style="font-size:10px;color:var(--text-3);line-height:1.8;background:var(--bg-muted);border-left:2px solid var(--navy);padding:7px 10px;border-radius:0 var(--r-xs) var(--r-xs) 0;margin-bottom:8px;white-space:pre-line;">{{ q.hint }}</div>
-          {% if q.category == "mouth" %}
-          <div class="quest-progress-meta">
-            <span>{{ q.progress_count|int }} / {{ q.target_value|int }} 回 完走</span>
-            <span class="quest-progress-pct">{{ ((q.progress_count / q.target_value * 100) if q.target_value else 0)|round|int }}%</span>
-          </div>
-          <div class="progress-bar">
-            {% set _p = ((q.progress_count / q.target_value * 100) if q.target_value else 0)|round|int %}
-            <div class="progress-fill" style="width:{{ [[_p,0]|max,100]|min }}%;"></div>
-          </div>
-          {% else %}
-          <div class="quest-progress-meta">
-            <span>{{ q.start_value|round(1) }}点 → {{ q.target_value|int }}点</span>
-            <span class="quest-progress-pct">
-              {% set span = q.target_value - q.start_value %}
-              {% if span > 0 %}{{ [(q.start_value / q.target_value * 100)|round|int, 0]|max }}%
-              {% else %}100%{% endif %}
-            </span>
-          </div>
-          <div class="progress-bar">
-            {% if q.target_value > 0 %}{% set _p = (q.start_value / q.target_value * 100)|round|int %}{% set _p = [_p, 0]|max %}{% set _p = [_p, 100]|min %}{% else %}{% set _p = 0 %}{% endif %}
-            <div class="progress-fill" style="width:{{ _p }}%;"></div>
-          </div>
-          {% endif %}
-        </div>
-        <div class="quest-item-footer">
-          {% if q.category == "mouth" and q.word_id %}
-          <a href="/vowel_trainer/{{ q.word_id }}" class="quest-practice-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-            口の形を練習する
-            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </a>
-          {% else %}
-          <form action="/" method="post">
-            <input type="hidden" name="Words" value="{{ q.word_id }}">
-            <button type="submit" class="quest-practice-btn">
-              練習する
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </form>
-          {% endif %}
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  </details>
-</div>
-{% endif %}
 
 <script>
 const _WORD_SCORES = {{ word_scores | tojson }};

@@ -43,7 +43,6 @@ from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_ar
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import audio_mfcc, dtw_ascending_order
-from core.quest     import check_and_update_quests, load_active_quests
 from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_word_recent_scores, get_overall_score, get_weekly_report
 from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
 from core.analysis  import compute_learning_stats
@@ -69,14 +68,6 @@ def ensure_directories() -> None:
     if not WORD_ID_MEMO_PATH.exists():
         WORD_ID_MEMO_PATH.touch()
 
-
-def _enrich_quests(quests, word_map: dict) -> list[dict]:
-    result = []
-    for q in quests:
-        d = q.to_dict() if hasattr(q, "to_dict") else dict(q)
-        d["word_display"] = word_map.get(d.get("word_id", ""), {}).get("display", d.get("word_id", ""))
-        result.append(d)
-    return result
 
 _face_mesh = None
 
@@ -675,7 +666,6 @@ def select():
     words    = list_words()
     word_map = {w["word_id"]: w for w in words}
     stats    = get_stats()
-    quests   = _enrich_quests(load_active_quests(), word_map)
     accent_patterns = {
         w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
         for w in words
@@ -685,7 +675,7 @@ def select():
     word_scores  = get_word_recent_scores(limit=5)
     weak_sounds  = _get_weak_sound_cards(words)
     lesson       = _get_daily_lesson_safe(words)
-    return render_template("select.html", words=words, active_quests=quests,
+    return render_template("select.html", words=words,
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
                            word_scores=word_scores, weak_sounds=weak_sounds,
@@ -723,7 +713,6 @@ def select_page():
     words    = list_words()
     word_map = {w["word_id"]: w for w in words}
     stats    = get_stats()
-    quests   = _enrich_quests(load_active_quests(), word_map)
     accent_patterns = {
         w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
         for w in words
@@ -733,7 +722,7 @@ def select_page():
     word_scores  = get_word_recent_scores(limit=5)
     weak_sounds  = _get_weak_sound_cards(words)
     lesson       = _get_daily_lesson_safe(words)
-    return render_template("select.html", words=words, active_quests=quests,
+    return render_template("select.html", words=words,
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
                            word_scores=word_scores, weak_sounds=weak_sounds,
@@ -1136,31 +1125,21 @@ def listening_quiz():
 
 @app.route('/api/vowel_trainer/complete', methods=['POST'])
 def api_vowel_trainer_complete():
-    """母音トレーナー完走を記録し、口の形クエストの進捗を更新する。"""
+    """母音トレーナー完走を記録し、今日のレッスンの進捗を更新する。"""
     try:
-        from core.quest import record_vowel_trainer_completion
         data    = request.get_json(force=True, silent=True) or {}
         word_id = (data.get("word_id") or "").strip()
         if not word_id:
             return jsonify({"error": "word_id がありません"}), 400
 
-        word_entry = get_word(word_id)
-        reading    = (word_entry or {}).get("reading", "")
-        vowels = {mv["vowel"] for mv in _get_mora_vowels(reading) if mv.get("vowel")}
-
-        completed = record_vowel_trainer_completion(word_id, vowels)
-
-        # 今日のレッスンの mouth ステップにも反映
+        # 今日のレッスンの mouth ステップに反映
         try:
             from core.lesson import mark_mouth_done
             mark_mouth_done(word_id)
         except Exception:
             pass
 
-        return jsonify({
-            "ok": True,
-            "completed_quests": [q.title for q in completed],
-        })
+        return jsonify({"ok": True, "completed_quests": []})
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
@@ -1412,7 +1391,6 @@ def audio_analysis():
                                    julius_score=julius_score,
                                    voice_quality={"jitter":None,"shimmer":None,"feedback":None},
                                    speaking_rate=0.0, rate_feedback=None,
-                                   newly_completed=[], active_quests=_enrich_quests(load_active_quests(), word_map),
                                    score_delta=None, suggestions=[],
                                    mora_scores=[], worst_mora=None, ci_info=None,
                                    lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios)
@@ -1527,14 +1505,6 @@ def audio_analysis():
         except Exception:
             pass
 
-        try:
-            newly_completed_raw, _, active_raw = check_and_update_quests(score_result, word_id)
-            newly_completed = _enrich_quests(newly_completed_raw, word_map)
-            active_quests   = _enrich_quests(active_raw, word_map)
-        except Exception:
-            newly_completed = []
-            active_quests   = _enrich_quests(load_active_quests(), word_map)
-
         suggestions = _get_suggestions(word_id, score_result, words_list)
 
         return render_template("line_graph.html", **common_kwargs,
@@ -1542,7 +1512,6 @@ def audio_analysis():
                                alignment_failed=False, julius_score=julius_score,
                                voice_quality=voice_quality,
                                speaking_rate=user_rate, rate_feedback=rate_feedback,
-                               newly_completed=newly_completed, active_quests=active_quests,
                                score_delta=score_delta, suggestions=suggestions,
                                mora_scores=mora_scores, worst_mora=worst_mora,
                                ci_info=ci_info,
