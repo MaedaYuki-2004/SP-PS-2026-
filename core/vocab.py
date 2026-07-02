@@ -234,6 +234,17 @@ def get_all_tags() -> list[str]:
     return sorted(tags)
 
 
+def update_word_note(word_id: str, note: str) -> dict:
+    """単語の発音メモを更新する。"""
+    db    = load_db()
+    entry = db.get(word_id)
+    if not entry:
+        raise ValueError(f"{word_id} は登録されていません")
+    db[word_id]["note"] = note.strip()
+    save_db(db)
+    return {"message": f"{entry['display']} のメモを更新しました"}
+
+
 def update_word(word_id: str, display: str, reading: str, accent) -> dict:
     """
     単語の表示テキスト・読み・アクセント型を更新する。

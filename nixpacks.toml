@@ -1,0 +1,12 @@
+[phases.setup]
+# MeCab: 日本語形態素解析（アクセント型取得）
+# ffmpeg: 音声ファイル変換（pydub依存）
+# julius: 音声アライメント（利用可能な場合のみ機能する）
+aptPkgs = ["mecab", "libmecab-dev", "mecab-ipadic-utf8", "ffmpeg", "julius"]
+
+[phases.build]
+# unidic 辞書をビルド時に事前ダウンロード（~80MB、毎起動時を避けるため）
+cmds = ["pip install -r requirements.txt", "python -m unidic download"]
+
+[start]
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120"

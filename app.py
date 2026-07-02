@@ -37,14 +37,14 @@ from config import (
     TEST_WAV_PATH, WORD_ID_MEMO_PATH,
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
-from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags
+from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags, update_word_note
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
-from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts
+from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_word_recent_scores
 from core.utils     import pct_length, sleep_second
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
@@ -559,6 +559,42 @@ def _get_reference_pitch_data(word_id: str) -> dict:
 
 _SMALL_KANA = set('ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ')
 
+# モーラ → 母音 対応表
+_MORA_VOWEL_MAP: dict[str, str | None] = {
+    'あ':'あ','い':'い','う':'う','え':'え','お':'お',
+    'か':'あ','き':'い','く':'う','け':'え','こ':'お',
+    'さ':'あ','し':'い','す':'う','せ':'え','そ':'お',
+    'た':'あ','ち':'い','つ':'う','て':'え','と':'お',
+    'な':'あ','に':'い','ぬ':'う','ね':'え','の':'お',
+    'は':'あ','ひ':'い','ふ':'う','へ':'え','ほ':'お',
+    'ま':'あ','み':'い','む':'う','め':'え','も':'お',
+    'や':'あ','ゆ':'う','よ':'お',
+    'ら':'あ','り':'い','る':'う','れ':'え','ろ':'お',
+    'わ':'あ','を':'お',
+    'が':'あ','ぎ':'い','ぐ':'う','げ':'え','ご':'お',
+    'ざ':'あ','じ':'い','ず':'う','ぜ':'え','ぞ':'お',
+    'だ':'あ','ぢ':'い','づ':'う','で':'え','ど':'お',
+    'ば':'あ','び':'い','ぶ':'う','べ':'え','ぼ':'お',
+    'ぱ':'あ','ぴ':'い','ぷ':'う','ぺ':'え','ぽ':'お',
+    'ゃ':'あ','ゅ':'う','ょ':'お',
+    'ん': None, 'っ': None,
+}
+
+def _get_mora_vowels(reading: str) -> list[dict]:
+    """各モーラとその母音を [{mora, vowel, skip}] で返す。"""
+    morae = _split_moras(reading)
+    result = []
+    prev_vowel = 'あ'
+    for mora in morae:
+        ch = mora[-1] if mora[-1] in 'ゃゅょ' else mora[0]
+        vowel = _MORA_VOWEL_MAP.get(ch)
+        if mora[0] == 'ー':
+            vowel = prev_vowel
+        if vowel:
+            prev_vowel = vowel
+        result.append({'mora': mora, 'vowel': vowel, 'skip': vowel is None})
+    return result
+
 def _mora_count(reading: str) -> int:
     return max(1, sum(1 for c in reading if c not in _SMALL_KANA))
 
@@ -645,10 +681,12 @@ def select():
         for w in words
     }
     lip_ref_keys = set(load_lip_refs().keys())
-    all_tags = get_all_tags()
+    all_tags     = get_all_tags()
+    word_scores  = get_word_recent_scores(limit=5)
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
-                           lip_ref_keys=lip_ref_keys, all_tags=all_tags)
+                           lip_ref_keys=lip_ref_keys, all_tags=all_tags,
+                           word_scores=word_scores)
 
 
 @app.route("/select")
@@ -663,9 +701,11 @@ def select_page():
     }
     lip_ref_keys = set(load_lip_refs().keys())
     all_tags     = get_all_tags()
+    word_scores  = get_word_recent_scores(limit=5)
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
-                           lip_ref_keys=lip_ref_keys, all_tags=all_tags)
+                           lip_ref_keys=lip_ref_keys, all_tags=all_tags,
+                           word_scores=word_scores)
 
 
 @app.route("/history")
@@ -1387,6 +1427,53 @@ def api_update_word():
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/vowel_trainer/<word_id>")
+def vowel_trainer(word_id: str):
+    """母音形練習ページ。"""
+    word_entry = get_word(word_id)
+    if not word_entry:
+        return redirect("/select")
+    reading    = word_entry.get("reading", "")
+    display    = word_entry.get("display", reading)
+    mora_vowels = _get_mora_vowels(reading)
+    return render_template("vowel_trainer.html",
+                           word_id=word_id, display=display,
+                           reading=reading, mora_vowels=mora_vowels)
+
+
+@app.route("/practice/word/<word_id>")
+def practice_word(word_id: str):
+    """連続練習モード用：GET で単語練習画面に直接遷移する。"""
+    word_entry = get_word(word_id)
+    if not word_entry:
+        return redirect("/select")
+    reading    = word_entry.get("reading", "")
+    display    = word_entry.get("display", reading)
+    WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
+    (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
+    accent_val = word_entry.get("accent")
+    hl_list          = _accent_pattern_for_word(accent_val, reading)
+    mora_labels_list = _split_moras(reading)
+    accent_hl        = [{"label": l, "hl": h} for l, h in zip(mora_labels_list, hl_list)]
+    ref_preview      = _get_reference_pitch_data(word_id)
+    return render_template("audio.html", test=reading, display=display, word_id=word_id,
+                           ref_preview=ref_preview, accent_hl=accent_hl)
+
+
+@app.route("/admin/update_word_note", methods=["POST"])
+def api_update_word_note():
+    try:
+        data    = request.get_json(force=True, silent=True) or {}
+        word_id = data.get("word_id", "").strip()
+        note    = data.get("note", "")
+        if not word_id:
+            return jsonify({"error": "word_id が指定されていません"}), 400
+        return jsonify(update_word_note(word_id, note))
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/admin/update_word_tags", methods=["POST"])
 def api_update_word_tags():
     try:
@@ -1502,6 +1589,10 @@ def add_word():
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
+# gunicorn / 直接起動の両方でディレクトリを確保する
+ensure_directories()
+
 if __name__ == "__main__":
-    ensure_directories()
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    _port  = int(os.environ.get("PORT", 5000))
+    _debug = os.environ.get("FLASK_ENV", "development") == "development"
+    app.run(host="0.0.0.0", port=_port, debug=_debug)
