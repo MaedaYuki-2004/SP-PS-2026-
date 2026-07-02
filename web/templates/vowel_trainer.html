@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>母音練習 — {{ display }} — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="static/css/base.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; background:var(--bg); }
+
+    /* ── ヘッダー ── */
+    .vt-header { background:var(--bg-card); border-bottom:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    .vt-title-area { flex:1; }
+    .vt-word  { font-size:22px; font-weight:700; color:var(--text); }
+    .vt-sub   { font-size:11px; color:var(--text-3); margin-top:2px; }
+
+    /* ── 進捗バー ── */
+    .progress-wrap { padding:10px 24px; background:var(--bg-card); border-bottom:1px solid var(--border); }
+    .mora-dots { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .mora-dot  { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .mora-dot-circle { width:32px; height:32px; border-radius:50%; border:2px solid var(--border); background:var(--bg-muted); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--text-3); transition:all .3s; }
+    .mora-dot-circle.active  { border-color:var(--navy); background:var(--navy); color:#fff; box-shadow:0 0 0 4px rgba(124,106,224,.2); }
+    .mora-dot-circle.done    { border-color:var(--green); background:var(--green); color:#fff; }
+    .mora-dot-circle.skip    { border-color:var(--border); background:transparent; color:var(--text-3); opacity:.4; }
+    .mora-dot-vowel { font-size:9px; color:var(--text-3); font-family:var(--mono); }
+
+    /* ── メインエリア ── */
+    .vt-main { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px 24px; max-width:960px; margin:0 auto; width:100%; box-sizing:border-box; }
+
+    /* ── カメラパネル ── */
+    .camera-panel { display:flex; flex-direction:column; gap:10px; }
+    .camera-panel-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .camera-wrap { position:relative; border-radius:16px; overflow:hidden; background:#000; aspect-ratio:4/3; }
+    .camera-wrap video  { width:100%; height:100%; object-fit:cover; display:block; transform:scaleX(-1); }
+    .camera-wrap canvas { position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); }
+    .camera-status { position:absolute; top:8px; left:8px; font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:100px; }
+    .camera-status.loading { background:rgba(0,0,0,.6); color:rgba(255,255,255,.6); }
+    .camera-status.active  { background:rgba(30,201,154,.25); color:#1EC99A; }
+
+    /* 検出結果バッジ */
+    .detected-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; text-align:center; }
+    .detected-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px; }
+    .detected-vowel { font-size:64px; font-weight:700; line-height:1; transition:color .2s,transform .15s; }
+    .detected-vowel.match   { color:var(--green); transform:scale(1.1); }
+    .detected-vowel.partial { color:var(--quest); }
+    .detected-vowel.wrong   { color:var(--accent); }
+    .detected-vowel.closed  { color:var(--text-3); }
+
+    /* ── ターゲットパネル ── */
+    .target-panel { display:flex; flex-direction:column; gap:10px; }
+    .target-panel-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .target-mora-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; text-align:center; position:relative; overflow:hidden; }
+    .target-mora-card::before { content:''; position:absolute; inset:0; opacity:.06; pointer-events:none; }
+    .target-mora-sub  { font-size:11px; color:var(--text-3); margin-bottom:6px; }
+    .target-mora-text { font-size:56px; font-weight:700; line-height:1.1; margin-bottom:4px; }
+    .target-vowel-big { font-size:28px; font-weight:700; display:inline-block; padding:4px 16px; border-radius:100px; margin-bottom:14px; }
+
+    /* 口の形イラスト */
+    .mouth-shape-wrap { margin:10px auto; width:120px; height:100px; }
+    .mouth-svg { width:100%; height:100%; }
+
+    .target-hint { font-size:12px; color:var(--text-2); line-height:1.7; padding:10px 14px; background:var(--bg-muted); border-radius:var(--r-sm); border-left:2px solid var(--navy); text-align:left; }
+
+    /* ── フィードバックバー ── */
+    .feedback-bar { padding:12px 24px; max-width:960px; margin:0 auto; width:100%; box-sizing:border-box; }
+    .feedback-inner { border-radius:14px; padding:14px 18px; display:flex; align-items:center; gap:14px; transition:background .3s,border-color .3s; border:1px solid var(--border); background:var(--bg-card); }
+    .feedback-inner.match   { background:var(--green-bg); border-color:var(--green); }
+    .feedback-inner.wrong   { background:var(--bg-muted); }
+    .feedback-inner.closed  { background:var(--bg-muted); }
+    .feedback-icon-big { font-size:28px; flex-shrink:0; }
+    .feedback-msg  { font-size:14px; font-weight:600; color:var(--text); flex:1; }
+    .feedback-sub  { font-size:12px; color:var(--text-3); margin-top:3px; }
+
+    /* キープ進捗バー */
+    .keep-bar-wrap { width:100%; height:6px; background:rgba(0,0,0,.1); border-radius:100px; overflow:hidden; margin-top:8px; display:none; }
+    .keep-bar-fill { height:100%; background:var(--green); border-radius:100px; transition:width .05s linear; }
+    .keep-bar-wrap.show { display:block; }
+
+    /* ── ナビゲーション ── */
+    .vt-nav { padding:12px 24px 24px; max-width:960px; margin:0 auto; width:100%; box-sizing:border-box; display:flex; gap:10px; }
+    .nav-btn { flex:1; padding:13px; border-radius:var(--r); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-2); display:flex; align-items:center; justify-content:center; gap:6px; transition:all .15s; }
+    .nav-btn:hover:not(:disabled) { border-color:var(--navy); color:var(--navy); }
+    .nav-btn:disabled { opacity:.3; cursor:not-allowed; }
+    .nav-btn.primary { background:var(--navy); color:#fff; border-color:var(--navy); }
+    .nav-btn.primary:hover { background:var(--navy-mid); }
+
+    /* ── 完了画面 ── */
+    .complete-screen { display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; gap:20px; }
+    .complete-screen.show { display:flex; }
+    .complete-icon { font-size:80px; line-height:1; }
+    .complete-title { font-size:28px; font-weight:700; color:var(--green); }
+    .complete-sub { font-size:14px; color:var(--text-3); }
+    .complete-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
+    .complete-btn { padding:12px 24px; border-radius:var(--r); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+    .complete-btn.primary  { background:var(--navy); color:#fff; border:none; }
+    .complete-btn.secondary{ background:transparent; color:var(--text-3); border:1.5px solid var(--border); }
+
+    /* スキップ画面（母音なしモーラのみの場合） */
+    .skip-notice { background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--r); padding:20px; text-align:center; color:var(--text-3); font-size:13px; }
+
+    @media (max-width:640px) {
+      .vt-main { grid-template-columns:1fr; }
+      .vt-header { padding:12px 16px; }
+      .progress-wrap { padding:10px 16px; }
+      .feedback-bar, .vt-nav { padding-left:16px; padding-right:16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- テーマ適用 -->
+<script>
+(function(){
+  const saved = localStorage.getItem('sp-ps-theme');
+  if (saved !== 'light') document.documentElement.setAttribute('data-theme','dark');
+})();
+</script>
+
+<nav class="top-nav">
+  <a href="/practice/word/{{ word_id }}" class="nav-link">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    録音に戻る
+  </a>
+  <span style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);">母音練習モード</span>
+</nav>
+
+<!-- ヘッダー -->
+<div class="vt-header">
+  <div class="vt-title-area">
+    <div class="vt-word">{{ display }}</div>
+    <div class="vt-sub">{{ reading }} — 一音ずつ口の形を練習しましょう</div>
+  </div>
+</div>
+
+<!-- モーラ進捗ドット -->
+<div class="progress-wrap">
+  <div class="mora-dots" id="moraDots">
+    {% for mv in mora_vowels %}
+    <div class="mora-dot">
+      <div class="mora-dot-circle {% if loop.first and not mv.skip %}active{% elif mv.skip %}skip{% endif %}" data-index="{{ loop.index0 }}">
+        {{ mv.mora }}
+      </div>
+      <div class="mora-dot-vowel">{{ mv.vowel or '—' }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- メインコンテンツ -->
+<div id="mainArea">
+  <div class="vt-main">
+
+    <!-- カメラパネル -->
+    <div class="camera-panel">
+      <span class="camera-panel-title">あなたの口の形</span>
+      <div class="camera-wrap">
+        <video id="camVideo" autoplay muted playsinline></video>
+        <canvas id="camCanvas"></canvas>
+        <span class="camera-status loading" id="camStatus">カメラ起動中…</span>
+      </div>
+      <div class="detected-wrap">
+        <div class="detected-label">検出中の母音</div>
+        <div class="detected-vowel closed" id="detectedVowel">—</div>
+      </div>
+    </div>
+
+    <!-- ターゲットパネル -->
+    <div class="target-panel">
+      <span class="target-panel-title">目標の口の形</span>
+      <div class="target-mora-card" id="targetCard">
+        <div class="target-mora-sub">練習中のモーラ</div>
+        <div class="target-mora-text" id="targetMoraText">—</div>
+        <div class="target-vowel-big" id="targetVowelBig">—</div>
+        <div class="mouth-shape-wrap">
+          <svg class="mouth-svg" id="mouthSvg" viewBox="0 0 120 100"></svg>
+        </div>
+        <div class="target-hint" id="targetHint">カメラに顔を向けてください</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- フィードバックバー -->
+  <div class="feedback-bar">
+    <div class="feedback-inner closed" id="feedbackInner">
+      <div class="feedback-icon-big" id="feedbackIcon">📷</div>
+      <div>
+        <div class="feedback-msg" id="feedbackMsg">カメラに顔を映してください</div>
+        <div class="feedback-sub" id="feedbackSub">口元がはっきり見える距離・明るさに調整してください</div>
+        <div class="keep-bar-wrap" id="keepBarWrap"><div class="keep-bar-fill" id="keepBarFill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ナビゲーション -->
+  <div class="vt-nav">
+    <button class="nav-btn" id="prevBtn" onclick="goPrev()" disabled>
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7 2L4 5.5l3 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      前へ
+    </button>
+    <button class="nav-btn" id="skipBtn" onclick="goNext()">
+      スキップ
+    </button>
+    <button class="nav-btn primary" id="nextBtn" onclick="goNext()" disabled>
+      次へ
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- 完了画面 -->
+<div class="complete-screen" id="completeScreen">
+  <div class="complete-icon">🎉</div>
+  <div class="complete-title">練習完了！</div>
+  <div class="complete-sub">「{{ display }}」のすべての母音を練習しました<br>次は実際に録音して発音を確かめましょう</div>
+  <div class="complete-actions">
+    <a href="/practice/word/{{ word_id }}" class="complete-btn primary">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
+      録音する
+    </a>
+    <a href="/select" class="complete-btn secondary">単語選択に戻る</a>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   データ
+══════════════════════════════════════════════════════ */
+const MORA_VOWELS = {{ mora_vowels | tojson }};
+
+/* 母音ごとの定義 */
+const VOWEL_DEF = {
+  'あ': {
+    color: '#E87040',
+    svgPath: `
+      <ellipse cx="60" cy="58" rx="28" ry="34" fill="#2A0800" stroke="#E87040" stroke-width="3"/>
+      <ellipse cx="60" cy="44" rx="26" ry="10" fill="#C05030" stroke="none"/>
+      <text x="60" y="14" text-anchor="middle" fill="#E87040" font-size="11" font-weight="700" font-family="sans-serif">縦に大きく開ける</text>
+    `,
+    hint: '顎を思い切り下ろして、口を縦に大きく開けましょう。舌は下に置き、口の中を広く開けるイメージです。',
+    guide: '顎を下げる → 口を縦に大きく開ける',
+    tips: ['顎を下げる', '口を縦に大きく開ける', '舌は下に'],
+  },
+  'い': {
+    color: '#5DA8F8',
+    svgPath: `
+      <ellipse cx="60" cy="55" rx="44" ry="12" fill="#001828" stroke="#5DA8F8" stroke-width="3"/>
+      <line x1="20" y1="52" x2="100" y2="52" stroke="#3A7AB0" stroke-width="1"/>
+      <text x="60" y="14" text-anchor="middle" fill="#5DA8F8" font-size="11" font-weight="700" font-family="sans-serif">横に思い切り広げる</text>
+    `,
+    hint: '口角を左右に思い切り引いて「イー」の形を作りましょう。上下の歯が少し見えるくらいが目安です。',
+    guide: '口角を横に引く → 歯を少し見せる',
+    tips: ['口角を横に引く', 'イーッと笑う形', '歯を少し見せる'],
+  },
+  'う': {
+    color: '#1EC99A',
+    svgPath: `
+      <ellipse cx="60" cy="55" rx="16" ry="16" fill="#001A10" stroke="#1EC99A" stroke-width="3"/>
+      <ellipse cx="60" cy="45" rx="22" ry="8" fill="#0D6B50" stroke="none" opacity="0.6"/>
+      <text x="60" y="14" text-anchor="middle" fill="#1EC99A" font-size="11" font-weight="700" font-family="sans-serif">唇を丸く前に出す</text>
+    `,
+    hint: '唇を少し前に突き出して、小さく丸くします。口の開きは最小限で、笛を吹くような口の形です。',
+    guide: '唇を前に出す → 小さく丸める',
+    tips: ['唇を前に突き出す', '小さく丸める', '笛を吹く形'],
+  },
+  'え': {
+    color: '#7C6AE0',
+    svgPath: `
+      <ellipse cx="60" cy="55" rx="30" ry="18" fill="#0A0820" stroke="#7C6AE0" stroke-width="3"/>
+      <text x="60" y="14" text-anchor="middle" fill="#7C6AE0" font-size="11" font-weight="700" font-family="sans-serif">中くらいに開ける</text>
+    `,
+    hint: '「え」は「あ」と「い」の中間の口の形です。口を中くらいに開けて、少し横に引いた状態です。',
+    guide: 'あ と い の中間の口の形',
+    tips: ['口を中くらいに開ける', '少し横に引く', 'あとい の中間'],
+  },
+  'お': {
+    color: '#F0A030',
+    svgPath: `
+      <ellipse cx="60" cy="55" rx="22" ry="30" fill="#1A0C00" stroke="#F0A030" stroke-width="3"/>
+      <ellipse cx="60" cy="46" rx="20" ry="8" fill="#A06020" stroke="none" opacity="0.5"/>
+      <text x="60" y="14" text-anchor="middle" fill="#F0A030" font-size="11" font-weight="700" font-family="sans-serif">丸く縦長に開ける</text>
+    `,
+    hint: '唇を「O」の形に丸めて、縦長に開けます。「う」より大きく開けて、縦長の楕円形をイメージしてください。',
+    guide: '唇を丸める → 縦長のO形',
+    tips: ['唇を丸める', '縦長のO形', 'うより大きく開ける'],
+  },
+};
+
+const HINT_BY_DETECTED = {
+  'あ→い': '口を横に引いてみましょう。笑顔の「イー」です。',
+  'あ→う': '口を小さく丸めて、唇を少し前に出しましょう。',
+  'あ→え': '口を少し小さくして、横に引いてみましょう。',
+  'あ→お': '口を丸くして、縦長にしてみましょう。',
+  'い→あ': '口をもっと大きく縦に開けましょう。顎を下げて。',
+  'い→う': '口を横に引くのをやめて、小さく丸めましょう。',
+  'い→え': '口を少し小さく、縦方向にも少し開けましょう。',
+  'い→お': '口を丸く、縦長に開けましょう。',
+  'う→あ': '口をもっと大きく縦に開けましょう。顎を下げて。',
+  'う→い': '唇を前に出すのをやめて、横に大きく引きましょう。',
+  'う→え': '口をもう少し広く開けましょう。',
+  'う→お': '口をもう少し大きく、縦長に開けましょう。',
+  'え→あ': '口をもっと大きく縦に開けましょう。顎をしっかり下げて。',
+  'え→い': '口を横にもっと広く引きましょう。「イー」です。',
+  'え→う': '口を小さくして、唇を丸く前に出しましょう。',
+  'え→お': '口を丸くして、もう少し縦長にしましょう。',
+  'お→あ': '口をもっと縦に大きく開けましょう。顎を下げて。',
+  'お→い': '唇の丸みをなくして、横に思い切り引きましょう。',
+  'お→う': '口をもう少し小さくして、唇を前に出しましょう。',
+  'お→え': '口の丸みを少しほどいて、横に広げましょう。',
+};
+
+/* ══════════════════════════════════════════════════════
+   ステート
+══════════════════════════════════════════════════════ */
+// 練習対象（母音があるモーラのみ）
+const practiceItems = MORA_VOWELS.filter(m => !m.skip);
+let currentIdx = 0;
+let detectedVowel = null;
+let matchStartTime = null;
+const HOLD_MS = 1500;  // 正解をキープする時間
+
+/* ══════════════════════════════════════════════════════
+   UI 更新
+══════════════════════════════════════════════════════ */
+function updateTargetUI() {
+  if (currentIdx >= practiceItems.length) {
+    showComplete();
+    return;
+  }
+  const item = practiceItems[currentIdx];
+  const def  = VOWEL_DEF[item.vowel] || {};
+
+  // モーラ・母音表示
+  document.getElementById('targetMoraText').textContent = item.mora;
+  const vowelBig = document.getElementById('targetVowelBig');
+  vowelBig.textContent = item.vowel;
+  vowelBig.style.background = `${def.color}22`;
+  vowelBig.style.color = def.color;
+
+  // SVGイラスト
+  document.getElementById('mouthSvg').innerHTML = def.svgPath || '';
+
+  // ヒント
+  document.getElementById('targetHint').textContent = def.hint || '';
+
+  // ターゲットカードの左ボーダー色
+  document.getElementById('targetCard').style.borderTopColor = def.color;
+  document.getElementById('targetCard').style.borderTopWidth = '3px';
+
+  // ナビボタン
+  document.getElementById('prevBtn').disabled = currentIdx === 0;
+  document.getElementById('nextBtn').disabled = true;
+
+  // 進捗ドット更新
+  updateDots();
+
+  // キープバーリセット
+  resetKeepBar();
+}
+
+function updateDots() {
+  const allMorae = MORA_VOWELS;
+  let practiceCount = 0;
+  document.querySelectorAll('.mora-dot-circle').forEach((el, i) => {
+    const mv = allMorae[i];
+    if (mv.skip) {
+      el.className = 'mora-dot-circle skip';
+      return;
+    }
+    if (practiceCount < currentIdx) {
+      el.className = 'mora-dot-circle done';
+    } else if (practiceCount === currentIdx) {
+      el.className = 'mora-dot-circle active';
+    } else {
+      el.className = 'mora-dot-circle';
+    }
+    practiceCount++;
+  });
+}
+
+function updateFeedback(detected, target) {
+  const inner  = document.getElementById('feedbackInner');
+  const icon   = document.getElementById('feedbackIcon');
+  const msg    = document.getElementById('feedbackMsg');
+  const sub    = document.getElementById('feedbackSub');
+  const detEl  = document.getElementById('detectedVowel');
+
+  if (!detected || detected === 'closed') {
+    inner.className = 'feedback-inner closed';
+    icon.textContent = '👄';
+    msg.textContent  = '口を少し開けてください';
+    sub.textContent  = 'カメラに顔をはっきり映してください';
+    detEl.textContent = detected === 'closed' ? '（閉口）' : '—';
+    detEl.className = 'detected-vowel closed';
+    matchStartTime = null;
+    resetKeepBar();
+    return;
+  }
+
+  detEl.textContent = detected;
+
+  if (detected === target) {
+    inner.className = 'feedback-inner match';
+    icon.textContent = '✅';
+    msg.textContent  = `正解！「${target}」の形ができています！`;
+    sub.textContent  = 'そのまま1.5秒キープしてください…';
+    detEl.className  = 'detected-vowel match';
+    document.getElementById('nextBtn').disabled = false;
+
+    if (!matchStartTime) matchStartTime = Date.now();
+    updateKeepBar();
+  } else {
+    inner.className = 'feedback-inner wrong';
+    icon.textContent = '💡';
+    const hintKey = `${detected}→${target}`;
+    msg.textContent = HINT_BY_DETECTED[hintKey] || `「${target}」の口の形を作ってみましょう`;
+    sub.textContent = `検出: 「${detected}」 → 目標: 「${target}」`;
+    detEl.className  = 'detected-vowel wrong';
+    matchStartTime = null;
+    resetKeepBar();
+  }
+}
+
+function updateKeepBar() {
+  if (!matchStartTime) return;
+  const elapsed = Date.now() - matchStartTime;
+  const pct = Math.min(elapsed / HOLD_MS * 100, 100);
+  const fill = document.getElementById('keepBarFill');
+  const wrap = document.getElementById('keepBarWrap');
+  wrap.classList.add('show');
+  fill.style.width = pct + '%';
+
+  if (elapsed >= HOLD_MS) {
+    goNext();
+  }
+}
+
+function resetKeepBar() {
+  document.getElementById('keepBarWrap').classList.remove('show');
+  document.getElementById('keepBarFill').style.width = '0%';
+}
+
+/* ══════════════════════════════════════════════════════
+   ナビゲーション
+══════════════════════════════════════════════════════ */
+function goNext() {
+  currentIdx++;
+  matchStartTime = null;
+  if (currentIdx >= practiceItems.length) {
+    showComplete();
+  } else {
+    updateTargetUI();
+    detectedVowel = null;
+    document.getElementById('detectedVowel').textContent = '—';
+    document.getElementById('detectedVowel').className = 'detected-vowel closed';
+    document.getElementById('feedbackInner').className = 'feedback-inner closed';
+    document.getElementById('feedbackMsg').textContent = '口の形を作ってください';
+    document.getElementById('feedbackSub').textContent = '';
+    document.getElementById('feedbackIcon').textContent = '👄';
+  }
+}
+
+function goPrev() {
+  if (currentIdx > 0) {
+    currentIdx--;
+    matchStartTime = null;
+    updateTargetUI();
+  }
+}
+
+function showComplete() {
+  document.getElementById('mainArea').style.display = 'none';
+  document.getElementById('completeScreen').classList.add('show');
+
+  // カメラ停止
+  const video = document.getElementById('camVideo');
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   母音分類器
+══════════════════════════════════════════════════════ */
+function classifyVowel(landmarks) {
+  // キーポイント
+  const upperInner  = landmarks[13];   // 内側上唇
+  const lowerInner  = landmarks[14];   // 内側下唇
+  const leftCorner  = landmarks[61];   // 左口角
+  const rightCorner = landmarks[291];  // 右口角
+  const leftEye     = landmarks[33];   // 左目外側
+  const rightEye    = landmarks[263];  // 右目外側
+
+  // 目間距離（顔サイズの基準）
+  const ioD = Math.hypot(rightEye.x - leftEye.x, rightEye.y - leftEye.y);
+  if (ioD < 0.01) return null;
+
+  // 口の高さ・幅（正規化）
+  const h = Math.hypot(upperInner.x - lowerInner.x, upperInner.y - lowerInner.y) / ioD;
+  const w = Math.hypot(leftCorner.x - rightCorner.x, leftCorner.y - rightCorner.y) / ioD;
+
+  if (h < 0.06) return 'closed';
+
+  const ratio = h / (w + 0.001);
+
+  // 分類ルール（実験的なしきい値）
+  if (w > 0.88 && ratio < 0.22) return 'い';       // 横に非常に広い
+  if (h > 0.38 && ratio > 0.48) return 'あ';       // 縦に非常に大きい
+  if (w < 0.60 && h < 0.22 && ratio > 0.28) return 'う'; // 小さく丸い
+  if (ratio > 0.38 && w < 0.75) return 'お';        // 縦長・丸め
+  return 'え';                                       // 中間
+}
+
+/* ══════════════════════════════════════════════════════
+   MediaPipe Face Mesh 初期化
+══════════════════════════════════════════════════════ */
+const video  = document.getElementById('camVideo');
+const canvas = document.getElementById('camCanvas');
+const ctx    = canvas.getContext('2d');
+
+function onResults(results) {
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+    updateFeedback(null, null);
+    return;
+  }
+
+  const lm = results.multiFaceLandmarks[0];
+
+  // 口輪郭を描画
+  const LIP_OUTER = [61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146,61];
+  const LIP_INNER = [78,191,80,81,82,13,312,311,310,415,308,324,318,402,317,14,87,178,88,95,78];
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(124,106,224,0.8)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  LIP_OUTER.forEach((idx, i) => {
+    const p = lm[idx];
+    const x = p.x * canvas.width;
+    const y = p.y * canvas.height;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(30,201,154,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  LIP_INNER.forEach((idx, i) => {
+    const p = lm[idx];
+    const x = p.x * canvas.width;
+    const y = p.y * canvas.height;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+
+  // 母音分類
+  const vowel = classifyVowel(lm);
+  detectedVowel = vowel;
+
+  if (currentIdx < practiceItems.length) {
+    const target = practiceItems[currentIdx]?.vowel;
+    updateFeedback(vowel, target);
+  }
+
+  document.getElementById('camStatus').className = 'camera-status active';
+  document.getElementById('camStatus').textContent = '認識中';
+}
+
+const faceMesh = new FaceMesh({
+  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+});
+faceMesh.setOptions({
+  maxNumFaces: 1,
+  refineLandmarks: true,
+  minDetectionConfidence: 0.5,
+  minTrackingConfidence: 0.5,
+});
+faceMesh.onResults(onResults);
+
+const camera = new Camera(video, {
+  onFrame: async () => { await faceMesh.send({ image: video }); },
+  width: 640, height: 480,
+});
+
+camera.start().then(() => {
+  document.getElementById('camStatus').textContent = '認識中';
+}).catch(err => {
+  document.getElementById('camStatus').textContent = 'カメラエラー';
+  document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
+  console.error(err);
+});
+
+/* ══════════════════════════════════════════════════════
+   初期化
+══════════════════════════════════════════════════════ */
+if (practiceItems.length === 0) {
+  // 母音がひとつもない単語（ん、っのみなど）
+  document.getElementById('mainArea').innerHTML =
+    '<div class="skip-notice" style="margin:24px;">この単語に練習できる母音がありません。</div>';
+} else {
+  updateTargetUI();
+}
+</script>
+</body>
+</html>

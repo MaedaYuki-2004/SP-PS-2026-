@@ -559,6 +559,42 @@ def _get_reference_pitch_data(word_id: str) -> dict:
 
 _SMALL_KANA = set('ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ')
 
+# モーラ → 母音 対応表
+_MORA_VOWEL_MAP: dict[str, str | None] = {
+    'あ':'あ','い':'い','う':'う','え':'え','お':'お',
+    'か':'あ','き':'い','く':'う','け':'え','こ':'お',
+    'さ':'あ','し':'い','す':'う','せ':'え','そ':'お',
+    'た':'あ','ち':'い','つ':'う','て':'え','と':'お',
+    'な':'あ','に':'い','ぬ':'う','ね':'え','の':'お',
+    'は':'あ','ひ':'い','ふ':'う','へ':'え','ほ':'お',
+    'ま':'あ','み':'い','む':'う','め':'え','も':'お',
+    'や':'あ','ゆ':'う','よ':'お',
+    'ら':'あ','り':'い','る':'う','れ':'え','ろ':'お',
+    'わ':'あ','を':'お',
+    'が':'あ','ぎ':'い','ぐ':'う','げ':'え','ご':'お',
+    'ざ':'あ','じ':'い','ず':'う','ぜ':'え','ぞ':'お',
+    'だ':'あ','ぢ':'い','づ':'う','で':'え','ど':'お',
+    'ば':'あ','び':'い','ぶ':'う','べ':'え','ぼ':'お',
+    'ぱ':'あ','ぴ':'い','ぷ':'う','ぺ':'え','ぽ':'お',
+    'ゃ':'あ','ゅ':'う','ょ':'お',
+    'ん': None, 'っ': None,
+}
+
+def _get_mora_vowels(reading: str) -> list[dict]:
+    """各モーラとその母音を [{mora, vowel, skip}] で返す。"""
+    morae = _split_moras(reading)
+    result = []
+    prev_vowel = 'あ'
+    for mora in morae:
+        ch = mora[-1] if mora[-1] in 'ゃゅょ' else mora[0]
+        vowel = _MORA_VOWEL_MAP.get(ch)
+        if mora[0] == 'ー':
+            vowel = prev_vowel
+        if vowel:
+            prev_vowel = vowel
+        result.append({'mora': mora, 'vowel': vowel, 'skip': vowel is None})
+    return result
+
 def _mora_count(reading: str) -> int:
     return max(1, sum(1 for c in reading if c not in _SMALL_KANA))
 
@@ -1391,6 +1427,20 @@ def api_update_word():
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/vowel_trainer/<word_id>")
+def vowel_trainer(word_id: str):
+    """母音形練習ページ。"""
+    word_entry = get_word(word_id)
+    if not word_entry:
+        return redirect("/select")
+    reading    = word_entry.get("reading", "")
+    display    = word_entry.get("display", reading)
+    mora_vowels = _get_mora_vowels(reading)
+    return render_template("vowel_trainer.html",
+                           word_id=word_id, display=display,
+                           reading=reading, mora_vowels=mora_vowels)
+
+
 @app.route("/practice/word/<word_id>")
 def practice_word(word_id: str):
     """連続練習モード用：GET で単語練習画面に直接遷移する。"""
@@ -1541,4 +1591,4 @@ def add_word():
 
 if __name__ == "__main__":
     ensure_directories()
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
