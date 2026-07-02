@@ -37,14 +37,14 @@ from config import (
     TEST_WAV_PATH, WORD_ID_MEMO_PATH,
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
-from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags
+from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags, update_word_note
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
-from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts
+from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_word_recent_scores
 from core.utils     import pct_length, sleep_second
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
@@ -645,10 +645,12 @@ def select():
         for w in words
     }
     lip_ref_keys = set(load_lip_refs().keys())
-    all_tags = get_all_tags()
+    all_tags     = get_all_tags()
+    word_scores  = get_word_recent_scores(limit=5)
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
-                           lip_ref_keys=lip_ref_keys, all_tags=all_tags)
+                           lip_ref_keys=lip_ref_keys, all_tags=all_tags,
+                           word_scores=word_scores)
 
 
 @app.route("/select")
@@ -663,9 +665,11 @@ def select_page():
     }
     lip_ref_keys = set(load_lip_refs().keys())
     all_tags     = get_all_tags()
+    word_scores  = get_word_recent_scores(limit=5)
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
-                           lip_ref_keys=lip_ref_keys, all_tags=all_tags)
+                           lip_ref_keys=lip_ref_keys, all_tags=all_tags,
+                           word_scores=word_scores)
 
 
 @app.route("/history")
@@ -1385,6 +1389,39 @@ def api_update_word():
         return jsonify(update_word(word_id, display, reading, accent))
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/practice/word/<word_id>")
+def practice_word(word_id: str):
+    """連続練習モード用：GET で単語練習画面に直接遷移する。"""
+    word_entry = get_word(word_id)
+    if not word_entry:
+        return redirect("/select")
+    reading    = word_entry.get("reading", "")
+    display    = word_entry.get("display", reading)
+    WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
+    (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
+    accent_val = word_entry.get("accent")
+    hl_list          = _accent_pattern_for_word(accent_val, reading)
+    mora_labels_list = _split_moras(reading)
+    accent_hl        = [{"label": l, "hl": h} for l, h in zip(mora_labels_list, hl_list)]
+    ref_preview      = _get_reference_pitch_data(word_id)
+    return render_template("audio.html", test=reading, display=display, word_id=word_id,
+                           ref_preview=ref_preview, accent_hl=accent_hl)
+
+
+@app.route("/admin/update_word_note", methods=["POST"])
+def api_update_word_note():
+    try:
+        data    = request.get_json(force=True, silent=True) or {}
+        word_id = data.get("word_id", "").strip()
+        note    = data.get("note", "")
+        if not word_id:
+            return jsonify({"error": "word_id が指定されていません"}), 400
+        return jsonify(update_word_note(word_id, note))
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/admin/update_word_tags", methods=["POST"])

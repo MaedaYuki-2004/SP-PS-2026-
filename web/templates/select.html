@@ -148,6 +148,33 @@
     .recording-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#e53e3e; margin-right:5px; animation:blink 1s infinite; vertical-align:middle; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 
+    /* アクセント型フィルター */
+    .accent-filter-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; align-items:center; }
+
+    /* 再生速度コントロール */
+    .speed-row { display:flex; align-items:center; gap:6px; padding:8px 0 2px; }
+    .speed-lbl { font-size:10px; color:var(--text-3); letter-spacing:.04em; }
+    .speed-btn { padding:3px 9px; border-radius:100px; font-size:10px; font-weight:700; cursor:pointer; border:1.5px solid var(--border); background:transparent; color:var(--text-3); font-family:var(--font); transition:background var(--dur),border-color var(--dur),color var(--dur); }
+    .speed-btn:hover { border-color:var(--navy); color:var(--navy); }
+    .speed-btn.active { background:var(--navy); border-color:var(--navy); color:#fff; }
+
+    /* 発音メモ */
+    .word-card-note { font-size:11px; color:var(--text-2); background:var(--bg-muted); border-left:2px solid var(--navy); padding:5px 8px; border-radius:0 var(--r-xs) var(--r-xs) 0; margin-bottom:8px; line-height:1.5; }
+
+    /* スコア推移スパークライン */
+    .word-card-sparkline { margin-bottom:6px; }
+    .word-card-sparkline svg { display:block; }
+
+    /* 連続練習ボタン */
+    .continuous-btn { padding:7px 13px; background:var(--green); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background var(--dur),opacity var(--dur); }
+    .continuous-btn:hover { background:#16a47e; }
+
+    /* 通知パーミッションバナー */
+    .notify-bar { display:none; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px; background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--r); margin-bottom:16px; font-size:12px; color:var(--text-2); flex-wrap:wrap; }
+    .notify-bar.show { display:flex; }
+    .notify-bar-btn { padding:6px 14px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; }
+    .notify-bar-dismiss { background:none; border:none; color:var(--text-3); cursor:pointer; font-size:16px; padding:0 4px; }
+
     /* Quest section (bottom horizontal) */
     .quest-section { margin-top:36px; padding-top:24px; border-top:1px solid var(--border); }
     .quest-section-header { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
@@ -239,12 +266,24 @@
 <div class="main-layout">
   <!-- 単語グリッド -->
   <div class="words-section">
+    <!-- 通知バナー -->
+    <div class="notify-bar" id="notifyBar">
+      <span>3日間練習がない場合にリマインダー通知を受け取れます</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="notify-bar-btn" id="notifyEnableBtn">通知を許可する</button>
+        <button class="notify-bar-dismiss" id="notifyDismissBtn" title="閉じる">×</button>
+      </div>
+    </div>
     <div class="section-header">
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <span class="section-title">単語一覧</span>
         <button class="add-word-btn" id="btnAddWord">
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           単語を追加
+        </button>
+        <button class="continuous-btn" id="btnContinuous">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          連続練習
         </button>
       </div>
       <div class="search-wrap">
@@ -260,12 +299,25 @@
       {% endfor %}
     </div>
     {% endif %}
+    <div class="accent-filter-row" id="accentFilterRow">
+      <span class="speed-lbl">アクセント型</span>
+      <button class="tag-chip tag-chip-all active" onclick="filterByAccent('',this)">すべて</button>
+      <button class="tag-chip" onclick="filterByAccent('0',this)">平板型</button>
+      <button class="tag-chip" onclick="filterByAccent('1',this)">頭高型</button>
+      <button class="tag-chip" onclick="filterByAccent('mid',this)">中高型</button>
+    </div>
+    <div class="speed-row">
+      <span class="speed-lbl">再生速度</span>
+      <button class="speed-btn active" data-speed="1" onclick="setPlaybackSpeed(1,this)">1×</button>
+      <button class="speed-btn" data-speed="0.75" onclick="setPlaybackSpeed(0.75,this)">0.75×</button>
+      <button class="speed-btn" data-speed="0.5" onclick="setPlaybackSpeed(0.5,this)">0.5×</button>
+    </div>
     <div class="word-grid" id="wordGrid">
       {% for w in words %}
       {% set pattern = accent_patterns.get(w.word_id, []) %}
       {% set best = (stats.word_best or {}).get(w.word_id) %}
       {% set grade = ('s' if best >= 90 else ('a' if best >= 75 else ('b' if best >= 60 else ('c' if best >= 40 else 'd')))) if best is not none else '' %}
-      <div class="word-card{% if grade %} grade-{{ grade }}{% endif %}" data-word="{{ w.display }}" data-reading="{{ w.reading }}" data-tags="{{ (w.tags or [])|join(',') }}">
+      <div class="word-card{% if grade %} grade-{{ grade }}{% endif %}" data-word="{{ w.display }}" data-reading="{{ w.reading }}" data-tags="{{ (w.tags or [])|join(',') }}" data-accent="{{ w.accent if w.accent is not none else '' }}" data-word-id="{{ w.word_id }}">
         <div class="word-card-body">
           <div class="word-card-top">
             <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
@@ -313,6 +365,10 @@
             </div>
           </div>
           {% endif %}
+          {% if w.note %}
+          <div class="word-card-note">{{ w.note }}</div>
+          {% endif %}
+          <div class="word-card-sparkline" id="spark-{{ w.word_id }}"></div>
         </div>
         <div class="word-card-audio">
           <audio controls src="/sample_audio/{{ w.word_id }}" preload="none"></audio>
@@ -384,15 +440,24 @@
 {% endif %}
 
 <script>
-let _activeTag = null;
+const _WORD_SCORES = {{ word_scores | tojson }};
+
+let _activeTag    = null;
+let _activeAccent = '';
+let _playSpeed    = 1;
 
 function filterWords() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   let vis = 0;
   document.querySelectorAll('.word-card').forEach(c => {
-    const matchText = !q || (c.dataset.word||'').includes(q) || (c.dataset.reading||'').includes(q);
-    const matchTag  = !_activeTag || (c.dataset.tags||'').split(',').map(t=>t.trim()).includes(_activeTag);
-    const show = matchText && matchTag;
+    const matchText   = !q || (c.dataset.word||'').includes(q) || (c.dataset.reading||'').includes(q);
+    const matchTag    = !_activeTag || (c.dataset.tags||'').split(',').map(t=>t.trim()).includes(_activeTag);
+    const accentVal   = c.dataset.accent;
+    let   matchAccent = true;
+    if (_activeAccent === '0')   matchAccent = accentVal === '0';
+    else if (_activeAccent === '1')   matchAccent = accentVal === '1';
+    else if (_activeAccent === 'mid') matchAccent = accentVal !== '' && accentVal !== '0' && accentVal !== '1';
+    const show = matchText && matchTag && matchAccent;
     c.classList.toggle('hidden', !show);
     if(show) vis++;
   });
@@ -401,10 +466,108 @@ function filterWords() {
 
 function filterByTag(tag, btn) {
   _activeTag = tag;
-  document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
+  document.getElementById('tagFilterRow')?.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
   if (btn) btn.classList.add('active');
   filterWords();
 }
+
+function filterByAccent(val, btn) {
+  _activeAccent = val;
+  document.getElementById('accentFilterRow')?.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  filterWords();
+}
+
+function setPlaybackSpeed(speed, btn) {
+  _playSpeed = speed;
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.word-card audio').forEach(a => { a.playbackRate = speed; });
+}
+
+/* ── スパークライン ── */
+function _renderSparklines() {
+  const ns = 'http://www.w3.org/2000/svg';
+  document.querySelectorAll('.word-card').forEach(card => {
+    const wid    = card.dataset.wordId;
+    const scores = _WORD_SCORES[wid] || [];
+    if (scores.length < 2) return;
+    const el = card.querySelector('.word-card-sparkline');
+    if (!el) return;
+    const W = 60, H = 22;
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.style.cssText = `width:100%;height:${H}px;display:block;`;
+    const pts = scores.map((s, i) => {
+      const x = i / (scores.length - 1) * (W - 4) + 2;
+      const y = H - 3 - (Math.min(s, 100) / 100) * (H - 6);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const line = document.createElementNS(ns, 'polyline');
+    line.setAttribute('points', pts);
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', 'var(--navy)');
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(line);
+    const last  = scores[scores.length - 1];
+    const lx    = parseFloat(pts.split(' ').pop().split(',')[0]);
+    const ly    = parseFloat(pts.split(' ').pop().split(',')[1]);
+    const dot   = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', lx); dot.setAttribute('cy', ly); dot.setAttribute('r', '3');
+    dot.setAttribute('fill', last >= 75 ? 'var(--green)' : last >= 50 ? 'var(--blue)' : 'var(--accent)');
+    svg.appendChild(dot);
+    el.appendChild(svg);
+  });
+}
+
+/* ── 連続練習モード ── */
+document.getElementById('btnContinuous').addEventListener('click', () => {
+  const visible = [...document.querySelectorAll('.word-card:not(.hidden)')];
+  if (!visible.length) return;
+  const ids = visible.map(c => c.dataset.wordId).filter(Boolean);
+  if (!ids.length) return;
+  localStorage.setItem('sp-ps-practice-queue', JSON.stringify(ids.slice(1)));
+  localStorage.setItem('sp-ps-continuous', '1');
+  const first = visible[0].querySelector('form');
+  if (first) first.submit();
+});
+
+/* ── PWA通知 ── */
+(function () {
+  const bar        = document.getElementById('notifyBar');
+  const enableBtn  = document.getElementById('notifyEnableBtn');
+  const dismissBtn = document.getElementById('notifyDismissBtn');
+
+  if (!('Notification' in window)) return;
+  const dismissed = localStorage.getItem('sp-ps-notify-dismissed');
+  if (dismissed) return;
+  if (Notification.permission === 'granted') return;
+  if (Notification.permission === 'denied') return;
+
+  const lastPractice = localStorage.getItem('sp-ps-last-practice');
+  const needsReminder = !lastPractice || (Date.now() - Number(lastPractice)) > 86400000;
+  if (needsReminder) bar.classList.add('show');
+
+  enableBtn.addEventListener('click', async () => {
+    const perm = await Notification.requestPermission();
+    bar.classList.remove('show');
+    if (perm === 'granted') {
+      new Notification('SP-PS 練習リマインダー', {
+        body: '3日間練習していない場合にお知らせします。今日も練習しましょう！',
+        icon: '/static/icon-192.svg',
+      });
+    }
+  });
+  dismissBtn.addEventListener('click', () => {
+    bar.classList.remove('show');
+    localStorage.setItem('sp-ps-notify-dismissed', '1');
+  });
+})();
+
+document.addEventListener('DOMContentLoaded', _renderSparklines);
 </script>
 
 <!-- 単語追加モーダル（Step1: 登録 → Step2: お手本録画） -->

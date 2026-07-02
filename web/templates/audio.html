@@ -230,10 +230,17 @@
       <div class="ref-preview-card">
         <div class="ref-preview-top">
           <span class="ref-preview-label">お手本を確認</span>
-          <button id="refPlayBtn" type="button" class="ref-play-btn">
-            <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg>
-            再生
-          </button>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="display:flex;gap:4px;">
+              <button class="speed-chip active" data-speed="1" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(1,this)">1×</button>
+              <button class="speed-chip" data-speed="0.75" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.75,this)">0.75×</button>
+              <button class="speed-chip" data-speed="0.5" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.5,this)">0.5×</button>
+            </div>
+            <button id="refPlayBtn" type="button" class="ref-play-btn">
+              <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg>
+              再生
+            </button>
+          </div>
         </div>
         <audio id="refAudio" preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
         <div class="pitch-graph-wrap">
@@ -255,9 +262,17 @@
       </div>
     </div>
     {% else %}
-    <div class="sample-wrap">
-      <span class="sample-label">お手本音声</span>
-      <audio class="sample-audio" controls preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
+    <div class="sample-wrap" style="flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+        <span class="sample-label">お手本音声</span>
+        <audio class="sample-audio" id="sampleAudioEl" controls preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
+      </div>
+      <div style="display:flex;justify-content:center;gap:6px;">
+        <span style="font-size:10px;color:rgba(255,255,255,.4);align-self:center;">速度</span>
+        <button class="speed-chip active" data-speed="1" style="padding:2px 9px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.7);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(1,this)">1×</button>
+        <button class="speed-chip" data-speed="0.75" style="padding:2px 9px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.7);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.75,this)">0.75×</button>
+        <button class="speed-chip" data-speed="0.5" style="padding:2px 9px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.7);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.5,this)">0.5×</button>
+      </div>
     </div>
     {% endif %}
   </div>
@@ -412,6 +427,25 @@
       }
     }
   });
+</script>
+
+<script>
+function setSampleSpeed(speed, btn) {
+  document.querySelectorAll('.speed-chip').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = 'transparent';
+    b.style.color = b.dataset.context === 'dark' ? 'rgba(255,255,255,.7)' : 'var(--text-3)';
+  });
+  if (btn) {
+    btn.classList.add('active');
+    btn.style.background = 'rgba(255,255,255,.25)';
+    btn.style.color = '#fff';
+  }
+  ['refAudio','sampleAudioEl'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.playbackRate = speed;
+  });
+}
 </script>
 <script>window.CURRENT_WORD_ID = {{ word_id|tojson|safe }};</script>
 <script src="static/js/audio_recorder.js"></script>

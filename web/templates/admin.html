@@ -170,7 +170,7 @@
           <td><span style="font-family:var(--mono);font-size:11px;">{{ w.reading }}</span></td>
           <td>{% if w.accent is not none %}<span style="font-family:var(--mono);font-size:11px;">{{ w.accent }}型{% if w.accent==0 %}（平板）{% elif w.accent==1 %}（頭高）{% endif %}</span>{% else %}<span style="color:var(--text-3);">不明</span>{% endif %}</td>
           <td>{% if w.source=="recorded" %}<span class="src-badge src-recorded">初期録音</span>{% elif w.source=="manual" %}<span class="src-badge src-recorded">録画</span>{% else %}<span class="src-badge src-tts">自動</span>{% endif %}</td>
-          <td>{% if w.source!="recorded" %}<div class="action-row"><button class="action-btn action-edit" onclick="openEdit('{{ w.word_id }}','{{ w.display }}','{{ w.reading }}','{{ w.accent }}','{{ (w.tags or [])|join(',') }}')">編集</button><button class="action-btn action-del" onclick="deleteWord('{{ w.word_id }}','{{ w.display }}',this)">削除</button></div>{% else %}<span style="font-size:10px;color:var(--text-3);">変更不可</span>{% endif %}</td>
+          <td>{% if w.source!="recorded" %}<div class="action-row"><button class="action-btn action-edit" onclick="openEdit('{{ w.word_id }}','{{ w.display }}','{{ w.reading }}','{{ w.accent }}','{{ (w.tags or [])|join(',') }}','{{ (w.note or '')|replace("'","\\'") }}')">編集</button><button class="action-btn action-del" onclick="deleteWord('{{ w.word_id }}','{{ w.display }}',this)">削除</button></div>{% else %}<span style="font-size:10px;color:var(--text-3);">変更不可</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -186,6 +186,10 @@
       <div class="form-field"><label class="form-label">表示テキスト</label><input type="text" class="form-input" id="editDisplay"></div>
       <div class="form-field"><label class="form-label">ひらがな読み</label><input type="text" class="form-input" id="editReading"></div>
       <div class="form-field"><label class="form-label">アクセント型（空欄でMeCab自動）</label><input type="text" class="form-input" id="editAccent" placeholder="0, 1, 2..."></div>
+      <div class="form-field">
+        <label class="form-label">発音メモ <span style="font-weight:400;text-transform:none;font-size:10px;color:var(--text-3)">練習のコツなど自由に記入</span></label>
+        <textarea class="form-input" id="editNote" rows="2" placeholder="例：語尾を上げないように注意" style="resize:vertical;min-height:52px;"></textarea>
+      </div>
       <div class="form-field">
         <label class="form-label">タグ <span style="font-weight:400;text-transform:none;font-size:10px;color:var(--text-3)">Enterで追加</span></label>
         <div class="tag-input-wrap" id="tagInputWrap" onclick="document.getElementById('tagTextInput').focus()">
@@ -349,11 +353,12 @@ document.addEventListener('DOMContentLoaded', () => {
   inp.addEventListener('blur', () => { if (inp.value.trim()) { _addTag(inp.value); inp.value = ''; } });
 });
 
-function openEdit(id, display, reading, accent, tags) {
+function openEdit(id, display, reading, accent, tags, note) {
   document.getElementById('editWordId').value = id;
   document.getElementById('editDisplay').value = display;
   document.getElementById('editReading').value = reading;
   document.getElementById('editAccent').value = (accent === 'None' || accent === 'null') ? '' : accent;
+  document.getElementById('editNote').value = note || '';
   _editTags = tags ? tags.split(',').map(t=>t.trim()).filter(Boolean) : [];
   _renderTags();
   document.getElementById('editModal').classList.add('show');
@@ -364,13 +369,15 @@ async function submitEdit() {
   const display = document.getElementById('editDisplay').value.trim();
   const reading = document.getElementById('editReading').value.trim();
   const accent  = document.getElementById('editAccent').value.trim();
+  const note    = document.getElementById('editNote').value;
   const inp = document.getElementById('tagTextInput');
   if (inp && inp.value.trim()) { _addTag(inp.value); inp.value = ''; }
   if (!display || !reading) { alert('必須項目を入力してください。'); return; }
   try {
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, r3] = await Promise.all([
       fetch('/admin/update_word', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({word_id:wordId, display, reading, accent:accent||null}) }),
       fetch('/admin/update_word_tags', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({word_id:wordId, tags:_editTags}) }),
+      fetch('/admin/update_word_note', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({word_id:wordId, note}) }),
     ]);
     const d1 = await r1.json();
     if (!r1.ok) { alert('エラー: ' + (d1.error||'更新失敗')); return; }
