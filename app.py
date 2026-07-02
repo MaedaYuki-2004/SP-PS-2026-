@@ -45,7 +45,7 @@ from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_q
 from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.quest     import check_and_update_quests, load_active_quests
 from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_word_recent_scores
-from core.utils     import pct_length, sleep_second
+from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
 
@@ -683,10 +683,26 @@ def select():
     lip_ref_keys = set(load_lip_refs().keys())
     all_tags     = get_all_tags()
     word_scores  = get_word_recent_scores(limit=5)
+    weak_sounds  = _get_weak_sound_cards(words)
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
-                           word_scores=word_scores)
+                           word_scores=word_scores, weak_sounds=weak_sounds)
+
+
+def _get_weak_sound_cards(words: list[dict], limit: int = 3) -> list[dict]:
+    """苦手音カード用データ（音 + 対象単語つき）を返す。"""
+    try:
+        from core.weakness import get_weak_sounds, find_words_with_kana
+        cards = []
+        for w in get_weak_sounds(limit=limit):
+            ex = find_words_with_kana(w["kana"], words, limit=3)
+            if ex:
+                cards.append({**w, "words": ex})
+        return cards
+    except Exception:
+        traceback.print_exc()
+        return []
 
 
 @app.route("/select")
@@ -702,10 +718,11 @@ def select_page():
     lip_ref_keys = set(load_lip_refs().keys())
     all_tags     = get_all_tags()
     word_scores  = get_word_recent_scores(limit=5)
+    weak_sounds  = _get_weak_sound_cards(words)
     return render_template("select.html", words=words, active_quests=quests,
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
-                           word_scores=word_scores)
+                           word_scores=word_scores, weak_sounds=weak_sounds)
 
 
 @app.route("/history")
@@ -1083,6 +1100,29 @@ def api_lip_guide(word_id: str):
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
+@app.route('/api/vowel_trainer/complete', methods=['POST'])
+def api_vowel_trainer_complete():
+    """母音トレーナー完走を記録し、口の形クエストの進捗を更新する。"""
+    try:
+        from core.quest import record_vowel_trainer_completion
+        data    = request.get_json(force=True, silent=True) or {}
+        word_id = (data.get("word_id") or "").strip()
+        if not word_id:
+            return jsonify({"error": "word_id がありません"}), 400
+
+        word_entry = get_word(word_id)
+        reading    = (word_entry or {}).get("reading", "")
+        vowels = {mv["vowel"] for mv in _get_mora_vowels(reading) if mv.get("vowel")}
+
+        completed = record_vowel_trainer_completion(word_id, vowels)
+        return jsonify({
+            "ok": True,
+            "completed_quests": [q.title for q in completed],
+        })
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
 @app.route('/api/lip_refs/delete', methods=['POST'])
 def api_lip_refs_delete():
     try:
@@ -1412,6 +1452,21 @@ def audio_analysis():
             mora_scores  = []
             worst_mora   = None
 
+        # モーラ別スコアにかなラベルを付与（苦手音分析・クエスト判定用）
+        mora_kana_scores: dict[str, float] = {}
+        for m in mora_scores:
+            try:
+                kana = romaji_mora_to_kana(str(m.get("label", "")))
+                m["kana"] = kana
+                if kana and m.get("total") is not None:
+                    v = float(m["total"])
+                    # 同じかなが複数回出る場合は低い方（=弱い方）を採用
+                    if kana not in mora_kana_scores or v < mora_kana_scores[kana]:
+                        mora_kana_scores[kana] = v
+            except Exception:
+                continue
+        score_result["mora_kana_scores"] = mora_kana_scores
+
         score_delta = _score_delta(score_result.get("total"), prev_score.get("total") if prev_score else None)
 
         # ── 信頼区間の計算 ────────────────────────────────────────────
@@ -1426,7 +1481,7 @@ def audio_analysis():
             ci_info   = None
 
         try:
-            save_record(word_id, display, reading, score_result)
+            save_record(word_id, display, reading, score_result, mora_scores=mora_scores)
         except Exception:
             pass
 

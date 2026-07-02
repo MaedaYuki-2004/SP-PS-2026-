@@ -34,7 +34,7 @@ class Quest:
     title:         str
     description:   str
     hint:          str
-    category:      str   # accent / length / vowel / total / review
+    category:      str   # accent / length / vowel / total / review / sound / mouth
     difficulty:    str   # easy / normal / hard
     target_metric: str
     target_value:  float
@@ -43,6 +43,9 @@ class Quest:
     created_at:    str
     is_completed:  bool = False
     completed_at:  str  = ""
+    # sound / mouth クエスト用
+    target_sound:   str   = ""   # 対象のかなモーラ or 母音（例:「さ」「お」）
+    progress_count: float = 0.0  # mouth クエストの完走回数カウンタ
 
     def progress_pct(self, current_value: float) -> float:
         span = self.target_value - self.start_value
@@ -319,6 +322,77 @@ def _spaced_repetition_quest(rec: dict) -> Quest:
     )
 
 
+def _sound_quest(weak: dict, example_words: list[dict]) -> Quest:
+    """苦手音クエストを生成する。
+
+    履歴分析で繰り返しスコアが低かった音（かなモーラ）を対象に、
+    その音を含む単語の練習で当該モーラのスコアが目標値を超えたらクリア。
+    """
+    kana   = weak["kana"]
+    avg    = float(weak["avg"])
+    axis_ja = {"accent": "アクセント", "length": "長さ", "vowel": "母音（口の形）"}.get(weak.get("worst_axis", ""), "総合")
+    target  = min(85.0, max(avg + 15.0, 70.0))
+    ex      = "・".join(w["display"] for w in example_words[:3]) if example_words else ""
+    word_id = example_words[0]["word_id"] if example_words else ""
+
+    hint = (
+        f"① 「{kana}」だけを単独でゆっくり5回発音してウォームアップ\n"
+        f"② 特に {axis_ja} が弱い傾向です。解析結果でこのモーラの行を確認\n"
+        f"③ 「{kana}」の直前で一呼吸置き、丁寧に発音してから次の音へつなげる\n"
+        + (f"④ 対象単語: {ex}" if ex else "④ この音を含む単語で練習しよう")
+    )
+    return Quest(
+        quest_id=_make_quest_id(),
+        title=f"苦手な音「{kana}」を克服しよう",
+        description=(
+            f"これまでの練習で「{kana}」の平均スコアが {avg:.0f}点 と低めです。"
+            f"「{kana}」を含む単語で、このモーラのスコア {target:.0f}点 以上を出そう！"
+        ),
+        hint=hint,
+        category="sound",
+        difficulty="hard" if avg < 50 else "normal",
+        target_metric=f"mora:{kana}",
+        target_value=target,
+        start_value=avg,
+        word_id=word_id,
+        created_at=datetime.now().isoformat(),
+        target_sound=kana,
+    )
+
+
+def _mouth_quest(vowel: str, example_words: list[dict], sessions: int = 2) -> Quest:
+    """口の形（母音トレーナー）クエストを生成する。
+
+    母音トレーナーで対象母音を含む単語を完走すると進捗が進む。
+    progress_count が target_value に達したらクリア（API 経由で更新）。
+    """
+    ex      = "・".join(w["display"] for w in example_words[:3]) if example_words else ""
+    word_id = example_words[0]["word_id"] if example_words else ""
+    hint = (
+        f"① 単語カードまたは録音画面から「口の形を練習する」を開く\n"
+        f"② カメラに向かって「{vowel}」の口の形を作り、ガイドの緑の帯に合わせる\n"
+        f"③ 最後のモーラまで完走すると1回分カウントされます\n"
+        + (f"④ おすすめ単語: {ex}" if ex else "④ この母音を含む単語で練習しよう")
+    )
+    return Quest(
+        quest_id=_make_quest_id(),
+        title=f"「{vowel}」の口の形をマスターしよう",
+        description=(
+            f"母音トレーナーで「{vowel}」を含む単語を {sessions}回 完走しよう。"
+            f"カメラが口の形を判定し、正しい形が身につきます。"
+        ),
+        hint=hint,
+        category="mouth",
+        difficulty="easy",
+        target_metric="vowel_trainer_sessions",
+        target_value=float(sessions),
+        start_value=0.0,
+        word_id=word_id,
+        created_at=datetime.now().isoformat(),
+        target_sound=vowel,
+    )
+
+
 def generate_new_quests(
     score_result: dict,
     word_id: str,
@@ -345,6 +419,9 @@ def generate_new_quests(
 
     quests: list[Quest] = []
 
+    # すでにアクティブなクエストと同じ音・単語の重複を避ける
+    active_sounds = {q.target_sound for q in load_active_quests() if q.target_sound}
+
     # ── 間隔反復クエストを最大1つ追加（12）────────────────────────────
     try:
         sr_candidates = get_spaced_repetition_candidates(min_days=3.0, max_score=85.0)
@@ -352,6 +429,36 @@ def generate_new_quests(
         sr_candidates = [c for c in sr_candidates if c.get("word_id") != word_id]
         if sr_candidates:
             quests.append(_spaced_repetition_quest(sr_candidates[0]))
+    except Exception:
+        pass
+
+    # ── 苦手音クエスト・口の形クエストを最大1つずつ追加 ───────────────
+    try:
+        from core.weakness import get_weak_sounds, find_words_with_kana
+        from core.vocab import list_words as _list_words
+        all_words = _list_words()
+        weak_sounds = [w for w in get_weak_sounds() if w["kana"] not in active_sounds]
+
+        if weak_sounds and len(quests) < n:
+            weak = weak_sounds[0]
+            ex   = find_words_with_kana(weak["kana"], all_words)
+            if ex:
+                quests.append(_sound_quest(weak, ex))
+                active_sounds.add(weak["kana"])
+
+        # 口の形クエスト: 母音が弱点の苦手音があれば、その母音のトレーナー練習
+        if len(quests) < n:
+            vowel_weak = next(
+                (w for w in weak_sounds
+                 if w.get("worst_axis") == "vowel" and w.get("vowel")
+                 and w["vowel"] not in active_sounds),
+                None,
+            )
+            if vowel_weak:
+                v  = vowel_weak["vowel"]
+                ex = find_words_with_kana(vowel_weak["kana"], all_words)
+                quests.append(_mouth_quest(v, ex))
+                active_sounds.add(v)
     except Exception:
         pass
 
@@ -391,6 +498,26 @@ def check_and_update_quests(
     still_active:    list[Quest] = []
 
     for quest in active:
+        # mouth クエストは録音スコアでは判定しない（母音トレーナー API で更新）
+        if quest.target_metric == "vowel_trainer_sessions":
+            still_active.append(quest)
+            continue
+
+        # 苦手音クエスト: 今回の録音での当該モーラのスコアで判定
+        if quest.target_metric.startswith("mora:"):
+            kana = quest.target_metric.split(":", 1)[1]
+            cur  = score_result.get("mora_kana_scores", {}).get(kana)
+            if cur is not None and float(cur) >= quest.target_value:
+                quest.is_completed = True
+                quest.completed_at = now
+                newly_completed.append(quest)
+            else:
+                if cur is not None:
+                    # 進捗表示用に最新値を記録
+                    quest.progress_count = float(cur)
+                still_active.append(quest)
+            continue
+
         current = float(score_result.get(quest.target_metric, 0) or 0)
         if current >= quest.target_value:
             quest.is_completed = True
@@ -417,3 +544,31 @@ def initialize_quests(score_result: dict, word_id: str) -> list[Quest]:
     new_quests = generate_new_quests(score_result, word_id, n=MAX_ACTIVE_QUESTS)
     _save_quests(new_quests, [])
     return new_quests
+
+
+def record_vowel_trainer_completion(word_id: str, vowels: set[str]) -> list[Quest]:
+    """母音トレーナー完走を mouth クエストに反映する。
+
+    完走した単語に含まれる母音（vowels）が対象のクエストの
+    progress_count を +1 し、target_value に達したらクリアにする。
+    クリアになったクエストのリストを返す。
+    """
+    now    = datetime.now().isoformat()
+    active = load_active_quests()
+    newly_completed: list[Quest] = []
+    still_active:    list[Quest] = []
+
+    for quest in active:
+        if (quest.target_metric == "vowel_trainer_sessions"
+                and quest.target_sound in vowels):
+            quest.progress_count += 1
+            if quest.progress_count >= quest.target_value:
+                quest.is_completed = True
+                quest.completed_at = now
+                newly_completed.append(quest)
+                continue
+        still_active.append(quest)
+
+    if newly_completed or any(q.target_metric == "vowel_trainer_sessions" for q in still_active):
+        _save_quests(still_active, newly_completed)
+    return newly_completed

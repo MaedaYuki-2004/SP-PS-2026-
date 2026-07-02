@@ -598,6 +598,23 @@ function showComplete() {
   if (video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
   }
+
+  // 完走をサーバに報告（口の形クエストの進捗更新）
+  fetch('/api/vowel_trainer/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ word_id: WORD_ID }),
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.completed_quests && d.completed_quests.length > 0) {
+        const el = document.createElement('div');
+        el.style.cssText = 'margin-top:6px;padding:12px 20px;border-radius:14px;background:var(--quest-bg);border:1px solid var(--quest-border);color:var(--quest);font-size:14px;font-weight:700;';
+        el.textContent = '🏆 クエスト達成: ' + d.completed_quests.join(' / ');
+        document.querySelector('.complete-sub')?.after(el);
+      }
+    })
+    .catch(() => {});
 }
 
 /* ══════════════════════════════════════════════════════

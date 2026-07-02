@@ -207,6 +207,24 @@
 
     .quest-empty { display:none; }
 
+    /* ── 今日の重点練習（苦手音カード） ── */
+    .weak-section { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:18px 20px; box-shadow:var(--shadow-xs); }
+    .weak-header { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .weak-title { font-size:14px; font-weight:900; color:var(--text); }
+    .weak-sub { font-size:11px; color:var(--text-3); }
+    .weak-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+    .weak-card { display:flex; gap:14px; align-items:center; padding:12px 14px; background:var(--bg-muted); border-radius:var(--r); border-left:3px solid var(--accent); }
+    .weak-card-left { text-align:center; flex-shrink:0; }
+    .weak-kana { font-size:30px; font-weight:900; color:var(--accent); line-height:1.1; }
+    .weak-score { font-family:var(--mono); font-size:12px; color:var(--text-3); }
+    .weak-score span { font-size:9px; }
+    .weak-card-right { flex:1; min-width:0; }
+    .weak-meta { font-size:10.5px; color:var(--text-3); margin-bottom:6px; }
+    .weak-words { display:flex; gap:6px; flex-wrap:wrap; }
+    .weak-word-btn { display:inline-flex; align-items:center; padding:4px 12px; border-radius:100px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; text-decoration:none; transition:all .15s; }
+    .weak-word-btn:hover { border-color:var(--navy); color:var(--navy); }
+    .weak-mouth-btn { border-color:var(--quest-border); color:var(--quest); }
+
     @media (max-width:700px) {
       .hero { padding:12px 16px 0; }
       .hero-card { padding:22px 20px 20px; }
@@ -279,6 +297,43 @@
     document.getElementById('heroGreeting').textContent = `${g}！今日も練習しましょう`;
   })();
 </script>
+
+{% if weak_sounds %}
+<div class="main-layout" style="padding-top:16px;padding-bottom:0;">
+  <div class="weak-section">
+    <div class="weak-header">
+      <span class="weak-title">🎯 今日の重点練習</span>
+      <span class="weak-sub">これまでの練習で苦手な音を分析しました</span>
+    </div>
+    <div class="weak-cards">
+      {% for ws in weak_sounds %}
+      <div class="weak-card">
+        <div class="weak-card-left">
+          <div class="weak-kana">{{ ws.kana }}</div>
+          <div class="weak-score">{{ ws.avg|int }}<span>点</span></div>
+        </div>
+        <div class="weak-card-right">
+          <div class="weak-meta">
+            {% if ws.worst_axis == 'accent' %}アクセント{% elif ws.worst_axis == 'length' %}長さ{% else %}口の形{% endif %}が弱め ・ {{ ws.count }}回計測
+          </div>
+          <div class="weak-words">
+            {% for w in ws.words %}
+            <form action="/" method="post" style="display:inline;margin:0;">
+              <input type="hidden" name="Words" value="{{ w.word_id }}">
+              <button type="submit" class="weak-word-btn">{{ w.display }}</button>
+            </form>
+            {% endfor %}
+            {% if ws.worst_axis == 'vowel' and ws.words %}
+            <a href="/vowel_trainer/{{ ws.words[0].word_id }}" class="weak-word-btn weak-mouth-btn">👄 口の形を練習</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <div class="main-layout">
   <!-- 単語グリッド -->
@@ -421,12 +476,22 @@
           <div class="quest-item-top">
             <div class="quest-item-title">{{ q.title }}</div>
             <span class="cat-badge cat-{{ q.category }}">
-              {% if q.category=="accent" %}Ac{% elif q.category=="length" %}Le{% elif q.category=="vowel" %}Vo{% else %}All{% endif %}
+              {% if q.category=="accent" %}Ac{% elif q.category=="length" %}Le{% elif q.category=="vowel" %}Vo{% elif q.category=="sound" %}音{% elif q.category=="mouth" %}口{% else %}All{% endif %}
             </span>
           </div>
-          <div class="quest-item-word">対象<span>{{ q.word_display or q.word_id }}</span></div>
+          <div class="quest-item-word">対象<span>{% if q.target_sound %}「{{ q.target_sound }}」{% if q.word_display %}（{{ q.word_display }} など）{% endif %}{% else %}{{ q.word_display or q.word_id }}{% endif %}</span></div>
           <div class="quest-item-desc">{{ q.description }}</div>
           <div class="quest-hint-mini" style="font-size:10px;color:var(--text-3);line-height:1.8;background:var(--bg-muted);border-left:2px solid var(--navy);padding:7px 10px;border-radius:0 var(--r-xs) var(--r-xs) 0;margin-bottom:8px;white-space:pre-line;">{{ q.hint }}</div>
+          {% if q.category == "mouth" %}
+          <div class="quest-progress-meta">
+            <span>{{ q.progress_count|int }} / {{ q.target_value|int }} 回 完走</span>
+            <span class="quest-progress-pct">{{ ((q.progress_count / q.target_value * 100) if q.target_value else 0)|round|int }}%</span>
+          </div>
+          <div class="progress-bar">
+            {% set _p = ((q.progress_count / q.target_value * 100) if q.target_value else 0)|round|int %}
+            <div class="progress-fill" style="width:{{ [[_p,0]|max,100]|min }}%;"></div>
+          </div>
+          {% else %}
           <div class="quest-progress-meta">
             <span>{{ q.start_value|round(1) }}点 → {{ q.target_value|int }}点</span>
             <span class="quest-progress-pct">
@@ -439,8 +504,15 @@
             {% if q.target_value > 0 %}{% set _p = (q.start_value / q.target_value * 100)|round|int %}{% set _p = [_p, 0]|max %}{% set _p = [_p, 100]|min %}{% else %}{% set _p = 0 %}{% endif %}
             <div class="progress-fill" style="width:{{ _p }}%;"></div>
           </div>
+          {% endif %}
         </div>
         <div class="quest-item-footer">
+          {% if q.category == "mouth" and q.word_id %}
+          <a href="/vowel_trainer/{{ q.word_id }}" class="quest-practice-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+            口の形を練習する
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          {% else %}
           <form action="/" method="post">
             <input type="hidden" name="Words" value="{{ q.word_id }}">
             <button type="submit" class="quest-practice-btn">
@@ -448,6 +520,7 @@
               <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
           </form>
+          {% endif %}
         </div>
       </div>
       {% endfor %}

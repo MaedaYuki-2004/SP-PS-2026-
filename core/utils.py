@@ -43,3 +43,58 @@ def phoneme_frame(phoneme: list[list[int | str]]) -> list[list[int | str]]:
         item[0] = int(item[0]) - start
         item[1] = int(item[1]) - start
     return phoneme
+
+# ── ローマ字モーラ → かな変換 ─────────────────────────────────────────
+# Julius の .lab 由来モーララベル（"sa", "shi", "kya", "N", "q", "ka:" 等）を
+# ひらがな表記に変換する。苦手音分析・クエスト表示で使用。
+
+_ROMAJI_ROWS: dict[str, str] = {
+    "":   "あいうえお",  "k":  "かきくけこ",  "g":  "がぎぐげご",
+    "s":  "さすすせそ",  "z":  "ざずずぜぞ",  "t":  "たちつてと",
+    "d":  "だぢづでど",  "n":  "なにぬねの",  "h":  "はひふへほ",
+    "b":  "ばびぶべぼ",  "p":  "ぱぴぷぺぽ",  "m":  "まみむめも",
+    "r":  "らりるれろ",  "w":  "わゐうゑを",  "y":  "や ゆ よ",
+    "f":  "ふぁふぃふふぇふぉ",
+}
+
+_ROMAJI_SPECIAL: dict[str, str] = {
+    # 拗音・特殊モーラ
+    "shi": "し", "chi": "ち", "tsu": "つ", "ji": "じ", "fu": "ふ",
+    "sha": "しゃ", "shu": "しゅ", "sho": "しょ", "she": "しぇ",
+    "cha": "ちゃ", "chu": "ちゅ", "cho": "ちょ", "che": "ちぇ",
+    "ja":  "じゃ", "ju":  "じゅ", "jo":  "じょ", "je":  "じぇ",
+    "kya": "きゃ", "kyu": "きゅ", "kyo": "きょ",
+    "gya": "ぎゃ", "gyu": "ぎゅ", "gyo": "ぎょ",
+    "nya": "にゃ", "nyu": "にゅ", "nyo": "にょ",
+    "hya": "ひゃ", "hyu": "ひゅ", "hyo": "ひょ",
+    "bya": "びゃ", "byu": "びゅ", "byo": "びょ",
+    "pya": "ぴゃ", "pyu": "ぴゅ", "pyo": "ぴょ",
+    "mya": "みゃ", "myu": "みゅ", "myo": "みょ",
+    "rya": "りゃ", "ryu": "りゅ", "ryo": "りょ",
+    "N": "ん", "q": "っ", "sp": "", "silB": "", "silE": "",
+}
+
+_VOWEL_INDEX = {"a": 0, "i": 1, "u": 2, "e": 3, "o": 4}
+
+
+def romaji_mora_to_kana(label: str) -> str:
+    """ローマ字モーララベルをひらがなに変換する。変換不能ならそのまま返す。"""
+    if not label:
+        return label
+    long_mark = ""
+    base = label
+    if base.endswith(":"):
+        base = base[:-1]
+        long_mark = "ー"
+
+    if base in _ROMAJI_SPECIAL:
+        return _ROMAJI_SPECIAL[base] + long_mark
+
+    if len(base) >= 1 and base[-1] in _VOWEL_INDEX:
+        cons, vowel = base[:-1], base[-1]
+        row = _ROMAJI_ROWS.get(cons)
+        if row:
+            kana = row[_VOWEL_INDEX[vowel]]
+            if kana != " ":
+                return kana + long_mark
+    return label

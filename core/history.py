@@ -185,8 +185,13 @@ def save_record(
     display:      str,
     reading:      str,
     score_result: dict,
+    mora_scores:  list[dict] | None = None,
 ) -> dict:
-    """スコア結果を履歴の先頭に追加して保存する。"""
+    """スコア結果を履歴の先頭に追加して保存する。
+
+    mora_scores はモーラ別スコア（苦手音分析用）。
+    [{kana, accent, length, vowel, total}] の圧縮形で保存する。
+    """
     record = {
         "id":           f"rec_{time.time_ns()}",
         "word_id":      word_id,
@@ -200,6 +205,21 @@ def save_record(
         "grade":        score_result.get("grade"),
         "accent_label": score_result.get("accent_label"),
     }
+    if mora_scores:
+        compact = []
+        for m in mora_scores:
+            try:
+                compact.append({
+                    "kana":   m.get("kana") or m.get("label", ""),
+                    "accent": round(float(m["accent"]), 1) if m.get("accent") is not None else None,
+                    "length": round(float(m["length"]), 1) if m.get("length") is not None else None,
+                    "vowel":  round(float(m["vowel"]),  1) if m.get("vowel")  is not None else None,
+                    "total":  round(float(m["total"]),  1) if m.get("total")  is not None else None,
+                })
+            except Exception:
+                continue
+        if compact:
+            record["mora_scores"] = compact
 
     history = load_history()
     history.insert(0, record)
