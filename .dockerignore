@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Python キャッシュ
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# 仮想環境
+.env
+.venv
+venv/
+ENV/
+
+# ユーザーデータ（Railway Volume に格納するもの）
+data/config/words_db.json
+data/config/history.json
+data/config/quest_progress.json
+data/config/lip_refs.json
+data/config/formant_cache.json
+data/config/word_id.txt
+data/raw_audio/
+data/mfcc/
+
+# 生成ファイル（実行時に再生成）
+web/static/sample/
+web/static/distance_result/
+
+# Windows バイナリ（Linux では不要）
+engine/bin/
+
+# IDE・OS
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
