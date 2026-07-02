@@ -1018,6 +1018,71 @@ def api_lip_refs_ratios(word_id: str):
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
 
+# ローマ字モーラ末尾の母音 → ひらがな母音
+_ROMAJI_VOWEL = {'a': 'あ', 'i': 'い', 'u': 'う', 'e': 'え', 'o': 'お'}
+
+
+@app.route('/api/lip_guide/<word_id>')
+def api_lip_guide(word_id: str):
+    """お手本（先生）のモーラ別口開き比率を、読みのモーラ列に揃えて返す。
+
+    lip_refs.json の mora_data（Julius アライメント由来、ローマ字ラベル）を
+    _get_mora_vowels(reading) のモーラ列に対応付ける。
+    長音「ー」で mora_data 側が不足する場合は直前の値を引き継ぐ。
+    """
+    try:
+        refs  = load_lip_refs()
+        entry = refs.get(word_id)
+        mora_data = (entry or {}).get('mora_data')
+        if not mora_data:
+            return jsonify({"has_data": False})
+
+        word_entry = get_word(word_id)
+        reading    = (word_entry or {}).get("reading", "")
+        if not reading:
+            return jsonify({"has_data": False})
+
+        def _vowel_of(label: str) -> str | None:
+            base = label.rstrip(':')
+            return _ROMAJI_VOWEL.get(base[-1]) if base else None
+
+        mora_vowels = _get_mora_vowels(reading)
+        guide: list[dict | None] = []
+        last_vowel_item: dict | None = None
+        gi = 0
+        for mv in mora_vowels:
+            if mv.get("skip"):
+                # ん・っ は練習対象外。mora_data 側の N/q エントリを読み捨てる
+                if gi < len(mora_data) and _vowel_of(mora_data[gi].get("label", "")) is None:
+                    gi += 1
+                guide.append(None)
+                continue
+
+            # mora_data 側に紛れた N/q（母音なし）エントリは読み飛ばす
+            while gi < len(mora_data) and _vowel_of(mora_data[gi].get("label", "")) is None:
+                gi += 1
+
+            item = None
+            if gi < len(mora_data):
+                g = mora_data[gi]; gi += 1
+                r = g.get("v_h_ratio")
+                if r is not None and r > 0:
+                    item = {"label": g.get("label", ""),
+                            "vowel": _vowel_of(g.get("label", "")),
+                            "ratio": round(float(r), 4)}
+            elif mv["mora"] == 'ー' and last_vowel_item:
+                # 長音: mora_data 側にエントリが無ければ直前モーラの開きを維持
+                item = dict(last_vowel_item)
+
+            if item:
+                last_vowel_item = item
+            guide.append(item)
+
+        return jsonify({"has_data": True, "guide": guide})
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
 @app.route('/api/lip_refs/delete', methods=['POST'])
 def api_lip_refs_delete():
     try:

@@ -66,6 +66,22 @@
 
     .target-hint { font-size:12px; color:var(--text-2); line-height:1.7; padding:10px 14px; background:var(--bg-muted); border-radius:var(--r-sm); border-left:2px solid var(--navy); text-align:left; }
 
+    /* ── 先生の開き比較ゲージ ── */
+    .guide-block { margin:12px auto 8px; max-width:280px; text-align:left; display:none; }
+    .guide-block.show { display:block; }
+    .guide-title { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
+    .guide-gauge { position:relative; height:16px; background:var(--bg-muted); border-radius:100px; }
+    .guide-band  { position:absolute; top:0; bottom:0; background:rgba(30,201,154,.22); border-left:2px solid var(--green); border-right:2px solid var(--green); border-radius:2px; }
+    .guide-marker { position:absolute; top:-3px; bottom:-3px; width:5px; border-radius:3px; background:#fff; box-shadow:0 0 6px rgba(0,0,0,.5); transition:left .12s linear, background .2s; }
+    .guide-marker.ok   { background:var(--green); }
+    .guide-marker.low  { background:#F0A030; }
+    .guide-marker.high { background:var(--accent); }
+    .guide-scale { display:flex; justify-content:space-between; font-size:9px; color:var(--text-3); margin-top:3px; font-family:var(--mono); }
+    .guide-hint  { font-size:11.5px; font-weight:600; margin-top:6px; min-height:16px; color:var(--text-2); }
+    .guide-hint.ok   { color:var(--green); }
+    .guide-hint.low  { color:#F0A030; }
+    .guide-hint.high { color:var(--accent); }
+
     /* ── フィードバックバー ── */
     .feedback-bar { padding:12px 24px; max-width:960px; margin:0 auto; width:100%; box-sizing:border-box; }
     .feedback-inner { border-radius:14px; padding:14px 18px; display:flex; align-items:center; gap:14px; transition:background .3s,border-color .3s; border:1px solid var(--border); background:var(--bg-card); }
@@ -182,6 +198,15 @@
         <div class="target-vowel-big" id="targetVowelBig">—</div>
         <div class="mouth-shape-wrap">
           <svg class="mouth-svg" id="mouthSvg" viewBox="0 0 120 100"></svg>
+        </div>
+        <div class="guide-block" id="guideBlock">
+          <div class="guide-title">👩‍🏫 先生の口の開きと比較</div>
+          <div class="guide-gauge">
+            <div class="guide-band" id="guideBand"></div>
+            <div class="guide-marker" id="guideMarker"></div>
+          </div>
+          <div class="guide-scale"><span>閉じる</span><span>大きく開く</span></div>
+          <div class="guide-hint" id="guideHint">口を動かしてみましょう</div>
         </div>
         <div class="target-hint" id="targetHint">カメラに顔を向けてください</div>
       </div>
@@ -342,12 +367,75 @@ const HINT_BY_DETECTED = {
 /* ══════════════════════════════════════════════════════
    ステート
 ══════════════════════════════════════════════════════ */
+const WORD_ID = {{ word_id | tojson }};
 // 練習対象（母音があるモーラのみ）
 const practiceItems = MORA_VOWELS.filter(m => !m.skip);
+// practiceItems の i 番目 → MORA_VOWELS の元インデックス
+const practiceIdx = MORA_VOWELS.map((m, i) => m.skip ? null : i).filter(i => i !== null);
 let currentIdx = 0;
 let detectedVowel = null;
 let matchStartTime = null;
 const HOLD_MS = 1500;  // 正解をキープする時間
+
+/* ── 先生のお手本ガイド（/api/lip_guide） ── */
+let GUIDE = null;        // MORA_VOWELS と平行な配列。要素は {label, vowel, ratio} か null
+let _guideTarget = null; // 現在モーラの先生の開き比率
+let _guideMax    = 0.6;  // ゲージの右端スケール
+let _emaRatio    = null; // 自分の開き比率（平滑化）
+
+fetch(`/api/lip_guide/${WORD_ID}`)
+  .then(r => r.json())
+  .then(d => {
+    if (d.has_data && Array.isArray(d.guide)) {
+      GUIDE = d.guide;
+      updateTargetUI();  // 現在モーラのゲージを反映
+    }
+  })
+  .catch(() => {});
+
+function updateGuideTarget() {
+  const block = document.getElementById('guideBlock');
+  const g = (GUIDE && currentIdx < practiceIdx.length) ? GUIDE[practiceIdx[currentIdx]] : null;
+  if (!g || !g.ratio) {
+    block.classList.remove('show');
+    _guideTarget = null;
+    return;
+  }
+  _guideTarget = g.ratio;
+  _guideMax    = Math.max(0.6, g.ratio * 1.9);
+  const lo = g.ratio * 0.72;
+  const hi = Math.min(_guideMax, g.ratio * 1.35);
+  const band = document.getElementById('guideBand');
+  band.style.left  = (lo / _guideMax * 100) + '%';
+  band.style.width = ((hi - lo) / _guideMax * 100) + '%';
+  document.getElementById('guideHint').textContent = '口を動かしてみましょう';
+  document.getElementById('guideHint').className = 'guide-hint';
+  block.classList.add('show');
+}
+
+function updateGuideMarker(m) {
+  if (_guideTarget == null || !m || m.cmpRatio == null) return;
+  _emaRatio = _emaRatio == null ? m.cmpRatio : _emaRatio * 0.7 + m.cmpRatio * 0.3;
+
+  const marker = document.getElementById('guideMarker');
+  const hint   = document.getElementById('guideHint');
+  const pct    = Math.min(_emaRatio / _guideMax, 1) * 100;
+  marker.style.left = `calc(${pct}% - 2px)`;
+
+  if (_emaRatio < _guideTarget * 0.72) {
+    marker.className = 'guide-marker low';
+    hint.className   = 'guide-hint low';
+    hint.textContent = '⬆ 先生より閉じ気味です。もう少し縦に開けましょう';
+  } else if (_emaRatio > _guideTarget * 1.35) {
+    marker.className = 'guide-marker high';
+    hint.className   = 'guide-hint high';
+    hint.textContent = '⬇ 先生より開きすぎです。少し閉じましょう';
+  } else {
+    marker.className = 'guide-marker ok';
+    hint.className   = 'guide-hint ok';
+    hint.textContent = '✓ 先生と同じ開き具合です！';
+  }
+}
 
 /* ══════════════════════════════════════════════════════
    UI 更新
@@ -383,6 +471,9 @@ function updateTargetUI() {
 
   // 進捗ドット更新
   updateDots();
+
+  // 先生ガイドゲージ更新
+  updateGuideTarget();
 
   // キープバーリセット
   resetKeepBar();
@@ -662,7 +753,15 @@ function getLipMetrics(lm) {
   // 唇突出度: 口角z − 唇中央z（正 = 中央が前 = う）
   const zProt = (lm[61].z + lm[291].z) / 2 - (lm[13].z + lm[14].z) / 2;
 
-  return { h, w, ratio: h / (w + 0.001), zProt };
+  // 先生のお手本と同じ式の開き比率（ピクセル空間の 縦距離÷横距離）
+  // お手本抽出（サーバ側 _extract_lip_data）とアスペクト比を揃える
+  const vw = video.videoWidth  || 640;
+  const vh = video.videoHeight || 480;
+  const vDist = Math.hypot((lm[13].x - lm[14].x) * vw, (lm[13].y - lm[14].y) * vh);
+  const hDist = Math.hypot((lm[61].x - lm[291].x) * vw, (lm[61].y - lm[291].y) * vh);
+  const cmpRatio = vDist / (hDist + 1e-6);
+
+  return { h, w, ratio: h / (w + 0.001), zProt, cmpRatio };
 }
 
 function _gauss(x, mu, sigma) {
@@ -687,6 +786,8 @@ function classifyRaw(m) {
   return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
 }
 
+let _lastMetrics = null;
+
 function classifyVowel(lm) {
   // キャリブレーション記録中はフレームを蓄積
   if (_isCalibrating) {
@@ -697,6 +798,7 @@ function classifyVowel(lm) {
 
   const m = getLipMetrics(lm);
   if (!m) return null;
+  _lastMetrics = m;
 
   const raw = classifyRaw(m);
 
@@ -778,6 +880,9 @@ function onResults(results) {
   // 母音分類
   const vowel = classifyVowel(lm);
   detectedVowel = vowel;
+
+  // 先生ガイドゲージ（お手本データがある単語のみ）
+  updateGuideMarker(_lastMetrics);
 
   if (currentIdx < practiceItems.length) {
     const target = practiceItems[currentIdx]?.vowel;
