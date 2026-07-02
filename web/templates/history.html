@@ -228,7 +228,9 @@
   {% endif %}
 
   {% if word_latest %}
-  <div class="sec-title">単語別スコア推移 <div class="sec-title-line"></div></div>
+  <details class="fold-section" id="wordProgressFold">
+  <summary class="fold-summary">📈 単語別スコア推移（{{ word_latest|length }}単語） <span class="fold-hint">タップで開く</span></summary>
+  <div class="fold-body">
   <div class="word-progress-grid">
     {% for wid, rec in word_latest.items() %}
     {% set recs = word_history.get(wid, []) %}
@@ -255,6 +257,8 @@
     </div>
     {% endfor %}
   </div>
+  </div>
+  </details>
   {% endif %}
 
   <div class="table-header">
@@ -290,9 +294,41 @@
       </tbody>
     </table>
   </div>
+  <button id="showMoreRows" style="display:none;width:100%;margin-top:10px;padding:12px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--bg-card);color:var(--text-2);font-family:var(--font);font-size:12.5px;font-weight:700;cursor:pointer;">さらに20件表示する</button>
   {% endif %}
 </div>
 </div><!-- /tabLog -->
+
+<script>
+// ── 録音ログの段階表示（初期20件 → +20件ずつ） ──
+(function () {
+  var VISIBLE = 20;
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#historyTable tbody tr'));
+  var btn  = document.getElementById('showMoreRows');
+  if (!btn || rows.length <= VISIBLE) return;
+  var shown = VISIBLE;
+  function apply() {
+    rows.forEach(function (r, i) { r.style.display = i < shown ? '' : 'none'; });
+    btn.style.display = shown < rows.length ? '' : 'none';
+    btn.textContent = 'さらに20件表示する（残り' + (rows.length - shown) + '件）';
+  }
+  btn.addEventListener('click', function () { shown += 20; apply(); });
+  // 検索フィルタ使用時は filterHistory() に表示を任せ、ボタンだけ隠す
+  var filter = document.getElementById('filterInput');
+  if (filter) filter.addEventListener('input', function () {
+    if (filter.value.trim()) { btn.style.display = 'none'; }
+    else { apply(); }
+  });
+  apply();
+})();
+
+// ── 折りたたみを開いたとき Chart.js を再描画 ──
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('details.fold-section').forEach(function (d) {
+    d.addEventListener('toggle', function () { if (d.open) window.dispatchEvent(new Event('resize')); });
+  });
+});
+</script>
 
 <!-- ══════════════ 分析タブ ══════════════ -->
 <div id="tabAnalysis" style="display:none;">
