@@ -90,13 +90,10 @@
     /* カード右上アイコンボタン群 */
     .word-card-actions { display:flex; gap:4px; flex-shrink:0; }
     .word-ref-btn,
-    .word-edit-btn,
     .word-del-btn { width:26px; height:26px; padding:0; background:transparent; border:1px solid var(--border); border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background var(--dur),border-color var(--dur),color var(--dur); }
     .word-ref-btn  { color:var(--text-3); }
     .word-ref-btn:hover  { background:var(--bg-muted); border-color:var(--navy); color:var(--navy); }
     .word-ref-btn.has-ref { color:var(--green); border-color:var(--green); background:var(--green-bg); }
-    .word-edit-btn { color:var(--text-3); }
-    .word-edit-btn:hover { background:var(--bg-muted); border-color:var(--navy); color:var(--navy); }
     .word-del-btn  { color:var(--text-3); position:relative; }
     .word-del-btn:hover  { background:var(--accent-bg); border-color:var(--accent); color:var(--accent); }
     .word-del-btn.delete-pending { background:var(--accent-bg) !important; border-color:var(--accent) !important; color:var(--accent) !important; }
@@ -182,8 +179,6 @@
     .word-card-note { font-size:11px; color:var(--text-2); background:var(--bg-muted); border-left:2px solid var(--navy); padding:5px 8px; border-radius:0 var(--r-xs) var(--r-xs) 0; margin-bottom:8px; line-height:1.5; }
 
     /* スコア推移スパークライン */
-    .word-card-sparkline { margin-bottom:6px; }
-    .word-card-sparkline svg { display:block; }
 
     /* 連続練習ボタン */
     .continuous-btn { padding:7px 13px; background:var(--green); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background var(--dur),opacity var(--dur); }
@@ -530,15 +525,6 @@
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="2.5" width="9" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 6l-2.5 1.8V4.2L7 6z" fill="currentColor"/></svg>
                 {% endif %}
               </button>
-              <!-- 編集ボタン -->
-              <button class="word-edit-btn"
-                      data-word-id="{{ w.word_id }}"
-                      data-display="{{ w.display }}"
-                      data-reading="{{ w.reading }}"
-                      data-accent="{{ w.accent if w.accent is not none else '' }}"
-                      title="編集">
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-              </button>
               <!-- 削除ボタン -->
               <button class="word-del-btn"
                       data-word-id="{{ w.word_id }}"
@@ -565,7 +551,6 @@
           {% if w.note %}
           <div class="word-card-note">{{ w.note }}</div>
           {% endif %}
-          <div class="word-card-sparkline" id="spark-{{ w.word_id }}"></div>
         </div>
         <div class="word-card-audio">
           <audio controls src="/sample_audio/{{ w.word_id }}" preload="none"></audio>
@@ -589,8 +574,6 @@
 
 
 <script>
-const _WORD_SCORES = {{ word_scores | tojson }};
-
 let _activeTag    = null;
 let _activeAccent = '';
 let _playSpeed    = 1;
@@ -632,44 +615,6 @@ function setPlaybackSpeed(speed, btn) {
   document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.querySelectorAll('.word-card audio').forEach(a => { a.playbackRate = speed; });
-}
-
-/* ── スパークライン ── */
-function _renderSparklines() {
-  const ns = 'http://www.w3.org/2000/svg';
-  document.querySelectorAll('.word-card').forEach(card => {
-    const wid    = card.dataset.wordId;
-    const scores = _WORD_SCORES[wid] || [];
-    if (scores.length < 2) return;
-    const el = card.querySelector('.word-card-sparkline');
-    if (!el) return;
-    const W = 60, H = 22;
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-    svg.setAttribute('preserveAspectRatio', 'none');
-    svg.style.cssText = `width:100%;height:${H}px;display:block;`;
-    const pts = scores.map((s, i) => {
-      const x = i / (scores.length - 1) * (W - 4) + 2;
-      const y = H - 3 - (Math.min(s, 100) / 100) * (H - 6);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ');
-    const line = document.createElementNS(ns, 'polyline');
-    line.setAttribute('points', pts);
-    line.setAttribute('fill', 'none');
-    line.setAttribute('stroke', 'var(--navy)');
-    line.setAttribute('stroke-width', '2');
-    line.setAttribute('stroke-linecap', 'round');
-    line.setAttribute('stroke-linejoin', 'round');
-    svg.appendChild(line);
-    const last  = scores[scores.length - 1];
-    const lx    = parseFloat(pts.split(' ').pop().split(',')[0]);
-    const ly    = parseFloat(pts.split(' ').pop().split(',')[1]);
-    const dot   = document.createElementNS(ns, 'circle');
-    dot.setAttribute('cx', lx); dot.setAttribute('cy', ly); dot.setAttribute('r', '3');
-    dot.setAttribute('fill', last >= 75 ? 'var(--green)' : last >= 50 ? 'var(--blue)' : 'var(--accent)');
-    svg.appendChild(dot);
-    el.appendChild(svg);
-  });
 }
 
 /* ── 連続練習モード ── */
@@ -716,7 +661,6 @@ document.getElementById('btnContinuous').addEventListener('click', () => {
   });
 })();
 
-document.addEventListener('DOMContentLoaded', _renderSparklines);
 </script>
 
 <!-- 単語追加モーダル（Step1: 登録 → Step2: お手本録画） -->
@@ -1058,62 +1002,8 @@ document.addEventListener('DOMContentLoaded', _renderSparklines);
   });
 })();
 
-/* ── 単語編集・削除 ──────────────────────────────────────────── */
-/* NOTE: #editModalOverlay はこのスクリプトより後に定義されるため
-   DOMContentLoaded 内で要素を取得する。 */
+/* ── 単語削除 ──────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function () {
-  var editOverlay = document.getElementById('editModalOverlay');
-  var editStatus  = document.getElementById('editModalStatus');
-  var editDisplay = document.getElementById('editDisplayInp');
-  var editReading = document.getElementById('editReadingInp');
-  var editAccent  = document.getElementById('editAccentInp');
-  var editWordId  = null;
-
-  // 編集ボタンのクリック（委譲）
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('.word-edit-btn');
-    if (!btn) return;
-    editWordId = btn.dataset.wordId;
-    editDisplay.value = btn.dataset.display;
-    editReading.value = btn.dataset.reading;
-    editAccent.value  = btn.dataset.accent;
-    editStatus.textContent = '';
-    editStatus.className = 'edit-modal-status';
-    editOverlay.classList.add('open');
-  });
-
-  document.getElementById('editSaveBtn').addEventListener('click', async function () {
-    var display = editDisplay.value.trim();
-    var reading = editReading.value.trim();
-    if (!display || !reading) {
-      editStatus.textContent = '表示テキストと読みは必須です。';
-      editStatus.className = 'edit-modal-status err';
-      return;
-    }
-    try {
-      var res = await fetch('/admin/update_word', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word_id: editWordId, display, reading, accent: editAccent.value }),
-      });
-      var data = await res.json();
-      if (!res.ok) throw new Error(data.error || '更新に失敗しました');
-      editStatus.textContent = '✓ 更新しました';
-      editStatus.className = 'edit-modal-status ok';
-      setTimeout(function () { editOverlay.classList.remove('open'); location.reload(); }, 800);
-    } catch (err) {
-      editStatus.textContent = 'エラー: ' + err.message;
-      editStatus.className = 'edit-modal-status err';
-    }
-  });
-
-  document.getElementById('editCancelBtn').addEventListener('click', function () {
-    editOverlay.classList.remove('open');
-  });
-  editOverlay.addEventListener('click', function (e) {
-    if (e.target === editOverlay) editOverlay.classList.remove('open');
-  });
-
   // 削除ボタン — ダブルクリック確認パターン（confirm() ダイアログ不使用）
   let _delPending = null, _delTimer = null;
   function _clearPending() {
@@ -1153,32 +1043,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 }); // DOMContentLoaded
 </script>
-
-<!-- 単語編集モーダル -->
-<div class="edit-modal-overlay" id="editModalOverlay">
-  <div class="edit-modal-card">
-    <div class="edit-modal-title">単語を編集</div>
-    <div class="aw-fields">
-      <div class="aw-field">
-        <label class="aw-label">表示テキスト</label>
-        <input type="text" class="aw-input" id="editDisplayInp">
-      </div>
-      <div class="aw-field">
-        <label class="aw-label">ひらがな読み</label>
-        <input type="text" class="aw-input" id="editReadingInp">
-      </div>
-      <div class="aw-field">
-        <label class="aw-label">アクセント型（数字）</label>
-        <input type="number" class="aw-input" id="editAccentInp" min="0" max="9" placeholder="例：0=平板、1=頭高、2=中高2型">
-      </div>
-    </div>
-    <div class="edit-modal-status" id="editModalStatus"></div>
-    <div class="aw-actions">
-      <button class="aw-btn-primary" id="editSaveBtn">保存する</button>
-      <button class="aw-btn-secondary" id="editCancelBtn">閉じる</button>
-    </div>
-  </div>
-</div>
 
 <script>
 /* ── 録画モーダル用 顔・距離ガイド ─────────────────────────── */

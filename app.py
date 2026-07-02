@@ -43,7 +43,7 @@ from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_ar
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import audio_mfcc, dtw_ascending_order
-from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_word_recent_scores, get_overall_score, get_weekly_report
+from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_overall_score, get_weekly_report
 from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
@@ -672,13 +672,12 @@ def select():
     }
     lip_ref_keys = set(load_lip_refs().keys())
     all_tags     = get_all_tags()
-    word_scores  = get_word_recent_scores(limit=5)
     weak_sounds  = _get_weak_sound_cards(words)
     lesson       = _get_daily_lesson_safe(words)
     return render_template("select.html", words=words,
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
-                           word_scores=word_scores, weak_sounds=weak_sounds,
+                           weak_sounds=weak_sounds,
                            lesson=lesson,
                            overall=get_overall_score(), weekly=get_weekly_report())
 
@@ -719,13 +718,12 @@ def select_page():
     }
     lip_ref_keys = set(load_lip_refs().keys())
     all_tags     = get_all_tags()
-    word_scores  = get_word_recent_scores(limit=5)
     weak_sounds  = _get_weak_sound_cards(words)
     lesson       = _get_daily_lesson_safe(words)
     return render_template("select.html", words=words,
                            stats=stats, accent_patterns=accent_patterns,
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
-                           word_scores=word_scores, weak_sounds=weak_sounds,
+                           weak_sounds=weak_sounds,
                            lesson=lesson,
                            overall=get_overall_score(), weekly=get_weekly_report())
 
