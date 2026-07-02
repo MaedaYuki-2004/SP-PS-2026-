@@ -28,11 +28,55 @@
     .section-panel.active { display:block; }
     .panel-heading { font-size:17px; font-weight:700; color:var(--navy); margin-bottom:4px; }
 
-    /* ── 良かった点バー（褒め優先） ── */
-    .praise-bar { display:flex; align-items:flex-start; gap:12px; margin:14px 0 18px; padding:14px 18px; border-radius:var(--r); background:var(--green-bg); border:1px solid var(--green); }
-    .praise-icon { font-size:24px; line-height:1.2; flex-shrink:0; }
-    .praise-text { font-size:13px; color:var(--text-2); line-height:1.7; }
-    .praise-text b { color:var(--green); }
+    /* ── 新リザルトヒーロー（3秒でわかる） ── */
+    .result-hero { display:flex; align-items:center; gap:18px; padding:20px 22px; border-radius:var(--r-lg); background:var(--bg-card); border:1px solid var(--border); margin:14px 0 12px; box-shadow:var(--shadow-sm); }
+    .result-grade-badge { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:900; color:#fff; flex-shrink:0; box-shadow:var(--shadow-sm); }
+    .result-total-row { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+    .result-total { font-family:var(--mono); font-size:38px; font-weight:500; color:var(--text); line-height:1; }
+    .result-max { font-size:13px; color:var(--text-3); }
+    .result-delta { font-family:var(--mono); font-size:12px; font-weight:700; padding:2px 10px; border-radius:100px; }
+    .result-delta.up   { background:var(--green-bg);  color:var(--green); }
+    .result-delta.down { background:var(--accent-bg); color:var(--accent); }
+    .result-verdict { font-size:14px; font-weight:700; color:var(--text-2); margin-top:6px; line-height:1.5; }
+
+    /* ── モーラ信号機 ── */
+    .mora-lights { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px 18px 13px; margin-bottom:12px; }
+    .mora-lights-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; }
+    .mora-lights-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .mora-light { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:52px; padding:9px 8px 7px; border-radius:var(--r); border:2px solid transparent; }
+    .mora-light.ok  { background:var(--green-bg);  border-color:var(--green); }
+    .mora-light.mid { background:var(--quest-bg);  border-color:var(--quest-border); }
+    .mora-light.ng  { background:var(--accent-bg); border-color:var(--accent); }
+    .mora-light.na  { background:var(--bg-muted); opacity:.6; }
+    .ml-kana { font-size:20px; font-weight:900; color:var(--text); line-height:1.15; }
+    .ml-icon { font-size:12px; font-weight:700; }
+    .mora-light.ok  .ml-icon { color:var(--green); }
+    .mora-light.mid .ml-icon { color:var(--quest); }
+    .mora-light.ng  .ml-icon { color:var(--accent); }
+    .mora-lights-legend { display:flex; gap:14px; margin-top:10px; font-size:10.5px; color:var(--text-3); flex-wrap:wrap; }
+    .lg-dot { width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:4px; vertical-align:-1px; }
+
+    /* ── 次はこれだけカード ── */
+    .next-one-card { background:linear-gradient(135deg,var(--navy),var(--navy-mid)); border-radius:var(--r-lg); padding:20px 22px; color:#fff; margin-bottom:12px; box-shadow:var(--shadow); }
+    .next-one-label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.65); }
+    .next-one-kana { font-size:38px; font-weight:900; margin:4px 0 6px; }
+    .next-one-pts { font-family:var(--mono); font-size:14px; font-weight:500; color:rgba(255,255,255,.6); margin-left:8px; }
+    .next-one-why { font-size:15px; font-weight:800; }
+    .next-one-how { font-size:12px; color:rgba(255,255,255,.72); margin:5px 0 14px; line-height:1.7; }
+    .next-one-actions { display:flex; flex-direction:column; gap:8px; }
+    .next-one-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px; border-radius:var(--r); border:none; background:#fff; color:var(--navy); font-family:var(--font); font-size:14px; font-weight:800; cursor:pointer; text-decoration:none; }
+    .next-one-btn:active { transform:scale(.985); }
+    .next-one-sub { display:flex; align-items:center; justify-content:center; gap:6px; padding:11px; border-radius:var(--r); border:1.5px solid rgba(255,255,255,.35); background:transparent; color:#fff; font-family:var(--font); font-size:12.5px; font-weight:700; cursor:pointer; text-decoration:none; }
+    .all-good-card { background:var(--green-bg); border:1px solid var(--green); border-radius:var(--r-lg); padding:20px; text-align:center; margin-bottom:12px; }
+
+    /* ── 折りたたみ ── */
+    .fold-section { border:1px solid var(--border-light); border-radius:var(--r); background:var(--bg-card); margin-top:12px; }
+    .fold-summary { padding:14px 18px; font-size:13px; font-weight:700; color:var(--text-2); cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; user-select:none; }
+    .fold-summary::-webkit-details-marker { display:none; }
+    .fold-summary::before { content:'▸'; color:var(--text-3); transition:transform .2s; }
+    .fold-section[open] .fold-summary::before { transform:rotate(90deg); }
+    .fold-hint { font-size:10.5px; font-weight:400; color:var(--text-3); }
+    .fold-body { padding:4px 18px 18px; }
 
     /* ── 紙吹雪 ── */
     .confetti-piece { position:fixed; top:-20px; z-index:999; font-size:18px; pointer-events:none; animation:confetti-fall linear forwards; }
@@ -299,25 +343,97 @@
   </div>
 
   {% elif score %}
-  <p class="panel-heading">発音スコア</p>
-  <p class="panel-sub">音声🎙（アクセント・長さ）と口の形👄（母音品質）の両面から評価しています</p>
 
-  {# ── 良かった点を最初に表示（褒める→直すの順） ── #}
-  {% set _pa = (score.accent_score/50*100)|round|int %}
-  {% set _pl = (score.length_score/30*100)|round|int %}
-  {% set _pv = (score.vowel_score/20*100)|round|int %}
-  {% set _axes = [('アクセント', _pa, '🎵'), ('長さ・リズム', _pl, '⏱'), ('母音（口の形）', _pv, '👄')] %}
-  {% set _best = _axes | sort(attribute='1', reverse=true) | first %}
-  <div class="praise-bar">
-    <span class="praise-icon">👏</span>
-    <span class="praise-text">
-      <b>{{ _best[2] }} {{ _best[0] }}が {{ _best[1] }}% — 今回の一番の強みです！</b>
-      {% if score_delta and score_delta.startswith('+') %}
-      前回から <b>{{ score_delta }}点</b> アップしました。
-      {% endif %}
-      {% if score.grade in ('S','A') %}この調子で仕上げていきましょう。{% else %}良いところは保ちつつ、下の弱点を1つずつ直しましょう。{% endif %}
-    </span>
+  {# ══════════ ① 結果ヒーロー：3秒でわかる ══════════ #}
+  {% set gcolmap = {'S':'#12B886','A':'#2BB673','B':'#4C89D9','C':'#E8963E','D':'#E85D3D'} %}
+  {% set gcol = gcolmap.get(score.grade, '#9AA0B0') %}
+  <div class="result-hero">
+    <div class="result-grade-badge" style="background:{{ gcol }};">{{ score.grade }}</div>
+    <div>
+      <div class="result-total-row">
+        <span class="result-total">{{ score.total|int }}</span><span class="result-max">/100点</span>
+        {% if score_delta %}<span class="result-delta {{ 'up' if score_delta.startswith('+') else 'down' }}">前回{{ score_delta }}点</span>{% endif %}
+      </div>
+      <div class="result-verdict">
+        {% if score.grade == 'S' %}🏆 すばらしい！お手本にとても近い発音です
+        {% elif score.grade == 'A' %}✨ とても良い発音です！
+        {% elif score.grade == 'B' %}👏 よくできました。あと少しで上級です
+        {% elif score.grade == 'C' %}💪 伝わる発音になってきています
+        {% else %}🌱 1音ずつ、ゆっくり練習していきましょう{% endif %}
+      </div>
+    </div>
   </div>
+
+  {# ══════════ ② モーラ信号機：どの音ができたか ══════════ #}
+  {% if mora_scores %}
+  <div class="mora-lights">
+    <div class="mora-lights-title">音ごとのできばえ</div>
+    <div class="mora-lights-row">
+      {% for m in mora_scores %}
+      {% set t = m.total %}
+      {% set cls = 'na' if t is none else ('ok' if t >= 75 else ('mid' if t >= 55 else 'ng')) %}
+      <div class="mora-light {{ cls }}">
+        <span class="ml-kana">{{ m.kana or m.label }}</span>
+        <span class="ml-icon">{% if cls=='ok' %}◎{% elif cls=='mid' %}○{% elif cls=='ng' %}△{% else %}−{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mora-lights-legend">
+      <span><span class="lg-dot" style="background:var(--green);"></span>◎ できた</span>
+      <span><span class="lg-dot" style="background:var(--quest);"></span>○ おしい</span>
+      <span><span class="lg-dot" style="background:var(--accent);"></span>△ ここを直そう</span>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ══════════ ③ 次はこれだけ：1つの行動 ══════════ #}
+  {% set wm = mora_scores[worst_mora.mora_index] if (worst_mora and mora_scores and worst_mora.mora_index is not none and worst_mora.mora_index < mora_scores|length) else none %}
+  {% set wm_kana = (wm.kana if wm and wm.kana else (worst_mora.label if worst_mora else '')) %}
+  {% if worst_mora and worst_mora.total is not none and worst_mora.total < 75 %}
+  <div class="next-one-card">
+    <div class="next-one-label">🎯 次はこれだけ直そう</div>
+    <div class="next-one-kana">「{{ wm_kana }}」<span class="next-one-pts">{{ worst_mora.total|int }}点</span></div>
+    {% set wa = worst_mora.accent if worst_mora.accent is not none else 999 %}
+    {% set wl = worst_mora.length if worst_mora.length is not none else 999 %}
+    {% set wv = worst_mora.vowel  if worst_mora.vowel  is not none else 999 %}
+    {% if wv <= wa and wv <= wl %}
+    <div class="next-one-why">👄 口の形がお手本とちがいます</div>
+    <div class="next-one-how">カメラで自分の口を見ながら合わせるのが一番の近道。耳に頼らず、目で直せます。</div>
+    <div class="next-one-actions">
+      <a class="next-one-btn" href="/vowel_trainer/{{ word_id }}">👄 カメラで口の形を練習する</a>
+    {% elif wl <= wa %}
+    <div class="next-one-why">⏱ 長さ（リズム）がお手本とちがいます</div>
+    <div class="next-one-how">グラフで「{{ wm_kana }}」の長さをお手本と見比べて、のばす／短くするを目で確認しましょう。</div>
+    <div class="next-one-actions">
+      <button class="next-one-btn" onclick="gotoTab('length')">⏱ 長さをくらべて見る</button>
+    {% else %}
+    <div class="next-one-why">🎵 高さ（アクセント）がお手本とちがいます</div>
+    <div class="next-one-how">声の高さは目で見て合わせられます。グラフの山と谷の形をお手本にそろえましょう。</div>
+    <div class="next-one-actions">
+      <button class="next-one-btn" onclick="gotoTab('pitch-compare')">🎵 高さの動きをくらべて見る</button>
+    {% endif %}
+      {% if wm_kana and 'ー' not in wm_kana and wm_kana not in ('ん','っ') %}
+      <a class="next-one-sub" href="/sound_drill/{{ wm_kana }}">⚡ 「{{ wm_kana }}」の集中ドリルをする</a>
+      {% endif %}
+      <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="next-one-sub" style="width:100%;">🎙 もう一度録音する</button></form>
+    </div>
+  </div>
+  {% else %}
+  <div class="all-good-card">
+    <div style="font-size:30px;">🎉</div>
+    <div style="font-size:15px;font-weight:900;color:var(--green);margin:4px 0;">すべての音がきれいに発音できています！</div>
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:12px;">この単語はマスター。次の単語に進みましょう</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="btn btn-ghost">🎙 もう一度</button></form>
+      <a href="/select" class="btn btn-primary" style="text-decoration:none;">次の単語へ →</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ══════════ ④ くわしい分析は折りたたみ ══════════ #}
+  <details class="fold-section" id="detailsScore">
+  <summary class="fold-summary">📊 くわしいスコアを見る <span class="fold-hint">3軸の内訳・前回との比較・アドバイス</span></summary>
+  <div class="fold-body">
 
   <div class="score-layout">
     <div class="score-hero">
@@ -489,9 +605,17 @@
     {% endif %}
   </div>
 
+  </div>
+  </details>
+
   {% else %}
   <div class="feedback-card"><div class="feedback-text">スコアを計算できませんでした。</div></div>
   {% endif %}
+
+  {% if suggestions or ci_info or mora_scores %}
+  <details class="fold-section">
+  <summary class="fold-summary">🔬 その他のデータ <span class="fold-hint">練習候補・スコアの信頼区間・モーラ別の表</span></summary>
+  <div class="fold-body">
 
 
   {% if suggestions %}
@@ -667,6 +791,10 @@
     <p style="margin-top:8px; font-size:11px; color:var(--accent);">⚠️ 「{{ worst_mora.label }}」が最も改善が必要なモーラです（総合 {{ worst_mora.total }} 点）</p>
     {% endif %}
   </div>
+  {% endif %}
+
+  </div>
+  </details>
   {% endif %}
 </div>
 
@@ -894,6 +1022,18 @@ function showSection(n,b){
     b.classList.add('active');
   } catch(e){ console.error('showSection error:', e); }
 }
+function gotoTab(name){
+  document.querySelectorAll('.sec-tab').forEach(function(b){
+    var oc = b.getAttribute('onclick') || '';
+    if (oc.indexOf("'" + name + "'") !== -1) { b.click(); window.scrollTo({top:0,behavior:'smooth'}); }
+  });
+}
+// 折りたたみを開いたとき Chart.js を再描画（隠れたcanvasはサイズ0のため）
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('details.fold-section').forEach(function(d){
+    d.addEventListener('toggle', function(){ if (d.open) window.dispatchEvent(new Event('resize')); });
+  });
+});
 function setNativeView(v,b){try{document.getElementById('NativeMoraChart').style.display=v==='mora'?'block':'none';document.getElementById('NativePhonemeChart').style.display=v==='phoneme'?'block':'none';document.querySelectorAll('#nativePill button').forEach(x=>x.classList.remove('active-pill'));b.classList.add('active-pill');}catch(e){}}
 function setUserView(v,b){try{document.getElementById('UserMoraChart').style.display=v==='mora'?'block':'none';document.getElementById('UserPhonemeChart').style.display=v==='phoneme'?'block':'none';document.querySelectorAll('#userPill button').forEach(x=>x.classList.remove('active-pill'));b.classList.add('active-pill');}catch(e){}}
 function setLengthView(v,b){try{document.getElementById('groupedBarChart1').style.display=v==='mora'?'block':'none';document.getElementById('groupedBarChart2').style.display=v==='phoneme'?'block':'none';document.querySelectorAll('#lengthPill button').forEach(x=>x.classList.remove('active-pill'));b.classList.add('active-pill');}catch(e){}}
