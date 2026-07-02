@@ -459,7 +459,8 @@ function setSampleSpeed(speed, btn) {
 }
 </script>
 <script>window.CURRENT_WORD_ID = {{ word_id|tojson|safe }};</script>
-<script src="/static/js/audio_recorder.js"></script>
+<!-- audio_recorder.js は AudioWorklet 専用（main.js が addModule で読み込む）。
+     通常の script として読むと AudioWorkletProcessor 未定義エラーになるため含めない -->
 <script src="/static/js/main.js"></script>
 
 <script>

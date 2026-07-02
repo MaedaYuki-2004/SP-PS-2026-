@@ -1,4 +1,4 @@
-/* SP-PS 共通ボトムタブバー（モバイル用・base.css の .tab-bar と対）
+/* SP-PS 共通ボトムタブバー（モバイル用・base.css の .app-tabbar と対）
    使い方: <script src="/static/js/tabbar.js" defer></script> を1行入れるだけ */
 (function () {
   'use strict';
@@ -23,12 +23,12 @@
   function build() {
     var path = location.pathname;
     var nav = document.createElement('nav');
-    nav.className = 'tab-bar';
+    nav.className = 'app-tabbar';
     nav.setAttribute('aria-label', 'メインナビゲーション');
 
     TABS.forEach(function (tab) {
       var a = document.createElement('a');
-      a.className = 'tab-item' + (isActive(tab, path) ? ' active' : '');
+      a.className = 'app-tab-item' + (isActive(tab, path) ? ' active' : '');
       a.href = tab.href;
       a.innerHTML = tab.icon + '<span>' + tab.label + '</span>';
       nav.appendChild(a);

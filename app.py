@@ -656,8 +656,12 @@ def select():
     if request.method == "POST":
         word_id    = request.form.get("Words")
         if not word_id:
-            return "単語を選択してください"
-        reading    = get_reading_for_julius(word_id)
+            return redirect("/select")
+        try:
+            reading = get_reading_for_julius(word_id)
+        except Exception:
+            # 削除済み・不正な単語IDはエラー画面ではなくホームに戻す
+            return redirect("/select")
         word_entry = get_word(word_id)
         display    = word_entry.get("display", reading) if word_entry else reading
         WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
@@ -858,6 +862,7 @@ def lip_compare_process():
         traceback.print_exc()
         return jsonify({"error": str(exc)}), 500
 
+@app.route("/history/export.csv")
 def export_history_csv():
     history = load_history()
     output  = io.StringIO()
@@ -1241,7 +1246,8 @@ def api_lip_refs_overwrite():
 @app.route("/graph", methods=["GET", "POST"])
 def audio_analysis():
     if request.method != "POST":
-        return "送信できませんでした", 400
+        # 結果画面でリロードした場合など。エラーではなくホームに戻す
+        return redirect("/select")
     try:
         word_id   = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
 

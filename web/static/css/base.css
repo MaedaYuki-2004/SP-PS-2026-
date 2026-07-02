@@ -90,16 +90,16 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); line-he
 .theme-toggle:hover { background:var(--bg-muted); color:var(--text); }
 
 /* ── Bottom Tab Bar（モバイル） ─────────────────────── */
-.tab-bar { position:fixed; bottom:0; left:0; right:0; z-index:120; display:none; align-items:stretch; gap:2px; background:color-mix(in srgb, var(--bg-card) 92%, transparent); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-top:1px solid var(--border); padding:6px 10px calc(6px + env(safe-area-inset-bottom)); }
-[data-theme="dark"] .tab-bar { background:rgba(14,16,26,.92); }
-.tab-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:5px 0 3px; text-decoration:none; color:var(--text-3); font-size:10px; font-weight:700; letter-spacing:.04em; border-radius:var(--r-sm); transition:color var(--dur),background var(--dur); -webkit-tap-highlight-color:transparent; }
-.tab-item svg { width:21px; height:21px; }
-.tab-item:active { background:var(--bg-muted); }
-.tab-item.active { color:var(--navy); }
-.tab-item.active svg { filter:drop-shadow(0 2px 6px color-mix(in srgb, var(--navy) 45%, transparent)); }
+.app-tabbar { position:fixed; bottom:0; left:0; right:0; z-index:120; display:none; align-items:stretch; gap:2px; background:color-mix(in srgb, var(--bg-card) 92%, transparent); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border-top:1px solid var(--border); padding:6px 10px calc(6px + env(safe-area-inset-bottom)); }
+[data-theme="dark"] .app-tabbar { background:rgba(14,16,26,.92); }
+.app-tab-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:5px 0 3px; text-decoration:none; color:var(--text-3); font-size:10px; font-weight:700; letter-spacing:.04em; border-radius:var(--r-sm); transition:color var(--dur),background var(--dur); -webkit-tap-highlight-color:transparent; }
+.app-tab-item svg { width:21px; height:21px; }
+.app-tab-item:active { background:var(--bg-muted); }
+.app-tab-item.active { color:var(--navy); }
+.app-tab-item.active svg { filter:drop-shadow(0 2px 6px color-mix(in srgb, var(--navy) 45%, transparent)); }
 body.has-tabbar { padding-bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
 @media (max-width:768px) {
-  .tab-bar { display:flex; }
+  .app-tabbar { display:flex; }
 }
 
 /* ── Buttons ───────────────────────────────────────── */

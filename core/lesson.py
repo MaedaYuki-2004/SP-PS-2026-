@@ -160,6 +160,17 @@ def get_daily_lesson(words: list[dict]) -> dict:
     if state.get("date") != today:
         state = {"date": today, "steps": _build_steps(words), "mouth_done": []}
         _save(state)
+    else:
+        # その日のうちに削除された単語のステップを除去する
+        valid_ids = {w["word_id"] for w in words}
+        steps_ok  = [s for s in state.get("steps", []) if s.get("word_id") in valid_ids]
+        if len(steps_ok) != len(state.get("steps", [])):
+            if steps_ok:
+                state["steps"] = steps_ok
+            else:
+                # 全ステップが無効になったら組み直す
+                state = {"date": today, "steps": _build_steps(words), "mouth_done": []}
+            _save(state)
 
     # 録音ステップの完了を履歴から判定 / mouth はフラグから
     mouth_done = set(state.get("mouth_done", []))
