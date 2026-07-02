@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>聞き分けテスト — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="/static/css/base.css" rel="stylesheet">
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; }
+    .quiz-wrap { flex:1; max-width:520px; margin:0 auto; width:100%; padding:16px 20px 40px; box-sizing:border-box; }
+
+    .quiz-hero { text-align:center; padding:24px 20px; border-radius:var(--r-lg); background:linear-gradient(135deg,var(--blue),#5DA8F8); color:#fff; margin-bottom:16px; position:relative; overflow:hidden; }
+    .quiz-hero::before { content:''; position:absolute; left:-50px; bottom:-70px; width:190px; height:190px; border-radius:50%; background:rgba(255,255,255,.09); }
+    .quiz-hero-icon { font-size:40px; }
+    .quiz-hero-title { font-size:20px; font-weight:900; margin-top:4px; }
+    .quiz-hero-sub { font-size:12px; color:rgba(255,255,255,.7); margin-top:4px; line-height:1.7; }
+
+    .quiz-progress { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:12px; color:var(--text-3); font-weight:700; }
+    .quiz-progress-bar { flex:1; height:6px; background:var(--bg-muted); border-radius:100px; margin:0 12px; overflow:hidden; }
+    .quiz-progress-fill { height:100%; background:var(--blue); border-radius:100px; transition:width .3s; }
+
+    .quiz-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:22px 20px; }
+    .quiz-question-label { text-align:center; font-size:13px; font-weight:700; color:var(--text-2); margin-bottom:14px; }
+
+    .play-big { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:18px; border-radius:var(--r); border:none; background:linear-gradient(135deg,var(--blue),#5DA8F8); color:#fff; font-family:var(--font); font-size:15px; font-weight:800; cursor:pointer; margin-bottom:16px; }
+    .play-big:active { transform:scale(.985); }
+
+    .choices { display:flex; flex-direction:column; gap:9px; }
+    .choice-btn { width:100%; padding:15px 16px; border-radius:var(--r); border:1.5px solid var(--border); background:var(--bg-muted); color:var(--text); font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; text-align:left; display:flex; align-items:center; justify-content:space-between; transition:all .15s; }
+    .choice-btn small { font-size:11px; color:var(--text-3); font-weight:400; }
+    .choice-btn:hover:not(:disabled) { border-color:var(--blue); }
+    .choice-btn.correct { border-color:var(--green); background:var(--green-bg); color:var(--green); }
+    .choice-btn.wrong   { border-color:var(--accent); background:var(--accent-bg); color:var(--accent); }
+    .choice-btn:disabled { cursor:default; }
+
+    .feedback-line { text-align:center; font-size:14px; font-weight:800; min-height:22px; margin:14px 0 4px; }
+    .feedback-line.ok { color:var(--green); }
+    .feedback-line.ng { color:var(--accent); }
+
+    .next-btn { width:100%; padding:14px; border-radius:var(--r); border:none; background:var(--navy); color:#fff; font-family:var(--font); font-size:14px; font-weight:800; cursor:pointer; margin-top:10px; display:none; }
+    .next-btn.show { display:block; }
+
+    /* 結果 */
+    .result-screen { display:none; text-align:center; }
+    .result-screen.show { display:block; }
+    .result-score { font-family:var(--mono); font-size:52px; font-weight:500; color:var(--navy); }
+    .result-score span { font-size:20px; color:var(--text-3); }
+    .result-msg { font-size:14px; font-weight:700; margin:6px 0 16px; }
+    .result-wrong-list { text-align:left; margin-top:14px; }
+    .result-wrong-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px; }
+
+    .quiz-empty { text-align:center; padding:40px 20px; color:var(--text-3); font-size:13px; line-height:1.9; }
+  </style>
+</head>
+<body>
+<script>
+(function(){ if (localStorage.getItem('sp-ps-theme') !== 'light') document.documentElement.setAttribute('data-theme','dark'); })();
+</script>
+
+<nav class="top-nav">
+  <a href="/select" class="nav-link">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    ホームに戻る
+  </a>
+  <span style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);">聞き分けテスト</span>
+</nav>
+
+<div class="quiz-wrap">
+
+  {% if not questions or questions|length < 3 %}
+  <div class="quiz-empty">
+    👂<br>聞き分けテストにはサンプル音声つきの単語が3つ以上必要です。<br>
+    単語のお手本録画を増やすと出題できるようになります。
+    <div style="margin-top:16px;"><a href="/select" class="btn btn-ghost">ホームに戻る</a></div>
+  </div>
+  {% else %}
+
+  <!-- スタート画面 -->
+  <div id="startScreen">
+    <div class="quiz-hero">
+      <div class="quiz-hero-icon">👂</div>
+      <div class="quiz-hero-title">聞き分けテスト</div>
+      <div class="quiz-hero-sub">音声を聞いて、どの単語か当てよう。<br>似ている音を聞き分ける力は発音改善の土台になります。</div>
+    </div>
+    <button class="play-big" onclick="startQuiz()">▶ テストを始める（全{{ questions|length }}問）</button>
+  </div>
+
+  <!-- 出題画面 -->
+  <div id="quizScreen" style="display:none;">
+    <div class="quiz-progress">
+      <span id="qNum">1問目</span>
+      <div class="quiz-progress-bar"><div class="quiz-progress-fill" id="qProgress" style="width:0%;"></div></div>
+      <span id="qScore">0問正解</span>
+    </div>
+    <div class="quiz-card">
+      <div class="quiz-question-label">🔊 音声を聞いて、正しい単語を選ぼう</div>
+      <button class="play-big" id="playBtn" onclick="playCurrent()">🔊 音声を再生</button>
+      <audio id="quizAudio" preload="auto"></audio>
+      <div class="choices" id="choices"></div>
+      <div class="feedback-line" id="feedback"></div>
+      <button class="next-btn" id="nextBtn" onclick="nextQuestion()">次の問題へ →</button>
+    </div>
+  </div>
+
+  <!-- 結果画面 -->
+  <div class="result-screen" id="resultScreen">
+    <div class="quiz-card">
+      <div class="result-score" id="resultScore">0<span> / 0</span></div>
+      <div class="result-msg" id="resultMsg"></div>
+      <div class="result-wrong-list" id="wrongList"></div>
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button class="play-big" style="margin:0;" onclick="location.reload()">もう一度</button>
+        <a href="/select" class="play-big" style="margin:0;background:var(--bg-muted);color:var(--text-2);text-decoration:none;">ホームへ</a>
+      </div>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+
+{% if questions and questions|length >= 3 %}
+<script>
+const QUESTIONS = {{ questions | tojson }};
+let qIdx = 0, score = 0, answered = false;
+const wrongAnswers = [];
+
+function startQuiz() {
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'block';
+  showQuestion();
+}
+
+function showQuestion() {
+  answered = false;
+  const q = QUESTIONS[qIdx];
+  document.getElementById('qNum').textContent = (qIdx + 1) + '問目';
+  document.getElementById('qScore').textContent = score + '問正解';
+  document.getElementById('qProgress').style.width = (qIdx / QUESTIONS.length * 100) + '%';
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback-line';
+  document.getElementById('nextBtn').classList.remove('show');
+
+  document.getElementById('quizAudio').src = q.audio;
+
+  const box = document.getElementById('choices');
+  box.innerHTML = '';
+  q.choices.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'choice-btn';
+    b.innerHTML = `<span>${c.display}</span><small>${c.reading}</small>`;
+    b.onclick = () => answer(c.word_id, b);
+    box.appendChild(b);
+  });
+
+  // 自動再生（1回）
+  setTimeout(playCurrent, 400);
+}
+
+function playCurrent() {
+  const a = document.getElementById('quizAudio');
+  a.currentTime = 0;
+  a.play().catch(() => {});
+}
+
+function answer(wordId, btn) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[qIdx];
+  const fb = document.getElementById('feedback');
+
+  document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+
+  if (wordId === q.answer_id) {
+    score++;
+    btn.classList.add('correct');
+    fb.textContent = '⭕ 正解！よく聞き分けられました';
+    fb.classList.add('ok');
+  } else {
+    btn.classList.add('wrong');
+    // 正解をハイライト
+    const correct = q.choices.find(c => c.word_id === q.answer_id);
+    document.querySelectorAll('.choice-btn').forEach(b => {
+      if (b.textContent.includes(correct.display)) b.classList.add('correct');
+    });
+    fb.textContent = `❌ 正解は「${correct.display}」でした`;
+    fb.classList.add('ng');
+    wrongAnswers.push(correct);
+  }
+  document.getElementById('qScore').textContent = score + '問正解';
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+function nextQuestion() {
+  qIdx++;
+  if (qIdx >= QUESTIONS.length) {
+    showResult();
+  } else {
+    showQuestion();
+  }
+}
+
+function showResult() {
+  document.getElementById('quizScreen').style.display = 'none';
+  const rs = document.getElementById('resultScreen');
+  rs.classList.add('show');
+  document.getElementById('resultScore').innerHTML = score + '<span> / ' + QUESTIONS.length + '</span>';
+  const pct = score / QUESTIONS.length;
+  document.getElementById('resultMsg').textContent =
+    pct === 1 ? '🏆 全問正解！素晴らしい聞き分け力です' :
+    pct >= .7 ? '👏 よくできました！' :
+    pct >= .4 ? 'まずまず。間違えた単語を練習しましょう' :
+    '聞き分けが難しい音があるようです。下の単語を集中的に練習しましょう';
+
+  if (wrongAnswers.length > 0) {
+    const wl = document.getElementById('wrongList');
+    wl.innerHTML = '<div class="result-wrong-title">間違えた単語を練習する</div>';
+    const seen = new Set();
+    wrongAnswers.forEach(c => {
+      if (seen.has(c.word_id)) return;
+      seen.add(c.word_id);
+      const f = document.createElement('form');
+      f.action = '/'; f.method = 'post'; f.style.margin = '0 0 8px';
+      f.innerHTML = `<input type="hidden" name="Words" value="${c.word_id}">` +
+        `<button type="submit" class="choice-btn"><span>🎙 ${c.display}</span><small>${c.reading}</small></button>`;
+      wl.appendChild(f);
+    });
+  }
+}
+</script>
+{% endif %}
+</body>
+</html>

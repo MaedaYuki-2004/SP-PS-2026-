@@ -279,6 +279,7 @@
     .weak-word-btn { display:inline-flex; align-items:center; padding:4px 12px; border-radius:100px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; text-decoration:none; transition:all .15s; }
     .weak-word-btn:hover { border-color:var(--navy); color:var(--navy); }
     .weak-mouth-btn { border-color:var(--quest-border); color:var(--quest); }
+    .weak-drill-btn { border-color:var(--accent); color:var(--accent); font-weight:800; }
 
     @media (max-width:700px) {
       .hero { padding:12px 16px 0; }
@@ -439,6 +440,7 @@
             {% if ws.worst_axis == 'accent' %}アクセント{% elif ws.worst_axis == 'length' %}長さ{% else %}口の形{% endif %}が弱め ・ {{ ws.count }}回計測
           </div>
           <div class="weak-words">
+            <a href="/sound_drill/{{ ws.kana }}" class="weak-word-btn weak-drill-btn">⚡ 集中ドリル</a>
             {% for w in ws.words %}
             <form action="/" method="post" style="display:inline;margin:0;">
               <input type="hidden" name="Words" value="{{ w.word_id }}">
@@ -480,6 +482,7 @@
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           連続練習
         </button>
+        <a href="/listening_quiz" class="continuous-btn" style="text-decoration:none;">👂 聞き分けテスト</a>
       </div>
       <div class="search-wrap">
         <svg class="search-icon" width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>

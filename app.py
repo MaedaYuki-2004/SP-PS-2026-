@@ -28,7 +28,7 @@ except ImportError:
     cv2 = mp = np = fastdtw = euclidean = None
     MEDIA_PIPE_AVAILABLE = False
 
-from flask import Flask, Response, jsonify, render_template, request, send_file, session
+from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, session
 
 from config import (
     AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DATA_DIR, DISTANCE_RESULT_DIR,
@@ -1114,6 +1114,24 @@ def api_lip_guide(word_id: str):
         return jsonify({"has_data": True, "guide": guide})
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route('/sound_drill/<kana>')
+def sound_drill(kana: str):
+    """苦手音のスモールステップ練習ページ（音単独→音節→語頭→語中・語尾）。"""
+    from core.drill import get_drill_data
+    data = get_drill_data(kana, list_words())
+    if not data:
+        return redirect("/select")
+    return render_template("sound_drill.html", **data)
+
+
+@app.route('/listening_quiz')
+def listening_quiz():
+    """聞き分けテスト（音の弁別トレーニング）。"""
+    from core.drill import build_listening_quiz
+    questions = build_listening_quiz(list_words())
+    return render_template("listening_quiz.html", questions=questions)
 
 
 @app.route('/api/vowel_trainer/complete', methods=['POST'])

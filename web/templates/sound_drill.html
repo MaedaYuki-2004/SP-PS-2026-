@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>「{{ kana }}」の集中ドリル — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="/static/css/base.css" rel="stylesheet">
+  <style>
+    body { display:flex; flex-direction:column; min-height:100vh; }
+    .drill-wrap { flex:1; max-width:560px; margin:0 auto; width:100%; padding:16px 20px 40px; box-sizing:border-box; }
+
+    /* ヒーロー */
+    .drill-hero { text-align:center; padding:22px 20px 18px; border-radius:var(--r-lg); background:linear-gradient(135deg,var(--navy),var(--navy-mid)); color:#fff; margin-bottom:14px; position:relative; overflow:hidden; }
+    .drill-hero::before { content:''; position:absolute; right:-60px; top:-60px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,.08); }
+    .drill-kana { font-size:64px; font-weight:900; line-height:1.1; }
+    .drill-hero-sub { font-size:12px; color:rgba(255,255,255,.65); margin-top:2px; }
+    .drill-hero-chips { display:flex; justify-content:center; gap:8px; margin-top:10px; flex-wrap:wrap; position:relative; }
+    .drill-chip { font-size:11px; font-weight:700; padding:4px 12px; border-radius:100px; background:rgba(255,255,255,.14); }
+
+    /* ステップ進捗 */
+    .step-tabs { display:flex; gap:6px; margin-bottom:16px; }
+    .step-tab { flex:1; text-align:center; padding:9px 4px; border-radius:var(--r-sm); font-size:11px; font-weight:700; color:var(--text-3); background:var(--bg-muted); border:1.5px solid transparent; cursor:pointer; font-family:var(--font); transition:all .2s; }
+    .step-tab.active { color:var(--navy); border-color:var(--navy); background:var(--navy-soft); }
+    .step-tab.done { color:var(--green); }
+    .step-tab.done::before { content:'✓ '; }
+
+    /* ステップパネル */
+    .step-panel { display:none; }
+    .step-panel.show { display:block; animation:fadein .25s ease; }
+    @keyframes fadein { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none; } }
+
+    .drill-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px; margin-bottom:12px; }
+    .drill-card-title { font-size:14px; font-weight:900; color:var(--text); margin-bottom:4px; }
+    .drill-card-sub { font-size:11.5px; color:var(--text-3); margin-bottom:14px; line-height:1.7; }
+
+    /* 口の形 + ヒント */
+    .mouth-hint-row { display:flex; gap:16px; align-items:center; margin-bottom:14px; }
+    .mouth-svg-box { flex-shrink:0; width:96px; height:84px; }
+    .hint-text { flex:1; font-size:12.5px; color:var(--text-2); line-height:1.8; padding:10px 14px; background:var(--bg-muted); border-radius:var(--r-sm); border-left:3px solid var(--navy); }
+
+    /* ターゲット表示 */
+    .target-display { text-align:center; font-size:44px; font-weight:900; color:var(--navy); padding:8px 0 14px; letter-spacing:.1em; }
+
+    /* コントロール */
+    .drill-controls { display:flex; gap:8px; flex-wrap:wrap; }
+    .drill-btn { flex:1; min-width:130px; padding:13px 10px; border-radius:var(--r); border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:all .15s; }
+    .drill-btn:hover { border-color:var(--navy); color:var(--navy); }
+    .drill-btn.primary { background:var(--navy); border-color:var(--navy); color:#fff; }
+    .drill-btn.recording { background:var(--accent); border-color:var(--accent); color:#fff; animation:pulse-rec 1.2s ease infinite; }
+    @keyframes pulse-rec { 0%,100%{opacity:1} 50%{opacity:.7} }
+    .drill-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+    .playback-row { display:none; margin-top:12px; gap:8px; align-items:center; }
+    .playback-row.show { display:flex; }
+    .playback-label { font-size:11px; font-weight:700; color:var(--text-3); white-space:nowrap; }
+    .playback-row audio { flex:1; height:36px; }
+
+    /* 次へ */
+    .step-next { width:100%; margin-top:14px; padding:14px; border-radius:var(--r); border:none; background:linear-gradient(135deg,var(--green),#3be0b0); color:#fff; font-family:var(--font); font-size:14px; font-weight:800; cursor:pointer; }
+    .step-next:active { transform:scale(.985); }
+
+    /* 単語チップ */
+    .drill-words { display:flex; flex-direction:column; gap:8px; }
+    .drill-word-item { display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--bg-muted); border-radius:var(--r); }
+    .dw-pos { font-size:9px; font-weight:700; letter-spacing:.08em; padding:3px 8px; border-radius:100px; background:var(--navy-soft); color:var(--navy); white-space:nowrap; }
+    .dw-text { flex:1; font-size:15px; font-weight:700; color:var(--text); }
+    .dw-text small { font-size:11px; color:var(--text-3); font-weight:400; margin-left:6px; }
+    .dw-btn { padding:8px 18px; border-radius:100px; border:none; background:var(--navy); color:#fff; font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer; }
+    .drill-words-empty { text-align:center; padding:16px; color:var(--text-3); font-size:12px; }
+
+    /* 完了 */
+    .drill-complete { display:none; text-align:center; padding:30px 20px; }
+    .drill-complete.show { display:block; }
+    .drill-complete-icon { font-size:56px; }
+    .drill-complete-title { font-size:20px; font-weight:900; color:var(--green); margin:8px 0 4px; }
+    .drill-complete-sub { font-size:12.5px; color:var(--text-3); line-height:1.8; }
+  </style>
+</head>
+<body>
+<script>
+(function(){ if (localStorage.getItem('sp-ps-theme') !== 'light') document.documentElement.setAttribute('data-theme','dark'); })();
+</script>
+
+<nav class="top-nav">
+  <a href="/select" class="nav-link">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    ホームに戻る
+  </a>
+  <span style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);">集中ドリル</span>
+</nav>
+
+<div class="drill-wrap">
+
+  <div class="drill-hero">
+    <div class="drill-kana">{{ kana }}</div>
+    <div class="drill-hero-sub">スモールステップで確実にマスターしよう</div>
+    <div class="drill-hero-chips">
+      <span class="drill-chip">母音：{{ vowel }}</span>
+      {% if row and row != kana[0] %}<span class="drill-chip">{{ row }}行</span>{% endif %}
+      {% if recent_avg is not none %}<span class="drill-chip">直近平均 {{ recent_avg|int }}点</span>{% endif %}
+    </div>
+  </div>
+
+  <div class="step-tabs">
+    <button class="step-tab active" data-step="1" onclick="gotoStep(1)">① 音だけ</button>
+    <button class="step-tab" data-step="2" onclick="gotoStep(2)">② のばす</button>
+    <button class="step-tab" data-step="3" onclick="gotoStep(3)">③ 語頭</button>
+    <button class="step-tab" data-step="4" onclick="gotoStep(4)">④ 語中・語尾</button>
+  </div>
+
+  <!-- ① 音単独 -->
+  <div class="step-panel show" id="step1">
+    <div class="drill-card">
+      <div class="drill-card-title">まず「{{ kana }}」の音だけを作ろう</div>
+      <div class="drill-card-sub">単語はまだ気にしなくてOK。この音単独で正しい口・舌の形を作るのが最初のステップです。</div>
+      <div class="mouth-hint-row">
+        <div class="mouth-svg-box"><svg viewBox="0 0 120 100" id="mouthSvg1"></svg></div>
+        <div class="hint-text">{{ hint }}</div>
+      </div>
+      <div class="target-display">{{ kana }}</div>
+      <div class="drill-controls">
+        <button class="drill-btn" onclick="speak('{{ kana }}')">🔊 お手本を聞く</button>
+        <button class="drill-btn primary" id="recBtn1" onclick="toggleRec(1)">🎙 録音する</button>
+      </div>
+      <div class="playback-row" id="playback1">
+        <span class="playback-label">自分の声</span>
+        <audio controls id="myAudio1"></audio>
+      </div>
+      <button class="step-next" onclick="completeStep(1)">✓ できた！次のステップへ</button>
+    </div>
+  </div>
+
+  <!-- ② のばす・くりかえす -->
+  <div class="step-panel" id="step2">
+    <div class="drill-card">
+      <div class="drill-card-title">のばす・くりかえす</div>
+      <div class="drill-card-sub">音が安定してきたら、長くのばしたり連続で言ったりして口の形をキープする練習です。</div>
+      <div class="target-display">{{ kana }}ー　／　{{ kana }}{{ kana }}{{ kana }}</div>
+      <div class="drill-controls">
+        <button class="drill-btn" onclick="speak('{{ kana }}ー')">🔊 のばす</button>
+        <button class="drill-btn" onclick="speak('{{ kana }}、{{ kana }}、{{ kana }}')">🔊 くりかえす</button>
+        <button class="drill-btn primary" id="recBtn2" onclick="toggleRec(2)">🎙 録音する</button>
+      </div>
+      <div class="playback-row" id="playback2">
+        <span class="playback-label">自分の声</span>
+        <audio controls id="myAudio2"></audio>
+      </div>
+      <button class="step-next" onclick="completeStep(2)">✓ できた！次のステップへ</button>
+    </div>
+  </div>
+
+  <!-- ③ 語頭 -->
+  <div class="step-panel" id="step3">
+    <div class="drill-card">
+      <div class="drill-card-title">ことばの先頭で使ってみよう</div>
+      <div class="drill-card-sub">「{{ kana }}」で始まる単語を録音して採点します。このモーラのスコアが記録され、苦手音の分析に反映されます。</div>
+      <div class="drill-words">
+        {% for w in words_head %}
+        <div class="drill-word-item">
+          <span class="dw-pos">語頭</span>
+          <span class="dw-text">{{ w.display }}<small>{{ w.reading }}</small></span>
+          <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ w.word_id }}"><button type="submit" class="dw-btn">録音する</button></form>
+        </div>
+        {% else %}
+        <div class="drill-words-empty">「{{ kana }}」で始まる登録単語がありません。管理ページから追加できます。</div>
+        {% endfor %}
+      </div>
+      <button class="step-next" onclick="completeStep(3)">✓ 練習した！次のステップへ</button>
+    </div>
+  </div>
+
+  <!-- ④ 語中・語尾 -->
+  <div class="step-panel" id="step4">
+    <div class="drill-card">
+      <div class="drill-card-title">ことばの中・おわりで使ってみよう</div>
+      <div class="drill-card-sub">語中・語尾は前の音からのつながりが必要なので一番むずかしい段階です。ここができたらマスター！</div>
+      <div class="drill-words">
+        {% for w in words_midtail %}
+        <div class="drill-word-item">
+          <span class="dw-pos">語中・語尾</span>
+          <span class="dw-text">{{ w.display }}<small>{{ w.reading }}</small></span>
+          <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ w.word_id }}"><button type="submit" class="dw-btn">録音する</button></form>
+        </div>
+        {% else %}
+        <div class="drill-words-empty">「{{ kana }}」を語中・語尾に含む登録単語がありません。</div>
+        {% endfor %}
+      </div>
+      <button class="step-next" onclick="completeStep(4)">🎉 ドリル完了！</button>
+    </div>
+    <div class="drill-complete" id="drillComplete">
+      <div class="drill-complete-icon">🏆</div>
+      <div class="drill-complete-title">「{{ kana }}」ドリル完了！</div>
+      <div class="drill-complete-sub">よくがんばりました。数日後にもう一度このドリルをやると定着します。<br>ホームの苦手音分析でスコアの変化を確認しましょう。</div>
+      <div style="margin-top:16px;"><a href="/select" class="btn btn-primary btn-lg" style="text-decoration:none;">ホームに戻る</a></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const KANA  = {{ kana | tojson }};
+const VOWEL = {{ vowel | tojson }};
+const LS_KEY = 'sp-ps-drill-' + KANA;
+
+/* ── 母音の口形SVG ── */
+const MOUTH_SVG = {
+  'あ': '<ellipse cx="60" cy="55" rx="26" ry="32" fill="none" stroke="#E8543F" stroke-width="4"/><text x="60" y="16" text-anchor="middle" fill="#E8543F" font-size="11" font-weight="700">縦に大きく</text>',
+  'い': '<ellipse cx="60" cy="55" rx="42" ry="11" fill="none" stroke="#5DA8F8" stroke-width="4"/><text x="60" y="16" text-anchor="middle" fill="#5DA8F8" font-size="11" font-weight="700">横に広く</text>',
+  'う': '<ellipse cx="60" cy="55" rx="15" ry="15" fill="none" stroke="#1EC99A" stroke-width="4"/><text x="60" y="16" text-anchor="middle" fill="#1EC99A" font-size="11" font-weight="700">丸く前へ</text>',
+  'え': '<ellipse cx="60" cy="55" rx="29" ry="17" fill="none" stroke="#8B7CF8" stroke-width="4"/><text x="60" y="16" text-anchor="middle" fill="#8B7CF8" font-size="11" font-weight="700">中くらい</text>',
+  'お': '<ellipse cx="60" cy="55" rx="21" ry="28" fill="none" stroke="#F0A030" stroke-width="4"/><text x="60" y="16" text-anchor="middle" fill="#F0A030" font-size="11" font-weight="700">丸く縦長</text>',
+};
+document.getElementById('mouthSvg1').innerHTML = MOUTH_SVG[VOWEL] || '';
+
+/* ── ブラウザTTSでお手本 ── */
+function speak(text) {
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP';
+    u.rate = 0.75;
+    speechSynthesis.speak(u);
+  } catch (e) { alert('この端末は音声合成に対応していません'); }
+}
+
+/* ── 録音（聞き比べ用） ── */
+let mediaRecorder = null, chunks = [], recStep = null;
+
+async function toggleRec(step) {
+  const btn = document.getElementById('recBtn' + step);
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunks = []; recStep = step;
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const audio = document.getElementById('myAudio' + recStep);
+      audio.src = URL.createObjectURL(blob);
+      document.getElementById('playback' + recStep).classList.add('show');
+      btn.classList.remove('recording');
+      btn.textContent = '🎙 もう一度録音';
+    };
+    mediaRecorder.start();
+    btn.classList.add('recording');
+    btn.textContent = '⏹ 停止';
+    // 最長5秒で自動停止
+    setTimeout(() => { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); }, 5000);
+  } catch (e) {
+    alert('マイクにアクセスできません。ブラウザの許可を確認してください。');
+  }
+}
+
+/* ── ステップ管理（localStorage永続化） ── */
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveProgress(p) { localStorage.setItem(LS_KEY, JSON.stringify(p)); }
+
+function gotoStep(n) {
+  document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('show'));
+  document.getElementById('step' + n).classList.add('show');
+  document.querySelectorAll('.step-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.step == n);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function completeStep(n) {
+  const p = loadProgress();
+  p['step' + n] = true;
+  saveProgress(p);
+  document.querySelector(`.step-tab[data-step="${n}"]`).classList.add('done');
+  if (n < 4) {
+    gotoStep(n + 1);
+  } else {
+    document.getElementById('drillComplete').classList.add('show');
+    document.querySelector('#step4 .drill-card').style.display = 'none';
+  }
+}
+
+// 進捗を復元
+(function() {
+  const p = loadProgress();
+  for (let i = 1; i <= 4; i++) {
+    if (p['step' + i]) document.querySelector(`.step-tab[data-step="${i}"]`).classList.add('done');
+  }
+  // 未完了の最初のステップへ
+  for (let i = 1; i <= 4; i++) {
+    if (!p['step' + i]) { gotoStep(i); break; }
+  }
+})();
+</script>
+</body>
+</html>
