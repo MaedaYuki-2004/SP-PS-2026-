@@ -160,10 +160,52 @@ def compute_av_sync(
     else:
         verdict = "ng"
 
+    # ── グラフ用データ（2本の対応線を同じ座標系で描くため） ──────────
+    # 座標系: X = ユーザーの時間(秒), Y = お手本の時間(秒)
+    # 映像の対応線: DTW経路をそのまま時刻に変換（間引きして最大120点）
+    video_line: list[list[float]] = []
+    step = max(1, len(path) // 120)
+    for idx in range(0, len(path), step):
+        i, j = path[idx]
+        if i < len(ref_times) and j < len(test_times):
+            video_line.append([round(test_times[j], 3), round(ref_times[i], 3)])
+
+    # 音声の対応線: モーラ境界同士の対応（区分線形）
+    audio_line: list[list[float]] = []
+    for k in range(n):
+        r, u = ref_moras[k], test_moras[k]
+        if str(r[2]) in _SIL_LABELS:
+            continue
+        audio_line.append([round(float(u[0]), 3), round(float(r[0]), 3)])
+        audio_line.append([round(float(u[1]), 3), round(float(r[1]), 3)])
+
+    # モーラごとのクロス点（映像線が指す位置 vs 音声線が指す位置）
+    mora_points: list[dict] = []
+    for k in range(n):
+        r, u = ref_moras[k], test_moras[k]
+        label = str(r[2])
+        if label in _SIL_LABELS:
+            continue
+        rc = _mora_center(r)
+        fi = _nearest_time(ref_times, rc)
+        fj = map_ref_frame(fi)
+        t_video = test_times[fj] if fj < len(test_times) else test_times[-1]
+        mora_points.append({
+            "label":   label,
+            "r":       round(rc, 3),
+            "u_audio": round(_mora_center(u), 3),
+            "u_video": round(t_video, 3),
+        })
+
     return {
         "per_mora":         per_mora,
         "median_offset_ms": round(median),
         "spread_ms":        round(spread),
         "verdict":          verdict,
         "n_moras":          len(offsets),
+        "plot": {
+            "video_line":  video_line,
+            "audio_line":  audio_line,
+            "mora_points": mora_points,
+        },
     }
