@@ -49,6 +49,13 @@
     .search-input { width:240px; padding:9px 14px 9px 36px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:13px; background:var(--bg-card); color:var(--text); transition:border-color var(--dur),box-shadow var(--dur); }
     .search-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(124,106,224,.15); }
     .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-3); }
+    .sort-wrap { display:flex; align-items:center; gap:6px; }
+    .sort-select { padding:8px 30px 8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:12.5px; font-weight:600; background:var(--bg-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239AA0B0' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center; color:var(--text); cursor:pointer; appearance:none; transition:border-color var(--dur); }
+    .sort-select:hover, .sort-select:focus { outline:none; border-color:var(--navy); }
+    .sort-dir-btn { display:inline-flex; align-items:center; gap:5px; padding:8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; transition:border-color var(--dur),color var(--dur); }
+    .sort-dir-btn:hover { border-color:var(--navy); color:var(--navy); }
+    .sort-dir-btn svg { transition:transform .2s; }
+    .sort-dir-btn.desc svg { transform:rotate(180deg); }
 
     /* ── Word cards ── */
     .word-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
@@ -484,9 +491,22 @@
         </button>
         <a href="/listening_quiz" class="continuous-btn" style="text-decoration:none;">👂 聞き分けテスト</a>
       </div>
-      <div class="search-wrap">
-        <svg class="search-icon" width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-        <input type="text" class="search-input" id="searchInput" placeholder="単語を検索..." oninput="filterWords()">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="sort-wrap">
+          <select class="sort-select" id="sortSelect" onchange="applySortFromUI()">
+            <option value="order">登録順</option>
+            <option value="kana">あいうえお順</option>
+            <option value="score">点数順</option>
+          </select>
+          <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="昇順/降順を切り替え">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" id="sortDirIcon"><path d="M3 4l3-3 3 3M6 1v10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="sortDirLabel">昇順</span>
+          </button>
+        </div>
+        <div class="search-wrap">
+          <svg class="search-icon" width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input type="text" class="search-input" id="searchInput" placeholder="単語を検索..." oninput="filterWords()">
+        </div>
       </div>
     </div>
     {% if all_tags %}
@@ -515,7 +535,7 @@
       {% set pattern = accent_patterns.get(w.word_id, []) %}
       {% set best = (stats.word_best or {}).get(w.word_id) %}
       {% set grade = ('s' if best >= 90 else ('a' if best >= 75 else ('b' if best >= 60 else ('c' if best >= 40 else 'd')))) if best is not none else '' %}
-      <div class="word-card{% if grade %} grade-{{ grade }}{% endif %}" data-word="{{ w.display }}" data-reading="{{ w.reading }}" data-tags="{{ (w.tags or [])|join(',') }}" data-accent="{{ w.accent if w.accent is not none else '' }}" data-word-id="{{ w.word_id }}">
+      <div class="word-card{% if grade %} grade-{{ grade }}{% endif %}" data-word="{{ w.display }}" data-reading="{{ w.reading }}" data-tags="{{ (w.tags or [])|join(',') }}" data-accent="{{ w.accent if w.accent is not none else '' }}" data-word-id="{{ w.word_id }}" data-order="{{ loop.index }}" data-best="{{ best if best is not none else -1 }}">
         <div class="word-card-body">
           <div class="word-card-top">
             <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
@@ -600,6 +620,96 @@ function filterWords() {
     if(show) vis++;
   });
   document.getElementById('noResults').style.display = vis === 0 ? 'block' : 'none';
+  renumberVisibleCards();
+}
+
+/* ── 並べ替え（登録順 / あいうえお順 / 点数順、昇順・降順） ── */
+const SORT_LS_KEY = 'sp-ps-word-sort';
+let _sortKey = 'order';
+let _sortDir = 'asc';
+
+function loadSortPref() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SORT_LS_KEY));
+    if (saved && saved.key) { _sortKey = saved.key; _sortDir = saved.dir || 'asc'; }
+  } catch (e) {}
+  document.getElementById('sortSelect').value = _sortKey;
+  updateSortDirUI();
+}
+
+function saveSortPref() {
+  localStorage.setItem(SORT_LS_KEY, JSON.stringify({ key: _sortKey, dir: _sortDir }));
+}
+
+function updateSortDirUI() {
+  const btn   = document.getElementById('sortDirBtn');
+  const label = document.getElementById('sortDirLabel');
+  const isDesc = _sortDir === 'desc';
+  btn.classList.toggle('desc', isDesc);
+  // 「点数順」は降順が自然な既定なので、ラベルの意味合いを表示に反映
+  if (_sortKey === 'score') {
+    label.textContent = isDesc ? '高い順' : '低い順';
+  } else if (_sortKey === 'kana') {
+    label.textContent = isDesc ? 'ん→あ' : 'あ→ん';
+  } else {
+    label.textContent = isDesc ? '新しい順' : '古い順';
+  }
+}
+
+function applySortFromUI() {
+  _sortKey = document.getElementById('sortSelect').value;
+  saveSortPref();
+  updateSortDirUI();
+  sortWordCards();
+}
+
+function toggleSortDir() {
+  _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+  saveSortPref();
+  updateSortDirUI();
+  sortWordCards();
+}
+
+function sortWordCards() {
+  const grid  = document.getElementById('wordGrid');
+  const cards = Array.from(grid.querySelectorAll('.word-card'));
+  const dirMul = _sortDir === 'desc' ? -1 : 1;
+
+  cards.sort((a, b) => {
+    let va, vb;
+    if (_sortKey === 'kana') {
+      va = a.dataset.reading || '';
+      vb = b.dataset.reading || '';
+      return va.localeCompare(vb, 'ja') * dirMul;
+    } else if (_sortKey === 'score') {
+      va = parseFloat(a.dataset.best);
+      vb = parseFloat(b.dataset.best);
+      // 未計測(-1)は常に末尾に送る（昇順・降順どちらでも）
+      if (va < 0 && vb < 0) return 0;
+      if (va < 0) return 1;
+      if (vb < 0) return -1;
+      return (va - vb) * dirMul;
+    } else {
+      va = parseInt(a.dataset.order, 10);
+      vb = parseInt(b.dataset.order, 10);
+      return (va - vb) * dirMul;
+    }
+  });
+
+  cards.forEach(c => grid.appendChild(c));
+  renumberVisibleCards();
+}
+
+function renumberVisibleCards() {
+  let n = 0;
+  document.querySelectorAll('.word-card').forEach(c => {
+    const idxEl = c.querySelector('.word-card-index');
+    if (!idxEl) return;
+    if (!c.classList.contains('hidden')) {
+      n++;
+      idxEl.textContent = 'No.' + String(n).padStart(2, '0');
+    }
+  });
 }
 
 function filterByTag(tag, btn) {
@@ -666,6 +776,9 @@ document.getElementById('btnContinuous').addEventListener('click', () => {
     localStorage.setItem('sp-ps-notify-dismissed', '1');
   });
 })();
+
+loadSortPref();
+sortWordCards();
 
 </script>
 
