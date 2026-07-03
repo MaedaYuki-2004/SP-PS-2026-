@@ -1649,85 +1649,72 @@ def admin():
 @app.route("/admin/add_word", methods=["POST"])
 def add_word():
     """
-    単語を登録する。2通りの呼び出し形式に対応する。
+    単語を登録する（multipart/form-data + 動画ファイル必須）。
 
-    (A) JSON: select.html の2ステップモーダル Step1 から呼ばれる。
-        テキストのみを受け取り DB に登録する。
-        音声・口形データは Step2 の upload_lip_video（mode=ref）で後から追加される。
-
-    (B) multipart/form-data + video file: admin.html のカメラ録画から呼ばれる。
-        動画から音声を抽出してアライメント・MFCC・口形データを一括で保存する。
+    単語登録とお手本録画は必ずセットで行う仕様のため、動画なし
+    （テキストのみ）での登録はサポートしない。動画から音声を抽出して
+    アライメント・MFCC・口形データを一括で保存する。
+    呼び出し元: select.html の単語追加モーダル / admin.html のカメラ録画。
     """
     try:
-        ct = request.content_type or ""
-        if "application/json" in ct:
-            # (A) JSON 形式（select.html）
-            data    = request.get_json() or {}
-            display = data.get("display", "").strip()
-            reading = data.get("reading", "").strip()
-            file    = None
-        else:
-            # (B) multipart 形式（admin.html）
-            display = (request.form.get("display") or "").strip()
-            reading = (request.form.get("reading") or "").strip()
-            file    = request.files.get("file")
+        display = (request.form.get("display") or "").strip()
+        reading = (request.form.get("reading") or "").strip()
+        file    = request.files.get("file")
 
         if not display or not reading:
             return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
+        if not file:
+            return jsonify({"error": "お手本の録画（動画）が必要です。単語登録とセットで録画してください。"}), 400
 
-        if file:
-            # (B) 動画あり：音声抽出 → 登録 → 口形データ保存
-            video_tmp = _save_temp_video(file)
+        # 音声抽出 → 登録 → 口形データ保存（テキスト+動画をまとめて atomic に登録）
+        video_tmp = _save_temp_video(file)
+        try:
+            ref_wav = _webm_to_wav(video_tmp)
             try:
-                ref_wav = _webm_to_wav(video_tmp)
-                try:
-                    result = register_word(display, reading, Path(ref_wav))
-                finally:
-                    try:
-                        os.remove(ref_wav)
-                    except Exception:
-                        pass
-
-                word_id = result["word_id"]
-
-                if MEDIA_PIPE_AVAILABLE:
-                    try:
-                        sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
-                        native_lab = sound_dir / f"{word_id}.lab"
-                        mora_data: list[dict] = []
-                        if native_lab.exists():
-                            (_, ref_mora_list, *_) = lab_load(native_lab)
-                            if ref_mora_list:
-                                raw_ref = _extract_mora_lip_openness(video_tmp, ref_mora_list)
-                                mora_data = [
-                                    {"label": item["label"], "v_h_ratio": item["openness"]}
-                                    for item in raw_ref
-                                ]
-                        reference_vectors, reference_ratios = _extract_lip_data(video_tmp)
-                        refs = load_lip_refs()
-                        entry: dict = {
-                            "schema_version": 2,
-                            "vectors":        reference_vectors,
-                            "ratios":         reference_ratios,
-                        }
-                        if mora_data:
-                            entry["mora_data"] = mora_data
-                        refs[word_id] = entry
-                        save_lip_refs(refs)
-                        result["mora_count"] = len(mora_data)
-                    except Exception:
-                        traceback.print_exc()
-
-                return jsonify(result)
+                result = register_word(display, reading, Path(ref_wav))
             finally:
                 try:
-                    if os.path.exists(video_tmp):
-                        os.remove(video_tmp)
+                    os.remove(ref_wav)
                 except Exception:
                     pass
-        else:
-            # (A) 動画なし：テキストのみ登録（音声は upload_lip_video で後から追加）
-            return jsonify(register_word(display, reading))
+
+            word_id = result["word_id"]
+
+            if MEDIA_PIPE_AVAILABLE:
+                try:
+                    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
+                    native_lab = sound_dir / f"{word_id}.lab"
+                    mora_data: list[dict] = []
+                    if native_lab.exists():
+                        (_, ref_mora_list, *_) = lab_load(native_lab)
+                        if ref_mora_list:
+                            raw_ref = _extract_mora_lip_openness(video_tmp, ref_mora_list)
+                            mora_data = [
+                                {"label": item["label"], "v_h_ratio": item["openness"]}
+                                for item in raw_ref
+                            ]
+                    reference_vectors, reference_ratios = _extract_lip_data(video_tmp)
+                    refs = load_lip_refs()
+                    entry: dict = {
+                        "schema_version": 2,
+                        "vectors":        reference_vectors,
+                        "ratios":         reference_ratios,
+                    }
+                    if mora_data:
+                        entry["mora_data"] = mora_data
+                    refs[word_id] = entry
+                    save_lip_refs(refs)
+                    result["mora_count"] = len(mora_data)
+                except Exception:
+                    traceback.print_exc()
+
+            return jsonify(result)
+        finally:
+            try:
+                if os.path.exists(video_tmp):
+                    os.remove(video_tmp)
+            except Exception:
+                pass
 
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500

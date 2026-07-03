@@ -164,6 +164,7 @@
     .aw-done-icon { width:52px; height:52px; margin:4px auto 12px; border-radius:50%; background:var(--green-bg); color:var(--green); font-size:26px; font-weight:900; display:flex; align-items:center; justify-content:center; }
     .aw-done-count { font-size:12px; color:var(--text-3); }
     .aw-title { font-size:15px; font-weight:700; color:var(--navy); }
+    .aw-required-note { font-size:11.5px; color:var(--text-3); background:var(--bg-muted); border-left:3px solid var(--navy); border-radius:0 var(--r-xs) var(--r-xs) 0; padding:8px 10px; margin:8px 0 4px; line-height:1.6; }
     .aw-fields { display:flex; flex-direction:column; gap:10px; }
     .aw-field { display:flex; flex-direction:column; gap:4px; }
     .aw-label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
@@ -851,14 +852,15 @@ sortWordCards();
 <div class="aw-modal-overlay" id="awModalOverlay">
   <div class="aw-modal-card">
     <div class="aw-steps">
-      <div class="aw-step active" id="awInd1"><span class="aw-step-num">1</span>単語登録</div>
+      <div class="aw-step active" id="awInd1"><span class="aw-step-num">1</span>単語情報</div>
       <span class="aw-step-arrow">›</span>
       <div class="aw-step" id="awInd2"><span class="aw-step-num">2</span>お手本録画</div>
     </div>
 
-    <!-- Step 1: 単語登録フォーム -->
+    <!-- Step 1: 単語情報入力（この時点ではまだ登録しない） -->
     <div id="awPane1">
       <div class="aw-title">新しい単語を追加</div>
+      <p class="aw-required-note">📹 お手本の録画とセットで登録します。テキストだけの登録はできません。</p>
       <div class="aw-fields">
         <div class="aw-field">
           <label class="aw-label">表示テキスト</label>
@@ -871,12 +873,12 @@ sortWordCards();
       </div>
       <div class="aw-status" id="awStatus1"></div>
       <div class="aw-actions">
-        <button class="aw-btn-primary" id="awRegisterBtn">登録する</button>
+        <button class="aw-btn-primary" id="awRegisterBtn">次へ（お手本録画） →</button>
         <button class="aw-btn-secondary" id="awCloseBtn1">閉じる</button>
       </div>
     </div>
 
-    <!-- Step 2: お手本録画 -->
+    <!-- Step 2: お手本録画（必須・録画完了で自動的に登録される） -->
     <div id="awPane2" style="display:none;">
       <div class="aw-title" id="awPane2Title">お手本を録画</div>
       <div class="rec-vid-wrap">
@@ -887,7 +889,7 @@ sortWordCards();
       <div class="aw-status" id="awStatus2">カメラを起動しています…</div>
       <div class="aw-actions">
         <button class="aw-btn-primary" id="awRecordBtn" disabled>録画開始（3秒）</button>
-        <button class="aw-btn-secondary" id="awSkipBtn">スキップ</button>
+        <button class="aw-btn-secondary" id="awBackBtn">← 戻る</button>
       </div>
     </div>
 
@@ -947,7 +949,7 @@ sortWordCards();
   const videoEl      = document.getElementById('awVideo');
   const status2      = document.getElementById('awStatus2');
   const recordBtn    = document.getElementById('awRecordBtn');
-  const skipBtn      = document.getElementById('awSkipBtn');
+  const backBtn      = document.getElementById('awBackBtn');
   const pane2Title   = document.getElementById('awPane2Title');
   const doneTitle    = document.getElementById('awDoneTitle');
   const doneCount    = document.getElementById('awDoneCount');
@@ -960,6 +962,8 @@ sortWordCards();
     readingInp.value = '';
     setStatus1('', '');
     registerBtn.disabled = false;
+    recordBtn.disabled = true;
+    backBtn.disabled = false;
     pane1.style.display = '';
     pane2.style.display = 'none';
     pane3.style.display = 'none';
@@ -982,28 +986,23 @@ sortWordCards();
     if (e.key === 'Enter' && !registerBtn.disabled) registerBtn.click();
   });
 
-  registerBtn.addEventListener('click', async function () {
+  // Step1 は入力チェックのみ。実際の単語登録は Step2 の録画完了時に
+  // テキスト+動画をまとめて /admin/add_word に送信して行う
+  // （録画なしの単語が作られないようにするため）。
+  registerBtn.addEventListener('click', function () {
     const display = displayInp.value.trim();
     const reading = readingInp.value.trim();
     if (!display || !reading) { setStatus1('表示テキストと読みの両方を入力してください。', 'err'); return; }
-    registerBtn.disabled = true;
-    setStatus1(`「${display}」の音声を生成中…`, 'loading');
-    try {
-      const res = await fetch('/admin/add_word', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ display, reading }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '登録に失敗しました');
-      newWordId = data.word_id;
-      setStatus1('✓ ' + (data.message || '登録しました'), 'ok');
-      // Step2 へ遷移
-      setTimeout(goToStep2, 600);
-    } catch (err) {
-      setStatus1('エラー: ' + err.message, 'err');
-      registerBtn.disabled = false;
-    }
+    setStatus1('', '');
+    goToStep2();
+  });
+
+  backBtn.addEventListener('click', function () {
+    stopAwCamera();
+    pane2.style.display = 'none';
+    pane1.style.display = '';
+    ind1.className = 'aw-step active';
+    ind2.className = 'aw-step';
   });
 
   function goToStep2() {
@@ -1025,7 +1024,7 @@ sortWordCards();
       status2.textContent = '準備完了。「録画開始」を押してください。';
       recordBtn.disabled = false;
     } catch (err) {
-      status2.textContent = 'カメラの起動に失敗しました。スキップして閉じてください。';
+      status2.textContent = 'カメラの起動に失敗しました。ブラウザのカメラ許可を確認してください。';
     }
   }
 
@@ -1044,7 +1043,7 @@ sortWordCards();
     if (reload) location.reload();
   }
 
-  function goToStep3(withRef) {
+  function goToStep3() {
     stopAwCamera();
     addedCount++;
     pane1.style.display = 'none';
@@ -1052,7 +1051,7 @@ sortWordCards();
     pane3.style.display = '';
     ind1.className = 'aw-step done';
     ind2.className = 'aw-step done';
-    doneTitle.textContent = `「${displayInp.value.trim()}」を追加しました${withRef ? '（お手本つき）' : ''}`;
+    doneTitle.textContent = `「${displayInp.value.trim()}」を追加しました（お手本つき）`;
     doneCount.textContent = `これまでに ${addedCount} 件 追加しました`;
     awRecorder = null;
     awChunks = [];
@@ -1069,11 +1068,11 @@ sortWordCards();
     });
     awRecorder.addEventListener('stop', function () {
       const blob = new Blob(awChunks, { type: 'video/webm' });
-      uploadAwRef(blob);
+      submitWordWithVideo(blob);
     });
     awRecorder.start();
     recordBtn.disabled = true;
-    skipBtn.disabled = true;
+    backBtn.disabled = true;
     let remaining = 3;
     status2.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
     const timer = setInterval(function () {
@@ -1087,27 +1086,34 @@ sortWordCards();
     }, 1000);
   });
 
-  async function uploadAwRef(blob) {
+  // テキスト情報と録画した動画をまとめて送信し、その場で単語登録する
+  // （/admin/add_word の multipart 経路 = admin.html と同じ atomic 登録）。
+  async function submitWordWithVideo(blob) {
     status2.textContent = 'アップロード中…';
     const fd = new FormData();
-    fd.append('word_id', newWordId);
+    fd.append('display', displayInp.value.trim());
+    fd.append('reading', readingInp.value.trim());
     fd.append('file', blob, 'ref.webm');
     try {
-      const res = await fetch('/api/lip_refs/overwrite', { method: 'POST', body: fd });
+      const res = await fetch('/admin/add_word', { method: 'POST', body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '保存に失敗しました');
-      status2.textContent = '✓ お手本を保存しました！';
-      setTimeout(function () { goToStep3(true); }, 700);
+      if (!res.ok) throw new Error(data.error || '登録に失敗しました');
+      newWordId = data.word_id;
+      status2.textContent = '✓ 登録しました！';
+      setTimeout(function () { goToStep3(); }, 700);
     } catch (err) {
       status2.textContent = 'エラー: ' + err.message;
-      skipBtn.disabled = false;
+      backBtn.disabled = false;
+      recordBtn.disabled = false;
       awRecorder = null;
     }
   }
 
-  skipBtn.addEventListener('click', function () { goToStep3(false); });
   closeBtn1.addEventListener('click', function () { closeAwModal(addedCount > 0); });
-  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeAwModal(addedCount > 0); });
+  overlay.addEventListener('click', function (e) {
+    // 録画中の誤クリックで中断されないようにする
+    if (e.target === overlay && !(awRecorder && awRecorder.state === 'recording')) closeAwModal(addedCount > 0);
+  });
 })();
 
 /* ── 既存単語のお手本登録モーダル ──────────────────────────────── */
