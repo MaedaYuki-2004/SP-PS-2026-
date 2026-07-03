@@ -153,6 +153,12 @@
     .vowel-link-btn { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--text-3); text-decoration:none; padding:5px 12px; border-radius:100px; border:1px solid var(--border); transition:color .15s,border-color .15s; }
     .vowel-link-btn:hover { color:var(--navy); border-color:var(--navy); }
 
+    /* 先生のお手本実写映像（録音ページ） */
+    .ref-video-toggle { display:block; width:100%; margin-top:8px; padding:8px; border-radius:var(--r-sm); border:1px dashed var(--border); background:transparent; color:var(--text-3); font-family:var(--font); font-size:11.5px; font-weight:700; cursor:pointer; transition:all .15s; }
+    .ref-video-toggle:hover { border-color:var(--navy); color:var(--navy); }
+    .ref-video-toggle.open { border-style:solid; border-color:var(--navy); color:var(--navy); background:var(--navy-soft); }
+    .ref-video-player { width:100%; max-height:220px; margin-top:8px; border-radius:var(--r-sm); background:#000; object-fit:contain; }
+
     @media (max-width:480px) {
       .word-display{font-size:52px;}
       .word-section{margin:0 -16px 18px;border-radius:0 0 24px 24px;padding:22px 0 20px;}
@@ -281,6 +287,12 @@
                 style="width:{{ ((m.end - m.start) / ref_preview.duration_sec * 100)|round(2) }}%">{% if not m.is_sil %}{{ m.label }}{% endif %}</span>
         {% endfor %}
       </div>
+      {% if has_ref_video %}
+      <button class="ref-video-toggle" id="refVideoToggleBtn" type="button" onclick="toggleRefVideo()">
+        🎥 先生の口の動きを見る
+      </button>
+      <video class="ref-video-player" id="refVideoPlayer" src="/sample_video/{{ word_id }}" muted loop playsinline style="display:none;"></video>
+      {% endif %}
     </div>
   </div>
   {% endif %}
@@ -463,6 +475,24 @@ function setSampleSpeed(speed, btn) {
     const el = document.getElementById(id);
     if (el) el.playbackRate = speed;
   });
+}
+
+function toggleRefVideo() {
+  const video = document.getElementById('refVideoPlayer');
+  const btn   = document.getElementById('refVideoToggleBtn');
+  if (!video) return;
+  const showing = video.style.display !== 'none';
+  if (showing) {
+    video.pause();
+    video.style.display = 'none';
+    btn.classList.remove('open');
+    btn.textContent = '🎥 先生の口の動きを見る';
+  } else {
+    video.style.display = 'block';
+    video.play().catch(() => {});
+    btn.classList.add('open');
+    btn.textContent = '🎥 閉じる';
+  }
 }
 </script>
 <script>window.CURRENT_WORD_ID = {{ word_id|tojson|safe }};</script>

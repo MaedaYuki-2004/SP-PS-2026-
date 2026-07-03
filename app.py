@@ -435,6 +435,21 @@ def _save_temp_video(uploaded_file):
     return tmp.name
 
 
+def _persist_ref_video(word_id: str, video_path: str) -> None:
+    """お手本録画（webm）を sound_dir に永続保存する。
+
+    先生の実際の口の動きを母音トレーナー・録音画面で再生できるように、
+    抽出処理のためだけに使い捨てていた動画ファイルを保存しておく。
+    失敗しても登録処理自体は継続してよいので例外は握りつぶす。
+    """
+    try:
+        sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+        sound_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(video_path, sound_dir / f"{word_id}.webm")
+    except Exception:
+        traceback.print_exc()
+
+
 def _lip_refs_path() -> Path:
     return DATA_DIR / "config" / "lip_refs.json"
 
@@ -672,7 +687,8 @@ def select():
         accent_hl = [{"label": l, "hl": h} for l, h in zip(mora_labels_list, hl_list)]
         ref_preview = _get_reference_pitch_data(word_id)
         return render_template("audio.html", test=reading, display=display, word_id=word_id,
-                               ref_preview=ref_preview, accent_hl=accent_hl)
+                               ref_preview=ref_preview, accent_hl=accent_hl,
+                               has_ref_video=has_sample_video(word_id))
 
     words    = list_words()
     word_map = {w["word_id"]: w for w in words}
@@ -950,6 +966,9 @@ def upload_lip_video():
                 except Exception:
                     current_word_id = None
 
+                if current_word_id:
+                    _persist_ref_video(current_word_id, new_path)
+
                 # ── アライメントによるモーラ別参照データを生成 ────────────
                 mora_data: list[dict] = []
                 if current_word_id:
@@ -1185,6 +1204,7 @@ def api_lip_refs_overwrite():
         # 一時保存して抽出
         tmp = _save_temp_video(file)
         try:
+            _persist_ref_video(word_id, tmp)
             vectors, ratios = _extract_lip_data(tmp)
 
             # モーラ別参照データをアライメントで生成（upload_lip_video と同じパイプライン）
@@ -1546,6 +1566,18 @@ def sample_audio(word_id: str):
     return "not found", 404
 
 
+@app.route("/sample_video/<word_id>")
+def sample_video(word_id: str):
+    """先生のお手本録画（webm）を配信する。母音トレーナー等での実映像再生用。"""
+    video_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.webm"
+    if video_path.exists(): return send_file(str(video_path), mimetype="video/webm")
+    return "not found", 404
+
+
+def has_sample_video(word_id: str) -> bool:
+    return (RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.webm").exists()
+
+
 @app.route("/admin/delete_word", methods=["POST"])
 def api_delete_word():
     try:
@@ -1582,7 +1614,8 @@ def vowel_trainer(word_id: str):
     mora_vowels = _get_mora_vowels(reading)
     return render_template("vowel_trainer.html",
                            word_id=word_id, display=display,
-                           reading=reading, mora_vowels=mora_vowels)
+                           reading=reading, mora_vowels=mora_vowels,
+                           has_ref_video=has_sample_video(word_id))
 
 
 @app.route("/practice/word/<word_id>")
@@ -1601,7 +1634,8 @@ def practice_word(word_id: str):
     accent_hl        = [{"label": l, "hl": h} for l, h in zip(mora_labels_list, hl_list)]
     ref_preview      = _get_reference_pitch_data(word_id)
     return render_template("audio.html", test=reading, display=display, word_id=word_id,
-                           ref_preview=ref_preview, accent_hl=accent_hl)
+                           ref_preview=ref_preview, accent_hl=accent_hl,
+                           has_ref_video=has_sample_video(word_id))
 
 
 @app.route("/admin/update_word_note", methods=["POST"])
@@ -1679,6 +1713,7 @@ def add_word():
                     pass
 
             word_id = result["word_id"]
+            _persist_ref_video(word_id, video_tmp)
 
             if MEDIA_PIPE_AVAILABLE:
                 try:

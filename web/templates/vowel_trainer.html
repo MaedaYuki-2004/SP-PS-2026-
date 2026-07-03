@@ -61,7 +61,12 @@
     .target-vowel-big { font-size:28px; font-weight:700; display:inline-block; padding:4px 16px; border-radius:100px; margin-bottom:14px; }
 
     /* 口の形イラスト */
-    .mouth-shape-wrap { margin:10px auto; width:120px; height:100px; }
+    .mouth-shape-wrap { margin:10px auto; width:120px; height:100px; position:relative; }
+    .mouth-ref-video { width:120px; height:100px; object-fit:cover; border-radius:var(--r-sm); background:#000; }
+    .mouth-view-tabs { display:flex; justify-content:center; gap:6px; margin-top:2px; }
+    .mouth-view-tab { padding:4px 12px; border-radius:100px; border:1px solid var(--border); background:transparent; color:var(--text-3); font-family:var(--font); font-size:10.5px; font-weight:700; cursor:pointer; transition:all .15s; }
+    .mouth-view-tab:hover { border-color:var(--navy); color:var(--navy); }
+    .mouth-view-tab.active { background:var(--navy); border-color:var(--navy); color:#fff; }
     .mouth-svg { width:100%; height:100%; }
 
     .target-hint { font-size:12px; color:var(--text-2); line-height:1.7; padding:10px 14px; background:var(--bg-muted); border-radius:var(--r-sm); border-left:2px solid var(--navy); text-align:left; }
@@ -196,8 +201,17 @@
         <div class="target-mora-sub">練習中のモーラ</div>
         <div class="target-mora-text" id="targetMoraText">—</div>
         <div class="target-vowel-big" id="targetVowelBig">—</div>
+        {% if has_ref_video %}
+        <div class="mouth-view-tabs">
+          <button class="mouth-view-tab active" id="mouthViewIllust" onclick="setMouthView('illust')">🖼 イラスト</button>
+          <button class="mouth-view-tab" id="mouthViewVideo" onclick="setMouthView('video')">🎥 先生の実写</button>
+        </div>
+        {% endif %}
         <div class="mouth-shape-wrap">
           <svg class="mouth-svg" id="mouthSvg" viewBox="0 0 120 100"></svg>
+          {% if has_ref_video %}
+          <video class="mouth-ref-video" id="mouthRefVideo" src="/sample_video/{{ word_id }}" muted loop playsinline style="display:none;"></video>
+          {% endif %}
         </div>
         <div class="guide-block" id="guideBlock">
           <div class="guide-title">👩‍🏫 先生の口の開きと比較</div>
@@ -440,6 +454,29 @@ function updateGuideMarker(m) {
 /* ══════════════════════════════════════════════════════
    UI 更新
 ══════════════════════════════════════════════════════ */
+/* ── イラスト / 先生の実写映像 切り替え ── */
+let _mouthView = 'illust';
+function setMouthView(view) {
+  _mouthView = view;
+  const svg   = document.getElementById('mouthSvg');
+  const video = document.getElementById('mouthRefVideo');
+  const tabIllust = document.getElementById('mouthViewIllust');
+  const tabVideo  = document.getElementById('mouthViewVideo');
+  if (view === 'video') {
+    svg.style.display = 'none';
+    video.style.display = 'block';
+    video.play().catch(() => {});
+    tabIllust?.classList.remove('active');
+    tabVideo?.classList.add('active');
+  } else {
+    svg.style.display = 'block';
+    video.style.display = 'none';
+    video.pause();
+    tabIllust?.classList.add('active');
+    tabVideo?.classList.remove('active');
+  }
+}
+
 function updateTargetUI() {
   if (currentIdx >= practiceItems.length) {
     showComplete();
