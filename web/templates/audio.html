@@ -149,6 +149,10 @@
     .pitch-legend-line.ref  { background:rgba(14,30,69,0.55); }
     .pitch-legend-line.user { background:#C03D20; }
 
+    /* 母音練習リンク（.word-section の外＝ページ背景の上に置かれるためテーマ対応色を使う） */
+    .vowel-link-btn { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--text-3); text-decoration:none; padding:5px 12px; border-radius:100px; border:1px solid var(--border); transition:color .15s,border-color .15s; }
+    .vowel-link-btn:hover { color:var(--navy); border-color:var(--navy); }
+
     @media (max-width:480px) {
       .word-display{font-size:52px;}
       .word-section{margin:0 -16px 18px;border-radius:0 0 24px 24px;padding:22px 0 20px;}
@@ -281,7 +285,7 @@
   <!-- 母音練習リンク -->
   {% if word_id %}
   <div style="text-align:center;margin:4px 0 8px;">
-    <a href="/vowel_trainer/{{ word_id }}" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(255,255,255,.5);text-decoration:none;padding:5px 12px;border-radius:100px;border:1px solid rgba(255,255,255,.15);transition:all .15s;" onmouseover="this.style.color='rgba(255,255,255,.85)';this.style.borderColor='rgba(255,255,255,.35)'" onmouseout="this.style.color='rgba(255,255,255,.5)';this.style.borderColor='rgba(255,255,255,.15)'">
+    <a href="/vowel_trainer/{{ word_id }}" class="vowel-link-btn">
       <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1C3 1 1 3 1 5.5S3 10 5.5 10 10 8 10 5.5 8 1 5.5 1z" stroke="currentColor" stroke-width="1.2"/><path d="M3.5 5.5C3.5 4 4.3 3.2 5.5 3.2S7.5 4 7.5 5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
       口の形（母音）を練習する
     </a>
