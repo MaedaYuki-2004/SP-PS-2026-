@@ -132,7 +132,8 @@ def compute_learning_stats(
     word_records: dict[str, list[dict]] = defaultdict(list)
     for rec in chron:
         wid = rec.get("word_id")
-        if wid:
+        # 削除済み単語は集計対象から除外する（練習ログ自体は履歴ページに残る）
+        if wid and wid in words_db:
             word_records[wid].append(rec)
 
     # ── 1. 単語ごとの統計 ──────────────────────────────────────────

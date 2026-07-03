@@ -745,10 +745,12 @@ def history_page():
     stats    = get_stats()
     words    = list_words()
 
+    existing_word_ids = {w["word_id"] for w in words}
     word_history: dict[str, list] = {}
     for record in reversed(history):
         wid = record.get("word_id")
-        if wid:
+        # 削除済み単語は「単語別スコア推移」から除外する（録音ログ自体には残す）
+        if wid and wid in existing_word_ids:
             if wid not in word_history:
                 word_history[wid] = []
             word_history[wid].append(record)
