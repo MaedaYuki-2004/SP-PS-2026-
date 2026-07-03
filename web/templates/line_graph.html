@@ -56,6 +56,23 @@
     .mora-lights-legend { display:flex; gap:14px; margin-top:10px; font-size:10.5px; color:var(--text-3); flex-wrap:wrap; }
     .lg-dot { width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:4px; vertical-align:-1px; }
 
+    /* ── 音映像クロスチェックカード（試験運用） ── */
+    .av-sync-card { background:var(--bg-card); border:1px solid var(--border); border-left-width:3px; border-radius:var(--r-lg); padding:14px 18px; margin-bottom:12px; }
+    .av-sync-card.verdict-ok   { border-left-color:var(--green); }
+    .av-sync-card.verdict-warn { border-left-color:var(--quest); }
+    .av-sync-card.verdict-ng   { border-left-color:var(--accent); }
+    .av-sync-head { display:flex; align-items:flex-start; gap:12px; }
+    .av-sync-icon { font-size:20px; flex-shrink:0; line-height:1.4; }
+    .av-sync-title { font-size:13.5px; font-weight:800; color:var(--text); }
+    .av-sync-val { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text-3); margin-left:8px; }
+    .av-sync-sub { font-size:11px; color:var(--text-3); margin-top:2px; line-height:1.6; }
+    .av-sync-details { margin-top:8px; }
+    .av-sync-details summary { font-size:11px; font-weight:700; color:var(--text-3); cursor:pointer; user-select:none; }
+    .av-sync-moras { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .av-sync-mora { display:inline-flex; align-items:baseline; gap:5px; padding:5px 10px; border-radius:var(--r-sm); background:var(--bg-muted); font-size:12px; font-weight:700; color:var(--text); }
+    .av-sync-mora b { font-family:var(--mono); font-size:10.5px; font-weight:500; color:var(--text-3); }
+    .av-sync-note { font-size:10px; color:var(--text-3); margin-top:8px; line-height:1.7; }
+
     /* ── 次はこれだけカード ── */
     .next-one-card { background:linear-gradient(135deg,var(--navy),var(--navy-mid)); border-radius:var(--r-lg); padding:20px 22px; color:#fff; margin-bottom:12px; box-shadow:var(--shadow); }
     .next-one-label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.65); }
@@ -383,6 +400,36 @@
       <span><span class="lg-dot" style="background:var(--quest);"></span>○ おしい</span>
       <span><span class="lg-dot" style="background:var(--accent);"></span>△ ここを直そう</span>
     </div>
+  </div>
+  {% endif %}
+
+  {# ══════════ ②' 音映像クロスチェック（試験運用・採点に非影響） ══════════ #}
+  {% if av_sync %}
+  <div class="av-sync-card verdict-{{ av_sync.verdict }}">
+    <div class="av-sync-head">
+      <span class="av-sync-icon">
+        {% if av_sync.verdict == 'ok' %}🎬✓{% elif av_sync.verdict == 'warn' %}🎬⚠{% else %}🎬△{% endif %}
+      </span>
+      <div class="av-sync-body">
+        <div class="av-sync-title">
+          口と声のタイミング：
+          {% if av_sync.verdict == 'ok' %}よく同期しています
+          {% elif av_sync.verdict == 'warn' %}少しばらつきがあります
+          {% else %}ずれが目立ちます{% endif %}
+          <span class="av-sync-val">ばらつき {{ av_sync.spread_ms }}ms</span>
+        </div>
+        <div class="av-sync-sub">口の動きと発声のタイミングが揃っているかの新しい分析です（試験運用中・スコアには影響しません）</div>
+      </div>
+    </div>
+    <details class="av-sync-details">
+      <summary>モーラごとのずれを見る</summary>
+      <div class="av-sync-moras">
+        {% for m in av_sync.per_mora %}
+        <span class="av-sync-mora">{{ m.label }}<b>{{ '%+d' % (m.offset_ms - av_sync.median_offset_ms) }}ms</b></span>
+        {% endfor %}
+      </div>
+      <p class="av-sync-note">値は発話全体の平均的なずれ（{{ av_sync.median_offset_ms }}ms・録画開始タイミングの機材差を含む）を基準にした相対値です。プラス＝口が声より遅い、マイナス＝口が先行。</p>
+    </details>
   </div>
   {% endif %}
 

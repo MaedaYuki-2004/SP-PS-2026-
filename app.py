@@ -116,19 +116,40 @@ def get_lip_shape_vector(landmarks, w, h):
 
 
 def _extract_lip_data(video_path: str, max_frames: int = 50) -> tuple[list[list[float]], list[float]]:
+    """後方互換ラッパー（vectors, ratios のみ返す）。"""
+    vectors, ratios, _times = _extract_lip_data_timed(video_path, max_frames)
+    return vectors, ratios
+
+
+def _extract_lip_data_timed(
+    video_path: str, max_frames: int = 50,
+) -> tuple[list[list[float]], list[float], list[float]]:
+    """唇形状ベクトル・開き比率に加えて各フレームの時刻（秒）を返す。
+
+    顔検出に失敗したフレームはスキップされるため、ベクトルの並び順から
+    時刻を復元することはできない。音映像同期分析（core/sync.py）が
+    正確な時刻対応を必要とするので、フレーム時刻を明示的に記録する。
+    """
     face_mesh = _get_face_mesh()
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"動画を開けませんでした: {video_path}")
 
-    vectors = []
-    ratios = []
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps <= 0 or fps > 120:
+        fps = 30.0
+
+    vectors: list[list[float]] = []
+    ratios:  list[float] = []
+    times:   list[float] = []
     frame_index = 0
 
     while len(vectors) < max_frames:
         success, frame = cap.read()
         if not success:
             break
+        # POS_MSEC は WebM で信頼できないことがあるため fps ベースで算出
+        t_sec = frame_index / fps
         frame_index += 1
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = face_mesh.process(image_rgb)
@@ -138,6 +159,7 @@ def _extract_lip_data(video_path: str, max_frames: int = 50) -> tuple[list[list[
         face_landmarks = results.multi_face_landmarks[0]
         h, w, _ = frame.shape
         vectors.append(get_lip_shape_vector(face_landmarks, w, h).tolist())
+        times.append(round(t_sec, 4))
 
         top_lip = face_landmarks.landmark[13]
         bottom_lip = face_landmarks.landmark[14]
@@ -153,7 +175,7 @@ def _extract_lip_data(video_path: str, max_frames: int = 50) -> tuple[list[list[
     cap.release()
     if not vectors:
         raise ValueError("顔ランドマークが検出できませんでした。録画をやり直してください。")
-    return vectors, ratios
+    return vectors, ratios, times
 
 
 def _compute_lip_score(reference_vectors, test_vectors):
@@ -959,7 +981,7 @@ def upload_lip_video():
         # 参照（ref）をアップロードした場合は抽出データを永続化しておく
         if mode == 'ref' and MEDIA_PIPE_AVAILABLE:
             try:
-                reference_vectors, reference_ratios = _extract_lip_data(new_path)
+                reference_vectors, reference_ratios, reference_times = _extract_lip_data_timed(new_path)
 
                 try:
                     current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
@@ -1021,6 +1043,7 @@ def upload_lip_video():
                         "schema_version": 2,
                         "vectors":        reference_vectors,
                         "ratios":         reference_ratios,
+                        "times":          reference_times,
                     }
                     if mora_data:
                         entry["mora_data"] = mora_data
@@ -1205,7 +1228,7 @@ def api_lip_refs_overwrite():
         tmp = _save_temp_video(file)
         try:
             _persist_ref_video(word_id, tmp)
-            vectors, ratios = _extract_lip_data(tmp)
+            vectors, ratios, lip_times = _extract_lip_data_timed(tmp)
 
             # モーラ別参照データをアライメントで生成（upload_lip_video と同じパイプライン）
             mora_data: list[dict] = []
@@ -1250,7 +1273,7 @@ def api_lip_refs_overwrite():
                 traceback.print_exc()
 
             refs = load_lip_refs()
-            entry: dict = {"schema_version": 2, "vectors": vectors, "ratios": ratios}
+            entry: dict = {"schema_version": 2, "vectors": vectors, "ratios": ratios, "times": lip_times}
             if mora_data:
                 entry["mora_data"] = mora_data
             refs[word_id] = entry
@@ -1280,11 +1303,13 @@ def audio_analysis():
         ref_video = lip_paths.get("ref")
         test_video = lip_paths.get("test")
         reference_vectors = None
+        ref_lip_times     = None   # 音映像同期分析用（Noneなら30fps仮定）
+        test_lip_times    = None
         # 優先順序: セッションにある ref 動画 -> 保存済み参照データ
         if MEDIA_PIPE_AVAILABLE:
             try:
                 if ref_video and os.path.exists(ref_video):
-                    reference_vectors, lip_ref_ratios = _extract_lip_data(ref_video)
+                    reference_vectors, lip_ref_ratios, ref_lip_times = _extract_lip_data_timed(ref_video)
                 else:
                     # 保存済み参照をロード
                     refs = load_lip_refs()
@@ -1292,9 +1317,10 @@ def audio_analysis():
                     if saved:
                         reference_vectors = saved.get("vectors")
                         lip_ref_ratios = saved.get("ratios", [])
+                        ref_lip_times  = saved.get("times")  # 旧データはNone
 
                 if test_video and os.path.exists(test_video):
-                    test_vectors, lip_test_ratios = _extract_lip_data(test_video)
+                    test_vectors, lip_test_ratios, test_lip_times = _extract_lip_data_timed(test_video)
 
                 if reference_vectors and 'test_vectors' in locals():
                     lip_score, lip_distance = _compute_lip_score(reference_vectors, test_vectors)
@@ -1363,6 +1389,19 @@ def audio_analysis():
         display    = word_entry.get("display", word_id) if word_entry else word_id
         reading    = word_entry.get("reading", word_id) if word_entry else word_id
 
+        # ── 音映像クロスチェック（口と声の同期分析・表示のみ採点に非影響） ──
+        av_sync = None
+        if (reference_vectors and 'test_vectors' in locals()
+                and mora_list1 and mora_list2):
+            try:
+                from core.sync import compute_av_sync
+                av_sync = compute_av_sync(
+                    reference_vectors, ref_lip_times, mora_list1,
+                    test_vectors, test_lip_times, mora_list2,
+                )
+            except Exception:
+                traceback.print_exc()
+
         # ── モーラ別唇開き分析（Julius タイムスタンプ + 映像フレーム） ──
         lip_mora_analysis = []
         if MEDIA_PIPE_AVAILABLE and test_video and os.path.exists(test_video):
@@ -1426,7 +1465,8 @@ def audio_analysis():
                                    speaking_rate=0.0, rate_feedback=None,
                                    score_delta=None, suggestions=[],
                                    mora_scores=[], worst_mora=None, ci_info=None,
-                                   lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios)
+                                   lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios,
+                               av_sync=av_sync)
 
         pitch_fin_score  = smooth(comp(pitch1_sil_semi), window=3)
         pitch_fin2_score = smooth(comp(pitch3_semi),     window=3)
@@ -1550,7 +1590,8 @@ def audio_analysis():
                                ci_info=ci_info,
                                native_formants=native_formants if 'native_formants' in dir() else None,
                                user_formants=user_formants if 'user_formants' in dir() else None,
-                               lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios)
+                               lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios,
+                               av_sync=av_sync)
 
     except Exception as exc:
         traceback.print_exc()
@@ -1728,12 +1769,13 @@ def add_word():
                                 {"label": item["label"], "v_h_ratio": item["openness"]}
                                 for item in raw_ref
                             ]
-                    reference_vectors, reference_ratios = _extract_lip_data(video_tmp)
+                    reference_vectors, reference_ratios, reference_times = _extract_lip_data_timed(video_tmp)
                     refs = load_lip_refs()
                     entry: dict = {
                         "schema_version": 2,
                         "vectors":        reference_vectors,
                         "ratios":         reference_ratios,
+                        "times":          reference_times,
                     }
                     if mora_data:
                         entry["mora_data"] = mora_data
