@@ -119,9 +119,9 @@
 
     #micError { display:none; background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0; border-radius:var(--r-sm); padding:12px 16px; font-size:13px; }
 
-    /* お手本カラオケピッチグラフ */
-    .ref-preview-wrap { margin-top:10px; }
-    .ref-preview-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:12px 14px 10px; }
+    /* お手本カラオケピッチグラフ（ヒーローの外に置く独立カード） */
+    .ref-preview-wrap { margin-bottom:16px; }
+    .ref-preview-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:14px 16px 12px; box-shadow:var(--shadow-xs); }
     .ref-preview-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
     .ref-preview-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
     .ref-play-btn { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 12px; border-radius:100px; background:var(--navy); color:#fff; font-family:var(--font); font-size:11px; font-weight:700; border:none; cursor:pointer; transition:background var(--dur); letter-spacing:.04em; -webkit-tap-highlight-color:transparent; }
@@ -230,43 +230,7 @@
       {% endfor %}
     </div>
     {% endif %}
-    {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
-    <div class="ref-preview-wrap">
-      <div class="ref-preview-card">
-        <div class="ref-preview-top">
-          <span class="ref-preview-label">お手本を確認</span>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <div style="display:flex;gap:4px;">
-              <button class="speed-chip active" data-speed="1" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(1,this)">1×</button>
-              <button class="speed-chip" data-speed="0.75" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.75,this)">0.75×</button>
-              <button class="speed-chip" data-speed="0.5" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.5,this)">0.5×</button>
-            </div>
-            <button id="refPlayBtn" type="button" class="ref-play-btn">
-              <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg>
-              再生
-            </button>
-          </div>
-        </div>
-        <audio id="refAudio" preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
-        <div class="pitch-graph-wrap">
-          <canvas id="pitchCanvas"></canvas>
-          <div id="pitchCursor"></div>
-        </div>
-        <div class="pitch-legend">
-          <div class="pitch-legend-item"><div class="pitch-legend-line ref"></div>お手本</div>
-          <div class="pitch-legend-item"><div class="pitch-legend-line user"></div>あなた（録音中）</div>
-        </div>
-        <div class="mora-bar" id="moraBar">
-          {% for m in ref_preview.moras %}
-            <span class="mora-item {% if m.is_sil %}mora-sil{% endif %}"
-                  data-start="{{ m.start }}"
-                  data-end="{{ m.end }}"
-                  style="width:{{ ((m.end - m.start) / ref_preview.duration_sec * 100)|round(2) }}%">{% if not m.is_sil %}{{ m.label }}{% endif %}</span>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-    {% else %}
+    {% if not (ref_preview is defined and ref_preview and ref_preview.has_data) %}
     <div class="sample-wrap" style="flex-direction:column;gap:8px;">
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
         <span class="sample-label">お手本音声</span>
@@ -281,6 +245,45 @@
     </div>
     {% endif %}
   </div>
+
+  {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
+  <!-- お手本を確認カード（ヒーローの外＝ページ背景に置く独立カード） -->
+  <div class="ref-preview-wrap">
+    <div class="ref-preview-card">
+      <div class="ref-preview-top">
+        <span class="ref-preview-label">お手本を確認</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="display:flex;gap:4px;">
+            <button class="speed-chip active" data-speed="1" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(1,this)">1×</button>
+            <button class="speed-chip" data-speed="0.75" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.75,this)">0.75×</button>
+            <button class="speed-chip" data-speed="0.5" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.5,this)">0.5×</button>
+          </div>
+          <button id="refPlayBtn" type="button" class="ref-play-btn">
+            <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg>
+            再生
+          </button>
+        </div>
+      </div>
+      <audio id="refAudio" preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
+      <div class="pitch-graph-wrap">
+        <canvas id="pitchCanvas"></canvas>
+        <div id="pitchCursor"></div>
+      </div>
+      <div class="pitch-legend">
+        <div class="pitch-legend-item"><div class="pitch-legend-line ref"></div>お手本</div>
+        <div class="pitch-legend-item"><div class="pitch-legend-line user"></div>あなた（録音中）</div>
+      </div>
+      <div class="mora-bar" id="moraBar">
+        {% for m in ref_preview.moras %}
+          <span class="mora-item {% if m.is_sil %}mora-sil{% endif %}"
+                data-start="{{ m.start }}"
+                data-end="{{ m.end }}"
+                style="width:{{ ((m.end - m.start) / ref_preview.duration_sec * 100)|round(2) }}%">{% if not m.is_sil %}{{ m.label }}{% endif %}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- 母音練習リンク -->
   {% if word_id %}
