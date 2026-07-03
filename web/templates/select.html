@@ -49,9 +49,28 @@
     .search-input { width:240px; padding:9px 14px 9px 36px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:13px; background:var(--bg-card); color:var(--text); transition:border-color var(--dur),box-shadow var(--dur); }
     .search-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(124,106,224,.15); }
     .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-3); }
-    .sort-wrap { display:flex; align-items:center; gap:6px; }
-    .sort-select { padding:8px 30px 8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:12.5px; font-weight:600; background:var(--bg-card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239AA0B0' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center; color:var(--text); cursor:pointer; appearance:none; transition:border-color var(--dur); }
-    .sort-select:hover, .sort-select:focus { outline:none; border-color:var(--navy); }
+    .sort-wrap { display:flex; align-items:center; gap:6px; position:relative; }
+
+    /* カスタムドロップダウン */
+    .sort-dropdown { position:relative; }
+    .sort-dropdown-btn { display:inline-flex; align-items:center; gap:7px; padding:8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-card); color:var(--text); font-family:var(--font); font-size:12.5px; font-weight:600; cursor:pointer; transition:border-color var(--dur),box-shadow var(--dur); }
+    .sort-dropdown-btn:hover { border-color:var(--navy); }
+    .sort-dropdown.open .sort-dropdown-btn { border-color:var(--navy); box-shadow:0 0 0 3px color-mix(in srgb, var(--navy) 15%, transparent); }
+    .sort-dropdown-btn svg:first-child { color:var(--text-3); flex-shrink:0; }
+    .sort-dropdown-chevron { color:var(--text-3); margin-left:2px; transition:transform .2s; flex-shrink:0; }
+    .sort-dropdown.open .sort-dropdown-chevron { transform:rotate(180deg); }
+
+    .sort-dropdown-menu { position:absolute; top:calc(100% + 6px); left:0; min-width:180px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow-lg); padding:6px; z-index:40; opacity:0; visibility:hidden; transform:translateY(-6px) scale(.98); transform-origin:top left; transition:opacity .15s,transform .15s,visibility .15s; }
+    .sort-dropdown.open .sort-dropdown-menu { opacity:1; visibility:visible; transform:translateY(0) scale(1); }
+
+    .sort-option { display:flex; align-items:center; gap:10px; width:100%; padding:9px 10px; border:none; border-radius:var(--r-sm); background:transparent; color:var(--text-2); font-family:var(--font); font-size:13px; font-weight:600; text-align:left; cursor:pointer; transition:background .12s; }
+    .sort-option svg:first-child { color:var(--text-3); flex-shrink:0; }
+    .sort-option:hover { background:var(--bg-muted); }
+    .sort-option-check { margin-left:auto; color:var(--navy); opacity:0; flex-shrink:0; transform:scale(.7); transition:opacity .12s,transform .12s; }
+    .sort-option.active { color:var(--navy); background:var(--navy-soft); }
+    .sort-option.active svg:first-child { color:var(--navy); }
+    .sort-option.active .sort-option-check { opacity:1; transform:scale(1); }
+
     .sort-dir-btn { display:inline-flex; align-items:center; gap:5px; padding:8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; transition:border-color var(--dur),color var(--dur); }
     .sort-dir-btn:hover { border-color:var(--navy); color:var(--navy); }
     .sort-dir-btn svg { transition:transform .2s; }
@@ -493,11 +512,30 @@
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="sort-wrap">
-          <select class="sort-select" id="sortSelect" onchange="applySortFromUI()">
-            <option value="order">登録順</option>
-            <option value="kana">あいうえお順</option>
-            <option value="score">点数順</option>
-          </select>
+          <div class="sort-dropdown" id="sortDropdown">
+            <button class="sort-dropdown-btn" id="sortDropdownBtn" onclick="toggleSortMenu()" type="button">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 4h9M4 6.5h5M5.5 9h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <span id="sortKeyLabel">登録順</span>
+              <svg class="sort-dropdown-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="sort-dropdown-menu" id="sortDropdownMenu">
+              <button class="sort-option active" data-key="order" onclick="selectSortKey('order',this)">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                登録順
+                <svg class="sort-option-check" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button class="sort-option" data-key="kana" onclick="selectSortKey('kana',this)">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><text x="1" y="11" font-size="10" font-weight="700" fill="currentColor">あ</text></svg>
+                あいうえお順
+                <svg class="sort-option-check" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button class="sort-option" data-key="score" onclick="selectSortKey('score',this)">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 10V6M7 10V3M11 10V7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                点数順
+                <svg class="sort-option-check" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
           <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="昇順/降順を切り替え">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" id="sortDirIcon"><path d="M3 4l3-3 3 3M6 1v10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span id="sortDirLabel">昇順</span>
@@ -628,14 +666,48 @@ const SORT_LS_KEY = 'sp-ps-word-sort';
 let _sortKey = 'order';
 let _sortDir = 'asc';
 
+const SORT_KEY_LABELS = { order: '登録順', kana: 'あいうえお順', score: '点数順' };
+
 function loadSortPref() {
   try {
     const saved = JSON.parse(localStorage.getItem(SORT_LS_KEY));
     if (saved && saved.key) { _sortKey = saved.key; _sortDir = saved.dir || 'asc'; }
   } catch (e) {}
-  document.getElementById('sortSelect').value = _sortKey;
+  updateSortKeyUI();
   updateSortDirUI();
 }
+
+function updateSortKeyUI() {
+  document.getElementById('sortKeyLabel').textContent = SORT_KEY_LABELS[_sortKey] || '登録順';
+  document.querySelectorAll('.sort-option').forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.key === _sortKey);
+  });
+}
+
+function toggleSortMenu() {
+  document.getElementById('sortDropdown').classList.toggle('open');
+}
+
+function closeSortMenu() {
+  document.getElementById('sortDropdown').classList.remove('open');
+}
+
+function selectSortKey(key, btn) {
+  _sortKey = key;
+  saveSortPref();
+  updateSortKeyUI();
+  updateSortDirUI();
+  sortWordCards();
+  closeSortMenu();
+}
+
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('sortDropdown');
+  if (dd && dd.classList.contains('open') && !dd.contains(e.target)) closeSortMenu();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeSortMenu();
+});
 
 function saveSortPref() {
   localStorage.setItem(SORT_LS_KEY, JSON.stringify({ key: _sortKey, dir: _sortDir }));
@@ -654,13 +726,6 @@ function updateSortDirUI() {
   } else {
     label.textContent = isDesc ? '新しい順' : '古い順';
   }
-}
-
-function applySortFromUI() {
-  _sortKey = document.getElementById('sortSelect').value;
-  saveSortPref();
-  updateSortDirUI();
-  sortWordCards();
 }
 
 function toggleSortDir() {
