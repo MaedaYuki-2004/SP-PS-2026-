@@ -8,7 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.0.2/chartjs-plugin-annotation.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
     .results-header { background:var(--navy); padding:18px 32px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
@@ -461,7 +461,9 @@
         const ctx = document.getElementById('avSyncChart').getContext('2d');
 
         // モーラごとに「声の位置」と「映像が予測した位置」を結ぶギャップ線の
-        // アノテーションを作る（この線の長さ＝ズレそのものが一目でわかる）
+        // アノテーションを作る（この線の長さ＝ズレそのものが一目でわかる）。
+        // ラベルに「モーラ名＋ズレ」を両方入れることで、カーソルを合わせなくても
+        // どの点がどの音に対応しているかが直接わかるようにする。
         const gapAnnotations = {};
         (plot.mora_points || []).forEach((m, idx) => {
           const gapMs = Math.round((m.u_video - m.u_audio) * 1000);
@@ -472,10 +474,12 @@
             borderColor: big ? 'rgba(255,122,85,.9)' : 'rgba(180,186,201,.6)',
             borderWidth: big ? 3 : 2,
             label: {
-              display: true, content: (gapMs >= 0 ? '+' : '') + gapMs + 'ms',
-              position: 'center', yAdjust: -12,
-              backgroundColor: big ? 'rgba(255,122,85,.9)' : 'rgba(120,126,141,.85)',
-              color: '#fff', font: { size: 10, weight: 'bold' }, padding: 3, borderRadius: 4,
+              display: true,
+              content: [m.label, (gapMs >= 0 ? '+' : '') + gapMs + 'ms'],
+              position: 'center', yAdjust: -16,
+              backgroundColor: big ? 'rgba(255,122,85,.95)' : 'rgba(120,126,141,.9)',
+              color: '#fff', font: { size: 11, weight: 'bold', lineHeight: 1.3 },
+              padding: 4, borderRadius: 5,
             },
           };
         });
@@ -518,13 +522,9 @@
             plugins: {
               legend: { labels: { boxWidth: 14, font: { size: 9.5 } } },
               annotation: { annotations: gapAnnotations },
-              datalabels: {
-                display: c => c.datasetIndex === 2,
-                align: 'left', offset: 8,
-                font: { size: 11, weight: 'bold' },
-                color: 'rgba(43,182,115,1)',
-                formatter: (v) => v.label,
-              },
+              // モーラ名とズレはギャップ線のラベル（gapAnnotations）に集約したので、
+              // 点自体への個別ラベルは表示しない（重複表示による煩雑さを避ける）
+              datalabels: { display: false },
               tooltip: {
                 callbacks: {
                   label: c => {

@@ -48,6 +48,8 @@ import numpy as np
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
 
+from core.utils import romaji_mora_to_kana
+
 # 校正済みしきい値（ms）— 上記の校正結果に基づく
 SYNC_OK_MS   = 70.0
 SYNC_WARN_MS = 140.0
@@ -144,7 +146,7 @@ def compute_av_sync(
 
         off_ms = (t_video - t_audio) * 1000.0
         offsets.append(off_ms)
-        per_mora.append({"label": label, "offset_ms": round(off_ms)})
+        per_mora.append({"label": romaji_mora_to_kana(label), "offset_ms": round(off_ms)})
 
     if len(offsets) < 2:
         return None
@@ -205,7 +207,7 @@ def compute_av_sync(
         fj = map_ref_frame(fi)
         t_video = test_times[fj] if fj < len(test_times) else test_times[-1]
         mora_points.append({
-            "label":   label,
+            "label":   romaji_mora_to_kana(label),
             "r":       round(rc, 3),
             "u_audio": round(_mora_center(u), 3),
             "u_video": round(t_video, 3),
