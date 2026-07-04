@@ -430,9 +430,9 @@
         <canvas id="avSyncChart"></canvas>
       </div>
       <p class="av-sync-note" style="margin-top:4px;">
-        縦軸＝お手本の時間、横軸＝あなたの時間。<b style="color:#5DA8F8;">青＝口の動きから求めた対応線</b>、
-        <b style="color:#2BB673;">緑＝声から求めた対応線</b>。2本が重なっていれば口と声が同期しています。
-        離れている区間が「口と声がずれている」場所です。
+        縦軸＝お手本の時間、横軸＝あなたの時間。<b style="color:#2BB673;">●緑＝声から特定した位置</b>、
+        <b style="color:#5DA8F8;">◆青＝口の動きから予測した位置</b>。同じモーラの2点を結ぶ線がそのモーラの
+        「ズレ」そのもので、線が短いほど同期しています。オレンジ色の線は特にズレが大きい箇所です。
       </p>
       {% endif %}
 
@@ -459,6 +459,27 @@
         const plot = JSON.parse(document.getElementById('av-sync-data').textContent);
         const toXY = p => ({ x: p[0], y: p[1] });
         const ctx = document.getElementById('avSyncChart').getContext('2d');
+
+        // モーラごとに「声の位置」と「映像が予測した位置」を結ぶギャップ線の
+        // アノテーションを作る（この線の長さ＝ズレそのものが一目でわかる）
+        const gapAnnotations = {};
+        (plot.mora_points || []).forEach((m, idx) => {
+          const gapMs = Math.round((m.u_video - m.u_audio) * 1000);
+          const big = Math.abs(gapMs) >= 70;
+          gapAnnotations['gap' + idx] = {
+            type: 'line',
+            xMin: m.u_audio, xMax: m.u_video, yMin: m.r, yMax: m.r,
+            borderColor: big ? 'rgba(255,122,85,.9)' : 'rgba(180,186,201,.6)',
+            borderWidth: big ? 3 : 2,
+            label: {
+              display: true, content: (gapMs >= 0 ? '+' : '') + gapMs + 'ms',
+              position: 'center', yAdjust: -12,
+              backgroundColor: big ? 'rgba(255,122,85,.9)' : 'rgba(120,126,141,.85)',
+              color: '#fff', font: { size: 10, weight: 'bold' }, padding: 3, borderRadius: 4,
+            },
+          };
+        });
+
         new Chart(ctx, {
           type: 'scatter',
           data: {
@@ -476,28 +497,41 @@
                 borderColor: 'rgba(43,182,115,.9)', borderDash: [6, 3], fill: false, tension: 0,
               },
               {
-                label: 'モーラ（声の位置）',
+                label: '声から特定した位置',
                 data: plot.mora_points.map(m => ({ x: m.u_audio, y: m.r, label: m.label })),
-                pointRadius: 5, pointHoverRadius: 7,
-                backgroundColor: 'rgba(43,182,115,1)', showLine: false,
+                pointRadius: 6, pointHoverRadius: 8, pointStyle: 'circle',
+                backgroundColor: 'rgba(43,182,115,1)', borderColor: '#fff', borderWidth: 1.5,
+                showLine: false,
+              },
+              {
+                label: '口の動きから予測した位置',
+                data: plot.mora_points.map(m => ({ x: m.u_video, y: m.r, label: m.label })),
+                pointRadius: 6, pointHoverRadius: 8, pointStyle: 'rectRot',
+                backgroundColor: 'rgba(93,168,248,1)', borderColor: '#fff', borderWidth: 1.5,
+                showLine: false,
               },
             ],
           },
           options: {
             responsive: true, maintainAspectRatio: false,
+            layout: { padding: { top: 18 } },
             plugins: {
-              legend: { labels: { boxWidth: 18, font: { size: 10 } } },
+              legend: { labels: { boxWidth: 14, font: { size: 9.5 } } },
+              annotation: { annotations: gapAnnotations },
               datalabels: {
                 display: c => c.datasetIndex === 2,
-                align: 'right', offset: 6,
-                font: { size: 10, weight: 'bold' },
+                align: 'left', offset: 8,
+                font: { size: 11, weight: 'bold' },
+                color: 'rgba(43,182,115,1)',
                 formatter: (v) => v.label,
               },
               tooltip: {
                 callbacks: {
-                  label: c => c.datasetIndex === 2
-                    ? `${c.raw.label}: あなた ${c.raw.x}s / お手本 ${c.raw.y}s`
-                    : `あなた ${c.raw.x}s / お手本 ${c.raw.y}s`,
+                  label: c => {
+                    if (c.datasetIndex === 2) return `声「${c.raw.label}」: あなた ${c.raw.x}s`;
+                    if (c.datasetIndex === 3) return `口の動きの予測「${c.raw.label}」: あなた ${c.raw.x}s`;
+                    return `あなた ${c.raw.x}s / お手本 ${c.raw.y}s`;
+                  },
                 },
               },
             },

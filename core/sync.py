@@ -162,13 +162,27 @@ def compute_av_sync(
 
     # ── グラフ用データ（2本の対応線を同じ座標系で描くため） ──────────
     # 座標系: X = ユーザーの時間(秒), Y = お手本の時間(秒)
-    # 映像の対応線: DTW経路をそのまま時刻に変換（間引きして最大120点）
-    video_line: list[list[float]] = []
-    step = max(1, len(path) // 120)
-    for idx in range(0, len(path), step):
-        i, j = path[idx]
+    # 発話区間（無音を除いた最初〜最後のモーラ）に前後10%の余白を付けた範囲。
+    # 映像DTW経路は録画全体（無音含む）を通っているため、これで絞らないと
+    # グラフ面積の大半が無音区間の「意味のない直線」で埋まってしまう。
+    speech_moras = [m for m in ref_moras if str(m[2]) not in _SIL_LABELS]
+    if speech_moras:
+        sp_start = float(speech_moras[0][0])
+        sp_end   = float(speech_moras[-1][1])
+        pad      = max(0.05, (sp_end - sp_start) * 0.1)
+        y_lo, y_hi = sp_start - pad, sp_end + pad
+    else:
+        y_lo, y_hi = ref_times[0], ref_times[-1]
+
+    # 映像の対応線: DTW経路を時刻に変換し、発話区間内だけを残して間引く（最大120点）
+    video_line_full: list[list[float]] = []
+    for i, j in path:
         if i < len(ref_times) and j < len(test_times):
-            video_line.append([round(test_times[j], 3), round(ref_times[i], 3)])
+            ry = ref_times[i]
+            if y_lo <= ry <= y_hi:
+                video_line_full.append([round(test_times[j], 3), round(ry, 3)])
+    step = max(1, len(video_line_full) // 120)
+    video_line = video_line_full[::step]
 
     # 音声の対応線: モーラ境界同士の対応（区分線形）
     audio_line: list[list[float]] = []
