@@ -602,7 +602,8 @@ def _get_reference_pitch_data(word_id: str) -> dict:
             moras.append({"label": "silB", "start": 0.0, "end": speech_start, "is_sil": True})
         for m in mora_list:
             moras.append({
-                "label":  str(m[2]),
+                # Julius のローマ字ラベルをかなに変換（聴覚障碍ユーザーに読みやすく）
+                "label":  romaji_mora_to_kana(str(m[2])),
                 "start":  round(float(m[0]), 4),
                 "end":    round(float(m[1]), 4),
                 "is_sil": False,

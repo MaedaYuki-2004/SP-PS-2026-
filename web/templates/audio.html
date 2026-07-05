@@ -80,6 +80,24 @@
     .volume-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.3); white-space:nowrap; }
     .volume-track { flex:1; height:4px; background:rgba(255,255,255,.1); border-radius:100px; overflow:hidden; }
     #volumeFill { height:100%; width:0%; border-radius:100px; background:#9E9890; transition:width 60ms, background 200ms; }
+
+    /* タイミングガイド（聴覚障碍ユーザー向け：発音タイミングの視覚合図） */
+    .guide-toggle { margin-top:10px; align-self:center; padding:5px 14px; border-radius:100px; border:1.5px solid var(--border); background:transparent; color:var(--text-2); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; transition:background .15s,color .15s,border-color .15s; }
+    .guide-toggle:not(.off) { border-color:var(--navy); background:var(--navy); color:#fff; }
+    .guide-toggle.off { opacity:.65; }
+    .guide-countdown { display:none; position:fixed; inset:0; background:rgba(14,30,69,.94); z-index:1000; flex-direction:column; align-items:center; justify-content:center; gap:18px; }
+    .guide-countdown.show { display:flex; }
+    .guide-count-num { font-size:100px; font-weight:800; line-height:1; color:#fff; animation:count-pop 1s ease; }
+    @keyframes count-pop { 0% { transform:scale(1.55); opacity:0; } 30% { transform:scale(1); opacity:1; } 100% { opacity:.92; } }
+    .guide-count-text { font-size:15px; font-weight:700; color:rgba(255,255,255,.85); }
+    .guide-count-sub { font-size:12px; color:rgba(255,255,255,.55); }
+    .karaoke-strip { display:none; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center; padding:10px 4px 12px; }
+    .karaoke-strip.show { display:flex; }
+    .karaoke-chip { min-width:36px; text-align:center; padding:8px 11px; border-radius:10px; font-size:17px; font-weight:800; background:rgba(255,255,255,.08); color:rgba(255,255,255,.4); transition:transform .12s,background .12s,color .12s; }
+    .karaoke-chip.now { background:#e84a2a; color:#fff; transform:scale(1.22); box-shadow:0 0 16px rgba(232,74,42,.55); }
+    .karaoke-chip.done { background:rgba(45,106,79,.4); color:rgba(255,255,255,.8); }
+    .karaoke-finish { display:none; font-size:12px; font-weight:700; color:#7ee2a8; }
+    .karaoke-strip.finished .karaoke-finish { display:inline; }
     #autoStopCountdown { display:none; font-size:12px; color:#fbbf24; text-align:center; font-weight:700; letter-spacing:.05em; margin-top:8px; padding:6px 12px; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.25); border-radius:var(--r-sm); }
 
     /* Lip section — compact side-by-side layout */
@@ -173,6 +191,12 @@
   </style>
 </head>
 <body>
+
+<div class="guide-countdown" id="guideCountdown">
+  <div class="guide-count-num" id="guideCountNum">3</div>
+  <div class="guide-count-text">まもなく録音がはじまります</div>
+  <div class="guide-count-sub">画面の光る文字に合わせて発音しましょう</div>
+</div>
 
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-spinner"></div>
@@ -332,11 +356,16 @@
       <span class="key-badge">Space</span><span>で開始/停止</span>
       <span style="margin-left:10px;"><span class="key-badge">Enter</span></span><span>で解析</span>
     </div>
+    {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
+    <button type="button" id="guideToggle" class="guide-toggle"
+            title="録音開始前にカウントダウンし、発音するタイミングを画面の光る文字で案内します">⏱ タイミングガイド：ON</button>
+    {% endif %}
   </div>
 
   <!-- ⑤ 波形ビジュアライザー（録音中フィードバック） -->
   <div class="visualizer-section">
     <div class="viz-card">
+      <div class="karaoke-strip" id="karaokeStrip"></div>
       <canvas id="visualizer" width="480" height="64"></canvas>
       <div class="rec-status">
         <div class="rec-dot" id="recDot"></div>
@@ -410,12 +439,15 @@
     if (guide)     guide.className = 'step-guide' + (state ? ' ' + state : '');
   }
 
-  document.getElementById('buttonStart').addEventListener('click', () => {
+  // カウントダウン付きガイドの場合は録音の「実開始」に同期させるため
+  // ボタンクリックではなく sp:recordstart イベントで表示を切り替える
+  document.addEventListener('sp:recordstart', () => {
     dot.classList.add('active');
     recLabel.classList.add('recording');
     recLabel.textContent = '録音中';
     time.classList.add('active');
     recSeconds = 0;
+    time.textContent = '0:00';
     recTimer = setInterval(() => {
       recSeconds++;
       const m = Math.floor(recSeconds / 60);
@@ -551,15 +583,14 @@ function toggleRefVideo() {
   let userPitchHistory = [];    // [{t:秒, norm:0-1}]
   let pitchFrame = 0;
 
-  // 録音ボタンを監視して開始時刻を記録
-  const startBtn = document.getElementById('buttonStart');
-  const stopBtn  = document.getElementById('buttonStop');
-  if (startBtn) startBtn.addEventListener('click', () => {
+  // 録音の実開始・停止イベントに同期して開始時刻を記録
+  // （カウントダウンガイド使用時もピッチ軌跡の時間軸がずれないように）
+  document.addEventListener('sp:recordstart', () => {
     recordStartTime  = Date.now() / 1000;
     userPitchHistory = [];
     drawCanvas();
   });
-  if (stopBtn) stopBtn.addEventListener('click', () => {
+  document.addEventListener('sp:recordstop', () => {
     recordStartTime = null;  // 進捗カーソルを止める（軌跡は残す）
     drawCanvas();
   });
@@ -952,6 +983,121 @@ function toggleRefVideo() {
 
   start();
   window.addEventListener('resize', () => { resize(); drawFace(); });
+})();
+</script>
+
+<script>
+// ── タイミングガイド ─────────────────────────────────────────────
+// 聴覚障碍ユーザーは発音中に自分の声でテンポを確認できないため、
+// お手本のモーラ時刻を使って「今この音を言う」を画面で合図する。
+// 録音開始前に 3・2・1 の視覚カウントダウン → 録音の実開始と同時に
+// カラオケ式にモーラを光らせる（お手本の実テンポ）。
+(function() {
+  const STORAGE_KEY = 'sp-ps-timing-guide';
+  const toggle  = document.getElementById('guideToggle');
+  const overlay = document.getElementById('guideCountdown');
+  const numEl   = document.getElementById('guideCountNum');
+  const strip   = document.getElementById('karaokeStrip');
+  const bar     = document.getElementById('moraBar');
+  if (!toggle || !overlay || !strip || !bar) return;
+
+  const moras = Array.from(bar.querySelectorAll('.mora-item'))
+    .filter(el => !el.classList.contains('mora-sil'))
+    .map(el => ({
+      el,
+      start: parseFloat(el.dataset.start),
+      end:   parseFloat(el.dataset.end),
+      label: el.textContent.trim(),
+    }))
+    .filter(m => isFinite(m.start) && isFinite(m.end) && m.label);
+  if (!moras.length) { toggle.style.display = 'none'; return; }
+
+  let enabled = localStorage.getItem(STORAGE_KEY) !== 'off';
+  function renderToggle() {
+    toggle.textContent = '⏱ タイミングガイド：' + (enabled ? 'ON' : 'OFF');
+    toggle.classList.toggle('off', !enabled);
+  }
+  toggle.addEventListener('click', () => {
+    enabled = !enabled;
+    localStorage.setItem(STORAGE_KEY, enabled ? 'on' : 'off');
+    renderToggle();
+  });
+  renderToggle();
+
+  // カラオケストリップのチップ生成（＋終了メッセージ）
+  const chips = moras.map(m => {
+    const c = document.createElement('span');
+    c.className = 'karaoke-chip';
+    c.textContent = m.label;
+    strip.appendChild(c);
+    return c;
+  });
+  const finishMsg = document.createElement('span');
+  finishMsg.className = 'karaoke-finish';
+  finishMsg.textContent = '✓ 言い終わったら「録音停止」';
+  strip.appendChild(finishMsg);
+
+  // main.js が録音開始前に呼ぶフック
+  window._spTimingGuide = {
+    shouldRun: () => enabled,
+    countdown: () => new Promise(resolve => {
+      overlay.classList.add('show');
+      let n = 3;
+      const show = v => {
+        numEl.textContent = v;
+        numEl.style.animation = 'none';
+        void numEl.offsetWidth;           // アニメーション再スタート
+        numEl.style.animation = '';
+      };
+      show(n);
+      if (typeof setGuide === 'function') setGuide(2, 'まもなく録音開始 — 光る文字に合わせて発音', 'recording');
+      const iv = setInterval(() => {
+        n--;
+        if (n >= 1) { show(n); }
+        else {
+          clearInterval(iv);
+          overlay.classList.remove('show');
+          resolve();
+        }
+      }, 1000);
+    }),
+  };
+
+  // 録音の実開始に同期してカラオケ表示（お手本の実テンポ）
+  let rafId = null, t0 = null;
+  const lastEnd = moras[moras.length - 1].end;
+
+  function loop() {
+    const t = (performance.now() - t0) / 1000;
+    moras.forEach((m, i) => {
+      const now = t >= m.start && t < m.end;
+      m.el.classList.toggle('active', now);
+      chips[i].classList.toggle('now',  now);
+      chips[i].classList.toggle('done', t >= m.end);
+    });
+    if (t > lastEnd + 0.2) {
+      strip.classList.add('finished');
+      rafId = null;
+      return;
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  document.addEventListener('sp:recordstart', () => {
+    if (!enabled) return;
+    t0 = performance.now();
+    chips.forEach(c => c.classList.remove('now', 'done'));
+    strip.classList.remove('finished');
+    strip.classList.add('show');
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+  });
+
+  document.addEventListener('sp:recordstop', () => {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    strip.classList.remove('show', 'finished');
+    moras.forEach(m => m.el.classList.remove('active'));
+  });
 })();
 </script>
 </body>

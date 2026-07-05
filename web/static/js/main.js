@@ -293,13 +293,7 @@ async function main() {
     const vizCard = document.querySelector('.viz-card');
 
     // ── ボタンイベント ──────────────────────────────────
-    btnStart.addEventListener('click', () => {
-      // ③ 録音済みの場合は確認ダイアログを表示
-      if (hasRecording) {
-        const ok = confirm('前の録音を破棄して録音し直しますか？');
-        if (!ok) return;
-      }
-
+    function beginRecording() {
       btnStart.setAttribute('disabled', 'disabled');
       btnStop.removeAttribute('disabled');
       btnGraph.style.display = 'none';
@@ -323,6 +317,26 @@ async function main() {
 
       const param = audioRecorder.parameters.get('isRecording');
       param.setValueAtTime(1, audioContext.currentTime);
+
+      // 表示系（タイマー・ピッチ軌跡・カラオケガイド）は録音の実開始に同期
+      document.dispatchEvent(new CustomEvent('sp:recordstart'));
+    }
+
+    btnStart.addEventListener('click', () => {
+      // ③ 録音済みの場合は確認ダイアログを表示
+      if (hasRecording) {
+        const ok = confirm('前の録音を破棄して録音し直しますか？');
+        if (!ok) return;
+      }
+
+      // 聴覚障碍ユーザー向けタイミングガイド：カウントダウンを挟んでから開始
+      const guide = window._spTimingGuide;
+      if (guide && guide.shouldRun && guide.shouldRun()) {
+        btnStart.setAttribute('disabled', 'disabled');  // カウントダウン中の連打防止
+        guide.countdown().then(beginRecording);
+      } else {
+        beginRecording();
+      }
     });
 
     btnStop.addEventListener('click', () => {
@@ -343,6 +357,8 @@ async function main() {
       if (lipRecorder && lipRecorder.state === 'recording') {
         lipRecorder.stop();
       }
+
+      document.dispatchEvent(new CustomEvent('sp:recordstop'));
 
       const blob = encodeAudio(buffers, settings);
       const audioPromise = sendAudio(blob);
