@@ -115,11 +115,6 @@
 </script>
 <div class="page-header">
   <div><div class="page-header-title">単語管理</div><div class="page-header-sub">単語の追加・編集・削除（追加時は参照動画が必要）</div></div>
-  {% if admin_locked %}
-  <form method="post" action="/admin/logout" style="margin:0;">
-    <button type="submit" class="btn btn-ghost btn-sm" style="color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.25);">🔓 ログアウト</button>
-  </form>
-  {% endif %}
 </div>
 <div class="main">
   <div class="stats-row">
