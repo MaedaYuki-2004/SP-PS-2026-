@@ -115,3 +115,9 @@ PITCH_CEILING_FEMALE:  float = 400.0
 # ── Flask シークレットキー ────────────────────────────────────────────
 FLASK_SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY", "change-this-secret-key")
 
+# ── 管理機能のパスワード ──────────────────────────────────────────────
+# 設定すると単語の追加・削除・編集、お手本の差し替え、管理ページに
+# ログインが必要になる。空（未設定）ならすべて従来どおり認証なし
+# （ローカル開発向け）。公開デプロイでは必ず設定すること。
+ADMIN_PASSWORD: str = os.environ.get("ADMIN_PASSWORD", "")
+

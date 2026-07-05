@@ -31,9 +31,9 @@ except ImportError:
 from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, session
 
 from config import (
-    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DATA_DIR, DISTANCE_RESULT_DIR,
-    FLASK_SECRET_KEY, RAW_AUDIO_DIR, STATIC_DIR, TEMPLATES_DIR,
-    TEST_LAB_PATH, TEST_LOG_PATH, TEST_SEGMENT_WAV_PATH,
+    ADMIN_PASSWORD, AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DATA_DIR,
+    DISTANCE_RESULT_DIR, FLASK_SECRET_KEY, RAW_AUDIO_DIR, STATIC_DIR,
+    TEMPLATES_DIR, TEST_LAB_PATH, TEST_LOG_PATH, TEST_SEGMENT_WAV_PATH,
     TEST_WAV_PATH, WORD_ID_MEMO_PATH,
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
@@ -56,6 +56,53 @@ app = Flask(
     static_folder=str(STATIC_DIR),
 )
 app.secret_key = FLASK_SECRET_KEY
+
+if ADMIN_PASSWORD and FLASK_SECRET_KEY == "change-this-secret-key":
+    print("[WARN] ADMIN_PASSWORD が設定されていますが FLASK_SECRET_KEY が"
+          "デフォルト値のままです。セッションが偽造可能なため、"
+          "FLASK_SECRET_KEY も必ず設定してください。")
+
+
+# ── 管理認証 ──────────────────────────────────────────────────────────
+
+def _is_admin() -> bool:
+    """管理操作が許可されているか。ADMIN_PASSWORD 未設定なら常に許可。"""
+    return (not ADMIN_PASSWORD) or bool(session.get("is_admin"))
+
+
+def admin_required(f):
+    """単語の追加・削除・編集など破壊的操作を保護するデコレータ。
+
+    ADMIN_PASSWORD が未設定（ローカル開発）の場合は素通しで従来どおり。
+    """
+    import functools
+
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        if not _is_admin():
+            return jsonify({
+                "error": "管理パスワードが必要です。管理ページ（/admin）でログインしてください。",
+                "auth_required": True,
+            }), 401
+        return f(*args, **kwargs)
+    return wrapper
+
+
+@app.route("/admin/login", methods=["POST"])
+def admin_login():
+    import hmac
+    password = (request.form.get("password") or "").strip()
+    if ADMIN_PASSWORD and hmac.compare_digest(password, ADMIN_PASSWORD):
+        session["is_admin"] = True
+        session.permanent = True
+        return redirect("/admin")
+    return render_template("admin_login.html", error="パスワードが違います"), 401
+
+
+@app.route("/admin/logout", methods=["POST"])
+def admin_logout():
+    session.pop("is_admin", None)
+    return redirect("/select")
 
 
 # ── ユーティリティ ────────────────────────────────────────────────────
@@ -1246,6 +1293,7 @@ def api_vowel_trainer_complete():
 
 
 @app.route('/api/lip_refs/delete', methods=['POST'])
+@admin_required
 def api_lip_refs_delete():
     try:
         data = request.get_json() or {}
@@ -1263,6 +1311,7 @@ def api_lip_refs_delete():
 
 
 @app.route('/api/lip_refs/overwrite', methods=['POST'])
+@admin_required
 def api_lip_refs_overwrite():
     try:
         word_id = (request.form.get('word_id') or '').strip()
@@ -1670,6 +1719,7 @@ def has_sample_video(word_id: str) -> bool:
 
 
 @app.route("/admin/delete_word", methods=["POST"])
+@admin_required
 def api_delete_word():
     try:
         data    = request.get_json(force=True, silent=True) or {}
@@ -1681,6 +1731,7 @@ def api_delete_word():
 
 
 @app.route("/admin/update_word", methods=["POST"])
+@admin_required
 def api_update_word():
     try:
         data    = request.get_json()
@@ -1730,6 +1781,7 @@ def practice_word(word_id: str):
 
 
 @app.route("/admin/update_word_note", methods=["POST"])
+@admin_required
 def api_update_word_note():
     try:
         data    = request.get_json(force=True, silent=True) or {}
@@ -1744,6 +1796,7 @@ def api_update_word_note():
 
 
 @app.route("/admin/update_word_tags", methods=["POST"])
+@admin_required
 def api_update_word_tags():
     try:
         data    = request.get_json(force=True, silent=True) or {}
@@ -1768,10 +1821,14 @@ def api_history_calendar():
 
 @app.route("/admin")
 def admin():
-    return render_template("admin.html", words=list_words(), stats=get_stats(), all_tags=get_all_tags())
+    if not _is_admin():
+        return render_template("admin_login.html", error=None)
+    return render_template("admin.html", words=list_words(), stats=get_stats(),
+                           all_tags=get_all_tags(), admin_locked=bool(ADMIN_PASSWORD))
 
 
 @app.route("/admin/add_word", methods=["POST"])
+@admin_required
 def add_word():
     """
     単語を登録する（multipart/form-data + 動画ファイル必須）。
