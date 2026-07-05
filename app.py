@@ -208,62 +208,105 @@ def _mora_expected_openness(label):
     return None
 
 
-def _extract_mora_lip_openness(video_path, mora_list_sec):
+def _extract_mora_lip_openness(video_path, mora_list_sec, times=None, ratios=None):
     """
     Julius アライメント結果のモーラ時刻を使って映像から口の開き量を取得する。
-    全フレームをメモリに読み込んで fps 変換でインデックスするため、
-    WebM の seek 精度に依存しない。
+
+    times / ratios に _extract_lip_data_timed の抽出結果を渡すと、
+    その時刻範囲内のサンプルは動画を再デコードせずに流用する
+    （MediaPipe の二重処理と全フレームのメモリ保持を回避）。
+    抽出範囲より後ろのサンプルだけ動画から補完する。
     """
     if not MEDIA_PIPE_AVAILABLE:
         return []
     try:
-        face_mesh = _get_face_mesh()
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            return []
-
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        if fps <= 0 or fps > 120:
-            fps = 30.0
-
-        frames = []
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            frames.append(frame)
-        cap.release()
-
-        if not frames:
-            return [{"label": str(m[2]), "openness": None} for m in mora_list_sec]
-
-        total = len(frames)
-        results = []
-        for mora_info in mora_list_sec:
+        # 各モーラのサンプル時刻を列挙: (モーラ番号, 時刻)
+        sample_specs: list[tuple[int, float]] = []
+        for mi, mora_info in enumerate(mora_list_sec):
             start_sec = float(mora_info[0])
-            end_sec   = float(mora_info[1])
-            duration  = end_sec - start_sec
-            label     = str(mora_info[2])
-
-            samples = []
+            duration  = float(mora_info[1]) - start_sec
             for ratio in _LIP_SAMPLE_RATIOS:
-                t_sec = start_sec + duration * ratio
-                fidx  = max(0, min(int(t_sec * fps), total - 1))
-                frame = frames[fidx]
-                h, w, _ = frame.shape
-                res = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                if not res.multi_face_landmarks:
-                    continue
-                lm = res.multi_face_landmarks[0].landmark
-                v  = calc_distance(lm[13], lm[14], w, h)
-                hd = calc_distance(lm[61], lm[291], w, h)
-                samples.append(v / (hd + 1e-6))
+                sample_specs.append((mi, start_sec + duration * ratio))
 
+        samples_by_mora: dict[int, list[float]] = {}
+        pending = sample_specs
+
+        # ── 抽出済みデータの流用 ──────────────────────────────────
+        if times and ratios and len(times) == len(ratios):
+            t_arr = np.asarray(times, dtype=float)
+            if len(t_arr) > 1:
+                diffs = np.diff(t_arr)
+                pos   = diffs[diffs > 0]
+                dt    = float(np.median(pos)) if len(pos) else 1 / 30.0
+            else:
+                dt = 1 / 30.0
+            coverage_end = float(t_arr[-1]) + dt
+            pending = []
+            for mi, t in sample_specs:
+                idx = int(np.argmin(np.abs(t_arr - t)))
+                if abs(float(t_arr[idx]) - t) <= dt:
+                    samples_by_mora.setdefault(mi, []).append(float(ratios[idx]))
+                elif t > coverage_end:
+                    pending.append((mi, t))
+                # 範囲内なのに近傍フレームが無い＝顔検出失敗区間 → スキップ（従来同様）
+
+        # ── 流用でカバーできなかったサンプルだけ動画から補完 ──────────
+        if pending:
+            face_mesh = _get_face_mesh()
+            cap = cv2.VideoCapture(video_path)
+            if cap.isOpened():
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                if fps <= 0 or fps > 120:
+                    fps = 30.0
+
+                # フレーム番号 → そのフレームを使うモーラ番号のリスト
+                needed: dict[int, list[int]] = {}
+                for mi, t in pending:
+                    needed.setdefault(max(0, int(t * fps)), []).append(mi)
+
+                def _measure(frame) -> float | None:
+                    h, w, _ = frame.shape
+                    res = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    if not res.multi_face_landmarks:
+                        return None
+                    lm = res.multi_face_landmarks[0].landmark
+                    v  = calc_distance(lm[13], lm[14], w, h)
+                    hd = calc_distance(lm[61], lm[291], w, h)
+                    return v / (hd + 1e-6)
+
+                max_fidx = max(needed)
+                fidx = 0
+                last_frame = None
+                while fidx <= max_fidx:
+                    ok, frame = cap.read()
+                    if not ok:
+                        break
+                    last_frame = frame
+                    if fidx in needed:
+                        val = _measure(frame)
+                        if val is not None:
+                            for mi in needed.pop(fidx):
+                                samples_by_mora.setdefault(mi, []).append(val)
+                        else:
+                            needed.pop(fidx)
+                    fidx += 1
+                cap.release()
+
+                # 動画末尾を超えたサンプルは最終フレームで代用（従来の clamp と同じ）
+                if needed and last_frame is not None:
+                    val = _measure(last_frame)
+                    if val is not None:
+                        for fi in list(needed):
+                            for mi in needed.pop(fi):
+                                samples_by_mora.setdefault(mi, []).append(val)
+
+        results = []
+        for mi, mora_info in enumerate(mora_list_sec):
+            vals = samples_by_mora.get(mi, [])
             results.append({
-                "label":    label,
-                "openness": float(np.mean(samples)) if samples else None,
+                "label":    str(mora_info[2]),
+                "openness": float(np.mean(vals)) if vals else None,
             })
-
         return results
     except Exception:
         traceback.print_exc()
@@ -1022,7 +1065,10 @@ def upload_lip_video():
                                     log_out=native_log,
                                 )
                                 if ref_mora_list:
-                                    raw_ref = _extract_mora_lip_openness(new_path, ref_mora_list)
+                                    raw_ref = _extract_mora_lip_openness(
+                                        new_path, ref_mora_list,
+                                        times=reference_times, ratios=reference_ratios,
+                                    )
                                     mora_data = [
                                         {"label": item["label"], "v_h_ratio": item["openness"]}
                                         for item in raw_ref
@@ -1406,7 +1452,10 @@ def audio_analysis():
         lip_mora_analysis = []
         if MEDIA_PIPE_AVAILABLE and test_video and os.path.exists(test_video):
             try:
-                _raw_lip = _extract_mora_lip_openness(test_video, mora_list2)
+                _raw_lip = _extract_mora_lip_openness(
+                    test_video, mora_list2,
+                    times=test_lip_times, ratios=lip_test_ratios,
+                )
                 # schema_version==2 のお手本データがあれば直接比較、なければ期待値テーブル
                 _refs       = load_lip_refs()
                 _ref_entry  = _refs.get(word_id, {})
