@@ -40,9 +40,15 @@ def _run_alignment_process(target_dir: str) -> None:
 
     タイムアウト時は子プロセスツリーごと強制終了する（perl の下で
     julius が生き残るのを防ぐ）。
+
+    パスは必ずスラッシュ区切りに変換して渡す。perl スクリプト内の
+    system() がシェル経由でコマンド文字列を組み立てるため、Windows の
+    バックスラッシュパスは msys perl（Git 付属）の sh に食われて壊れ、
+    「julius が実行されないのに古い test.log から .lab が再生成される」
+    という静かな失敗を引き起こす。
     """
     env = os.environ.copy()
-    env["JULIUS_BIN"] = str(JULIUS_BIN_PATH)
+    env["JULIUS_BIN"] = str(JULIUS_BIN_PATH).replace("\\", "/")
 
     kwargs: dict = dict(
         cwd=str(ENGINE_DIR),
@@ -54,7 +60,10 @@ def _run_alignment_process(target_dir: str) -> None:
     if os.name != "nt":
         kwargs["start_new_session"] = True  # POSIX: プロセスグループごと殺せるように
 
-    proc = subprocess.Popen(["perl", str(PERL_SCRIPT_PATH), target_dir], **kwargs)
+    proc = subprocess.Popen(
+        ["perl", str(PERL_SCRIPT_PATH).replace("\\", "/"), target_dir.replace("\\", "/")],
+        **kwargs,
+    )
     try:
         _out, err = proc.communicate(timeout=ALIGNMENT_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
@@ -93,7 +102,19 @@ def run_alignment() -> None:
     if not ENGINE_DIR.exists():
         raise FileNotFoundError(f"engine/ ディレクトリが見つかりません: {ENGINE_DIR}")
 
+    # 前回の結果を必ず消す。残っていると julius の実行に失敗しても
+    # perl スクリプトが古い test.log から .lab を再生成してしまい、
+    # 「前回の録音の結果」が今回の結果として返る静かな失敗になる。
+    for stale in (AUDIO_WAV_DIR / "test.log", AUDIO_WAV_DIR / "test.lab"):
+        try:
+            stale.unlink(missing_ok=True)
+        except OSError:
+            pass
+
     _run_alignment_process(str(AUDIO_WAV_DIR))
+
+    if not (AUDIO_WAV_DIR / "test.lab").exists():
+        raise RuntimeError("アライメント後 .lab が生成されませんでした")
 
 
 def run_alignment_on_file(
