@@ -28,6 +28,60 @@ from config import (
 )
 from core.utils import phone_list, phoneme_frame
 
+# アライメント外部プロセスの制限時間（秒）。
+# 通常は数秒で完了する。Julius は特定の音声入力で無限にハングすることがあり、
+# 生き残ったプロセスが test.wav / test.lab を掴んだままになると
+# 以後のすべての解析リクエストが詰まるため、必ず時間で打ち切る。
+ALIGNMENT_TIMEOUT_SEC = 30.0
+
+
+def _run_alignment_process(target_dir: str) -> None:
+    """segment_julius.pl をタイムアウト付きで実行する。
+
+    タイムアウト時は子プロセスツリーごと強制終了する（perl の下で
+    julius が生き残るのを防ぐ）。
+    """
+    env = os.environ.copy()
+    env["JULIUS_BIN"] = str(JULIUS_BIN_PATH)
+
+    kwargs: dict = dict(
+        cwd=str(ENGINE_DIR),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if os.name != "nt":
+        kwargs["start_new_session"] = True  # POSIX: プロセスグループごと殺せるように
+
+    proc = subprocess.Popen(["perl", str(PERL_SCRIPT_PATH), target_dir], **kwargs)
+    try:
+        _out, err = proc.communicate(timeout=ALIGNMENT_TIMEOUT_SEC)
+    except subprocess.TimeoutExpired:
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        else:
+            import signal
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except Exception:
+                proc.kill()
+        proc.wait()
+        raise RuntimeError(
+            f"アライメントが {ALIGNMENT_TIMEOUT_SEC:.0f} 秒以内に完了しませんでした。"
+            "録音をやり直してください。"
+        )
+    if proc.returncode != 0:
+        stderr_msg = err.strip() if err else "（詳細なし）"
+        raise RuntimeError(
+            f"Julius アライメントに失敗しました。\n"
+            f"Julius パス: {JULIUS_BIN_PATH}\n"
+            f"stderr: {stderr_msg}"
+        )
+
 
 def run_alignment() -> None:
     """
@@ -39,28 +93,7 @@ def run_alignment() -> None:
     if not ENGINE_DIR.exists():
         raise FileNotFoundError(f"engine/ ディレクトリが見つかりません: {ENGINE_DIR}")
 
-    env = os.environ.copy()
-    env["JULIUS_BIN"] = str(JULIUS_BIN_PATH)
-
-    try:
-        subprocess.run(
-            ["perl", str(PERL_SCRIPT_PATH), str(AUDIO_WAV_DIR)],
-            check=True,
-            cwd=str(ENGINE_DIR),
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-    except subprocess.CalledProcessError as exc:
-        stderr_msg = exc.stderr.strip() if exc.stderr else "（詳細なし）"
-        raise RuntimeError(
-            f"Julius アライメントに失敗しました。\n"
-            f"Julius パス: {JULIUS_BIN_PATH}\n"
-            f"stderr: {stderr_msg}"
-        ) from exc
-    except Exception as exc:
-        raise RuntimeError(f"外部プログラムの実行に失敗しました: {exc}") from exc
+    _run_alignment_process(str(AUDIO_WAV_DIR))
 
 
 def run_alignment_on_file(
@@ -87,24 +120,7 @@ def run_alignment_on_file(
         shutil.copy(str(wav_path), str(tmp / "test.wav"))
         (tmp / "test.txt").write_text(reading, encoding="utf-8")
 
-        env = os.environ.copy()
-        env["JULIUS_BIN"] = str(JULIUS_BIN_PATH)
-
-        try:
-            subprocess.run(
-                ["perl", str(PERL_SCRIPT_PATH), str(tmp)],
-                check=True,
-                cwd=str(ENGINE_DIR),
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-        except subprocess.CalledProcessError as exc:
-            stderr_msg = exc.stderr.strip() if exc.stderr else "（詳細なし）"
-            raise RuntimeError(
-                f"Julius アライメントに失敗しました。\nstderr: {stderr_msg}"
-            ) from exc
+        _run_alignment_process(str(tmp))
 
         tmp_lab = tmp / "test.lab"
         tmp_log = tmp / "test.log"

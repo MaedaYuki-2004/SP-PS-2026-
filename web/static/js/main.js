@@ -369,7 +369,19 @@ async function main() {
       // lipUploadPromise が更新されるのを確実にする
       setTimeout(() => {
         Promise.all([audioPromise, lipUploadPromise])
-          .finally(() => { btnGraph.style.display = 'block'; });
+          .finally(() => {
+            if (window._spAudioUploadOk) {
+              btnGraph.style.display = 'block';
+            } else {
+              // 失敗のまま /graph に進むと古い録音の結果が出てしまうため
+              // 解析ボタンは出さずにエラーを表示する
+              const msg = document.getElementById('micError');
+              if (msg) {
+                msg.style.display = 'block';
+                msg.textContent = '⚠ 音声の解析準備に失敗しました。もう一度録音してください。';
+              }
+            }
+          });
       }, 200);
     });
 
@@ -453,9 +465,12 @@ function encodeAudio(buffers, settings) {
 
 // ── 送信 ────────────────────────────────────────────────
 function sendAudio(blob) {
+  window._spAudioUploadOk = false;
   const fd = new FormData();
   fd.append('file', blob, 'test.wav');
-  return fetch('/audio', { method:'POST', body:fd }).catch(console.error);
+  return fetch('/audio', { method:'POST', body:fd })
+    .then(r => { window._spAudioUploadOk = r.ok; return r; })
+    .catch(console.error);
 }
 
 main();
