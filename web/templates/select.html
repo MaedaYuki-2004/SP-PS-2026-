@@ -1097,6 +1097,8 @@ sortWordCards();
     try {
       const res = await fetch('/admin/add_word', { method: 'POST', body: fd });
       const data = await res.json();
+      // alignment_ok:false の場合サーバー側で登録自体を取り消して
+      // 422 を返す（お手本の音声認識に失敗した状態で単語だけ残さないため）。
       if (!res.ok) throw new Error(data.error || '登録に失敗しました');
       newWordId = data.word_id;
       status2.textContent = '✓ 登録しました！';

@@ -46,6 +46,13 @@ def _run_alignment_process(target_dir: str) -> None:
     バックスラッシュパスは msys perl（Git 付属）の sh に食われて壊れ、
     「julius が実行されないのに古い test.log から .lab が再生成される」
     という静かな失敗を引き起こす。
+
+    stdout/stderr は encoding="utf-8" を明示する。text=True 任せだと
+    Windows では locale（日本語環境で cp932）でデコードされ、perl/julius
+    が出力する UTF-8 バイト列を読む際に読み取りスレッドが
+    UnicodeDecodeError で死ぬ。スレッドは黙って落ちるだけで
+    communicate() 自体は空文字列を返して先に進んでしまうため、
+    本来表示されるべき julius のエラー詳細が握りつぶされる。
     """
     env = os.environ.copy()
     env["JULIUS_BIN"] = str(JULIUS_BIN_PATH).replace("\\", "/")
@@ -55,7 +62,8 @@ def _run_alignment_process(target_dir: str) -> None:
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if os.name != "nt":
         kwargs["start_new_session"] = True  # POSIX: プロセスグループごと殺せるように
@@ -92,6 +100,20 @@ def _run_alignment_process(target_dir: str) -> None:
         )
 
 
+def _lab_has_content(lab_path: Path) -> bool:
+    """.lab に実際のアライメント結果が書かれているか確認する。
+
+    segment_julius.pl は `open(RESULT, "> $f.lab")` で結果ファイルを
+    先に作成してから中身を書き込むため、Julius が forced alignment に
+    失敗して1行も出力しなくても、0バイトの .lab が「存在」してしまう。
+    存在チェックだけでは検出できないため、中身の有無を別途確認する。
+    """
+    try:
+        return bool(lab_path.read_text(encoding="utf-8", errors="replace").strip())
+    except OSError:
+        return False
+
+
 def run_alignment() -> None:
     """
     Julius で強制アライメントを実行する。
@@ -113,8 +135,12 @@ def run_alignment() -> None:
 
     _run_alignment_process(str(AUDIO_WAV_DIR))
 
-    if not (AUDIO_WAV_DIR / "test.lab").exists():
-        raise RuntimeError("アライメント後 .lab が生成されませんでした")
+    lab_path = AUDIO_WAV_DIR / "test.lab"
+    if not _lab_has_content(lab_path):
+        raise RuntimeError(
+            "アライメントに失敗しました（発話が認識できませんでした）。"
+            "録音をやり直してください。"
+        )
 
 
 def run_alignment_on_file(
@@ -145,8 +171,11 @@ def run_alignment_on_file(
 
         tmp_lab = tmp / "test.lab"
         tmp_log = tmp / "test.log"
-        if not tmp_lab.exists():
-            raise RuntimeError("アライメント後 .lab が生成されませんでした")
+        if not _lab_has_content(tmp_lab):
+            raise RuntimeError(
+                "アライメントに失敗しました（発話が認識できませんでした）。"
+                "録音をやり直してください。"
+            )
         shutil.copy(str(tmp_lab), str(lab_out))
         if tmp_log.exists():
             shutil.copy(str(tmp_log), str(log_out))

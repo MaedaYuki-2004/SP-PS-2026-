@@ -1804,6 +1804,21 @@ def add_word():
                     pass
 
             word_id = result["word_id"]
+
+            if not result.get("alignment_ok"):
+                # お手本の音声認識に失敗＝発音比較の基準データが無いまま
+                # 単語だけが残ってしまう。単語+動画は必ずセットという方針
+                # （register_word 呼び出し元コメント参照）に反するため、
+                # 登録自体を取り消してユーザーに録り直しを促す。
+                try:
+                    delete_word(word_id)
+                except Exception:
+                    traceback.print_exc()
+                return jsonify({
+                    "error": "発音が認識できませんでした。もう一度、はっきり発音して録画し直してください。",
+                    "alignment_ok": False,
+                }), 422
+
             _persist_ref_video(word_id, video_tmp)
 
             if MEDIA_PIPE_AVAILABLE:
