@@ -36,7 +36,7 @@ from core.utils import phone_list, phoneme_frame
 ALIGNMENT_TIMEOUT_SEC = 30.0
 
 
-def _run_alignment_process(target_dir: str) -> None:
+def _run_alignment_process(target_dir: str) -> tuple[str, str]:
     """segment_julius.pl をタイムアウト付きで実行する。
 
     タイムアウト時は子プロセスツリーごと強制終了する（perl の下で
@@ -126,6 +126,7 @@ def _run_alignment_process(target_dir: str) -> None:
             f"Julius パス: {JULIUS_BIN_PATH}\n"
             f"stderr: {stderr_msg}"
         )
+    return _out or "", err or ""
 
 
 def _lab_has_content(lab_path: Path) -> bool:
@@ -187,10 +188,22 @@ def _run_alignment_with_retry(target_dir: str) -> None:
     last_detail = "（不明）"
 
     for attempt in range(1, ALIGNMENT_MAX_ATTEMPTS + 1):
-        _run_alignment_process(target_dir)
+        perl_out, perl_err = _run_alignment_process(target_dir)
         if _lab_has_content(lab_path):
             return
-        last_detail = _alignment_failure_detail(log_path)
+        # julius.log（$f.log）だけでなく perl 自身の stdout/stderr も見る。
+        # segment_julius.pl は foreach ループに入った時点で対象wavファイル名を
+        # 必ず標準出力に print するため、それすら無い場合は julius 云々以前に
+        # perl スクリプトがディレクトリ内の *.wav を1件も見つけられていない
+        # （渡したパスの解釈違い等）ことを示す、より根本的な手がかりになる。
+        log_detail = _alignment_failure_detail(log_path)
+        which_perl = shutil.which("perl") or "（見つからない）"
+        last_detail = (
+            f"{log_detail}\n"
+            f"perl実行パス: {which_perl}\n"
+            f"perl stdout: {perl_out.strip() or '（空）'}\n"
+            f"perl stderr: {perl_err.strip() or '（空）'}"
+        )
         if attempt < ALIGNMENT_MAX_ATTEMPTS:
             print(f"[alignment] 結果が空のため再試行します "
                   f"({attempt}/{ALIGNMENT_MAX_ATTEMPTS}): {last_detail}")
