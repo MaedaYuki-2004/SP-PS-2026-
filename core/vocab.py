@@ -21,6 +21,7 @@ from config import (
     AUDIO_MFCC_DIR,
     AUDIO_SCP_PATH,
     RAW_AUDIO_DIR,
+    STATIC_DIR,
     WORDS_TXT_PATH,
 )
 from core.accent import get_accent
@@ -50,14 +51,37 @@ def save_db(db: dict) -> None:
 
 
 def get_next_word_id(db: dict) -> str:
-    """現在の最大IDの次のIDを返す。例：word30 → word31"""
-    if not db:
-        return "word1"
-    nums = []
+    """これまでに一度でも使われた最大IDの次のIDを返す。例：word30 → word31
+
+    words_db に現存するIDだけでなく、単語削除後も残る痕跡
+    （静的サンプル音声・録音済みディレクトリ）も見て最大値を取る。
+    words_db だけを見ると、単語を全削除した直後は再び "word1" から
+    採番されてしまい、初期データセット由来の
+    web/static/sample/word1.wav（VOICEVOXの「おんど」等）が
+    新しく登録した別の単語のサンプル音声として誤って再生される
+    （sample_audio() は static/sample を優先するため）。
+    """
+    nums = [0]
     for key in db:
         m = re.search(r"\d+", key)
         if m:
             nums.append(int(m.group()))
+
+    sample_dir = STATIC_DIR / "sample"
+    if sample_dir.exists():
+        for p in sample_dir.glob("word*.wav"):
+            m = re.search(r"\d+", p.stem)
+            if m:
+                nums.append(int(m.group()))
+
+    sound_dir = RAW_AUDIO_DIR / "sound"
+    if sound_dir.exists():
+        for p in sound_dir.iterdir():
+            if p.is_dir():
+                m = re.search(r"\d+", p.name)
+                if m:
+                    nums.append(int(m.group()))
+
     return f"word{max(nums) + 1}"
 
 

@@ -1650,10 +1650,16 @@ def audio_analysis():
 
 @app.route("/sample_audio/<word_id>")
 def sample_audio(word_id: str):
-    static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
-    if static_path.exists(): return send_file(str(static_path), mimetype="audio/wav")
+    # 実際に録音・登録された音声（register_word 経由）を必ず優先する。
+    # word_id は単語の全削除後に word1 から採番し直されることがあり、
+    # 初期データセット由来の static/sample/{word_id}.wav（VOICEVOX生成）が
+    # 別の単語のIDと衝突して残っていると、新しく登録した単語の再生時に
+    # 無関係な古いサンプル音声が流れてしまう。static/sample はそのIDに
+    # 実録音が存在しない場合（初期データセットの単語）にのみ使うフォールバック。
     tts_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.wav"
     if tts_path.exists(): return send_file(str(tts_path), mimetype="audio/wav")
+    static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
+    if static_path.exists(): return send_file(str(static_path), mimetype="audio/wav")
     return "not found", 404
 
 
