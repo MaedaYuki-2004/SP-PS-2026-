@@ -1815,7 +1815,9 @@ def add_word():
                 except Exception:
                     traceback.print_exc()
                 return jsonify({
-                    "error": "発音が認識できませんでした。もう一度、はっきり発音して録画し直してください。",
+                    "error": "発音が認識できませんでした。マイクが正しく音を拾えているか"
+                             "（接続・選択デバイス・ミュート設定）を確認のうえ、"
+                             "もう一度、はっきり発音して録画し直してください。",
                     "alignment_ok": False,
                 }), 422
 

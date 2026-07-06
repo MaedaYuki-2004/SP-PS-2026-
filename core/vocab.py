@@ -115,8 +115,12 @@ def register_word(display: str, reading: str, wav_path: Path | None = None) -> d
         try:
             run_alignment_on_file(native_wav, reading, native_lab, native_log)
             alignment_ok = native_lab.exists()
-        except Exception:
-            pass
+        except Exception as exc:
+            # ここで握りつぶすとサーバーコンソールに何も残らず、
+            # 「発音が認識できませんでした」以上の手がかりが完全に消える。
+            # 環境差異（ffmpeg/Julius/perlの設定不備など）の切り分けに
+            # 必須なので、失敗理由は必ずログに残す。
+            print(f"[register_word] アライメント失敗 word_id={word_id} reading={reading!r}: {exc}")
 
         # ── 5. MFCC 計算・保存 ────────────────────────────────────
         try:

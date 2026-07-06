@@ -327,6 +327,13 @@
     .rec-vid-wrap { position:relative; width:100%; }
     .rec-vid-wrap canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; border-radius:12px; }
     .vid-status { position:absolute; bottom:0; left:0; right:0; padding:2px 0 5px; font-size:9px; font-weight:700; letter-spacing:.04em; color:#fff; text-align:center; text-shadow:0 1px 3px rgba(0,0,0,.9); background:linear-gradient(transparent,rgba(0,0,0,.6)); pointer-events:none; z-index:2; border-radius:0 0 12px 12px; }
+    /* マイク音量メーター（マイクが実際に音を拾えているかを録画前後で確認できるように） */
+    .mic-vol-wrap { display:flex; align-items:center; gap:8px; margin-top:8px; }
+    .mic-vol-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; }
+    .mic-vol-track { flex:1; height:4px; background:var(--bg-muted); border-radius:100px; overflow:hidden; }
+    .mic-vol-fill { height:100%; width:0%; border-radius:100px; background:#9E9890; transition:width 60ms, background 200ms; }
+    .mic-vol-warn { display:none; font-size:11px; font-weight:600; color:var(--accent); margin-top:6px; line-height:1.6; }
+    .mic-vol-warn.show { display:block; }
   </style>
 </head>
 <body>
@@ -886,6 +893,11 @@ sortWordCards();
         <canvas id="awGuideCanvas"></canvas>
         <div id="awGuideStatus" class="vid-status">顔を枠内に合わせてください</div>
       </div>
+      <div class="mic-vol-wrap">
+        <span class="mic-vol-label">MIC</span>
+        <div class="mic-vol-track"><div class="mic-vol-fill" id="awVolFill"></div></div>
+      </div>
+      <div class="mic-vol-warn" id="awVolWarn">⚠ マイクの音が検出されていません。マイクの接続・選択・ミュート設定を確認してください。</div>
       <div class="aw-status" id="awStatus2">カメラを起動しています…</div>
       <div class="aw-actions">
         <button class="aw-btn-primary" id="awRecordBtn" disabled>録画開始（3秒）</button>
@@ -918,6 +930,11 @@ sortWordCards();
       <canvas id="refGuideCanvas"></canvas>
       <div id="refGuideStatus" class="vid-status">顔を枠内に合わせてください</div>
     </div>
+    <div class="mic-vol-wrap">
+      <span class="mic-vol-label">MIC</span>
+      <div class="mic-vol-track"><div class="mic-vol-fill" id="refVolFill"></div></div>
+    </div>
+    <div class="mic-vol-warn" id="refVolWarn">⚠ マイクの音が検出されていません。マイクの接続・選択・ミュート設定を確認してください。</div>
     <div class="ref-modal-status" id="refModalStatus">カメラを起動しています…</div>
     <div class="ref-modal-actions">
       <button class="ref-modal-record-btn" id="refModalRecordBtn" disabled>録画開始（3秒）</button>
@@ -927,11 +944,61 @@ sortWordCards();
 </div>
 
 <script>
+/* ── マイク音量メーター（共通） ──────────────────────────────────
+   単語登録用の録画は音声認識の成否がそのままJulius解析に直結するが、
+   カメラ映像しか見えないため「マイクが実際に音を拾えているか」に
+   気づく手段がなかった。無音のまま録画→登録すると、ユーザーには
+   「発音が認識できませんでした」としか表示されず、原因（マイク未接続・
+   ミュート・入力デバイス選択ミスなど）が分からず同じ失敗を繰り返す。
+   録画中の音量を可視化し、無音のまま録画が終わった場合は送信前に
+   はっきり警告する。 */
+function createMicVolumeMeter(stream, fillEl) {
+  const track = stream.getAudioTracks()[0];
+  if (!track) return { resetMax(){}, getMaxRms(){ return 1; }, stop(){} };  // 音声トラックが無い異常系は誤検知させない
+
+  const ctx      = new (window.AudioContext || window.webkitAudioContext)();
+  const source   = ctx.createMediaStreamSource(stream);
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+
+  let maxRms = 0;
+  let rafId  = null;
+
+  function tick() {
+    analyser.getByteTimeDomainData(buf);
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) { const v = buf[i] / 128 - 1; sum += v * v; }
+    const rms = Math.sqrt(sum / buf.length);
+    maxRms = Math.max(maxRms, rms);
+    if (fillEl) {
+      const pct = Math.min(100, rms * 400);
+      fillEl.style.width = pct + '%';
+      fillEl.style.background = pct > 30 ? '#2D6A4F' : pct > 8 ? '#9E9890' : '#C03D20';
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+  tick();
+
+  return {
+    resetMax()   { maxRms = 0; },
+    getMaxRms()  { return maxRms; },
+    stop() {
+      if (rafId) cancelAnimationFrame(rafId);
+      try { source.disconnect(); } catch (e) {}
+      try { ctx.close(); } catch (e) {}
+    },
+  };
+}
+const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりやや緩め（誤検知でブロックしない側に倒す）
+
 /* ── 単語追加 + お手本録画モーダル ─────────────────────────────── */
 (function () {
   let newWordId   = null;
   let awStream    = null;
   let awRecorder  = null;
+  let awMicMeter  = null;
   let awChunks    = [];
   let addedCount  = 0;
 
@@ -1023,6 +1090,7 @@ sortWordCards();
       videoEl.srcObject = awStream;
       status2.textContent = '準備完了。「録画開始」を押してください。';
       recordBtn.disabled = false;
+      awMicMeter = createMicVolumeMeter(awStream, document.getElementById('awVolFill'));
     } catch (err) {
       status2.textContent = 'カメラの起動に失敗しました。ブラウザのカメラ許可を確認してください。';
     }
@@ -1031,6 +1099,8 @@ sortWordCards();
   function stopAwCamera() {
     if (awStream) { awStream.getTracks().forEach(t => t.stop()); awStream = null; }
     videoEl.srcObject = null;
+    if (awMicMeter) { awMicMeter.stop(); awMicMeter = null; }
+    document.getElementById('awVolWarn').classList.remove('show');
   }
 
   function closeAwModal(reload) {
@@ -1061,6 +1131,8 @@ sortWordCards();
   recordBtn.addEventListener('click', function () {
     if (!awStream || awRecorder) return;
     awChunks = [];
+    document.getElementById('awVolWarn').classList.remove('show');
+    if (awMicMeter) awMicMeter.resetMax();
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
     awRecorder = new MediaRecorder(awStream, { mimeType });
     awRecorder.addEventListener('dataavailable', function (e) {
@@ -1068,6 +1140,17 @@ sortWordCards();
     });
     awRecorder.addEventListener('stop', function () {
       const blob = new Blob(awChunks, { type: 'video/webm' });
+      // マイクの音が一切拾えていなかった場合、送信してもJulius側で
+      // 必ず失敗する（無音は forced alignment 不能）。ラウンドトリップを
+      // 待たせず、原因が特定できる形でその場でやり直しを促す。
+      if (awMicMeter && awMicMeter.getMaxRms() < MIC_SILENCE_THRESHOLD) {
+        document.getElementById('awVolWarn').classList.add('show');
+        status2.textContent = 'マイクの音が検出できなかったため、登録していません。';
+        recordBtn.disabled = false;
+        backBtn.disabled   = false;
+        awRecorder = null;
+        return;
+      }
       submitWordWithVideo(blob);
     });
     awRecorder.start();
@@ -1124,6 +1207,7 @@ sortWordCards();
   let stream = null;
   let recorder = null;
   let chunks = [];
+  let micMeter = null;
 
   const overlay   = document.getElementById('refModalOverlay');
   const videoEl   = document.getElementById('refModalVideo');
@@ -1153,6 +1237,7 @@ sortWordCards();
       videoEl.srcObject = stream;
       statusEl.textContent = '準備完了。「録画開始」を押してください。';
       recordBtn.disabled = false;
+      micMeter = createMicVolumeMeter(stream, document.getElementById('refVolFill'));
     } catch (err) {
       statusEl.textContent = 'カメラの起動に失敗しました。ブラウザの権限を確認してください。';
     }
@@ -1161,6 +1246,8 @@ sortWordCards();
   function stopCamera() {
     if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
     videoEl.srcObject = null;
+    if (micMeter) { micMeter.stop(); micMeter = null; }
+    document.getElementById('refVolWarn').classList.remove('show');
   }
 
   function closeModal() {
@@ -1177,6 +1264,8 @@ sortWordCards();
   recordBtn.addEventListener('click', function () {
     if (!stream || recorder) return;
     chunks = [];
+    document.getElementById('refVolWarn').classList.remove('show');
+    if (micMeter) micMeter.resetMax();
 
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
       ? 'video/webm;codecs=vp8' : 'video/webm';
@@ -1186,6 +1275,14 @@ sortWordCards();
     });
     recorder.addEventListener('stop', function () {
       const blob = new Blob(chunks, { type: 'video/webm' });
+      if (micMeter && micMeter.getMaxRms() < MIC_SILENCE_THRESHOLD) {
+        document.getElementById('refVolWarn').classList.add('show');
+        statusEl.textContent = 'マイクの音が検出できなかったため、登録していません。';
+        recordBtn.disabled = false;
+        cancelBtn.disabled = false;
+        recorder = null;
+        return;
+      }
       uploadRef(blob);
     });
 

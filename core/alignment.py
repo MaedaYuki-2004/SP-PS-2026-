@@ -114,6 +114,28 @@ def _lab_has_content(lab_path: Path) -> bool:
         return False
 
 
+def _alignment_failure_detail(log_path: Path) -> str:
+    """julius/perl のログから失敗理由の手がかりを抜き出す。
+
+    呼び出し元（register_word など）は失敗時にこの単語のディレクトリ
+    ごと削除することがあり、ログファイル自体は跡形もなく消える。
+    「発話が認識できませんでした」というユーザー向け文言だけでは
+    環境差異（ffmpeg変換不良・engineの設定不備など）の切り分けが
+    サーバーコンソールからも一切できなくなるため、例外メッセージに
+    診断用の抜粋を必ず含めておく。
+    """
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "（ログファイルなし）"
+    if not text.strip():
+        return "（ログが空＝julius が起動していない可能性）"
+    error_lines = [ln for ln in text.splitlines() if "rror" in ln]
+    if error_lines:
+        return " / ".join(error_lines[:5])
+    return text[-800:].strip() or "（ログに手がかりなし）"
+
+
 def run_alignment() -> None:
     """
     Julius で強制アライメントを実行する。
@@ -137,9 +159,10 @@ def run_alignment() -> None:
 
     lab_path = AUDIO_WAV_DIR / "test.lab"
     if not _lab_has_content(lab_path):
+        detail = _alignment_failure_detail(AUDIO_WAV_DIR / "test.log")
         raise RuntimeError(
             "アライメントに失敗しました（発話が認識できませんでした）。"
-            "録音をやり直してください。"
+            f"録音をやり直してください。\n[診断情報] {detail}"
         )
 
 
@@ -171,14 +194,17 @@ def run_alignment_on_file(
 
         tmp_lab = tmp / "test.lab"
         tmp_log = tmp / "test.log"
-        if not _lab_has_content(tmp_lab):
-            raise RuntimeError(
-                "アライメントに失敗しました（発話が認識できませんでした）。"
-                "録音をやり直してください。"
-            )
-        shutil.copy(str(tmp_lab), str(lab_out))
+        # 失敗時に呼び出し元が単語ごと削除しても診断できるよう、
+        # 成否を確認する前にログだけは先に退避しておく。
         if tmp_log.exists():
             shutil.copy(str(tmp_log), str(log_out))
+        if not _lab_has_content(tmp_lab):
+            detail = _alignment_failure_detail(tmp_log)
+            raise RuntimeError(
+                "アライメントに失敗しました（発話が認識できませんでした）。"
+                f"録音をやり直してください。\n[診断情報] {detail}"
+            )
+        shutil.copy(str(tmp_lab), str(lab_out))
 
 
 def mora_time(
