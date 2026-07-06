@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 import numpy as np
@@ -163,6 +164,44 @@ def _alignment_failure_detail(log_path: Path) -> str:
     return text[-800:].strip() or "（ログに手がかりなし）"
 
 
+ALIGNMENT_MAX_ATTEMPTS = 3   # 空結果時の最大試行回数（初回+リトライ2回）
+ALIGNMENT_RETRY_DELAY  = 0.6  # 秒
+
+
+def _run_alignment_with_retry(target_dir: str) -> None:
+    """アライメントを実行し、結果が空なら数回まで自動的に再試行する。
+
+    「perl/julius プロセスは正常終了したが test.lab が空」というパターンは
+    実測で以下のような一過性の外部要因により発生することが確認されている:
+      - Windows のリアルタイムアンチウイルススキャンが julius 実行ファイルを
+        一瞬ロックする（署名なしの古いexeのため対象になりやすい）
+      - Flask デバッグモードのリローダーがファイル変更を検知して
+        ワーカープロセスを再起動するタイミングと重なる
+    同一の音声・環境で直後に再実行すると成功することが多いため、
+    真に発話が認識できない場合との区別のため、空結果のときだけ
+    短い間隔を空けて自動再試行する。
+    """
+    target = Path(target_dir)
+    lab_path = target / "test.lab"
+    log_path = target / "test.log"
+    last_detail = "（不明）"
+
+    for attempt in range(1, ALIGNMENT_MAX_ATTEMPTS + 1):
+        _run_alignment_process(target_dir)
+        if _lab_has_content(lab_path):
+            return
+        last_detail = _alignment_failure_detail(log_path)
+        if attempt < ALIGNMENT_MAX_ATTEMPTS:
+            print(f"[alignment] 結果が空のため再試行します "
+                  f"({attempt}/{ALIGNMENT_MAX_ATTEMPTS}): {last_detail}")
+            time.sleep(ALIGNMENT_RETRY_DELAY)
+
+    raise RuntimeError(
+        "アライメントに失敗しました（発話が認識できませんでした）。"
+        f"録音をやり直してください。\n[診断情報] {last_detail}"
+    )
+
+
 def run_alignment() -> None:
     """
     Julius で強制アライメントを実行する。
@@ -182,15 +221,7 @@ def run_alignment() -> None:
         except OSError:
             pass
 
-    _run_alignment_process(str(AUDIO_WAV_DIR))
-
-    lab_path = AUDIO_WAV_DIR / "test.lab"
-    if not _lab_has_content(lab_path):
-        detail = _alignment_failure_detail(AUDIO_WAV_DIR / "test.log")
-        raise RuntimeError(
-            "アライメントに失敗しました（発話が認識できませんでした）。"
-            f"録音をやり直してください。\n[診断情報] {detail}"
-        )
+    _run_alignment_with_retry(str(AUDIO_WAV_DIR))
 
 
 def run_alignment_on_file(
@@ -217,20 +248,15 @@ def run_alignment_on_file(
         shutil.copy(str(wav_path), str(tmp / "test.wav"))
         (tmp / "test.txt").write_text(reading, encoding="utf-8")
 
-        _run_alignment_process(str(tmp))
-
         tmp_lab = tmp / "test.lab"
         tmp_log = tmp / "test.log"
-        # 失敗時に呼び出し元が単語ごと削除しても診断できるよう、
-        # 成否を確認する前にログだけは先に退避しておく。
-        if tmp_log.exists():
-            shutil.copy(str(tmp_log), str(log_out))
-        if not _lab_has_content(tmp_lab):
-            detail = _alignment_failure_detail(tmp_log)
-            raise RuntimeError(
-                "アライメントに失敗しました（発話が認識できませんでした）。"
-                f"録音をやり直してください。\n[診断情報] {detail}"
-            )
+        try:
+            _run_alignment_with_retry(str(tmp))
+        finally:
+            # 失敗時に呼び出し元が単語ごと削除しても診断できるよう、
+            # 成否にかかわらず最後の試行のログだけは先に退避しておく。
+            if tmp_log.exists():
+                shutil.copy(str(tmp_log), str(log_out))
         shutil.copy(str(tmp_lab), str(lab_out))
 
 
