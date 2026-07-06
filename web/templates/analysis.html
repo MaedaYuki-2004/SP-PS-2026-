@@ -335,6 +335,7 @@
 <script>
 const analysisData = {{ stats | tojson | safe }};
 
+{% if stats.summary.total_sessions >= 5 %}
 // ── 全体トレンドチャート ────────────────────────────────────────
 const ot = analysisData.overall_trend;
 new Chart(document.getElementById('overallChart'), {
@@ -443,6 +444,7 @@ function updateWordChart() {
 }
 
 if (eligibleWords.length > 0) updateWordChart();
+{% endif %}
 </script>
 <script src="/static/js/tabbar.js" defer></script>
 </body>
