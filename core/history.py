@@ -46,7 +46,8 @@ def get_stats() -> dict:
     history = load_history()
     if not history:
         return {"total_sessions": 0, "unique_words": 0, "avg_score": 0.0,
-                "best_grade": None, "word_counts": {}, "word_best": {}}
+                "best_grade": None, "word_counts": {}, "word_best": {},
+                "streak": 0}
 
     totals      = [r["total"] for r in history if r.get("total") is not None]
     word_counts: dict[str, int] = {}
