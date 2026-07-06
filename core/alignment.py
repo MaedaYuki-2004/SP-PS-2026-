@@ -42,11 +42,17 @@ def _run_alignment_process(target_dir: str) -> tuple[str, str]:
     タイムアウト時は子プロセスツリーごと強制終了する（perl の下で
     julius が生き残るのを防ぐ）。
 
-    パスは必ずスラッシュ区切りに変換して渡す。perl スクリプト内の
-    system() がシェル経由でコマンド文字列を組み立てるため、Windows の
-    バックスラッシュパスは msys perl（Git 付属）の sh に食われて壊れ、
-    「julius が実行されないのに古い test.log から .lab が再生成される」
-    という静かな失敗を引き起こす。
+    パスの区切り文字は、実際に解決される perl の種類に応じて切り替える。
+    segment_julius.pl 内の system("...") はシェル経由でコマンド文字列を
+    解釈するが、シェルの種類によって必要なパス形式が正反対になる:
+      - Git 同梱の msys/cygwin perl → sh 経由。バックスラッシュは
+        エスケープ文字として食われてパスが壊れる → スラッシュが必要
+      - Strawberry Perl 等ネイティブ Windows perl → system() は
+        cmd.exe 経由。スラッシュ区切りは "/xxx" をオプションスイッチと
+        誤解釈され "'C:' は認識されていません" のように壊れる →
+        バックスラッシュが必要
+    どちらの perl が PATH 上で解決されるかは開発者の環境によって異なる
+    ため、実行前に shutil.which("perl") で実際の解決先を見て判定する。
 
     stdout/stderr は encoding="utf-8" を明示する。text=True 任せだと
     Windows では locale（日本語環境で cp932）でデコードされ、perl/julius
@@ -82,8 +88,25 @@ def _run_alignment_process(target_dir: str) -> tuple[str, str]:
             "ファイルが壊れている可能性があります。git checkout し直してください。"
         )
 
+    # segment_julius.pl 内の system("...") がどのシェルで解釈されるかは
+    # 実行される perl の種類によって変わり、必要なパス区切りが正反対になる。
+    #   - Git 同梱の msys/cygwin perl → sh 経由。バックスラッシュは
+    #     エスケープ文字として食われてパスが壊れる → スラッシュが必要
+    #   - Strawberry Perl / ActiveState perl（ネイティブ Windows）→
+    #     system() は cmd.exe 経由。スラッシュ区切りのパスは "/xxx" が
+    #     オプションスイッチと誤解釈され "'C:' は認識されていません" で
+    #     壊れる → バックスラッシュが必要
+    # 実測でこの2種類が実際に混在する（開発者ごとにインストール済みの
+    # perl が異なり、PATH の並び順で解決先が変わる）ため、実際に
+    # 解決される perl のパスから判定して切り替える。
+    perl_exe = shutil.which("perl") or "perl"
+    is_msys_like = bool(re.search(r"(git|msys|cygwin)", perl_exe, re.IGNORECASE))
+
+    def _fmt(p: str) -> str:
+        return p.replace("\\", "/") if is_msys_like else str(Path(p))
+
     env = os.environ.copy()
-    env["JULIUS_BIN"] = str(JULIUS_BIN_PATH).replace("\\", "/")
+    env["JULIUS_BIN"] = _fmt(str(JULIUS_BIN_PATH))
 
     kwargs: dict = dict(
         cwd=str(ENGINE_DIR),
@@ -97,7 +120,7 @@ def _run_alignment_process(target_dir: str) -> tuple[str, str]:
         kwargs["start_new_session"] = True  # POSIX: プロセスグループごと殺せるように
 
     proc = subprocess.Popen(
-        ["perl", str(PERL_SCRIPT_PATH).replace("\\", "/"), target_dir.replace("\\", "/")],
+        [perl_exe, _fmt(str(PERL_SCRIPT_PATH)), _fmt(target_dir)],
         **kwargs,
     )
     try:
