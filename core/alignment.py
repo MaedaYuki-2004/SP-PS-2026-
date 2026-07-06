@@ -54,6 +54,33 @@ def _run_alignment_process(target_dir: str) -> None:
     communicate() 自体は空文字列を返して先に進んでしまうため、
     本来表示されるべき julius のエラー詳細が握りつぶされる。
     """
+    # julius バイナリが存在しない/実行できない場合、perl の system() は
+    # シェルレベルで静かに失敗し、$f.log に1バイトも書き込まれない
+    # （perl 自体は正常終了として扱われることがある）。この場合
+    # 「発話が認識できませんでした」という誤解を招くメッセージになるため、
+    # 実行前にバイナリの実在とサイズを検証して原因をはっきりさせる。
+    # 実行ファイル自体が壊れている典型例: 署名なしの古いexeを
+    # アンチウイルスが誤検知して隔離・削除するケース。
+    if not JULIUS_BIN_PATH:
+        raise RuntimeError(
+            "Julius 実行ファイルが見つかりません（自動検出に失敗）。"
+            "engine/bin/ に julius-4.3.1.exe があるか確認してください。"
+        )
+    julius_path = Path(JULIUS_BIN_PATH)
+    if not julius_path.is_file():
+        raise RuntimeError(
+            f"Julius 実行ファイルが存在しません: {julius_path}\n"
+            "アンチウイルスに隔離・削除されていないか確認してください"
+            "（署名なしの古いexeのため誤検知されることがあります）。"
+            "engine/bin/julius-4.3.1.exe を復元するか git checkout し直してください。"
+        )
+    if julius_path.stat().st_size < 100_000:  # 正常なexeは約570KB
+        raise RuntimeError(
+            f"Julius 実行ファイルのサイズが異常です: {julius_path} "
+            f"({julius_path.stat().st_size} bytes)。"
+            "ファイルが壊れている可能性があります。git checkout し直してください。"
+        )
+
     env = os.environ.copy()
     env["JULIUS_BIN"] = str(JULIUS_BIN_PATH).replace("\\", "/")
 
