@@ -13,27 +13,28 @@
   <style>
     .results-header { background:var(--navy); padding:18px 32px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .results-word { font-size:24px; font-weight:700; color:#fff; }
-    .results-sub  { font-size:11px; color:rgba(255,255,255,.4); margin-top:2px; }
+    .results-sub  { font-size:11px; color:rgba(255,255,255,.65); margin-top:2px; }
     .delta-badge  { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:13px; font-weight:600; padding:5px 12px; border-radius:100px; }
     .delta-up   { background:rgba(45,106,79,.3); color:#7fff9a; border:1px solid rgba(100,200,120,.3); }
     .delta-down { background:rgba(192,61,32,.3); color:#ffb3a3; border:1px solid rgba(192,61,32,.3); }
 
     .tab-bar { display:flex; padding:0 32px; background:var(--bg-card); border-bottom:1px solid var(--border-light); overflow-x:auto; scrollbar-width:none; }
     .tab-bar::-webkit-scrollbar { display:none; }
-    .sec-tab { flex-shrink:0; padding:13px 18px; border:none; background:none; font-family:var(--font); font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--text-3); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color 150ms,border-color 150ms; white-space:nowrap; }
-    .sec-tab:hover { color:var(--text-2); }
+    .sec-tab { flex-shrink:0; padding:13px 18px; border:none; background:none; font-family:var(--font); font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--text-2); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color 150ms,border-color 150ms; white-space:nowrap; }
+    .sec-tab:hover { color:var(--text); }
     .sec-tab.active { color:var(--navy); border-bottom-color:var(--navy); }
 
     .section-panel { display:none; padding:24px 32px; max-width:1040px; margin:0 auto; }
     .section-panel.active { display:block; }
     .panel-heading { font-size:17px; font-weight:700; color:var(--navy); margin-bottom:4px; }
+    .panel-sub { font-size:12px; color:var(--text-2); margin-bottom:20px; }
 
     /* ── 新リザルトヒーロー（3秒でわかる） ── */
     .result-hero { display:flex; align-items:center; gap:18px; padding:20px 22px; border-radius:var(--r-lg); background:var(--bg-card); border:1px solid var(--border); margin:14px 0 12px; box-shadow:var(--shadow-sm); }
     .result-grade-badge { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:900; color:#fff; flex-shrink:0; box-shadow:var(--shadow-sm); }
     .result-total-row { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
     .result-total { font-family:var(--mono); font-size:38px; font-weight:500; color:var(--text); line-height:1; }
-    .result-max { font-size:13px; color:var(--text-3); }
+    .result-max { font-size:13px; color:var(--text-2); }
     .result-delta { font-family:var(--mono); font-size:12px; font-weight:700; padding:2px 10px; border-radius:100px; }
     .result-delta.up   { background:var(--green-bg);  color:var(--green); }
     .result-delta.down { background:var(--accent-bg); color:var(--accent); }
@@ -41,7 +42,7 @@
 
     /* ── モーラ信号機 ── */
     .mora-lights { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px 18px 13px; margin-bottom:12px; }
-    .mora-lights-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; }
+    .mora-lights-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; }
     .mora-lights-row { display:flex; gap:8px; flex-wrap:wrap; }
     .mora-light { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:52px; padding:9px 8px 7px; border-radius:var(--r); border:2px solid transparent; }
     .mora-light.ok  { background:var(--green-bg);  border-color:var(--green); }
@@ -53,7 +54,7 @@
     .mora-light.ok  .ml-icon { color:var(--green); }
     .mora-light.mid .ml-icon { color:var(--quest); }
     .mora-light.ng  .ml-icon { color:var(--accent); }
-    .mora-lights-legend { display:flex; gap:14px; margin-top:10px; font-size:10.5px; color:var(--text-3); flex-wrap:wrap; }
+    .mora-lights-legend { display:flex; gap:14px; margin-top:10px; font-size:10.5px; color:var(--text-2); flex-wrap:wrap; }
     .lg-dot { width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:4px; vertical-align:-1px; }
 
     /* ── 音映像クロスチェックカード（試験運用） ── */
@@ -64,15 +65,15 @@
     .av-sync-head { display:flex; align-items:flex-start; gap:12px; }
     .av-sync-icon { font-size:20px; flex-shrink:0; line-height:1.4; }
     .av-sync-title { font-size:13.5px; font-weight:800; color:var(--text); }
-    .av-sync-val { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text-3); margin-left:8px; }
-    .av-sync-sub { font-size:11px; color:var(--text-3); margin-top:2px; line-height:1.6; }
+    .av-sync-val { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text-2); margin-left:8px; }
+    .av-sync-sub { font-size:11px; color:var(--text-2); margin-top:2px; line-height:1.6; }
     .av-sync-details { margin-top:8px; }
-    .av-sync-details summary { font-size:11px; font-weight:700; color:var(--text-3); cursor:pointer; user-select:none; }
+    .av-sync-details summary { font-size:11px; font-weight:700; color:var(--text-2); cursor:pointer; user-select:none; }
     .av-sync-chart-wrap { position:relative; height:260px; margin-top:10px; background:var(--bg-muted); border-radius:var(--r-sm); padding:8px; }
     .av-sync-moras { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
     .av-sync-mora { display:inline-flex; align-items:baseline; gap:5px; padding:5px 10px; border-radius:var(--r-sm); background:var(--bg-muted); font-size:12px; font-weight:700; color:var(--text); }
-    .av-sync-mora b { font-family:var(--mono); font-size:10.5px; font-weight:500; color:var(--text-3); }
-    .av-sync-note { font-size:10px; color:var(--text-3); margin-top:8px; line-height:1.7; }
+    .av-sync-mora b { font-family:var(--mono); font-size:10.5px; font-weight:500; color:var(--text-2); }
+    .av-sync-note { font-size:10px; color:var(--text-2); margin-top:8px; line-height:1.7; }
 
     /* ── 次はこれだけカード ── */
     .next-one-card { background:linear-gradient(135deg,var(--navy),var(--navy-mid)); border-radius:var(--r-lg); padding:20px 22px; color:#fff; margin-bottom:12px; box-shadow:var(--shadow); }
@@ -89,11 +90,11 @@
 
     /* ── 折りたたみ ── */
     .fold-section { border:1px solid var(--border-light); border-radius:var(--r); background:var(--bg-card); margin-top:12px; }
-    .fold-summary { padding:14px 18px; font-size:13px; font-weight:700; color:var(--text-2); cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; user-select:none; }
+    .fold-summary { padding:14px 18px; font-size:13px; font-weight:700; color:var(--text); cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; user-select:none; }
     .fold-summary::-webkit-details-marker { display:none; }
-    .fold-summary::before { content:'▸'; color:var(--text-3); transition:transform .2s; }
+    .fold-summary::before { content:'▸'; color:var(--text-2); transition:transform .2s; }
     .fold-section[open] .fold-summary::before { transform:rotate(90deg); }
-    .fold-hint { font-size:10.5px; font-weight:400; color:var(--text-3); }
+    .fold-hint { font-size:10.5px; font-weight:400; color:var(--text-2); }
     .fold-body { padding:4px 18px 18px; }
 
     /* ── 紙吹雪 ── */
@@ -102,16 +103,16 @@
       0%   { transform:translateY(0) rotate(0deg); opacity:1; }
       100% { transform:translateY(105vh) rotate(720deg); opacity:.5; }
     }
-    .panel-sub { font-size:12px; color:var(--text-3); margin-bottom:20px; }
+    .panel-sub { font-size:12px; color:var(--text-2); margin-bottom:20px; }
 
     .chart-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:20px; box-shadow:var(--shadow-xs); margin-bottom:14px; }
     .chart-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
-    .chart-label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .chart-label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); }
     .toggle-pill { display:inline-flex; background:var(--bg-muted); border-radius:100px; padding:3px; gap:2px; }
-    .toggle-pill button { font-family:var(--font); font-size:11px; font-weight:600; padding:5px 14px; border:none; border-radius:100px; cursor:pointer; background:transparent; color:var(--text-3); transition:background 120ms,color 120ms; }
+    .toggle-pill button { font-family:var(--font); font-size:11px; font-weight:600; padding:5px 14px; border:none; border-radius:100px; cursor:pointer; background:transparent; color:var(--text-2); transition:background 120ms,color 120ms; }
     .toggle-pill button.active-pill { background:var(--bg-card); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.08); }
     .chart-legend { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .legend-item  { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-3); }
+    .legend-item  { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-2); }
     .legend-dot   { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
     .chart-wrap   { position:relative; width:100%; }
     .chart-wrap canvas { width:100%!important; max-height:360px; }
@@ -120,8 +121,8 @@
     .fail-panel { text-align:center; padding:56px 24px; }
     .fail-pill { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; padding:4px 12px; border-radius:3px; background:var(--accent-bg); color:var(--accent); margin-bottom:14px; }
     .fail-title { font-size:20px; font-weight:700; color:var(--accent); margin-bottom:12px; }
-    .fail-list { display:inline-block; text-align:left; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:20px 28px; font-size:14px; line-height:2.1; color:var(--text-2); }
-    .fail-score { font-family:var(--mono); font-size:11px; color:var(--text-3); margin-top:10px; }
+    .fail-list { display:inline-block; text-align:left; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:20px 28px; font-size:14px; line-height:2.1; color:var(--text); }
+    .fail-score { font-family:var(--mono); font-size:11px; color:var(--text-2); margin-top:10px; }
 
     /* Score layout */
     .score-layout { display:grid; grid-template-columns:1fr 260px; gap:16px; margin-bottom:16px; }
@@ -130,32 +131,32 @@
     .score-grade { font-size:76px; font-weight:700; line-height:1; margin-bottom:8px; position:relative; }
     .grade-S{color:#FBBF24;} .grade-A{color:#34D399;} .grade-B{color:#60A5FA;} .grade-C{color:#F87171;} .grade-D{color:#9CA3AF;}
     .score-total { font-size:28px; font-weight:700; color:#fff; position:relative; }
-    .score-total span { font-size:14px; font-weight:400; color:rgba(255,255,255,.4); }
+    .score-total span { font-size:14px; font-weight:400; color:rgba(255,255,255,.55); }
     .score-breakdown { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:16px; position:relative; }
     .score-item { background:rgba(255,255,255,.07); border-radius:var(--r-sm); padding:12px 12px 10px; position:relative; overflow:hidden; }
-    .score-item-label { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
+    .score-item-label { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.65); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
     .score-item-icon { width:14px; height:14px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:8px; flex-shrink:0; }
     .score-item-value { font-size:22px; font-weight:700; color:#fff; line-height:1; }
-    .score-item-max { font-size:10px; font-weight:400; color:rgba(255,255,255,.35); }
+    .score-item-max { font-size:10px; font-weight:400; color:rgba(255,255,255,.55); }
     .score-bar { height:5px; background:rgba(255,255,255,.1); border-radius:100px; margin-top:8px; overflow:hidden; }
     .score-bar-fill { height:100%; border-radius:100px; transition:width .6s cubic-bezier(.25,.1,.25,1); }
-    .score-pct { font-size:9px; color:rgba(255,255,255,.4); margin-top:3px; font-family:var(--mono); }
+    .score-pct { font-size:9px; color:rgba(255,255,255,.65); margin-top:3px; font-family:var(--mono); }
     .metrics-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; justify-content:center; position:relative; }
-    .metric-pill { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.1); border-radius:var(--r-sm); padding:3px 10px; font-size:10px; color:rgba(255,255,255,.5); }
+    .metric-pill { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); border-radius:var(--r-sm); padding:3px 10px; font-size:10px; color:rgba(255,255,255,.75); }
     .metric-pill strong { color:#fff; font-weight:600; }
 
     /* Radar */
     .radar-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:18px; display:flex; flex-direction:column; align-items:center; box-shadow:var(--shadow-xs); }
-    .radar-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; align-self:flex-start; }
+    .radar-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; align-self:flex-start; }
 
     /* Compare (F) */
     .score-compare { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; margin-bottom:14px; box-shadow:var(--shadow-xs); }
-    .compare-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; }
+    .compare-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; }
     .compare-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
     .compare-item { text-align:center; }
-    .compare-label { font-size:9px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); margin-bottom:3px; }
+    .compare-label { font-size:9px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-2); margin-bottom:3px; }
     .compare-now  { font-family:var(--mono); font-size:16px; font-weight:500; color:var(--text); }
-    .compare-prev { font-family:var(--mono); font-size:10px; color:var(--text-3); }
+    .compare-prev { font-family:var(--mono); font-size:10px; color:var(--text-2); }
     .compare-delta { font-family:var(--mono); font-size:10px; font-weight:600; margin-top:1px; }
     .compare-delta.up { color:var(--green); } .compare-delta.down { color:var(--accent); }
 
@@ -170,7 +171,7 @@
     }
     .compare-player-title {
       font-size: 10px; font-weight: 700; letter-spacing: .1em;
-      text-transform: uppercase; color: var(--text-3); margin-bottom: 12px;
+      text-transform: uppercase; color: var(--text-2); margin-bottom: 12px;
     }
     .compare-player-grid {
       display: grid;
@@ -208,7 +209,7 @@
     .alt-play-btn:active { transform: scale(.97); }
     .alt-play-btn.playing { background: var(--accent); }
     .alt-play-status {
-      font-size: 11px; color: var(--text-3); text-align: center;
+      font-size: 11px; color: var(--text-2); text-align: center;
       margin-top: 6px; min-height: 16px;
     }
     .alt-play-status.active { color: var(--accent); font-weight: 500; }
@@ -225,15 +226,15 @@
     .feedback-icon.voiced { background:rgba(124,106,224,.15); }
     .feedback-icon.rate   { background:rgba(240,160,48,.15); }
     .feedback-icon.quality{ background:rgba(255,255,255,.08); }
-    .feedback-label { font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--text-2); flex:1; }
+    .feedback-label { font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--text); flex:1; }
     .feedback-text { font-size:13px; color:var(--text); line-height:1.8; }
     .feedback-steps { background:var(--bg-muted); border-radius:var(--r-sm); padding:10px 12px; font-size:11px; color:var(--text-2); line-height:1.9; white-space:pre-line; border-left:2px solid var(--navy); }
     .accent-pattern { display:flex; gap:5px; flex-wrap:wrap; }
     .mora-badge { display:flex; flex-direction:column; align-items:center; gap:3px; }
     .mora-hl { width:28px; height:28px; border-radius:var(--r-xs); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
     .mora-hl.H { background:rgba(232,112,64,.2); color:var(--accent); }
-    .mora-hl.L { background:var(--bg-muted); color:var(--text-3); }
-    .mora-label { font-size:9px; color:var(--text-3); font-family:var(--mono); }
+    .mora-hl.L { background:var(--bg-muted); color:var(--text-2); }
+    .mora-label { font-size:9px; color:var(--text-2); font-family:var(--mono); }
 
     /* Quest clear */
     @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
@@ -245,7 +246,7 @@
 
     /* Quest cards */
     .quests-header { display:flex; align-items:baseline; gap:10px; margin:20px 0 10px; }
-    .quests-sec-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+    .quests-sec-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); }
     .quest-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
     .quest-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; transition:box-shadow var(--dur),transform var(--dur); }
     .quest-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
@@ -260,22 +261,22 @@
     .quest-card-desc { font-size:11px; color:var(--text-2); line-height:1.65; margin-bottom:8px; }
     .quest-hint-bar { font-size:11px; color:var(--text-2); line-height:1.9; background:var(--bg-muted); border-left:2px solid var(--navy); padding:10px 12px; border-radius:0 var(--r-sm) var(--r-sm) 0; margin-bottom:8px; white-space:pre-line; }
     .quest-progress-meta { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px; }
-    .quest-progress-vals { font-family:var(--mono); font-size:10px; color:var(--text-3); }
+    .quest-progress-vals { font-family:var(--mono); font-size:10px; color:var(--text-2); }
     .quest-progress-pct  { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--quest); }
     .quest-card-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .cat-review { background:var(--quest-bg); color:var(--quest); }
 
     /* Suggestions */
     .suggestions-section { margin-top:24px; }
-    .suggestions-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:10px; display:flex; align-items:center; gap:10px; }
+    .suggestions-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; display:flex; align-items:center; gap:10px; }
     .suggestions-line { flex:1; height:1px; background:var(--border-light); }
     .suggestions-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
     .suggestion-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; transition:box-shadow var(--dur),transform var(--dur); }
     .suggestion-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
     .suggestion-body { padding:14px 16px 12px; }
     .suggestion-word { font-size:20px; font-weight:700; color:var(--navy); margin-bottom:2px; }
-    .suggestion-reading { font-size:11px; color:var(--text-3); margin-bottom:4px; }
-    .suggestion-accent { font-size:10px; color:var(--text-3); }
+    .suggestion-reading { font-size:11px; color:var(--text-2); margin-bottom:4px; }
+    .suggestion-accent { font-size:10px; color:var(--text-2); }
     .suggestion-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); }
     .suggestion-btn { width:100%; padding:8px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:600; letter-spacing:.04em; cursor:pointer; transition:background var(--dur),transform var(--dur); }
     .suggestion-btn:hover { background:var(--navy-mid); }
@@ -294,7 +295,7 @@
     .lip-bar-actual.good { background:#2D6A4F; }
     .lip-bar-actual.low  { background:#F97316; }
     .lip-bar-actual.high { background:#C03D20; }
-    .lip-bar-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--text-3); }
+    .lip-bar-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--text-2); }
     .lip-feedback-badge { font-size:10px; font-weight:700; white-space:nowrap; padding:3px 10px; border-radius:100px; }
     .lip-feedback-badge.good { background:var(--green-bg); color:var(--green); }
     .lip-feedback-badge.low  { background:#FEF3C7; color:#B45309; }
@@ -584,7 +585,7 @@
   <div class="all-good-card">
     <div style="font-size:30px;">🎉</div>
     <div style="font-size:15px;font-weight:900;color:var(--green);margin:4px 0;">すべての音がきれいに発音できています！</div>
-    <div style="font-size:12px;color:var(--text-3);margin-bottom:12px;">この単語はマスター。次の単語に進みましょう</div>
+    <div style="font-size:12px;color:var(--text-2);margin-bottom:12px;">この単語はマスター。次の単語に進みましょう</div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
       <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="btn btn-ghost">🎙 もう一度</button></form>
       <a href="/select" class="btn btn-primary" style="text-decoration:none;">次の単語へ →</a>
@@ -662,10 +663,10 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <span class="compare-player-title" style="margin-bottom:0;">音声を聞き比べる</span>
       <div style="display:flex;align-items:center;gap:5px;">
-        <span style="font-size:10px;color:var(--text-3);">速度</span>
-        <button class="speed-chip-cmp active" data-speed="1" style="padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setCmpSpeed(1,this)">1×</button>
-        <button class="speed-chip-cmp" data-speed="0.75" style="padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setCmpSpeed(0.75,this)">0.75×</button>
-        <button class="speed-chip-cmp" data-speed="0.5" style="padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setCmpSpeed(0.5,this)">0.5×</button>
+        <span style="font-size:10px;color:var(--text-2);">速度</span>
+        <button class="speed-chip-cmp active" data-speed="1" style="padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-2);font-family:var(--font);transition:background .15s,color .15s;" onclick="setCmpSpeed(1,this)">1×</button>
+        <button class="speed-chip-cmp" data-speed="0.75" style="padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-2);font-family:var(--font);transition:background .15s,color .15s;" onclick="setCmpSpeed(0.75,this)">0.75×</button>
+        <button class="speed-chip-cmp" data-speed="0.5" style="padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-2);font-family:var(--font);transition:background .15s,color .15s;" onclick="setCmpSpeed(0.5,this)">0.5×</button>
       </div>
     </div>
     <div class="compare-player-grid">
@@ -782,7 +783,7 @@
 
   {% if suggestions %}
   <div class="suggestions-section">
-    <div class="suggestions-title">次の練習候補<div class="suggestions-line"></div><span style="font-size:11px;color:var(--text-3);font-weight:400;text-transform:none;letter-spacing:0;">同じアクセント型・練習回数が少ない順</span></div>
+    <div class="suggestions-title">次の練習候補<div class="suggestions-line"></div><span style="font-size:11px;color:var(--text-2);font-weight:400;text-transform:none;letter-spacing:0;">同じアクセント型・練習回数が少ない順</span></div>
     <div class="suggestions-grid">
       {% for s in suggestions %}
       <div class="suggestion-card">
@@ -804,7 +805,7 @@
   {% if ci_info %}
   <div style="margin-top:24px;">
     <div class="panel-heading" style="font-size:13px; margin-bottom:4px;">スコアの信頼区間（ブートストラップ法）</div>
-    <p style="font-size:11px; color:var(--text-3); margin-bottom:14px;">
+    <p style="font-size:11px; color:var(--text-2); margin-bottom:14px;">
       複数回の録音スコアから「本当の実力がどの範囲にあるか」を統計的に推定したもの。
     </p>
 
@@ -819,22 +820,22 @@
       {# 数値の表示 #}
       <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
         <div>
-          <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:4px;">推定スコア範囲</div>
+          <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-2); margin-bottom:4px;">推定スコア範囲</div>
           <div style="font-family:var(--mono); font-size:28px; font-weight:500; color:var(--navy);">
-            {{ ci_info.lower }} <span style="font-size:18px; color:var(--text-3);">〜</span> {{ ci_info.upper }}
-            <span style="font-size:14px; color:var(--text-3); font-weight:400;">点</span>
+            {{ ci_info.lower }} <span style="font-size:18px; color:var(--text-2);">〜</span> {{ ci_info.upper }}
+            <span style="font-size:14px; color:var(--text-2); font-weight:400;">点</span>
           </div>
         </div>
         <div style="padding-left:16px; border-left:1px solid var(--border);">
-          <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:4px;">信頼水準</div>
+          <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-2); margin-bottom:4px;">信頼水準</div>
           <div style="font-family:var(--mono); font-size:18px; color:var(--text);">{{ ci_info.ci_pct }}%</div>
         </div>
         <div style="padding-left:16px; border-left:1px solid var(--border);">
-          <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:4px;">区間の幅</div>
+          <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-2); margin-bottom:4px;">区間の幅</div>
           <div style="font-family:var(--mono); font-size:18px; color:var(--text);">±{{ (ci_info.width / 2) | round(1) }}点</div>
         </div>
         <div style="padding-left:16px; border-left:1px solid var(--border);">
-          <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:4px;">録音回数</div>
+          <div style="font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-2); margin-bottom:4px;">録音回数</div>
           <div style="font-family:var(--mono); font-size:18px; color:var(--text);">{{ ci_info.n }}回</div>
         </div>
       </div>
@@ -865,7 +866,7 @@
         <div style="position:absolute; left:{{ lower_pct }}%; transform:translateX(-50%); top:8px; font-family:var(--mono); font-size:11px; color:var(--blue); white-space:nowrap;">{{ ci_info.lower }}</div>
         <div style="position:absolute; left:{{ upper_pct }}%; transform:translateX(-50%); top:8px; font-family:var(--mono); font-size:11px; color:var(--blue); white-space:nowrap;">{{ ci_info.upper }}</div>
       </div>
-      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-3);">
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-2);">
         <span>0</span><span>50</span><span>100</span>
       </div>
 
@@ -885,9 +886,9 @@
           {% elif ci_info.reliability == 'medium' %}精度：中
           {% else %}精度：低{% endif %}
         </span>
-        <span style="font-size:11px; color:var(--text-3);">{{ ci_info.reliability_note }}</span>
+        <span style="font-size:11px; color:var(--text-2);">{{ ci_info.reliability_note }}</span>
       </div>
-      <p style="margin-top:10px; font-size:11px; color:var(--text-3);">
+      <p style="margin-top:10px; font-size:11px; color:var(--text-2);">
         ※ 標準偏差 {{ ci_info.std }}点 / 標準誤差 {{ ci_info.se }}点 |
         この区間内のスコア変動は録音誤差の範囲内と考えられます
       </p>
@@ -901,7 +902,7 @@
       </div>
       <div style="font-size:12px; color:var(--text-2);">
         {{ ci_info.message }}<br>
-        <span style="color:var(--text-3);">（現在 {{ ci_info.n }}回 / 最低{{ ci_info.required }}回必要）</span>
+        <span style="color:var(--text-2);">（現在 {{ ci_info.n }}回 / 最低{{ ci_info.required }}回必要）</span>
       </div>
     </div>
     {% endif %}
@@ -933,7 +934,7 @@
             {% for key in ['accent','length','vowel','total'] %}
             {% set val = m[key] %}
             {% if val is none %}
-            <td style="padding:8px 12px; text-align:center; color:var(--text-3);">—</td>
+            <td style="padding:8px 12px; text-align:center; color:var(--text-2);">—</td>
             {% else %}
             {% set color = '#2D6A4F' if val >= 75 else ('#1E5C9E' if val >= 50 else '#C03D20') %}
             <td style="padding:8px 12px; text-align:center;">
@@ -1004,7 +1005,7 @@
   <!-- モーラ別口の開き具合 -->
   <div class="chart-card" style="margin-bottom:16px;">
     <div class="chart-card-header"><span class="chart-label">モーラ別 口の開き具合</span></div>
-    <p style="font-size:11px;color:var(--text-3);margin:0 0 14px;line-height:1.7;">
+    <p style="font-size:11px;color:var(--text-2);margin:0 0 14px;line-height:1.7;">
       <strong>灰色バー</strong>＝日本語音声学に基づく期待値　<strong>色付きバー</strong>＝あなたの実測値<br>
       実測値はセッション内の最大開口量を基準（100%）として正規化しています。
     </p>
@@ -1089,7 +1090,7 @@
     <div class="chart-wrap">
       <canvas id="vowelChart"></canvas>
     </div>
-    <p style="font-size:11px;color:var(--text-3);margin-top:8px;">X軸（F2）・Y軸（F1）とも右・下ほど高い値。日本語母音の典型配置：あ（低F1・中F2）、い（低F1・高F2）、う（低F1・低F2）、え（中F1・高F2）、お（中F1・低F2）</p>
+    <p style="font-size:11px;color:var(--text-2);margin-top:8px;">X軸（F2）・Y軸（F1）とも右・下ほど高い値。日本語母音の典型配置：あ（低F1・中F2）、い（低F1・高F2）、う（低F1・低F2）、え（中F1・高F2）、お（中F1・低F2）</p>
   </div>
   <script>
   (function() {
@@ -1152,12 +1153,12 @@
         scales: {
           x: {
             reverse: true,
-            title: { display: true, text: 'F2 (Hz) →', color: 'var(--text-3)', font:{size:11} },
+            title: { display: true, text: 'F2 (Hz) →', color: 'var(--text-2)', font:{size:11} },
             grid: { color: 'var(--border-light)' }
           },
           y: {
             reverse: true,
-            title: { display: true, text: 'F1 (Hz) →', color: 'var(--text-3)', font:{size:11} },
+            title: { display: true, text: 'F1 (Hz) →', color: 'var(--text-2)', font:{size:11} },
             grid: { color: 'var(--border-light)' }
           }
         }
@@ -1372,7 +1373,7 @@ function setCmpSpeed(speed, btn) {
   document.querySelectorAll('.speed-chip-cmp').forEach(b => {
     b.classList.remove('active');
     b.style.background = 'transparent';
-    b.style.color = 'var(--text-3)';
+    b.style.color = 'var(--text-2)';
   });
   if (btn) { btn.classList.add('active'); btn.style.background = 'var(--navy)'; btn.style.color = '#fff'; }
   ['nativeAudio','userAudio'].forEach(id => {
