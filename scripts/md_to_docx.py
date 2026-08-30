@@ -250,14 +250,28 @@ def convert(md_path: Path, out_path: Path) -> None:
             continue
 
         # ── 箇条書き / チェックリスト ─────────────────────────────
-        m = re.match(r"^[-*]\s+(?:\[[ x]\]\s+)?(.*)$", stripped)
+        m = re.match(r"^[-*]\s+(\[[ x]\]\s+)?(.*)$", stripped)
         if m:
-            text = _clean(m.group(1))
+            is_check = bool(m.group(1))
+            parts = [m.group(2)]
+            i += 1
+            # インデントされた続きの行は、同じ項目の本文として結合する。
+            # 別段落にすると2行目だけ左端に戻り、箇条書きの体裁が崩れるため。
+            while i < len(lines) and lines[i].startswith("  ") and lines[i].strip()                     and not re.match(r"^\s*[-*]\s", lines[i]):
+                parts.append(lines[i].strip())
+                i += 1
+            text = _clean("".join(parts))
             if text:
-                par = doc.add_paragraph(style="List Bullet")
+                if is_check:
+                    # チェックリストは記入できるよう空欄の四角を頭に付ける。
+                    # 箇条書きスタイルにすると中黒と四角が二重に出るため使わない。
+                    par = doc.add_paragraph()
+                    par.paragraph_format.left_indent = Cm(0.6)
+                    text = "☐　" + text
+                else:
+                    par = doc.add_paragraph(style="List Bullet")
                 par.paragraph_format.space_after = Pt(2)
                 _add_runs(par, text, 10)
-            i += 1
             continue
 
         # ── 番号付きリスト ────────────────────────────────────────
@@ -286,17 +300,30 @@ def convert(md_path: Path, out_path: Path) -> None:
         ):
             block.append(lines[i].strip())
             i += 1
-        text = _clean("".join(block))
+        # 全体が太字で複数行の段落（研究課題など見出し的な一文）は、
+        # Word の自動折り返しに任せるとカタカナの途中で改行されて読みにくい。
+        # 原稿の改行位置をそのまま使う。
+        joined = "".join(block)
+        keep_breaks = (len(block) > 1 and joined.startswith("**") and joined.endswith("**"))
+
+        text = _clean(joined)
         if text:
             par = doc.add_paragraph()
             par.paragraph_format.space_after = Pt(8)
             par.paragraph_format.line_spacing = 1.4
             par.paragraph_format.widow_control = True   # 1行だけ取り残さない
-            # 直後が表やコードブロックなら、リード文だけがページ末に残らないようにする
-            if _next_starts_block(lines, i):
-                par.paragraph_format.keep_with_next = True
+            if keep_breaks:
                 par.paragraph_format.keep_together = True
-            _add_runs(par, text, 10.5)
+                for n, src in enumerate(block):
+                    if n:
+                        par.add_run().add_break()
+                    _add_runs(par, _clean(src.strip("* ")), 10.5, bold=True)
+            else:
+                # 直後が表やコードブロックなら、リード文だけがページ末に残らないようにする
+                if _next_starts_block(lines, i):
+                    par.paragraph_format.keep_with_next = True
+                    par.paragraph_format.keep_together = True
+                _add_runs(par, text, 10.5)
 
     doc.save(str(out_path))
 
