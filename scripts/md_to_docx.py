@@ -32,6 +32,9 @@ NAVY       = RGBColor(0x0E, 0x1E, 0x45)
 GRAY       = RGBColor(0x55, 0x5D, 0x6E)
 AMBER      = RGBColor(0x8A, 0x5D, 0x00)
 
+# この行数以下の表は、途中でページ分割せずまるごと次ページへ送る
+SMALL_TABLE_ROWS = 8
+
 
 def _set_jp_font(run, name: str) -> None:
     """日本語フォントは w:eastAsia も指定しないと反映されない。"""
@@ -54,6 +57,41 @@ def _shade(cell, hex_color: str) -> None:
     shd.set(qn("w:color"), "auto")
     shd.set(qn("w:fill"), hex_color)
     tcPr.append(shd)
+
+
+def _next_starts_block(lines: list[str], i: int) -> bool:
+    """i 以降の最初の非空行が、表またはコードブロックの開始かを判定する。
+
+    表や JSON 例の直前にある「〜は以下のとおり。」といったリード文が、
+    単独でページ末に取り残されるのを防ぐために使う。
+    """
+    while i < len(lines) and not lines[i].strip():
+        i += 1
+    if i >= len(lines):
+        return False
+    ln = lines[i].strip()
+    return ln.startswith("|") or ln.startswith("```")
+
+
+def _repeat_header(row) -> None:
+    """表の見出し行を、ページをまたいだ各ページの先頭で繰り返す。"""
+    trPr = row._tr.get_or_add_trPr()
+    el = OxmlElement("w:tblHeader")
+    el.set(qn("w:val"), "true")
+    trPr.append(el)
+
+
+def _no_row_split(row) -> None:
+    """1つの行が途中でページ分割されないようにする。"""
+    trPr = row._tr.get_or_add_trPr()
+    trPr.append(OxmlElement("w:cantSplit"))
+
+
+def _keep_with_next(cell_or_par, flag: bool = True) -> None:
+    """次の内容と同じページに保つ（表のセル・段落のどちらでも可）。"""
+    pars = cell_or_par.paragraphs if hasattr(cell_or_par, "paragraphs") else [cell_or_par]
+    for par in pars:
+        par.paragraph_format.keep_with_next = flag
 
 
 def _add_runs(par, text: str, size: float, *, bold=False, color=None, mono=False) -> None:
@@ -158,6 +196,19 @@ def convert(md_path: Path, out_path: Path) -> None:
                 for c, text in enumerate(row[: len(header)]):
                     cells[c].text = ""
                     _add_runs(cells[c].paragraphs[0], text, 9)
+
+            # ── ページ送りの制御 ──────────────────────────────
+            # 表がページをまたぐと見出し行が消えて列の意味が分からなくなるため、
+            # 各ページの先頭で見出し行を繰り返す。行の途中での分割も禁止する。
+            _repeat_header(table.rows[0])
+            for row in table.rows:
+                _no_row_split(row)
+            # 短い表は途中で切らず、まるごと次ページへ送る
+            if len(table.rows) <= SMALL_TABLE_ROWS:
+                for row in table.rows[:-1]:
+                    for cell in row.cells:
+                        _keep_with_next(cell)
+
             doc.add_paragraph().paragraph_format.space_after = Pt(6)
             continue
 
@@ -175,6 +226,9 @@ def convert(md_path: Path, out_path: Path) -> None:
             par.paragraph_format.space_after = Pt(after)
             if level == 1:
                 par.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # 見出しだけがページ末に取り残されないよう、次の内容と同じページに保つ
+            par.paragraph_format.keep_with_next = True
+            par.paragraph_format.keep_together = True
             _add_runs(par, text, size, bold=True, color=color)
             i += 1
             continue
@@ -190,6 +244,7 @@ def convert(md_path: Path, out_path: Path) -> None:
                 par = doc.add_paragraph()
                 par.paragraph_format.left_indent = Cm(0.5)
                 par.paragraph_format.space_after = Pt(10)
+                par.paragraph_format.keep_together = True
                 is_action = "要確定" in text or "注意" in text or "最重要" in text
                 _add_runs(par, text, 9.5, color=AMBER if is_action else GRAY)
             continue
@@ -236,6 +291,11 @@ def convert(md_path: Path, out_path: Path) -> None:
             par = doc.add_paragraph()
             par.paragraph_format.space_after = Pt(8)
             par.paragraph_format.line_spacing = 1.4
+            par.paragraph_format.widow_control = True   # 1行だけ取り残さない
+            # 直後が表やコードブロックなら、リード文だけがページ末に残らないようにする
+            if _next_starts_block(lines, i):
+                par.paragraph_format.keep_with_next = True
+                par.paragraph_format.keep_together = True
             _add_runs(par, text, 10.5)
 
     doc.save(str(out_path))
