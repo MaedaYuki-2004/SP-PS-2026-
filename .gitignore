@@ -100,3 +100,5 @@ desktop.ini
 *.log
 *.orig
 *.bak
+# Word の一時ファイル（文書を開いている間だけ生成される）
+~$*
