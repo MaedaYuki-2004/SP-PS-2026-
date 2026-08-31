@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>参加者アカウント管理 — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="/static/css/base.css" rel="stylesheet">
+  <style>
+    .page-header { background:var(--navy); padding:22px 32px; display:flex; align-items:flex-end;
+                   justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .page-header-title { font-size:20px; font-weight:700; color:#fff; }
+    .page-header-sub { font-size:11px; color:rgba(255,255,255,.5); margin-top:3px; }
+    .page-header a { font-size:12px; color:rgba(255,255,255,.8); text-decoration:none; }
+    .page-header a:hover { color:#fff; }
+    .main { max-width:1000px; margin:0 auto; padding:26px 32px; }
+    .card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r);
+            padding:22px; margin-bottom:22px; box-shadow:var(--shadow-xs); }
+    .card-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+                  color:var(--text-3); margin-bottom:14px; }
+    .ethics-note { font-size:11px; color:var(--text-3); line-height:1.7; margin-bottom:18px; }
+    .row-form { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+    .fld { display:flex; flex-direction:column; gap:4px; }
+    .fld label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+    .fld input, .fld select { font-family:var(--font); font-size:13px; padding:9px 12px; border:1px solid var(--border);
+                              border-radius:var(--r-sm); background:var(--bg); color:var(--text); }
+    .fld input:focus, .fld select:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(79,70,229,.09); }
+    .btn { font-family:var(--font); font-size:12px; font-weight:700; border:none; border-radius:var(--r-sm);
+           padding:9px 16px; cursor:pointer; }
+    .btn-primary { color:#fff; background:var(--navy); }
+    .btn-primary:hover { background:var(--navy-mid); }
+    .btn-ghost { color:var(--text-2); background:var(--bg-muted); }
+    .btn-ghost:hover { background:var(--border); }
+    .btn-danger { color:var(--accent); background:var(--accent-bg); }
+    .btn-danger:hover { background:#F8D9D0; }
+    .err { background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0;
+           border-radius:var(--r-sm); padding:10px 13px; font-size:12px; font-weight:500; margin-bottom:16px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+         color:var(--text-3); padding:8px 10px; border-bottom:1px solid var(--border); }
+    td { padding:10px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
+    .uid { font-family:var(--mono); font-weight:500; color:var(--navy); }
+    .pw-set { color:var(--green); font-weight:700; font-size:12px; }
+    .pw-unset { color:var(--quest); font-weight:700; font-size:12px; }
+    .cell-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .inline-form { display:flex; gap:6px; align-items:center; }
+    .empty { color:var(--text-3); font-size:13px; padding:18px 4px; }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <div>
+      <div class="page-header-title">参加者アカウント管理</div>
+      <div class="page-header-sub">研究者用 / ローカル運用前提</div>
+    </div>
+    <a href="/admin">← 単語管理へ</a>
+  </div>
+
+  <div class="main">
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+    <div class="card">
+      <div class="card-title">新しい参加者を登録</div>
+      <p class="ethics-note">
+        利用者IDは研究者が割り当てます（例：A01, A02）。氏名・あだ名は入れないでください。<br>
+        学年と聴覚障害の程度は調査票の内容をここで入力します。パスワードと表示名は参加者本人が初回ログイン時に設定します。
+      </p>
+      <form class="row-form" method="post" action="/admin/accounts/create" autocomplete="off">
+        <div class="fld">
+          <label for="new_user_id">利用者ID</label>
+          <input type="text" id="new_user_id" name="user_id" required
+                 inputmode="latin" autocapitalize="off" spellcheck="false" placeholder="A01">
+        </div>
+        <div class="fld">
+          <label for="new_grade">学年</label>
+          <select id="new_grade" name="grade">
+            {% for value, label in grade_labels.items() %}
+            <option value="{{ value }}" {{ 'selected' if value == 'unknown' else '' }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fld">
+          <label for="new_hearing">聴覚障害の程度</label>
+          <select id="new_hearing" name="hearing_level">
+            {% for value, label in hearing_labels.items() %}
+            <option value="{{ value }}" {{ 'selected' if value == 'unknown' else '' }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">登録</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">登録済みアカウント（{{ accounts | length }}）</div>
+      {% if not accounts %}
+      <p class="empty">まだアカウントがありません。</p>
+      {% else %}
+      <table>
+        <thead>
+          <tr>
+            <th>利用者ID</th><th>学年</th><th>聴覚障害の程度</th>
+            <th>パスワード</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in accounts %}
+          <tr>
+            <td class="uid">{{ a.user_id }}</td>
+            <td colspan="2">
+              <form class="inline-form" method="post" action="/admin/accounts/update_profile">
+                <input type="hidden" name="user_id" value="{{ a.user_id }}">
+                <select name="grade" class="fld" style="padding:7px 10px;">
+                  {% for value, label in grade_labels.items() %}
+                  <option value="{{ value }}" {{ 'selected' if value == a.profile.grade else '' }}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <select name="hearing_level" style="padding:7px 10px; font-size:13px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); color:var(--text);">
+                  {% for value, label in hearing_labels.items() %}
+                  <option value="{{ value }}" {{ 'selected' if value == a.profile.hearing_level else '' }}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-ghost">保存</button>
+              </form>
+            </td>
+            <td>
+              {% if a.password_set %}<span class="pw-set">設定済み</span>
+              {% else %}<span class="pw-unset">未設定</span>{% endif %}
+            </td>
+            <td>
+              <div class="cell-actions">
+                {% if a.password_set %}
+                <form method="post" action="/admin/accounts/clear_password"
+                      onsubmit="return confirm('{{ a.user_id }} のパスワードを未設定に戻します。次回ログインで参加者が再設定します。よろしいですか？');">
+                  <input type="hidden" name="user_id" value="{{ a.user_id }}">
+                  <button type="submit" class="btn btn-ghost">パスワード初期化</button>
+                </form>
+                {% endif %}
+                <form method="post" action="/admin/accounts/delete"
+                      onsubmit="return confirm('{{ a.user_id }} を完全に削除します。取り消せません。よろしいですか？');">
+                  <input type="hidden" name="user_id" value="{{ a.user_id }}">
+                  <button type="submit" class="btn btn-danger">削除</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
