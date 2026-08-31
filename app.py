@@ -49,6 +49,7 @@ from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
+from core import usercontext
 
 JULIUS_GATE_THRESHOLD = -3000
 
@@ -743,11 +744,17 @@ _AUTH_EXEMPT_ENDPOINTS = {"login", "first_login", "logout", "static"}
 
 @app.before_request
 def _require_login():
+    # 既定は「参加者コンテキストなし」。history/lesson は共有パスにフォールバックする。
+    usercontext.set_current_user(None)
+
     endpoint = request.endpoint or ""
     if endpoint in _AUTH_EXEMPT_ENDPOINTS or request.path.startswith("/admin"):
         return
     user_id = session.get(acc.SESSION_KEY)
     if user_id and acc.account_exists(user_id):
+        # 以降このリクエスト内の load_history()/save_record()/今日のレッスンは
+        # data/users/<user_id>/ 配下を読み書きする。
+        usercontext.set_current_user(user_id)
         return
     if user_id:
         # アカウントが削除済み（参加撤回など）→ セッションを破棄
@@ -755,6 +762,12 @@ def _require_login():
     if request.path.startswith("/api/") or request.method != "GET":
         return jsonify({"error": "ログインが必要です"}), 401
     return redirect("/login")
+
+
+@app.teardown_request
+def _clear_user_context(exc=None):
+    # スレッド再利用で次のリクエストへ ID が漏れないよう必ず消す
+    usercontext.clear()
 
 
 @app.context_processor

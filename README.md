@@ -267,14 +267,19 @@ python app.py
 data/config/words_db.json       ← 単語データベース
 data/config/words.txt           ← Julius 用単語リスト
 data/config/audio.scp           ← 音声ファイルパス一覧
-data/config/history.json        ← 練習履歴
+data/config/accounts.json       ← 参加者アカウント（利用者ID・パスワードハッシュ・学年・聴覚障害の程度）
 data/config/lip_refs.json       ← 口形お手本データ
-data/config/quest_progress.json ← クエスト進捗
-data/config/daily_lesson.json   ← 「今日のレッスン」の進捗
+data/config/daily_lesson.json   ← 「今日のレッスン」の進捗（※未ログイン運用時の共有分のみ）
+data/users/<利用者ID>/          ← 参加者ごとの練習履歴（history.json）・今日のレッスン進捗
 data/raw_audio/sound/           ← お手本音声・お手本録画・アライメント結果
 data/mfcc/                      ← MFCC バイナリ
 web/static/sample/              ← ブラウザ再生用音声
 ```
+
+> **参加者の練習記録は `data/users/<利用者ID>/` にログインユーザー単位で分離**されます
+> （倫理審査資料 §6.1）。`data/config/accounts.json` は要配慮個人情報（聴覚障害の程度）
+> とパスワードハッシュを含むため、取り扱いに注意してください。いずれも `data/` 配下なので
+> `.gitignore` により GitHub には上がりません。
 
 ---
 
@@ -1063,15 +1068,19 @@ sp-ps/
 │
 ├── data/                       # ユーザーデータ（.gitignore で data/ ごと除外）
 │   ├── config/
+│   │   ├── accounts.json       # 参加者アカウント（利用者ID・パスワードハッシュ・学年・聴覚障害の程度）
 │   │   ├── audio.scp           # Julius 用音声ファイルパス一覧
-│   │   ├── daily_lesson.json   # 「今日のレッスン」の進捗（日付キー）
+│   │   ├── daily_lesson.json   # 「今日のレッスン」の進捗（未ログイン運用時の共有分）
 │   │   ├── formant_cache.json  # お手本音声フォルマントのキャッシュ
-│   │   ├── history.json        # 練習履歴（最大500件）
+│   │   ├── history.json        # 練習履歴（未ログイン運用時の共有分・最大500件）
 │   │   ├── lip_refs.json       # 口形参照データ（schema_version: 2 形式）
-│   │   ├── quest_progress.json # クエスト進捗
 │   │   ├── word_id.txt         # 直前に選択した単語 ID（一時ファイル）
 │   │   ├── words.txt           # 表示テキスト一覧
 │   │   └── words_db.json       # 単語データベース（display/reading/accent 等）
+│   ├── users/
+│   │   └── {利用者ID}/         # ログイン参加者ごとの練習データ
+│   │       ├── history.json    # その参加者の練習履歴（最大500件）
+│   │       └── daily_lesson.json  # その参加者の「今日のレッスン」進捗
 │   ├── mfcc/
 │   │   └── {word_id}.bin       # MFCC バイナリ（36次元 float32）
 │   └── raw_audio/

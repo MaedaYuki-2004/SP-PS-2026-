@@ -23,27 +23,42 @@ from datetime import date, datetime
 from pathlib import Path
 
 from config import DATA_DIR
+from core import usercontext
 from core.history import load_history, get_spaced_repetition_candidates, get_stats
 from core.weakness import get_weak_sounds, find_words_with_kana
 
-LESSON_PATH = DATA_DIR / "config" / "daily_lesson.json"
+# 未ログイン時・CLI 用の共有パス（従来どおり）
+LEGACY_LESSON_PATH = DATA_DIR / "config" / "daily_lesson.json"
 MAX_STEPS   = 4
+
+
+def _lesson_path() -> Path:
+    """現在の参加者の daily_lesson.json パス。未ログインなら共有パス。"""
+    uid = usercontext.current_user()
+    if not uid:
+        return LEGACY_LESSON_PATH
+    seg = str(uid).strip().replace("\\", "").replace("/", "")
+    if seg in ("", ".", "..") or ".." in seg:
+        raise ValueError(f"不正な利用者IDです: {uid!r}")
+    return DATA_DIR / "users" / seg / "daily_lesson.json"
 
 
 def _load() -> dict:
     try:
-        if LESSON_PATH.exists():
-            return json.loads(LESSON_PATH.read_text(encoding="utf-8"))
+        path = _lesson_path()
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         pass
     return {}
 
 
 def _save(state: dict) -> None:
-    LESSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = LESSON_PATH.with_suffix(".tmp")
+    path = _lesson_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(LESSON_PATH)
+    tmp.replace(path)
 
 
 def _practiced_today(word_id: str) -> bool:
