@@ -245,6 +245,10 @@ def convert(md_path: Path, out_path: Path) -> None:
                 par.paragraph_format.left_indent = Cm(0.5)
                 par.paragraph_format.space_after = Pt(10)
                 par.paragraph_format.keep_together = True
+                # 直後が表なら、見出し＋注記だけがページ末に取り残されて
+                # 表だけ次ページへ送られるのを防ぐ。
+                if _next_starts_block(lines, i):
+                    par.paragraph_format.keep_with_next = True
                 is_action = "要確定" in text or "注意" in text or "最重要" in text
                 _add_runs(par, text, 9.5, color=AMBER if is_action else GRAY)
             continue
