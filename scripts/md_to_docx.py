@@ -43,7 +43,7 @@ TABLE_WIDTH_CM = 17.2
 MIN_COL_WEIGHT = 4.0
 CHAR_W_CM   = 0.32   # 9pt の全角1文字ぶんの幅
 CELL_PAD_CM = 0.42   # セル左右の余白
-MAX_NEED_CM = 3.2    # 折り返しを避けるために確保する幅の上限
+MAX_NEED_CM = 3.8    # 折り返しを避けるために確保する幅の上限
 
 
 def _set_jp_font(run, name: str) -> None:
@@ -102,6 +102,20 @@ def _keep_with_next(cell_or_par, flag: bool = True) -> None:
     pars = cell_or_par.paragraphs if hasattr(cell_or_par, "paragraphs") else [cell_or_par]
     for par in pars:
         par.paragraph_format.keep_with_next = flag
+
+
+def _tighten_cell(cell) -> None:
+    """セル内の行間と前後の余白を詰める。
+
+    既定のままだと行間が広く、説明文の多い表が縦に伸びてページを
+    またぎやすくなる。表は本文より小さい文字で組むため、行間も
+    それに合わせて詰めたほうが読みやすい。
+    """
+    for par in cell.paragraphs:
+        pf = par.paragraph_format
+        pf.line_spacing = 1.08
+        pf.space_before = Pt(0)
+        pf.space_after = Pt(0)
 
 
 def _set_col_widths(table, header: list[str], rows: list[list[str]]) -> None:
@@ -238,12 +252,14 @@ def convert(md_path: Path, out_path: Path) -> None:
                 cell = table.rows[0].cells[c]
                 cell.text = ""
                 _add_runs(cell.paragraphs[0], text, 9, bold=True, color=NAVY)
+                _tighten_cell(cell)
                 _shade(cell, "EEF1F7")
             for row in rows:
                 cells = table.add_row().cells
                 for c, text in enumerate(row[: len(header)]):
                     cells[c].text = ""
                     _add_runs(cells[c].paragraphs[0], text, 9)
+                    _tighten_cell(cells[c])
 
             # ── ページ送りの制御 ──────────────────────────────
             # 表がページをまたぐと見出し行が消えて列の意味が分からなくなるため、
@@ -252,11 +268,19 @@ def convert(md_path: Path, out_path: Path) -> None:
             _repeat_header(table.rows[0])
             for row in table.rows:
                 _no_row_split(row)
-            # 見出し行だけがページ末に取り残されないよう、常に次の行と同じ
-            # ページに置く。長い表はここで分割されるが、見出しは次ページの
-            # 先頭で繰り返されるので列の意味は失われない。
-            for cell in table.rows[0].cells:
-                _keep_with_next(cell)
+            # 表がページをまたぐときの泣き別れを防ぐ。
+            # ・見出し行は常に次の行と同じページに置く（見出しだけが残らない）
+            # ・見出し＋最初の2行をひとまとまりにする
+            # ・最後の2行をひとまとまりにする（次ページに1行だけ残らない）
+            # 分割されても見出しは次ページの先頭で繰り返されるため、
+            # 列の意味は失われない。
+            keep_rows = {0, 1}
+            if len(table.rows) >= 3:
+                keep_rows.add(len(table.rows) - 2)
+            for idx in keep_rows:
+                if idx < len(table.rows) - 1:
+                    for cell in table.rows[idx].cells:
+                        _keep_with_next(cell)
             # 小さい表だけ、途中で切らずまるごと次ページへ送る
             total_chars = sum(len(c.text) for r in table.rows for c in r.cells)
             if len(table.rows) <= SMALL_TABLE_ROWS and total_chars <= SMALL_TABLE_CHARS:
@@ -330,6 +354,8 @@ def convert(md_path: Path, out_path: Path) -> None:
                 else:
                     par = doc.add_paragraph(style="List Bullet")
                 par.paragraph_format.space_after = Pt(2)
+                # 1行だけがページをまたいで残らないようにする
+                par.paragraph_format.widow_control = True
                 _add_runs(par, text, 10)
             continue
 
