@@ -32,8 +32,18 @@ NAVY       = RGBColor(0x0E, 0x1E, 0x45)
 GRAY       = RGBColor(0x55, 0x5D, 0x6E)
 AMBER      = RGBColor(0x8A, 0x5D, 0x00)
 
-# この行数以下の表は、途中でページ分割せずまるごと次ページへ送る
-SMALL_TABLE_ROWS = 8
+# 途中でページ分割せず、まるごと次ページへ送る表の上限。
+# 行数だけで判定すると、行数は少なくても文字量が多く縦に長い表まで
+# ページ送りされ、前のページに大きな空白が残る。文字量でも判定する。
+SMALL_TABLE_ROWS = 5
+SMALL_TABLE_CHARS = 220
+
+# 表の幅（本文幅と揃える）と、狭くなりすぎる列を防ぐための下限の重み
+TABLE_WIDTH_CM = 17.2
+MIN_COL_WEIGHT = 4.0
+CHAR_W_CM   = 0.32   # 9pt の全角1文字ぶんの幅
+CELL_PAD_CM = 0.42   # セル左右の余白
+MAX_NEED_CM = 3.2    # 折り返しを避けるために確保する幅の上限
 
 
 def _set_jp_font(run, name: str) -> None:
@@ -92,6 +102,44 @@ def _keep_with_next(cell_or_par, flag: bool = True) -> None:
     pars = cell_or_par.paragraphs if hasattr(cell_or_par, "paragraphs") else [cell_or_par]
     for par in pars:
         par.paragraph_format.keep_with_next = flag
+
+
+def _set_col_widths(table, header: list[str], rows: list[list[str]]) -> None:
+    """列ごとの文字量に応じて幅を配分する。
+
+    Word の自動調整に任せると、短い語しか入らない列が広く取られ、
+    説明文の列が窮屈になって不自然な折り返しが起きる。列の中身の
+    長さから幅を決めることで、どの列も同じくらいの行数に収まるようにする。
+    """
+    n = len(header)
+    weights, needs = [], []
+    for c in range(n):
+        texts = [header[c]] + [r[c] for r in rows if c < len(r)]
+        lens = sorted(len(t) for t in texts)
+        # 1行だけ極端に長い列に引きずられないよう、中央値と最大値の折衷をとる
+        med = lens[len(lens) // 2]
+        weights.append(max(med * 0.6 + lens[-1] * 0.4, MIN_COL_WEIGHT))
+        # 「表示場所」のような短い語だけの列が折り返さずに済む幅。
+        # 説明文の列まで広げないよう上限を設ける。
+        needs.append(min(lens[-1] * CHAR_W_CM + CELL_PAD_CM, MAX_NEED_CM))
+
+    total = sum(weights)
+    widths = [max(TABLE_WIDTH_CM * w / total, nd) for w, nd in zip(weights, needs)]
+
+    # 下限を満たすために広げた分、余裕のある列から比例して削る
+    over = sum(widths) - TABLE_WIDTH_CM
+    if over > 0:
+        slack = [max(w - nd, 0) for w, nd in zip(widths, needs)]
+        if sum(slack) > 0:
+            widths = [w - over * sl / sum(slack) for w, sl in zip(widths, slack)]
+        else:
+            widths = [w * TABLE_WIDTH_CM / sum(widths) for w in widths]
+
+    table.autofit = False
+    for c, w in enumerate(widths):
+        width = Cm(w)
+        for row in table.rows:
+            row.cells[c].width = width
 
 
 def _add_runs(par, text: str, size: float, *, bold=False, color=None, mono=False) -> None:
@@ -200,11 +248,18 @@ def convert(md_path: Path, out_path: Path) -> None:
             # ── ページ送りの制御 ──────────────────────────────
             # 表がページをまたぐと見出し行が消えて列の意味が分からなくなるため、
             # 各ページの先頭で見出し行を繰り返す。行の途中での分割も禁止する。
+            _set_col_widths(table, header, rows)
             _repeat_header(table.rows[0])
             for row in table.rows:
                 _no_row_split(row)
-            # 短い表は途中で切らず、まるごと次ページへ送る
-            if len(table.rows) <= SMALL_TABLE_ROWS:
+            # 見出し行だけがページ末に取り残されないよう、常に次の行と同じ
+            # ページに置く。長い表はここで分割されるが、見出しは次ページの
+            # 先頭で繰り返されるので列の意味は失われない。
+            for cell in table.rows[0].cells:
+                _keep_with_next(cell)
+            # 小さい表だけ、途中で切らずまるごと次ページへ送る
+            total_chars = sum(len(c.text) for r in table.rows for c in r.cells)
+            if len(table.rows) <= SMALL_TABLE_ROWS and total_chars <= SMALL_TABLE_CHARS:
                 for row in table.rows[:-1]:
                     for cell in row.cells:
                         _keep_with_next(cell)
