@@ -87,7 +87,7 @@
 
 ### 2.1 名称とコンセプト
 
-**SP-PS（Speech Practice - Pronunciation Support）**
+**SP-PS**
 
 > 「声（口）のかたちを綺麗にする一歩を踏める嬉しさを届ける」
 
