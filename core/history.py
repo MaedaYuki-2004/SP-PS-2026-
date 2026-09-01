@@ -14,17 +14,40 @@ from datetime import datetime
 from pathlib import Path
 
 from config import DATA_DIR
+from core import usercontext
 
-HISTORY_PATH  = DATA_DIR / "config" / "history.json"
+# 未ログイン時・CLI スクリプト用の共有パス（従来どおり）
+LEGACY_HISTORY_PATH = DATA_DIR / "config" / "history.json"
 MAX_RECORDS   = 500
 
 
+def _safe_seg(user_id: str) -> str:
+    """user_id をディレクトリ名として安全な 1 セグメントに整える。
+
+    accounts 側で ^[A-Za-z][A-Za-z0-9_-]{0,31}$ に検証済みだが、
+    パス組み立て前の多層防御としてセパレータ等を除去する。
+    """
+    seg = str(user_id).strip().replace("\\", "").replace("/", "")
+    if seg in ("", ".", "..") or ".." in seg:
+        raise ValueError(f"不正な利用者IDです: {user_id!r}")
+    return seg
+
+
+def history_path() -> Path:
+    """現在の参加者の history.json パス。未ログインなら共有パス。"""
+    uid = usercontext.current_user()
+    if not uid:
+        return LEGACY_HISTORY_PATH
+    return DATA_DIR / "users" / _safe_seg(uid) / "history.json"
+
+
 def load_history() -> list[dict]:
-    """全履歴を返す（新しい順）。"""
-    if not HISTORY_PATH.exists():
+    """全履歴を返す（新しい順）。現在ログイン中の参加者の記録のみ。"""
+    path = history_path()
+    if not path.exists():
         return []
     try:
-        with HISTORY_PATH.open("r", encoding="utf-8") as f:
+        with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return []
@@ -339,9 +362,10 @@ def save_record(
     history.insert(0, record)
     history = history[:MAX_RECORDS]
 
-    HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = HISTORY_PATH.with_suffix(".tmp")
+    path = history_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(HISTORY_PATH)
+    tmp.replace(path)
 
     return record

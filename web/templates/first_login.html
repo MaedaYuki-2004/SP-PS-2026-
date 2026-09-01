@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>はじめの設定 — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="/static/css/base.css" rel="stylesheet">
+  <style>
+    .auth-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .auth-card { width:100%; max-width:420px; background:var(--bg-card); border:1px solid var(--border);
+                 border-radius:var(--r-lg); padding:32px 28px; box-shadow:var(--shadow); }
+    .auth-title { font-size:20px; font-weight:700; color:var(--navy); }
+    .auth-sub { font-size:12px; color:var(--text-3); margin-top:4px; margin-bottom:22px; }
+    .id-chip { display:inline-block; font-family:var(--mono); font-size:13px; font-weight:500; color:var(--navy);
+               background:var(--navy-soft); border-radius:var(--r-xs); padding:3px 10px; margin-bottom:20px; }
+    .field { display:flex; flex-direction:column; gap:5px; margin-bottom:16px; }
+    .field label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+    .field input { font-family:var(--font); font-size:14px; padding:11px 14px; border:1px solid var(--border);
+                   border-radius:var(--r-sm); background:var(--bg); color:var(--text); width:100%;
+                   transition:border-color var(--dur),box-shadow var(--dur); }
+    .field input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+    .field .hint { font-size:11px; color:var(--text-3); }
+    .btn-primary { width:100%; font-family:var(--font); font-size:14px; font-weight:700; color:#fff;
+                   background:var(--navy); border:none; border-radius:var(--r-sm); padding:12px;
+                   cursor:pointer; transition:background var(--dur); }
+    .btn-primary:hover { background:var(--navy-mid); }
+    .auth-error { background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0;
+                  border-radius:var(--r-sm); padding:10px 13px; font-size:12px; font-weight:500; margin-bottom:16px; }
+  </style>
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-title">はじめの設定</div>
+      <div class="auth-sub">ログイン用のパスワードを決めます。</div>
+      <span class="id-chip">利用者ID：{{ user_id }}</span>
+
+      {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+
+      <form method="post" action="/first_login" autocomplete="off">
+        <input type="hidden" name="user_id" value="{{ user_id }}">
+
+        <div class="field">
+          <label for="password">パスワード</label>
+          <input type="password" id="password" name="password" required minlength="6"
+                 placeholder="6文字以上">
+          <span class="hint">忘れないものにしてください。</span>
+        </div>
+        <div class="field">
+          <label for="password2">パスワード（確認）</label>
+          <input type="password" id="password2" name="password2" required minlength="6"
+                 placeholder="もう一度入力">
+        </div>
+
+        <button type="submit" class="btn-primary">設定してはじめる</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

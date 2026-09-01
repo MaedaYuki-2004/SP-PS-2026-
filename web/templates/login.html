@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="/static/css/base.css" rel="stylesheet">
+  <style>
+    .auth-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+    .auth-card { width:100%; max-width:380px; background:var(--bg-card); border:1px solid var(--border);
+                 border-radius:var(--r-lg); padding:32px 28px; box-shadow:var(--shadow); }
+    .auth-title { font-size:20px; font-weight:700; color:var(--navy); }
+    .auth-sub { font-size:12px; color:var(--text-3); margin-top:4px; margin-bottom:22px; }
+    .field { display:flex; flex-direction:column; gap:5px; margin-bottom:16px; }
+    .field label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
+    .field input { font-family:var(--font); font-size:14px; padding:11px 14px; border:1px solid var(--border);
+                   border-radius:var(--r-sm); background:var(--bg); color:var(--text); width:100%;
+                   transition:border-color var(--dur),box-shadow var(--dur); }
+    .field input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
+    .btn-primary { width:100%; font-family:var(--font); font-size:14px; font-weight:700; color:#fff;
+                   background:var(--navy); border:none; border-radius:var(--r-sm); padding:12px;
+                   cursor:pointer; transition:background var(--dur); }
+    .btn-primary:hover { background:var(--navy-mid); }
+    .auth-error { background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0;
+                  border-radius:var(--r-sm); padding:10px 13px; font-size:12px; font-weight:500; margin-bottom:16px; }
+    .auth-note { font-size:11px; color:var(--text-3); margin-top:16px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-title">SP-PS ログイン</div>
+      <div class="auth-sub">配られた利用者IDとパスワードを入力してください。</div>
+
+      {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+
+      <form method="post" action="/login" autocomplete="off">
+        <div class="field">
+          <label for="user_id">利用者ID</label>
+          <input type="text" id="user_id" name="user_id" value="{{ user_id or '' }}"
+                 required autofocus inputmode="latin" autocapitalize="off" spellcheck="false"
+                 placeholder="例：A01">
+        </div>
+        <div class="field">
+          <label for="password">パスワード</label>
+          <input type="password" id="password" name="password" placeholder="はじめての人は空欄のまま">
+        </div>
+        <button type="submit" class="btn-primary">ログイン</button>
+      </form>
+
+      <p class="auth-note">
+        はじめてログインする人は、利用者IDだけ入力して「ログイン」を押すと、
+        パスワードと表示名の設定画面に進みます。
+      </p>
+    </div>
+  </div>
+</body>
+</html>

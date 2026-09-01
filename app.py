@@ -16,6 +16,7 @@ import shutil
 import tempfile
 import traceback
 from pathlib import Path
+from urllib.parse import quote
 
 try:
     import cv2
@@ -47,6 +48,8 @@ from core.history   import save_record, load_history, get_last_score, get_stats,
 from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
+from core import accounts as acc
+from core import usercontext
 
 JULIUS_GATE_THRESHOLD = -3000
 
@@ -728,6 +731,115 @@ def not_found(e):
 def server_error(e):
     return render_template("error.html", code=500, title="サーバーエラー",
                            message="解析中に問題が発生しました。もう一度試してください。"), 500
+
+
+# ── 認証（研究参加者ログイン） ──────────────────────────────────────
+# 倫理審査資料 SP-PS §6.1：利用者 ID は研究者が割り当て、パスワードは本人が
+# 初回ログイン時に設定する。練習記録を個人ごとに分離するための土台。
+# 管理画面（/admin*）はローカル運用前提のため参加者ログインの対象外
+# （資料 §7 / README の記載どおり、別途保護が必要な場合はネットワーク側で行う）。
+
+_AUTH_EXEMPT_ENDPOINTS = {"login", "first_login", "logout", "static"}
+
+
+@app.before_request
+def _require_login():
+    # 既定は「参加者コンテキストなし」。history/lesson は共有パスにフォールバックする。
+    usercontext.set_current_user(None)
+
+    endpoint = request.endpoint or ""
+    if endpoint in _AUTH_EXEMPT_ENDPOINTS or request.path.startswith("/admin"):
+        return
+    user_id = session.get(acc.SESSION_KEY)
+    if user_id and acc.account_exists(user_id):
+        # 以降このリクエスト内の load_history()/save_record()/今日のレッスンは
+        # data/users/<user_id>/ 配下を読み書きする。
+        usercontext.set_current_user(user_id)
+        return
+    if user_id:
+        # アカウントが削除済み（参加撤回など）→ セッションを破棄
+        session.clear()
+    if request.path.startswith("/api/") or request.method != "GET":
+        return jsonify({"error": "ログインが必要です"}), 401
+    return redirect("/login")
+
+
+@app.teardown_request
+def _clear_user_context(exc=None):
+    # スレッド再利用で次のリクエストへ ID が漏れないよう必ず消す
+    usercontext.clear()
+
+
+@app.context_processor
+def _inject_current_account():
+    return {"current_user_id": session.get(acc.SESSION_KEY)}
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        if session.get(acc.SESSION_KEY):
+            return redirect("/select")
+        return render_template("login.html")
+
+    user_id  = (request.form.get("user_id") or "").strip()
+    password = request.form.get("password") or ""
+
+    # ID は存在するがパスワード未設定 → 初回ログイン（パスワード・表示名の設定）へ
+    if acc.needs_password_setup(user_id):
+        return redirect(f"/first_login?user_id={quote(user_id)}")
+
+    account = acc.verify_login(user_id, password)
+    if not account:
+        return render_template(
+            "login.html",
+            error="利用者IDまたはパスワードが正しくありません。大文字・小文字もご確認ください。",
+            user_id=user_id,
+        ), 401
+
+    session.clear()
+    session[acc.SESSION_KEY] = account["user_id"]
+    return redirect("/select")
+
+
+@app.route("/first_login", methods=["GET", "POST"])
+def first_login():
+    if request.method == "GET":
+        user_id = (request.args.get("user_id") or "").strip()
+        if not acc.needs_password_setup(user_id):
+            return redirect("/login")
+        return render_template("first_login.html", user_id=user_id)
+
+    user_id   = (request.form.get("user_id") or "").strip()
+    password  = request.form.get("password") or ""
+    password2 = request.form.get("password2") or ""
+
+    if not acc.needs_password_setup(user_id):
+        return redirect("/login")
+
+    if password != password2:
+        return render_template(
+            "first_login.html", user_id=user_id,
+            error="確認用のパスワードが一致しません。",
+        ), 400
+
+    try:
+        account = acc.complete_first_login(user_id, password)
+    except ValueError as exc:
+        return render_template(
+            "first_login.html", user_id=user_id,
+            error=str(exc),
+        ), 400
+
+    session.clear()
+    session[acc.SESSION_KEY] = account["user_id"]
+    return redirect("/select")
+
+
+@app.route("/logout", methods=["GET", "POST"])
+def logout():
+    session.clear()
+    return redirect("/login")
 
 
 # ── ルーティング ─────────────────────────────────────────────────────
@@ -1775,6 +1887,70 @@ def api_history_calendar():
 @app.route("/admin")
 def admin():
     return render_template("admin.html", words=list_words(), stats=get_stats(), all_tags=get_all_tags())
+
+
+# ── 研究参加者アカウント管理（研究者用・ローカル運用前提） ───────────
+# 倫理審査資料 §5.1#6 / §5.3：学年と聴覚障害の程度は調査票由来のため
+# 研究者がここで入力する。参加者が設定するのはパスワードと表示名のみ。
+
+def _render_admin_accounts(error: str | None = None, status: int = 200):
+    html = render_template(
+        "admin_accounts.html",
+        accounts=acc.list_accounts(),
+        grade_labels=acc.GRADE_LABELS,
+        hearing_labels=acc.HEARING_LEVEL_LABELS,
+        error=error,
+    )
+    return (html, status) if status != 200 else html
+
+
+@app.route("/admin/accounts")
+def admin_accounts():
+    return _render_admin_accounts()
+
+
+@app.route("/admin/accounts/create", methods=["POST"])
+def admin_accounts_create():
+    try:
+        acc.create_account(
+            request.form.get("user_id", ""),
+            request.form.get("grade", acc.DEFAULT_GRADE),
+            request.form.get("hearing_level", acc.DEFAULT_HEARING_LEVEL),
+        )
+    except ValueError as exc:
+        return _render_admin_accounts(error=str(exc), status=400)
+    return redirect("/admin/accounts")
+
+
+@app.route("/admin/accounts/update_profile", methods=["POST"])
+def admin_accounts_update_profile():
+    try:
+        acc.update_research_profile(
+            request.form.get("user_id", ""),
+            grade=request.form.get("grade"),
+            hearing_level=request.form.get("hearing_level"),
+        )
+    except ValueError as exc:
+        return _render_admin_accounts(error=str(exc), status=400)
+    return redirect("/admin/accounts")
+
+
+@app.route("/admin/accounts/clear_password", methods=["POST"])
+def admin_accounts_clear_password():
+    try:
+        acc.clear_password(request.form.get("user_id", ""))
+    except ValueError as exc:
+        return _render_admin_accounts(error=str(exc), status=400)
+    return redirect("/admin/accounts")
+
+
+@app.route("/admin/accounts/delete", methods=["POST"])
+def admin_accounts_delete():
+    try:
+        acc.delete_account(request.form.get("user_id", ""))
+    except ValueError as exc:
+        return _render_admin_accounts(error=str(exc), status=400)
+    return redirect("/admin/accounts")
 
 
 @app.route("/admin/add_word", methods=["POST"])

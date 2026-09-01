@@ -8,6 +8,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
+    /* ── ログイン中の利用者ID ── */
+    .nav-userid { display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:100px; font-family:var(--mono); font-size:12px; font-weight:500; color:var(--navy); background:var(--navy-soft); border:1px solid var(--border); white-space:nowrap; }
+    @media (max-width:560px) { .nav-userid { padding:5px 9px; font-size:11px; } }
+
     /* ── Hero ── */
     .hero { max-width:1200px; margin:0 auto; padding:18px 32px 0; }
     .hero-card { position:relative; overflow:hidden; border-radius:var(--r-lg); padding:30px 34px 26px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%); color:#fff; box-shadow:var(--shadow); }
@@ -344,7 +348,13 @@
     <span class="nav-brand-sub">音×映像 発音トレーニング</span>
   </a>
   <div class="nav-actions">
+    {% if current_user_id %}
+    <span class="nav-userid" title="ログイン中の利用者ID">👤 {{ current_user_id }}</span>
+    {% endif %}
     <a href="/history" class="nav-link">記録・分析</a>
+    {% if current_user_id %}
+    <a href="/logout" class="nav-link">ログアウト</a>
+    {% endif %}
     <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button>
   </div>
 </nav>
