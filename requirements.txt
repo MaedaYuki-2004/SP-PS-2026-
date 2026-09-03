@@ -8,15 +8,24 @@ praat-parselmouth
 pydub
 soundfile
 noisereduce
+# Python 3.13 で標準ライブラリから audioop が削除されたため、
+# pydub が動作するように互換モジュールを入れる（3.13 以降で必要）。
+audioop-lts; python_version >= "3.13"
 
 # 数値計算・統計
 numpy
 scipy
 fastdtw
 
+# 映像解析（口の形の検出）
+mediapipe
+opencv-python
+
 # 可視化
 matplotlib
 
 # 自然言語処理（アクセント型取得）
+# 任意。未インストールでもアプリは動作する（core/accent.py で利用可否を判定）。
+# 使う場合は導入後に `python -m unidic download` で辞書の取得が必要。
 mecab-python3
 unidic
