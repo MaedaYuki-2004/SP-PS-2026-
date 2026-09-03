@@ -18,7 +18,10 @@ scipy
 fastdtw
 
 # 映像解析（口の形の検出）
-mediapipe
+# 旧 API（mp.solutions.face_mesh）を使うため 0.10 系に固定する。
+# 0.10.30 以降および 1.x では旧 API が削除されており動作しない。
+# この制約から Python は 3.12 以下が必要（3.13 では 0.10.21 が入らない）。
+mediapipe==0.10.21
 opencv-python
 
 # 可視化
