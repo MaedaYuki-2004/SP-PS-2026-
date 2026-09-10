@@ -188,6 +188,66 @@
       .record-page { padding:0 16px 36px; }
       .word-section { padding:16px 0 14px; }
     }
+
+    /* ── 段階に応じた表示制御 ──────────────────────────────────
+       録音画面は「お手本を聴く → 録音する → 結果を見る」の3段階で使う。
+       すべてを同時に出すと、どこを見ればよいのか分からなくなるため、
+       body[data-phase] でその時に必要なものだけを見せる。 */
+
+    /* 準備中：まだ録音していないので、停止ボタンと再生プレイヤーは出さない */
+    body[data-phase="ready"] #buttonStop,
+    body[data-phase="ready"] .replay-section { display:none; }
+
+    /* 録音中：操作するのは停止ボタンだけ。他は引っ込める */
+    body[data-phase="recording"] #buttonStart,
+    body[data-phase="recording"] .vowel-link-row,
+    body[data-phase="recording"] .shortcut-hint,
+    body[data-phase="recording"] .guide-toggle,
+    body[data-phase="recording"] .post-actions,
+    body[data-phase="recording"] .lip-side { display:none; }
+
+    /* 録音中はお手本カードを薄くして、視線が録音側へ向くようにする */
+    body[data-phase="recording"] .ref-preview-card {
+      opacity:.4; pointer-events:none; transition:opacity var(--dur);
+    }
+
+    /* 録音中は波形とカラオケ表示を主役にする */
+    body[data-phase="recording"] .viz-card {
+      box-shadow:0 8px 30px rgba(192,61,32,.28);
+      outline:2px solid rgba(232,74,42,.55);
+    }
+    body[data-phase="recording"] #visualizer { height:96px; }
+
+    /* 録音後：録り直しと解析。停止ボタンは役目を終えたので隠す */
+    body[data-phase="done"] #buttonStop { display:none; }
+    body[data-phase="done"] #buttonStart { animation:none; background:var(--navy); }
+    body[data-phase="done"] .post-actions {
+      box-shadow:0 6px 24px rgba(45,106,79,.18);
+      border-radius:var(--r-lg);
+      padding:14px;
+      background:var(--bg-card);
+    }
+
+    /* 準備中・録音後の波形パネルは「マイクが生きているか」の確認だけでよい。
+       録音中と同じ大きさで置くと画面を占領し、視線が録音ボタンから逸れるため、
+       細い1行に圧縮する。 */
+    body[data-phase="ready"] .viz-card,
+    body[data-phase="done"]  .viz-card { padding:10px 14px; }
+    body[data-phase="ready"] #visualizer,
+    body[data-phase="done"]  #visualizer { height:22px; opacity:.55; }
+    body[data-phase="ready"] .rec-status,
+    body[data-phase="done"]  .rec-status { margin-top:6px; height:16px; font-size:11px; }
+    body[data-phase="ready"] .volume-wrap,
+    body[data-phase="done"]  .volume-wrap { margin-top:5px; }
+    body[data-phase="ready"] .karaoke-strip,
+    body[data-phase="done"]  .karaoke-strip { display:none; }
+
+    /* 1つだけ見せるので、ボタンは横幅いっぱいに */
+    body[data-phase="ready"] #buttonStart,
+    body[data-phase="recording"] #buttonStop,
+    body[data-phase="done"] #buttonStart { flex:1 1 100%; }
+
+    .vowel-link-row { text-align:center; margin:4px 0 8px; }
   </style>
 </head>
 <body>
@@ -326,7 +386,7 @@
 
   <!-- 母音練習リンク -->
   {% if word_id %}
-  <div style="text-align:center;margin:4px 0 8px;">
+  <div class="vowel-link-row">
     <a href="/vowel_trainer/{{ word_id }}" class="vowel-link-btn">
       <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1C3 1 1 3 1 5.5S3 10 5.5 10 10 8 10 5.5 8 1 5.5 1z" stroke="currentColor" stroke-width="1.2"/><path d="M3.5 5.5C3.5 4 4.3 3.2 5.5 3.2S7.5 4 7.5 5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
       口の形（母音）を練習する
@@ -348,7 +408,7 @@
     <div class="record-btn-row">
       <button type="button" id="buttonStart">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
-        録音開始
+        <span class="rec-btn-label">録音開始</span>
       </button>
       <button type="button" id="buttonStop" disabled>
         <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/></svg>
@@ -442,6 +502,17 @@
     if (guide)     guide.className = 'step-guide' + (state ? ' ' + state : '');
   }
 
+  // ── 画面の段階 ───────────────────────────────────────────────────
+  // ready（お手本を聴く）→ recording（録音中）→ done（結果を見る）。
+  // CSS 側の body[data-phase] と対になっていて、その段階で使わない要素を
+  // 隠す。要素が多すぎてどこを見ればよいか分からない状態を防ぐため。
+  const recBtnLabel = document.querySelector('.rec-btn-label');
+  function setPhase(phase) {
+    document.body.dataset.phase = phase;
+    if (recBtnLabel) recBtnLabel.textContent = (phase === 'done') ? 'もう一度録音' : '録音開始';
+  }
+  setPhase('ready');
+
   // カウントダウン付きガイドの場合は録音の「実開始」に同期させるため
   // ボタンクリックではなく sp:recordstart イベントで表示を切り替える
   document.addEventListener('sp:recordstart', () => {
@@ -457,6 +528,7 @@
       const s = recSeconds % 60;
       time.textContent = `${m}:${s.toString().padStart(2,'0')}`;
     }, 1000);
+    setPhase('recording');
     setGuide(2, '発音したら録音停止を押してください', 'recording');
   });
 
@@ -466,6 +538,7 @@
     recLabel.textContent = '録音完了';
     time.classList.remove('active');
     clearInterval(recTimer);
+    setPhase('done');
     setGuide(3, '解析結果を見るを押してフィードバックを確認しましょう', 'done');
   });
 
