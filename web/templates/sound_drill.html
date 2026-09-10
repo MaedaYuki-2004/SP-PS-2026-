@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -121,8 +121,8 @@
       </div>
       <div class="target-display">{{ kana }}</div>
       <div class="drill-controls">
-        <button class="drill-btn" onclick="speak('{{ kana }}')">🔊 お手本を聞く</button>
-        <button class="drill-btn primary" id="recBtn1" onclick="toggleRec(1)">🎙 録音する</button>
+        <button class="drill-btn" onclick="speak('{{ kana }}')">{{ icon('volume') }} お手本を聞く</button>
+        <button class="drill-btn primary" id="recBtn1" onclick="toggleRec(1)">{{ icon('mic') }} 録音する</button>
       </div>
       <div class="playback-row" id="playback1">
         <span class="playback-label">自分の声</span>
@@ -139,9 +139,9 @@
       <div class="drill-card-sub">音が安定してきたら、長くのばしたり連続で言ったりして口の形をキープする練習です。</div>
       <div class="target-display">{{ kana }}ー　／　{{ kana }}{{ kana }}{{ kana }}</div>
       <div class="drill-controls">
-        <button class="drill-btn" onclick="speak('{{ kana }}ー')">🔊 のばす</button>
-        <button class="drill-btn" onclick="speak('{{ kana }}、{{ kana }}、{{ kana }}')">🔊 くりかえす</button>
-        <button class="drill-btn primary" id="recBtn2" onclick="toggleRec(2)">🎙 録音する</button>
+        <button class="drill-btn" onclick="speak('{{ kana }}ー')">{{ icon('volume') }} のばす</button>
+        <button class="drill-btn" onclick="speak('{{ kana }}、{{ kana }}、{{ kana }}')">{{ icon('volume') }} くりかえす</button>
+        <button class="drill-btn primary" id="recBtn2" onclick="toggleRec(2)">{{ icon('mic') }} 録音する</button>
       </div>
       <div class="playback-row" id="playback2">
         <span class="playback-label">自分の声</span>
@@ -187,10 +187,10 @@
         <div class="drill-words-empty">「{{ kana }}」を語中・語尾に含む登録単語がありません。</div>
         {% endfor %}
       </div>
-      <button class="step-next" onclick="completeStep(4)">🎉 ドリル完了！</button>
+      <button class="step-next" onclick="completeStep(4)">{{ icon('trophy') }} ドリル完了！</button>
     </div>
     <div class="drill-complete" id="drillComplete">
-      <div class="drill-complete-icon">🏆</div>
+      <div class="drill-complete-icon">{{ icon('trophy', size=40) }}</div>
       <div class="drill-complete-title">「{{ kana }}」ドリル完了！</div>
       <div class="drill-complete-sub">よくがんばりました。数日後にもう一度このドリルをやると定着します。<br>ホームの苦手音分析でスコアの変化を確認しましょう。</div>
       <div style="margin-top:16px;"><a href="/select" class="btn btn-primary btn-lg" style="text-decoration:none;">ホームに戻る</a></div>
@@ -246,7 +246,7 @@ async function toggleRec(step) {
       audio.src = URL.createObjectURL(blob);
       document.getElementById('playback' + recStep).classList.add('show');
       btn.classList.remove('recording');
-      btn.textContent = '🎙 もう一度録音';
+      btn.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg> もう一度録音';
     };
     mediaRecorder.start();
     btn.classList.add('recording');

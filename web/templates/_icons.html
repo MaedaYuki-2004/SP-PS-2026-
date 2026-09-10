@@ -1,0 +1,97 @@
+{#
+  web/templates/_icons.html
+  画面で使うアイコンを SVG で定義したマクロ。
+
+  絵文字はフォント依存で OS ごとに見た目が変わり、色や太さも揃わないため、
+  UI のアイコンはすべてここに集約する。
+
+  使い方:
+      {% from "_icons.html" import icon %}
+      {{ icon('target') }}                     … 文字と同じ高さ・同じ色で描画
+      {{ icon('zap', size=16) }}               … 大きさを指定
+      {{ icon('flame', cls='streak-icon') }}   … クラスを付けて個別に色付け
+
+  設計:
+    - stroke に currentColor を使うため、親要素の color がそのまま反映される
+    - 既定の大きさは 1em。文字と並べたときに自然に揃う
+    - vertical-align:-0.125em で日本語のベースラインに合わせている
+    - 出力は必ず1行にする。JavaScript の文字列リテラルに埋め込むことがあり、
+      途中に改行が入ると「Invalid or unexpected token」で構文エラーになるため。
+#}
+
+{% macro icon(name, size=None, cls='') -%}
+{%- set s = size if size else '1em' -%}
+{%- set px = (s ~ 'px') if size else s -%}
+<svg class="ic {{ cls }}" width="{{ px }}" height="{{ px }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="vertical-align:-0.125em;flex:none;">
+{%- if name == 'target' -%}
+  <circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>
+{%- elif name == 'zap' -%}
+  <path d="M13 2 4.5 13.5H11l-1 8.5L18.5 10.5H12z"/>
+{%- elif name == 'mouth' -%}
+  {# 上唇は山（キューピッドの弓）、下唇は丸みで「くちびる」と分かる形にする #}
+  <path d="M2.5 12q3.2-4 6-1.8Q12 6.6 15.5 10.2q2.8-2.2 6 1.8"/>
+  <path d="M2.5 12q4 6 9.5 6t9.5-6"/>
+  <path d="M2.5 12h19"/>
+{%- elif name == 'flame' -%}
+  <path d="M12 2.5s5.5 4.3 5.5 9.4a5.5 5.5 0 0 1-11 0c0-2 .9-3.6 1.9-4.8.3 1.2 1 2 1.9 2.3C10.5 7 11 4.4 12 2.5z"/>
+{%- elif name == 'chart' -%}
+  <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+{%- elif name == 'trend' -%}
+  <path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>
+{%- elif name == 'trophy' -%}
+  <path d="M8 3h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3"/><path d="M12 12v4M9 21h6M10 21c0-2 .8-3 2-3s2 1 2 3"/>
+{%- elif name == 'sparkle' -%}
+  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>
+{%- elif name == 'mic' -%}
+  <rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>
+{%- elif name == 'video' -%}
+  <rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5l6-3.2v9.4l-6-3.2z"/>
+{%- elif name == 'camera' -%}
+  <path d="M3 8h3l1.6-2.5h8.8L18 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>
+{%- elif name == 'image' -%}
+  <rect x="2.5" y="4" width="19" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M3 17l5-4.5 4 3.5 3-2.5 6 5"/>
+{%- elif name == 'volume' -%}
+  <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/><path d="M15.5 9.5a4 4 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10"/>
+{%- elif name == 'ear' -%}
+  <path d="M7 9a5 5 0 1 1 10 0c0 2.2-1.5 3-2.6 4-1 .9-1.4 1.7-1.4 3a2.5 2.5 0 0 1-5 0"/><path d="M10 9.5a2 2 0 0 1 4 0"/>
+{%- elif name == 'calendar' -%}
+  <rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>
+{%- elif name == 'user' -%}
+  <circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c.9-4 3.9-6 7.5-6s6.6 2 7.5 6"/>
+{%- elif name == 'clipboard' -%}
+  <rect x="4.5" y="4" width="15" height="17" rx="2.5"/><path d="M9 4V2.8h6V4"/><path d="M8.5 10h7M8.5 14h7M8.5 18h4"/>
+{%- elif name == 'moon' -%}
+  <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
+{%- elif name == 'sun' -%}
+  <circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/>
+{%- elif name == 'gear' -%}
+  <circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8M18.7 18.7l-1.8-1.8M7.1 7.1L5.3 5.3"/>
+{%- elif name == 'bulb' -%}
+  <path d="M9 17.5a6 6 0 1 1 6 0v1.5H9z"/><path d="M9.5 21.5h5"/>
+{%- elif name == 'film' -%}
+  <rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M2.5 9h19M2.5 15h19M8 4.5v15M16 4.5v15"/>
+{%- elif name == 'music' -%}
+  <path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>
+{%- elif name == 'flask' -%}
+  <path d="M9.5 2.5v6L4 19a2 2 0 0 0 1.7 3h12.6A2 2 0 0 0 20 19l-5.5-10.5v-6"/><path d="M8 2.5h8M7 14h10"/>
+{%- elif name == 'check' -%}
+  <path d="M4.5 12.5l5 5 10-11"/>
+{%- elif name == 'check-circle' -%}
+  <circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.5"/>
+{%- elif name == 'x-circle' -%}
+  <circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>
+{%- elif name == 'circle' -%}
+  <circle cx="12" cy="12" r="9"/>
+{%- elif name == 'alert' -%}
+  <path d="M12 3.5L22 20H2z"/><path d="M12 9.5v4.5"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/>
+{%- elif name == 'up' -%}
+  <path d="M12 19.5v-15M5.5 11L12 4.5 18.5 11"/>
+{%- elif name == 'down' -%}
+  <path d="M12 4.5v15M5.5 13l6.5 6.5L18.5 13"/>
+{%- elif name == 'school' -%}
+  <path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M6 10v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>
+{%- else -%}
+  <circle cx="12" cy="12" r="9"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}

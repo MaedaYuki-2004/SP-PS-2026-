@@ -191,3 +191,31 @@ button:focus:not(:focus-visible) { outline:none; }
   .nav-divider { display:none; }
   .nav-link { padding:6px 10px; font-size:12px; }
 }
+
+/* ── アイコン ──────────────────────────────────────────────
+   絵文字はフォント依存で OS ごとに形も色も変わり、太さも文字と揃わない。
+   UI のアイコンは web/templates/_icons.html の SVG マクロに統一する。
+   stroke に currentColor を使うため、親の color がそのまま反映される。 */
+.ic {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  flex: none;
+  stroke-width: 1.9;
+}
+
+/* ボタン・見出しの中では、文字とのあいだに一定の間隔を空ける */
+.weak-word-btn .ic,
+.fold-summary .ic,
+.lesson-title .ic,
+.continuous-btn .ic,
+.hero-sub .ic {
+  margin-right: .35em;
+}
+
+/* 折りたたみ見出しは baseline 揃えのため、アイコンだけ中央に寄せる */
+.fold-summary .ic { align-self: center; }
+
+/* テーマ切替ボタンは文字を持たないので中央に置く */
+.theme-toggle .ic { margin: 0; vertical-align: middle; }

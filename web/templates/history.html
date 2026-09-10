@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -121,20 +121,23 @@
     ホーム
   </a>
   <div class="nav-actions">
-    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button>
+    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え"><svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
   </div>
 </nav>
 <script>
   (function() {
+    // テーマ切替アイコン（絵文字はOSごとに見た目が変わるため SVG を使う）
+    const ICON_SUN  = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>';
+    const ICON_MOON = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
     const root  = document.documentElement;
     const btn   = document.getElementById('themeToggle');
     if (!btn) return;
     const saved = localStorage.getItem('sp-ps-theme');
-    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.textContent='☀️'; }
+    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.innerHTML=ICON_SUN; }
     btn.addEventListener('click', () => {
       const isDark = root.getAttribute('data-theme') === 'dark';
-      if (isDark) { root.removeAttribute('data-theme'); btn.textContent='🌙'; localStorage.setItem('sp-ps-theme','light'); }
-      else        { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; localStorage.setItem('sp-ps-theme','dark'); }
+      if (isDark) { root.removeAttribute('data-theme'); btn.innerHTML=ICON_MOON; localStorage.setItem('sp-ps-theme','light'); }
+      else        { root.setAttribute('data-theme','dark'); btn.innerHTML=ICON_SUN; localStorage.setItem('sp-ps-theme','dark'); }
     });
   })();
 </script>
@@ -186,7 +189,7 @@
     <div class="stat-card">
       <div class="stat-card-label">連続練習日数</div>
       <div class="stat-card-value" style="color:{% if stats.streak >= 7 %}#d97706{% elif stats.streak >= 3 %}var(--green){% else %}var(--navy){% endif %};">{{ stats.streak }}</div>
-      <div class="stat-card-sub">日連続 🔥</div>
+      <div class="stat-card-sub">日連続 {{ icon('flame') }}</div>
     </div>
   </div>
 
@@ -229,7 +232,7 @@
 
   {% if word_latest %}
   <details class="fold-section" id="wordProgressFold">
-  <summary class="fold-summary">📈 単語別スコア推移（{{ word_latest|length }}単語） <span class="fold-hint">タップで開く</span></summary>
+  <summary class="fold-summary">{{ icon('trend') }} 単語別スコア推移（{{ word_latest|length }}単語） <span class="fold-hint">タップで開く</span></summary>
   <div class="fold-body">
   <div class="word-progress-grid">
     {% for wid, rec in word_latest.items() %}
@@ -336,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {% if analysis_stats.summary.total_sessions < 5 %}
 <div class="empty-state">
-  <div style="font-size:32px;margin-bottom:12px;">📊</div>
+  <div style="margin-bottom:12px;color:var(--text-3);">{{ icon('chart', size=32) }}</div>
   <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;">データが少なすぎます</div>
   <div>分析には5回以上の練習が必要です。<br>まずはいくつかの単語を練習してみてください。</div>
   <a href="/select" class="btn btn-primary" style="margin-top:20px;">練習を始める</a>
@@ -696,7 +699,7 @@ function updateWordChart() {
   }
   document.getElementById('wordChartTitle').textContent = w.display + '（' + w.accent_label + '）';
   const slope_txt = w.regression ? (w.regression.slope > 0 ? '+' : '') + w.regression.slope.toFixed(3) + ' 点/回 R²=' + w.regression.r_squared : '';
-  document.getElementById('wordChartSub').textContent = slope_txt + (w.is_plateau ? '　⚠️ 停滞中' : '');
+  document.getElementById('wordChartSub').textContent = slope_txt + (w.is_plateau ? '　⚠ 停滞中' : '');
   const datasets = [
     { label: 'スコア', data: scores, borderColor: 'rgba(42,95,150,.8)', backgroundColor: 'rgba(42,95,150,.1)', borderWidth: 2, pointRadius: 4, tension: 0.2 },
   ];

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -63,7 +63,7 @@
       <div class="field">
         <label class="field-label">音声ファイル（.wav）</label>
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileitem').click()">
-          <span class="drop-icon">🎙</span>
+          <span class="drop-icon">{{ icon('mic', size=28) }}</span>
           <p class="drop-title">ここをクリックしてファイルを選択</p>
           <p class="drop-sub">またはファイルをドラッグ＆ドロップ<br><span>16kHz / 16bit WAVファイル推奨</span></p>
           <p class="drop-file-name" id="dropFileName"></p>

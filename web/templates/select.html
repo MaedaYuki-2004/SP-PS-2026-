@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -349,26 +349,29 @@
   </a>
   <div class="nav-actions">
     {% if current_user_id %}
-    <span class="nav-userid" title="ログイン中の利用者ID">👤 {{ current_user_id }}</span>
+    <span class="nav-userid" title="ログイン中の利用者ID">{{ icon('user') }} {{ current_user_id }}</span>
     {% endif %}
     <a href="/history" class="nav-link">記録・分析</a>
     {% if current_user_id %}
     <a href="/logout" class="nav-link">ログアウト</a>
     {% endif %}
-    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え">🌙</button>
+    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え"><svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
   </div>
 </nav>
 <script>
   (function() {
+    // テーマ切替アイコン（絵文字はOSごとに見た目が変わるため SVG を使う）
+    const ICON_SUN  = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>';
+    const ICON_MOON = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
     const root  = document.documentElement;
     const btn   = document.getElementById('themeToggle');
     const saved = localStorage.getItem('sp-ps-theme');
-    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.textContent='☀️'; }
+    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.innerHTML=ICON_SUN; }
     if (!btn) return;
     btn.addEventListener('click', () => {
       const isDark = root.getAttribute('data-theme') === 'dark';
-      if (isDark) { root.removeAttribute('data-theme'); btn.textContent='🌙'; localStorage.setItem('sp-ps-theme','light'); }
-      else        { root.setAttribute('data-theme','dark'); btn.textContent='☀️'; localStorage.setItem('sp-ps-theme','dark'); }
+      if (isDark) { root.removeAttribute('data-theme'); btn.innerHTML=ICON_MOON; localStorage.setItem('sp-ps-theme','light'); }
+      else        { root.setAttribute('data-theme','dark'); btn.innerHTML=ICON_SUN; localStorage.setItem('sp-ps-theme','dark'); }
     });
   })();
 </script>
@@ -379,7 +382,7 @@
       <div class="hero-text-col">
         <p class="hero-eyebrow" id="heroDate">SP-PS 発音練習</p>
         <h1 class="hero-title" id="heroGreeting">今日も練習を始めよう</h1>
-        <p class="hero-sub">音声🎙 と 口の形👄 の両面から、あなたの発音を見える化します</p>
+        <p class="hero-sub">音声{{ icon('mic') }} と 口の形{{ icon('mouth') }} の両面から、あなたの発音を見える化します</p>
       </div>
       {% if overall %}
       <div class="hero-score">
@@ -394,16 +397,16 @@
     </div>
     <div class="hero-stats">
       {% set streak = stats.streak if stats else 0 %}
-      <div class="stat-item{% if streak >= 3 %} streak-hot{% endif %}" title="1日休んでも途切れません"><span class="stat-num">{% if streak >= 3 %}🔥{% endif %}{{ streak }}</span><span class="stat-lbl">連続日数</span></div>
+      <div class="stat-item{% if streak >= 3 %} streak-hot{% endif %}" title="1日休んでも途切れません"><span class="stat-num">{% if streak >= 3 %}{{ icon('flame') }}{% endif %}{{ streak }}</span><span class="stat-lbl">連続日数</span></div>
       <div class="stat-item"><span class="stat-num">{{ stats.total_sessions if stats else 0 }}</span><span class="stat-lbl">総練習回数</span></div>
       <div class="stat-item"><span class="stat-num">{{ words|length }}</span><span class="stat-lbl">登録単語</span></div>
     </div>
     {% if weekly %}
     <div class="hero-weekly">
-      📅 今週：<b>{{ weekly.sessions }}回</b>（{{ weekly.days }}日）練習
+      {{ icon('calendar') }} 今週：<b>{{ weekly.sessions }}回</b>（{{ weekly.days }}日）練習
       {% if weekly.avg is not none %} ・ 平均 <b>{{ weekly.avg|int }}点</b>{% endif %}
       {% if weekly.delta is not none %} ・ 先週比 <b class="{{ 'wk-up' if weekly.delta >= 0 else 'wk-down' }}">{{ '+' if weekly.delta >= 0 }}{{ weekly.delta }}点</b>{% endif %}
-      {% if weekly.improved_sound %} ・ 一番伸びた音 <b>「{{ weekly.improved_sound.kana }}」+{{ weekly.improved_sound.gain|int }}点</b> 👏{% endif %}
+      {% if weekly.improved_sound %} ・ 一番伸びた音 <b>「{{ weekly.improved_sound.kana }}」+{{ weekly.improved_sound.gain|int }}点</b> {{ icon('check-circle') }}{% endif %}
     </div>
     {% endif %}
   </div>
@@ -425,7 +428,7 @@
   <div class="lesson-card">
     <div class="lesson-head">
       <div>
-        <div class="lesson-title">📋 今日のレッスン</div>
+        <div class="lesson-title">{{ icon('clipboard') }} 今日のレッスン</div>
         <div class="lesson-sub">あなたの練習記録から自動で組みました。上から順に進めるだけでOK</div>
       </div>
       <div class="lesson-count{% if lesson.all_done %} all-done{% endif %}">{{ lesson.done_count }}<span>/{{ lesson.total }}</span></div>
@@ -435,7 +438,7 @@
       {% set next_step = (lesson.steps | rejectattr('done') | list | first) %}
       {% for s in lesson.steps %}
       <li class="lesson-step{% if s.done %} done{% elif next_step and s.word_id == next_step.word_id and s.type == next_step.type %} next{% endif %}">
-        <span class="ls-num">{% if s.done %}✓{% else %}{{ loop.index }}{% endif %}</span>
+        <span class="ls-num">{% if s.done %}{{ icon('check') }}{% else %}{{ loop.index }}{% endif %}</span>
         <span class="ls-body">
           <span class="ls-title">{{ s.title }}<b>「{{ s.display }}」</b></span>
           <span class="ls-reason">{{ s.reason }}</span>
@@ -452,7 +455,7 @@
     </ol>
 
     {% if lesson.all_done %}
-    <div class="lesson-done-msg">🎉 今日のレッスン完了！おつかれさまでした。下の単語一覧から自由練習もできます</div>
+    <div class="lesson-done-msg">{{ icon('trophy') }} 今日のレッスン完了！おつかれさまでした。下の単語一覧から自由練習もできます</div>
     {% elif next_step %}
       {% if next_step.kind == 'mouth' %}
       <a href="/vowel_trainer/{{ next_step.word_id }}" class="lesson-cta">▶ {% if lesson.done_count > 0 %}続きから{% else %}レッスンを始める{% endif %} — {{ next_step.title }}「{{ next_step.display }}」</a>
@@ -470,7 +473,7 @@
 {% if weak_sounds %}
 <div class="main-layout" style="padding-top:16px;padding-bottom:0;">
   <details class="fold-section">
-  <summary class="fold-summary">🎯 苦手な音の分析 <span class="fold-hint">タップで開く</span></summary>
+  <summary class="fold-summary">{{ icon('target') }} 苦手な音の分析 <span class="fold-hint">タップで開く</span></summary>
   <div class="weak-section" style="border:none;box-shadow:none;padding-top:12px;">
     <div class="weak-cards">
       {% for ws in weak_sounds %}
@@ -484,7 +487,7 @@
             {% if ws.worst_axis == 'accent' %}アクセント{% elif ws.worst_axis == 'length' %}長さ{% else %}口の形{% endif %}が弱め ・ {{ ws.count }}回計測
           </div>
           <div class="weak-words">
-            <a href="/sound_drill/{{ ws.kana }}" class="weak-word-btn weak-drill-btn">⚡ 集中ドリル</a>
+            <a href="/sound_drill/{{ ws.kana }}" class="weak-word-btn weak-drill-btn">{{ icon('zap') }} 集中ドリル</a>
             {% for w in ws.words %}
             <form action="/" method="post" style="display:inline;margin:0;">
               <input type="hidden" name="Words" value="{{ w.word_id }}">
@@ -492,7 +495,7 @@
             </form>
             {% endfor %}
             {% if ws.worst_axis == 'vowel' and ws.words %}
-            <a href="/vowel_trainer/{{ ws.words[0].word_id }}" class="weak-word-btn weak-mouth-btn">👄 口の形を練習</a>
+            <a href="/vowel_trainer/{{ ws.words[0].word_id }}" class="weak-word-btn weak-mouth-btn">{{ icon('mouth') }} 口の形を練習</a>
             {% endif %}
           </div>
         </div>
@@ -526,7 +529,7 @@
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           連続練習
         </button>
-        <a href="/listening_quiz" class="continuous-btn" style="text-decoration:none;">👂 聞き分けテスト</a>
+        <a href="/listening_quiz" class="continuous-btn" style="text-decoration:none;">{{ icon('ear') }} 聞き分けテスト</a>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="sort-wrap">
@@ -877,7 +880,7 @@ sortWordCards();
     <!-- Step 1: 単語情報入力（この時点ではまだ登録しない） -->
     <div id="awPane1">
       <div class="aw-title">新しい単語を追加</div>
-      <p class="aw-required-note">📹 お手本の録画とセットで登録します。テキストだけの登録はできません。</p>
+      <p class="aw-required-note">{{ icon('video') }} お手本の録画とセットで登録します。テキストだけの登録はできません。</p>
       <div class="aw-fields">
         <div class="aw-field">
           <label class="aw-label">表示テキスト</label>
@@ -907,7 +910,7 @@ sortWordCards();
         <span class="mic-vol-label">MIC</span>
         <div class="mic-vol-track"><div class="mic-vol-fill" id="awVolFill"></div></div>
       </div>
-      <div class="mic-vol-warn" id="awVolWarn">⚠ マイクの音が検出されていません。マイクの接続・選択・ミュート設定を確認してください。</div>
+      <div class="mic-vol-warn" id="awVolWarn">{{ icon('alert') }} マイクの音が検出されていません。マイクの接続・選択・ミュート設定を確認してください。</div>
       <div class="aw-status" id="awStatus2">カメラを起動しています…</div>
       <div class="aw-actions">
         <button class="aw-btn-primary" id="awRecordBtn" disabled>録画開始（3秒）</button>
@@ -917,7 +920,7 @@ sortWordCards();
 
     <!-- Step 3: 完了（連続追加） -->
     <div id="awPane3" style="display:none;text-align:center;">
-      <div class="aw-done-icon">✓</div>
+      <div class="aw-done-icon">{{ icon('check') }}</div>
       <div class="aw-title" id="awDoneTitle" style="margin-bottom:4px;">追加しました</div>
       <div class="aw-done-count" id="awDoneCount"></div>
       <div class="aw-actions" style="margin-top:18px;">
@@ -944,7 +947,7 @@ sortWordCards();
       <span class="mic-vol-label">MIC</span>
       <div class="mic-vol-track"><div class="mic-vol-fill" id="refVolFill"></div></div>
     </div>
-    <div class="mic-vol-warn" id="refVolWarn">⚠ マイクの音が検出されていません。マイクの接続・選択・ミュート設定を確認してください。</div>
+    <div class="mic-vol-warn" id="refVolWarn">{{ icon('alert') }} マイクの音が検出されていません。マイクの接続・選択・ミュート設定を確認してください。</div>
     <div class="ref-modal-status" id="refModalStatus">カメラを起動しています…</div>
     <div class="ref-modal-actions">
       <button class="ref-modal-record-btn" id="refModalRecordBtn" disabled>録画開始（3秒）</button>

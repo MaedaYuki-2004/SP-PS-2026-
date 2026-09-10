@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -203,8 +203,8 @@
         <div class="target-vowel-big" id="targetVowelBig">—</div>
         {% if has_ref_video %}
         <div class="mouth-view-tabs">
-          <button class="mouth-view-tab active" id="mouthViewIllust" onclick="setMouthView('illust')">🖼 イラスト</button>
-          <button class="mouth-view-tab" id="mouthViewVideo" onclick="setMouthView('video')">🎥 先生の実写</button>
+          <button class="mouth-view-tab active" id="mouthViewIllust" onclick="setMouthView('illust')">{{ icon('image') }} イラスト</button>
+          <button class="mouth-view-tab" id="mouthViewVideo" onclick="setMouthView('video')">{{ icon('video') }} 先生の実写</button>
         </div>
         {% endif %}
         <div class="mouth-shape-wrap">
@@ -214,7 +214,7 @@
           {% endif %}
         </div>
         <div class="guide-block" id="guideBlock">
-          <div class="guide-title">👩‍🏫 先生の口の開きと比較</div>
+          <div class="guide-title">{{ icon('school') }} 先生の口の開きと比較</div>
           <div class="guide-gauge">
             <div class="guide-band" id="guideBand"></div>
             <div class="guide-marker" id="guideMarker"></div>
@@ -231,7 +231,7 @@
   <!-- フィードバックバー -->
   <div class="feedback-bar">
     <div class="feedback-inner closed" id="feedbackInner">
-      <div class="feedback-icon-big" id="feedbackIcon">📷</div>
+      <div class="feedback-icon-big" id="feedbackIcon">{{ icon('camera', size=32) }}</div>
       <div>
         <div class="feedback-msg" id="feedbackMsg">カメラに顔を映してください</div>
         <div class="feedback-sub" id="feedbackSub">口元がはっきり見える距離・明るさに調整してください</div>
@@ -255,7 +255,7 @@
     </button>
   </div>
   <div style="text-align:center;padding-bottom:8px;">
-    <button onclick="startCalibration()" style="font-size:11px;font-weight:600;padding:5px 14px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-family:var(--font);" id="recalBtn">⚙ 口の形を再登録</button>
+    <button onclick="startCalibration()" style="font-size:11px;font-weight:600;padding:5px 14px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-family:var(--font);" id="recalBtn">{{ icon('gear') }} 口の形を再登録</button>
     <span id="calBadge" style="font-size:10px;color:var(--text-3);margin-left:8px;"></span>
   </div>
 </div>
@@ -279,7 +279,7 @@
 
 <!-- 完了画面 -->
 <div class="complete-screen" id="completeScreen">
-  <div class="complete-icon">🎉</div>
+  <div class="complete-icon">{{ icon('trophy', size=40) }}</div>
   <div class="complete-title">練習完了！</div>
   <div class="complete-sub">「{{ display }}」のすべての母音を練習しました<br>次は実際に録音して発音を確かめましょう</div>
   <div class="complete-actions">
@@ -439,15 +439,15 @@ function updateGuideMarker(m) {
   if (_emaRatio < _guideTarget * 0.72) {
     marker.className = 'guide-marker low';
     hint.className   = 'guide-hint low';
-    hint.textContent = '⬆ 先生より閉じ気味です。もう少し縦に開けましょう';
+    hint.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M12 19.5v-15M5.5 11L12 4.5 18.5 11"/></svg> 先生より閉じ気味です。もう少し縦に開けましょう';
   } else if (_emaRatio > _guideTarget * 1.35) {
     marker.className = 'guide-marker high';
     hint.className   = 'guide-hint high';
-    hint.textContent = '⬇ 先生より開きすぎです。少し閉じましょう';
+    hint.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M12 4.5v15M5.5 13l6.5 6.5L18.5 13"/></svg> 先生より開きすぎです。少し閉じましょう';
   } else {
     marker.className = 'guide-marker ok';
     hint.className   = 'guide-hint ok';
-    hint.textContent = '✓ 先生と同じ開き具合です！';
+    hint.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M4.5 12.5l5 5 10-11"/></svg> 先生と同じ開き具合です！';
   }
 }
 
@@ -545,7 +545,7 @@ function updateFeedback(detected, target) {
 
   if (!detected || detected === 'closed') {
     inner.className = 'feedback-inner closed';
-    icon.textContent = '👄';
+    icon.innerHTML = '<svg class="ic" width="32px" height="32px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M2.5 12q3.2-4 6-1.8Q12 6.6 15.5 10.2q2.8-2.2 6 1.8"/><path d="M2.5 12q4 6 9.5 6t9.5-6"/><path d="M2.5 12h19"/></svg>';
     msg.textContent  = '口を少し開けてください';
     sub.textContent  = 'カメラに顔をはっきり映してください';
     detEl.textContent = detected === 'closed' ? '（閉口）' : '—';
@@ -559,7 +559,7 @@ function updateFeedback(detected, target) {
 
   if (detected === target) {
     inner.className = 'feedback-inner match';
-    icon.textContent = '✅';
+    icon.innerHTML = '<svg class="ic" width="32px" height="32px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.5"/></svg>';
     msg.textContent  = `正解！「${target}」の形ができています！`;
     sub.textContent  = 'そのまま1.5秒キープしてください…';
     detEl.className  = 'detected-vowel match';
@@ -569,7 +569,7 @@ function updateFeedback(detected, target) {
     updateKeepBar();
   } else {
     inner.className = 'feedback-inner wrong';
-    icon.textContent = '💡';
+    icon.innerHTML = '<svg class="ic" width="32px" height="32px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M9 17.5a6 6 0 1 1 6 0v1.5H9z"/><path d="M9.5 21.5h5"/></svg>';
     const hintKey = `${detected}→${target}`;
     msg.textContent = HINT_BY_DETECTED[hintKey] || `「${target}」の口の形を作ってみましょう`;
     sub.textContent = `検出: 「${detected}」 → 目標: 「${target}」`;
@@ -614,7 +614,7 @@ function goNext() {
     document.getElementById('feedbackInner').className = 'feedback-inner closed';
     document.getElementById('feedbackMsg').textContent = '口の形を作ってください';
     document.getElementById('feedbackSub').textContent = '';
-    document.getElementById('feedbackIcon').textContent = '👄';
+    document.getElementById('feedbackIcon').innerHTML = '<svg class="ic" width="32px" height="32px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M2.5 12q3.2-4 6-1.8Q12 6.6 15.5 10.2q2.8-2.2 6 1.8"/><path d="M2.5 12q4 6 9.5 6t9.5-6"/><path d="M2.5 12h19"/></svg>';
   }
 }
 
@@ -647,7 +647,7 @@ function showComplete() {
       if (d.completed_quests && d.completed_quests.length > 0) {
         const el = document.createElement('div');
         el.style.cssText = 'margin-top:6px;padding:12px 20px;border-radius:14px;background:var(--quest-bg);border:1px solid var(--quest-border);color:var(--quest);font-size:14px;font-weight:700;';
-        el.textContent = '🏆 クエスト達成: ' + d.completed_quests.join(' / ');
+        el.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M8 3h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3"/><path d="M12 12v4M9 21h6M10 21c0-2 .8-3 2-3s2 1 2 3"/></svg> クエスト達成: ' + d.completed_quests.join(' / ');
         document.querySelector('.complete-sub')?.after(el);
       }
     })

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -71,7 +71,7 @@
 
   {% if not questions or questions|length < 3 %}
   <div class="quiz-empty">
-    👂<br>聞き分けテストにはサンプル音声つきの単語が3つ以上必要です。<br>
+    {{ icon('ear', size=28) }}<br>聞き分けテストにはサンプル音声つきの単語が3つ以上必要です。<br>
     単語のお手本録画を増やすと出題できるようになります。
     <div style="margin-top:16px;"><a href="/select" class="btn btn-ghost">ホームに戻る</a></div>
   </div>
@@ -80,7 +80,7 @@
   <!-- スタート画面 -->
   <div id="startScreen">
     <div class="quiz-hero">
-      <div class="quiz-hero-icon">👂</div>
+      <div class="quiz-hero-icon">{{ icon('ear', size=40) }}</div>
       <div class="quiz-hero-title">聞き分けテスト</div>
       <div class="quiz-hero-sub">音声を聞いて、どの単語か当てよう。<br>似ている音を聞き分ける力は発音改善の土台になります。</div>
     </div>
@@ -95,8 +95,8 @@
       <span id="qScore">0問正解</span>
     </div>
     <div class="quiz-card">
-      <div class="quiz-question-label">🔊 音声を聞いて、正しい単語を選ぼう</div>
-      <button class="play-big" id="playBtn" onclick="playCurrent()">🔊 音声を再生</button>
+      <div class="quiz-question-label">{{ icon('volume') }} 音声を聞いて、正しい単語を選ぼう</div>
+      <button class="play-big" id="playBtn" onclick="playCurrent()">{{ icon('volume') }} 音声を再生</button>
       <audio id="quizAudio" preload="auto"></audio>
       <div class="choices" id="choices"></div>
       <div class="feedback-line" id="feedback"></div>
@@ -175,7 +175,7 @@ function answer(wordId, btn) {
   if (wordId === q.answer_id) {
     score++;
     btn.classList.add('correct');
-    fb.textContent = '⭕ 正解！よく聞き分けられました';
+    fb.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.5"/></svg> 正解！よく聞き分けられました';
     fb.classList.add('ok');
   } else {
     btn.classList.add('wrong');
@@ -184,7 +184,7 @@ function answer(wordId, btn) {
     document.querySelectorAll('.choice-btn').forEach(b => {
       if (b.textContent.includes(correct.display)) b.classList.add('correct');
     });
-    fb.textContent = `❌ 正解は「${correct.display}」でした`;
+    fb.innerHTML = `<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg> 正解は「${correct.display}」でした`;
     fb.classList.add('ng');
     wrongAnswers.push(correct);
   }
@@ -208,8 +208,8 @@ function showResult() {
   document.getElementById('resultScore').innerHTML = score + '<span> / ' + QUESTIONS.length + '</span>';
   const pct = score / QUESTIONS.length;
   document.getElementById('resultMsg').textContent =
-    pct === 1 ? '🏆 全問正解！素晴らしい聞き分け力です' :
-    pct >= .7 ? '👏 よくできました！' :
+    pct === 1 ? '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M8 3h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3"/><path d="M12 12v4M9 21h6M10 21c0-2 .8-3 2-3s2 1 2 3"/></svg> 全問正解！素晴らしい聞き分け力です' :
+    pct >= .7 ? '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.5"/></svg> よくできました！' :
     pct >= .4 ? 'まずまず。間違えた単語を練習しましょう' :
     '聞き分けが難しい音があるようです。下の単語を集中的に練習しましょう';
 
@@ -223,7 +223,7 @@ function showResult() {
       const f = document.createElement('form');
       f.action = '/'; f.method = 'post'; f.style.margin = '0 0 8px';
       f.innerHTML = `<input type="hidden" name="Words" value="${c.word_id}">` +
-        `<button type="submit" class="choice-btn"><span>🎙 ${c.display}</span><small>${c.reading}</small></button>`;
+        `<button type="submit" class="choice-btn"><span><svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg> ${c.display}</span><small>${c.reading}</small></button>`;
       wl.appendChild(f);
     });
   }
