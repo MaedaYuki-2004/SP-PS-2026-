@@ -300,6 +300,29 @@
     .lip-feedback-badge.good { background:var(--green-bg); color:var(--green); }
     .lip-feedback-badge.low  { background:#FEF3C7; color:#B45309; }
     .lip-feedback-badge.high { background:var(--accent-bg); color:var(--accent); }
+
+    /* 画面下部のタブバーに操作ボタンが隠れないようにする */
+    body { padding-bottom:calc(var(--tabbar-h, 62px) + 24px + env(safe-area-inset-bottom)); }
+
+    /* 専門的な分析タブは、開いた人にだけ見せる */
+    .detail-tabs-fold { margin:0 auto 12px; max-width:1080px; padding:0 16px; }
+    .detail-tabs-fold > summary {
+      list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px;
+      padding:11px 14px; border:1px solid var(--border); border-radius:var(--r-sm);
+      background:var(--bg-card); font-size:13px; font-weight:700; color:var(--text-2);
+      white-space:nowrap;                      /* 見出しが2行に折れないようにする */
+    }
+    /* 補足は幅が足りなければ省略する。見出しの折り返しより優先度が低い */
+    .detail-tabs-fold > summary .fold-hint {
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+    }
+    @media (max-width:420px) {
+      .detail-tabs-fold > summary .fold-hint { display:none; }
+    }
+    .detail-tabs-fold > summary::-webkit-details-marker { display:none; }
+    .detail-tabs-fold > summary::after { content:'▸'; margin-left:auto; color:var(--text-3); transition:transform .2s; }
+    .detail-tabs-fold[open] > summary::after { transform:rotate(90deg); }
+    .detail-tabs-fold .tab-bar { margin-top:8px; }
   </style>
 </head>
 <body>
@@ -307,13 +330,11 @@
 <div class="results-header">
   <div>
     <div class="results-word">{{ original_filename }}</div>
-    <div class="results-sub">ネイティブ音声との比較レポート{% if score and score.accent_label %} — {{ score.accent_label }}{% endif %}</div>
+    <div class="results-sub">お手本とくらべた結果{% if score and score.accent_label and score.accent_label != '不明' %} — {{ score.accent_label }}{% endif %}</div>
   </div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-    {% if score_delta %}
-      {% if score_delta.startswith('+') %}<span class="delta-badge delta-up">{{ score_delta }}点</span>
-      {% else %}<span class="delta-badge delta-down">{{ score_delta }}点</span>{% endif %}
-    {% endif %}
+    {# 前回比はスコアカード内に表示する。ここに出すと、録音直後に最初に
+       目に入るのが減点の数字になってしまうため置かない。 #}
     <a href="/history" class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">履歴</a>
     <a href="/select"  class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">ホーム</a>
     <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え" style="border-color:rgba(255,255,255,.2);color:#fff;"><svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
@@ -336,16 +357,7 @@
   })();
 </script>
 
-<div class="tab-bar">
-  <button class="sec-tab active" onclick="showSection('score',this)">発音スコア</button>
-  <button class="sec-tab" onclick="showSection('pitch-native',this)">ネイティブ</button>
-  <button class="sec-tab" onclick="showSection('pitch-user',this)">あなたの音声</button>
-  <button class="sec-tab" onclick="showSection('pitch-compare',this)">ピッチ比較</button>
-  <button class="sec-tab" onclick="showSection('length',this)">長さ比較</button>
-  <button class="sec-tab" onclick="showSection('lips',this)">唇比較</button>
-  <button class="sec-tab" onclick="showSection('timbre',this)">音色評価</button>
-  {% if native_formants or user_formants %}<button class="sec-tab" onclick="showSection('vowel',this)">母音空間</button>{% endif %}
-</div>
+
 
 <!-- ── Score tab ── -->
 <div id="sec-score" class="section-panel active">
@@ -385,6 +397,58 @@
       </div>
     </div>
   </div>
+
+  {#
+    並び順について
+
+    以前は スコア → 音ごとのできばえ → 次はこれだけ、の順だった。
+    点数が低い回はモーラがすべて「△ ここを直そう」になり、
+    次にやることへ辿り着く前に「全部だめ」を見せる形になっていた。
+    先に「次はこれだけ直そう」を出し、そのあとに内訳を置く。
+  #}
+  {# ══════════ ③ 次はこれだけ：1つの行動 ══════════ #}
+  {% set wm = mora_scores[worst_mora.mora_index] if (worst_mora and mora_scores and worst_mora.mora_index is not none and worst_mora.mora_index < mora_scores|length) else none %}
+  {% set wm_kana = (wm.kana if wm and wm.kana else (worst_mora.label if worst_mora else '')) %}
+  {% if worst_mora and worst_mora.total is not none and worst_mora.total < 75 %}
+  <div class="next-one-card">
+    <div class="next-one-label">{{ icon('target') }} 次はこれだけ直そう</div>
+    <div class="next-one-kana">「{{ wm_kana }}」<span class="next-one-pts">{{ worst_mora.total|int }}点</span></div>
+    {% set wa = worst_mora.accent if worst_mora.accent is not none else 999 %}
+    {% set wl = worst_mora.length if worst_mora.length is not none else 999 %}
+    {% set wv = worst_mora.vowel  if worst_mora.vowel  is not none else 999 %}
+    {% if wv <= wa and wv <= wl %}
+    <div class="next-one-why">{{ icon('mouth') }} 口の形がお手本とちがいます</div>
+    <div class="next-one-how">カメラで自分の口を見ながら合わせるのが一番の近道。耳に頼らず、目で直せます。</div>
+    <div class="next-one-actions">
+      <a class="next-one-btn" href="/vowel_trainer/{{ word_id }}">{{ icon('mouth') }} カメラで口の形を練習する</a>
+    {% elif wl <= wa %}
+    <div class="next-one-why">⏱ 長さ（リズム）がお手本とちがいます</div>
+    <div class="next-one-how">グラフで「{{ wm_kana }}」の長さをお手本と見比べて、のばす／短くするを目で確認しましょう。</div>
+    <div class="next-one-actions">
+      <button class="next-one-btn" onclick="gotoTab('length')">⏱ 長さをくらべて見る</button>
+    {% else %}
+    <div class="next-one-why">{{ icon('music') }} 高さ（アクセント）がお手本とちがいます</div>
+    <div class="next-one-how">声の高さは目で見て合わせられます。グラフの山と谷の形をお手本にそろえましょう。</div>
+    <div class="next-one-actions">
+      <button class="next-one-btn" onclick="gotoTab('pitch-compare')">{{ icon('music') }} 高さの動きをくらべて見る</button>
+    {% endif %}
+      {% if wm_kana and 'ー' not in wm_kana and wm_kana not in ('ん','っ') %}
+      <a class="next-one-sub" href="/sound_drill/{{ wm_kana }}">{{ icon('zap') }} 「{{ wm_kana }}」の集中ドリルをする</a>
+      {% endif %}
+      <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="next-one-sub" style="width:100%;">{{ icon('mic') }} もう一度録音する</button></form>
+    </div>
+  </div>
+  {% else %}
+  <div class="all-good-card">
+    <div style="color:var(--accent);">{{ icon('trophy', size=30) }}</div>
+    <div style="font-size:15px;font-weight:900;color:var(--green);margin:4px 0;">すべての音がきれいに発音できています！</div>
+    <div style="font-size:12px;color:var(--text-2);margin-bottom:12px;">この単語はマスター。次の単語に進みましょう</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="btn btn-ghost">{{ icon('mic') }} もう一度</button></form>
+      <a href="/select" class="btn btn-primary" style="text-decoration:none;">次の単語へ →</a>
+    </div>
+  </div>
+  {% endif %}
 
   {# ══════════ ② モーラ信号機：どの音ができたか ══════════ #}
   {% if mora_scores %}
@@ -552,52 +616,31 @@
   {% endif %}
   {% endif %}
 
-  {# ══════════ ③ 次はこれだけ：1つの行動 ══════════ #}
-  {% set wm = mora_scores[worst_mora.mora_index] if (worst_mora and mora_scores and worst_mora.mora_index is not none and worst_mora.mora_index < mora_scores|length) else none %}
-  {% set wm_kana = (wm.kana if wm and wm.kana else (worst_mora.label if worst_mora else '')) %}
-  {% if worst_mora and worst_mora.total is not none and worst_mora.total < 75 %}
-  <div class="next-one-card">
-    <div class="next-one-label">{{ icon('target') }} 次はこれだけ直そう</div>
-    <div class="next-one-kana">「{{ wm_kana }}」<span class="next-one-pts">{{ worst_mora.total|int }}点</span></div>
-    {% set wa = worst_mora.accent if worst_mora.accent is not none else 999 %}
-    {% set wl = worst_mora.length if worst_mora.length is not none else 999 %}
-    {% set wv = worst_mora.vowel  if worst_mora.vowel  is not none else 999 %}
-    {% if wv <= wa and wv <= wl %}
-    <div class="next-one-why">{{ icon('mouth') }} 口の形がお手本とちがいます</div>
-    <div class="next-one-how">カメラで自分の口を見ながら合わせるのが一番の近道。耳に頼らず、目で直せます。</div>
-    <div class="next-one-actions">
-      <a class="next-one-btn" href="/vowel_trainer/{{ word_id }}">{{ icon('mouth') }} カメラで口の形を練習する</a>
-    {% elif wl <= wa %}
-    <div class="next-one-why">⏱ 長さ（リズム）がお手本とちがいます</div>
-    <div class="next-one-how">グラフで「{{ wm_kana }}」の長さをお手本と見比べて、のばす／短くするを目で確認しましょう。</div>
-    <div class="next-one-actions">
-      <button class="next-one-btn" onclick="gotoTab('length')">⏱ 長さをくらべて見る</button>
-    {% else %}
-    <div class="next-one-why">{{ icon('music') }} 高さ（アクセント）がお手本とちがいます</div>
-    <div class="next-one-how">声の高さは目で見て合わせられます。グラフの山と谷の形をお手本にそろえましょう。</div>
-    <div class="next-one-actions">
-      <button class="next-one-btn" onclick="gotoTab('pitch-compare')">{{ icon('music') }} 高さの動きをくらべて見る</button>
-    {% endif %}
-      {% if wm_kana and 'ー' not in wm_kana and wm_kana not in ('ん','っ') %}
-      <a class="next-one-sub" href="/sound_drill/{{ wm_kana }}">{{ icon('zap') }} 「{{ wm_kana }}」の集中ドリルをする</a>
-      {% endif %}
-      <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="next-one-sub" style="width:100%;">{{ icon('mic') }} もう一度録音する</button></form>
-    </div>
-  </div>
-  {% else %}
-  <div class="all-good-card">
-    <div style="color:var(--accent);">{{ icon('trophy', size=30) }}</div>
-    <div style="font-size:15px;font-weight:900;color:var(--green);margin:4px 0;">すべての音がきれいに発音できています！</div>
-    <div style="font-size:12px;color:var(--text-2);margin-bottom:12px;">この単語はマスター。次の単語に進みましょう</div>
-    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-      <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="btn btn-ghost">{{ icon('mic') }} もう一度</button></form>
-      <a href="/select" class="btn btn-primary" style="text-decoration:none;">次の単語へ →</a>
-    </div>
-  </div>
-  {% endif %}
-
   {# ══════════ ④ くわしい分析は折りたたみ ══════════ #}
-  <details class="fold-section" id="detailsScore">
+  {#
+  結果画面のタブ
+
+  以前は8つのタブが横一列に並び、スマホでは画面外へ見切れていた。
+  「ネイティブ」「ピッチ比較」「音色評価」「母音空間」は専門的な指標で、
+  練習している生徒がまず見るものではない。
+  そこで主画面は「発音スコア」だけにし、残りは折りたたみの中へ移した。
+  分析用の画面が必要な指導者・研究者は、そこを開けば従来どおり使える。
+#}
+<details class="detail-tabs-fold">
+  <summary>{{ icon('flask') }} くわしく分析する <span class="fold-hint">ピッチ・長さ・唇・音色の比較</span></summary>
+  <div class="tab-bar">
+    <button class="sec-tab active" onclick="showSection('score',this)">発音スコア</button>
+    <button class="sec-tab" onclick="showSection('pitch-native',this)">ネイティブ</button>
+    <button class="sec-tab" onclick="showSection('pitch-user',this)">あなたの音声</button>
+    <button class="sec-tab" onclick="showSection('pitch-compare',this)">ピッチ比較</button>
+    <button class="sec-tab" onclick="showSection('length',this)">長さ比較</button>
+    <button class="sec-tab" onclick="showSection('lips',this)">唇比較</button>
+    <button class="sec-tab" onclick="showSection('timbre',this)">音色評価</button>
+    {% if native_formants or user_formants %}<button class="sec-tab" onclick="showSection('vowel',this)">母音空間</button>{% endif %}
+  </div>
+</details>
+
+<details class="fold-section" id="detailsScore">
   <summary class="fold-summary">{{ icon('chart') }} くわしいスコアを見る <span class="fold-hint">3軸の内訳・前回との比較・アドバイス</span></summary>
   <div class="fold-body">
 
