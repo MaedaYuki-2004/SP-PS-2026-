@@ -323,6 +323,31 @@
     .detail-tabs-fold > summary::after { content:'▸'; margin-left:auto; color:var(--text-3); transition:transform .2s; }
     .detail-tabs-fold[open] > summary::after { transform:rotate(90deg); }
     .detail-tabs-fold .tab-bar { margin-top:8px; }
+
+    /* グレードは点数の言い換えなので、文字を置かず色だけで示す */
+    .result-grade-badge.grade-dot {
+      width:14px; height:14px; min-width:14px; border-radius:50%;
+      font-size:0; box-shadow:none; align-self:center;
+    }
+
+    /* 音ごとのできばえ（開いた人にだけ見せる） */
+    .mora-fold { max-width:1080px; margin:0 auto 12px; padding:0 16px; }
+    .mora-fold > summary {
+      list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px;
+      padding:11px 14px; border:1px solid var(--border); border-radius:var(--r-sm);
+      background:var(--bg-card); font-size:13px; font-weight:700; color:var(--text-2);
+      white-space:nowrap;
+    }
+    .mora-fold > summary::-webkit-details-marker { display:none; }
+    .mora-fold > summary::after { content:'▸'; margin-left:auto; color:var(--text-3); transition:transform .2s; }
+    .mora-fold[open] > summary::after { transform:rotate(90deg); }
+    .mora-fold .mora-lights { margin-top:8px; }
+
+    /* 詳細群の入口をひとまとめに見せる区切り */
+    .more-heading {
+      max-width:1080px; margin:22px auto 8px; padding:0 16px;
+      font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--text-3);
+    }
   </style>
 </head>
 <body>
@@ -381,12 +406,22 @@
   {# ══════════ ① 結果ヒーロー：3秒でわかる ══════════ #}
   {% set gcolmap = {'S':'#12B886','A':'#2BB673','B':'#4C89D9','C':'#E8963E','D':'#E85D3D'} %}
   {% set gcol = gcolmap.get(score.grade, '#9AA0B0') %}
+  {#
+    点数の見せ方
+
+    以前は「グレード（C）」「点数（43）」「前回比（-0.2点）」の3つが
+    同時に並び、どれを見ればよいのか分からなくなっていた。
+    グレードは点数の言い換えなので円は色だけにし、数字は点数ひとつに絞る。
+    前回比は、3点以上動いたときだけ添える（0.2点差を赤字で出しても
+    意味がないうえ、減点の数字が主役になってしまうため）。
+  #}
+  {% set delta_val = (score_delta|replace('+','')|float) if score_delta else 0 %}
   <div class="result-hero">
-    <div class="result-grade-badge" style="background:{{ gcol }};">{{ score.grade }}</div>
+    <div class="result-grade-badge grade-dot" style="background:{{ gcol }};"></div>
     <div>
       <div class="result-total-row">
         <span class="result-total">{{ score.total|int }}</span><span class="result-max">/100点</span>
-        {% if score_delta %}<span class="result-delta {{ 'up' if score_delta.startswith('+') else 'down' }}">前回{{ score_delta }}点</span>{% endif %}
+        {% if score_delta and (delta_val >= 3 or delta_val <= -3) %}<span class="result-delta {{ 'up' if score_delta.startswith('+') else 'down' }}">前回{{ score_delta }}点</span>{% endif %}
       </div>
       <div class="result-verdict">
         {% if score.grade == 'S' %}{{ icon('trophy') }} すばらしい！お手本にとても近い発音です
@@ -412,7 +447,7 @@
   {% if worst_mora and worst_mora.total is not none and worst_mora.total < 75 %}
   <div class="next-one-card">
     <div class="next-one-label">{{ icon('target') }} 次はこれだけ直そう</div>
-    <div class="next-one-kana">「{{ wm_kana }}」<span class="next-one-pts">{{ worst_mora.total|int }}点</span></div>
+    <div class="next-one-kana">「{{ wm_kana }}」</div>
     {% set wa = worst_mora.accent if worst_mora.accent is not none else 999 %}
     {% set wl = worst_mora.length if worst_mora.length is not none else 999 %}
     {% set wv = worst_mora.vowel  if worst_mora.vowel  is not none else 999 %}
@@ -450,10 +485,16 @@
   </div>
   {% endif %}
 
-  {# ══════════ ② モーラ信号機：どの音ができたか ══════════ #}
+  {#
+    音ごとのできばえ
+
+    主画面に出すと、点数が低い回は「△ ここを直そう」が並ぶだけで、
+    次にやることは既に上のカードで示している。見たい人だけが開く形にする。
+  #}
   {% if mora_scores %}
-  <div class="mora-lights">
-    <div class="mora-lights-title">音ごとのできばえ</div>
+  <details class="mora-fold">
+    <summary>{{ icon('chart') }} 音ごとのできばえ</summary>
+<div class="mora-lights">
     <div class="mora-lights-row">
       {% for m in mora_scores %}
       {% set t = m.total %}
@@ -469,7 +510,7 @@
       <span><span class="lg-dot" style="background:var(--quest);"></span>○ おしい</span>
       <span><span class="lg-dot" style="background:var(--accent);"></span>△ ここを直そう</span>
     </div>
-  </div>
+    </details>
   {% endif %}
 
   {# ══════════ ②' 音映像クロスチェック（試験運用・採点に非影響） ══════════ #}
@@ -626,8 +667,9 @@
   そこで主画面は「発音スコア」だけにし、残りは折りたたみの中へ移した。
   分析用の画面が必要な指導者・研究者は、そこを開けば従来どおり使える。
 #}
+<div class="more-heading">もっと見る</div>
 <details class="detail-tabs-fold">
-  <summary>{{ icon('flask') }} くわしく分析する <span class="fold-hint">ピッチ・長さ・唇・音色の比較</span></summary>
+  <summary>{{ icon('flask') }} グラフでくらべる <span class="fold-hint">ピッチ・長さ・唇・音色</span></summary>
   <div class="tab-bar">
     <button class="sec-tab active" onclick="showSection('score',this)">発音スコア</button>
     <button class="sec-tab" onclick="showSection('pitch-native',this)">ネイティブ</button>
@@ -641,7 +683,7 @@
 </details>
 
 <details class="fold-section" id="detailsScore">
-  <summary class="fold-summary">{{ icon('chart') }} くわしいスコアを見る <span class="fold-hint">3軸の内訳・前回との比較・アドバイス</span></summary>
+  <summary class="fold-summary">{{ icon('trend') }} 点数の内訳 <span class="fold-hint">アクセント・長さ・母音</span></summary>
   <div class="fold-body">
 
   <div class="score-layout">
@@ -823,7 +865,7 @@
 
   {% if suggestions or ci_info or mora_scores %}
   <details class="fold-section">
-  <summary class="fold-summary">{{ icon('flask') }} その他のデータ <span class="fold-hint">練習候補・スコアの信頼区間・モーラ別の表</span></summary>
+  <summary class="fold-summary">{{ icon('clipboard') }} そのほかのデータ <span class="fold-hint">練習候補・信頼区間・モーラ別の表</span></summary>
   <div class="fold-body">
 
 
