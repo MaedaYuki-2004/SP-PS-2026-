@@ -189,6 +189,59 @@
       .word-section { padding:16px 0 14px; }
     }
 
+    /* ── 録音ステージ（録音中の全画面表示）────────────────────── */
+    .rec-stage {
+      display:none; position:fixed; inset:0; z-index:999;
+      background:linear-gradient(165deg,#141636 0%,#0a0b1e 100%);
+      flex-direction:column; align-items:center; justify-content:center;
+      gap:26px; padding:24px; text-align:center;
+    }
+    .rec-stage.show { display:flex; }
+
+    .rec-stage-word { display:flex; flex-direction:column; gap:4px; }
+    .rec-stage-reading { font-size:14px; letter-spacing:.16em; color:rgba(255,255,255,.5); }
+    .rec-stage-display { font-size:clamp(28px,7vw,44px); font-weight:800; color:#fff; letter-spacing:.04em; }
+
+    /* 光る文字。録音中はここだけを見ればよいので、最も大きく置く */
+    .rec-stage-chips { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+    .rec-stage-chip {
+      min-width:clamp(56px,15vw,84px); padding:16px 14px; border-radius:16px;
+      font-size:clamp(28px,8vw,42px); font-weight:800; line-height:1;
+      background:rgba(255,255,255,.07); color:rgba(255,255,255,.34);
+      transition:transform .12s, background .12s, color .12s, box-shadow .12s;
+    }
+    .rec-stage-chip.now {
+      background:#e84a2a; color:#fff; transform:scale(1.14);
+      box-shadow:0 0 34px rgba(232,74,42,.6);
+    }
+    .rec-stage-chip.done { background:rgba(45,106,79,.42); color:rgba(255,255,255,.85); }
+
+    .rec-stage-hint { font-size:13px; font-weight:600; color:rgba(255,255,255,.62); }
+    .rec-stage.finished .rec-stage-hint { color:#7ee2a8; }
+
+    /* 声が届いているかの確認。小さくてよいが、無いと不安になるので残す */
+    .rec-stage-meter { display:flex; align-items:center; gap:10px; width:min(360px,86vw); }
+    .rec-stage-dot {
+      width:9px; height:9px; border-radius:50%; background:#e84a2a; flex:none;
+      animation:pulse-ready 1.4s ease infinite;
+    }
+    .rec-stage-time { font-size:12px; color:rgba(255,255,255,.6); font-variant-numeric:tabular-nums; }
+    .rec-stage-vol { flex:1; height:6px; border-radius:100px; background:rgba(255,255,255,.12); overflow:hidden; }
+    #stageVolFill { height:100%; width:0%; border-radius:100px; background:#4ade80; transition:width .08s linear; }
+
+    .rec-stage-stop {
+      width:min(360px,86vw); height:64px; border:none; border-radius:var(--r-lg);
+      background:#fff; color:#141636; font-family:var(--font);
+      font-size:16px; font-weight:800; letter-spacing:.06em; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      box-shadow:0 8px 30px rgba(0,0,0,.4);
+    }
+    .rec-stage-stop:active { transform:scale(.97); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rec-stage-chip, .rec-stage-dot { transition:none; animation:none; }
+    }
+
     /* ── 段階に応じた表示制御 ──────────────────────────────────
        録音画面は「お手本を聴く → 録音する → 結果を見る」の3段階で使う。
        すべてを同時に出すと、どこを見ればよいのか分からなくなるため、
@@ -256,6 +309,35 @@
   <div class="guide-count-num" id="guideCountNum">3</div>
   <div class="guide-count-text">まもなく録音がはじまります</div>
   <div class="guide-count-sub">画面の光る文字に合わせて発音しましょう</div>
+</div>
+
+{#
+  録音ステージ（録音中だけ出る全画面表示）
+
+  録音中は「いま、どの音を言うか」だけに集中してほしい。
+  通常の画面には、お手本・カメラ・波形・各種リンクが並んでいて、
+  録音が始まった瞬間にどこを見ればよいのか分からなくなる。
+  そこで録音中は画面を覆い、光る文字と停止ボタンだけを見せる。
+#}
+<div class="rec-stage" id="recStage" aria-hidden="true">
+  <div class="rec-stage-word">
+    <span class="rec-stage-reading">{{ test }}</span>
+    <span class="rec-stage-display">{{ display or test }}</span>
+  </div>
+
+  <div class="rec-stage-chips" id="stageChips"></div>
+  <div class="rec-stage-hint" id="stageHint">光る文字に合わせて発音してください</div>
+
+  <div class="rec-stage-meter">
+    <span class="rec-stage-dot"></span>
+    <span class="rec-stage-time" id="stageTime">0:00</span>
+    <div class="rec-stage-vol"><div id="stageVolFill"></div></div>
+  </div>
+
+  <button type="button" class="rec-stage-stop" id="stageStop">
+    <svg width="14" height="14" viewBox="0 0 11 11" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/></svg>
+    録音停止
+  </button>
 </div>
 
 <div class="loading-overlay" id="loadingOverlay">
@@ -512,6 +594,46 @@
     if (recBtnLabel) recBtnLabel.textContent = (phase === 'done') ? 'もう一度録音' : '録音開始';
   }
   setPhase('ready');
+
+  // ── 録音ステージの停止ボタン・経過時間・音量 ─────────────────────
+  // ステージは録音中だけ前面に出る全画面表示。ページ側の停止ボタンと
+  // 同じ動作をさせ、経過時間と音量もそのまま映す（別実装にすると
+  // ずれるため、既存の表示をコピーする）。
+  const stageStopBtn = document.getElementById('stageStop');
+  const stageTimeEl  = document.getElementById('stageTime');
+  const stageVolFill = document.getElementById('stageVolFill');
+  const pageVolFill  = document.getElementById('volumeFill');
+
+  if (stageStopBtn) {
+    stageStopBtn.addEventListener('click', () => {
+      const stop = document.getElementById('buttonStop');
+      if (stop && !stop.disabled) stop.click();
+    });
+  }
+
+  // 録音中だけ、経過時間と音量をステージへ反映する
+  let stageSyncId = null;
+  function startStageSync() {
+    if (stageSyncId) return;
+    const tick = () => {
+      if (stageTimeEl && time)          stageTimeEl.textContent = time.textContent;
+      if (stageVolFill && pageVolFill)  stageVolFill.style.width = pageVolFill.style.width || '0%';
+      stageSyncId = requestAnimationFrame(tick);
+    };
+    stageSyncId = requestAnimationFrame(tick);
+  }
+  function stopStageSync() {
+    if (stageSyncId) { cancelAnimationFrame(stageSyncId); stageSyncId = null; }
+  }
+  document.addEventListener('sp:recordstart', startStageSync);
+  document.addEventListener('sp:recordstop',  stopStageSync);
+
+  // Esc で録音を止められるようにする（全画面表示から抜けられない状態を防ぐ）
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const stop = document.getElementById('buttonStop');
+    if (stop && !stop.disabled) { e.preventDefault(); stop.click(); }
+  });
 
   // カウントダウン付きガイドの場合は録音の「実開始」に同期させるため
   // ボタンクリックではなく sp:recordstart イベントで表示を切り替える
@@ -1113,6 +1235,19 @@ function toggleRefVideo() {
   finishMsg.textContent = '✓ 言い終わったら「録音停止」';
   strip.appendChild(finishMsg);
 
+  // 録音ステージ（全画面）側にも同じモーラを並べる。
+  // 録音中はこちらが主役で、ページ内の小さいストリップは隠れる。
+  const stage      = document.getElementById('recStage');
+  const stageChips = document.getElementById('stageChips');
+  const stageHint  = document.getElementById('stageHint');
+  const sChips = moras.map(m => {
+    const c = document.createElement('span');
+    c.className = 'rec-stage-chip';
+    c.textContent = m.label;
+    if (stageChips) stageChips.appendChild(c);
+    return c;
+  });
+
   // main.js が録音開始前に呼ぶフック
   window._spTimingGuide = {
     shouldRun: () => enabled,
@@ -1150,9 +1285,13 @@ function toggleRefVideo() {
       m.el.classList.toggle('active', now);
       chips[i].classList.toggle('now',  now);
       chips[i].classList.toggle('done', t >= m.end);
+      sChips[i].classList.toggle('now',  now);
+      sChips[i].classList.toggle('done', t >= m.end);
     });
     if (t > lastEnd + 0.2) {
       strip.classList.add('finished');
+      if (stage) stage.classList.add('finished');
+      if (stageHint) stageHint.textContent = '言い終わったら「録音停止」を押してください';
       rafId = null;
       return;
     }
@@ -1163,8 +1302,15 @@ function toggleRefVideo() {
     if (!enabled) return;
     t0 = performance.now();
     chips.forEach(c => c.classList.remove('now', 'done'));
+    sChips.forEach(c => c.classList.remove('now', 'done'));
     strip.classList.remove('finished');
     strip.classList.add('show');
+    if (stage) {
+      stage.classList.remove('finished');
+      stage.classList.add('show');
+      stage.setAttribute('aria-hidden', 'false');
+    }
+    if (stageHint) stageHint.textContent = '光る文字に合わせて発音してください';
     if (rafId) cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(loop);
   });
@@ -1173,6 +1319,10 @@ function toggleRefVideo() {
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     strip.classList.remove('show', 'finished');
     moras.forEach(m => m.el.classList.remove('active'));
+    if (stage) {
+      stage.classList.remove('show', 'finished');
+      stage.setAttribute('aria-hidden', 'true');
+    }
   });
 })();
 </script>
