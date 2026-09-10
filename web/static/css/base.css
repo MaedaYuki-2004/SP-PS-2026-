@@ -186,10 +186,28 @@ button:focus:not(:focus-visible) { outline:none; }
 
 /* ── Mobile nav ────────────────────────────────────── */
 @media (max-width:600px) {
-  .top-nav { padding:0 16px; height:52px; }
+  .top-nav { padding:0 12px; height:52px; gap:8px; }
   .nav-brand-sub { display:none; }
   .nav-divider { display:none; }
   .nav-link { padding:6px 10px; font-size:12px; }
+
+  /* 文字が2行に折り返してヘッダーが崩れるのを防ぐ。
+     幅が足りないときは縮めるのではなく、折り返さずに詰める。 */
+  .nav-brand, .nav-brand-main, .nav-link, .nav-userid { white-space:nowrap; }
+  .nav-actions { display:flex; align-items:center; gap:6px; flex:none; }
+
+  /* 「記録・分析」は画面下部のタブバーにも同じ導線があるため、
+     スマホでは重複を外してヘッダーの幅を確保する。 */
+  .nav-link[href="/history"] { display:none; }
+
+  /* 利用者IDは確認できれば十分なので、長い場合は省略記号で切る */
+  .nav-userid { max-width:96px; overflow:hidden; text-overflow:ellipsis; }
+}
+
+/* 画面が特に狭い端末では、ログアウトの文字も省いてアイコン相当の幅にする */
+@media (max-width:380px) {
+  .nav-userid { max-width:72px; }
+  .nav-link { padding:6px 8px; font-size:11px; }
 }
 
 /* ── アイコン ──────────────────────────────────────────────

@@ -531,7 +531,13 @@
         </button>
         <a href="/listening_quiz" class="continuous-btn" style="text-decoration:none;">{{ icon('ear') }} 聞き分けテスト</a>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      {#
+        並び替え・検索・各種フィルタは、単語が増えてから必要になる道具。
+        登録が数個のうちは操作だけが並んで「何をすればよいか」が
+        埋もれるため、5語以上のときだけ折りたたみで出す。
+      #}
+      {% if words|length >= 5 %}
+      <div class="list-tools" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="sort-wrap">
           <div class="sort-dropdown" id="sortDropdown">
             <button class="sort-dropdown-btn" id="sortDropdownBtn" onclick="toggleSortMenu()" type="button">
@@ -567,7 +573,9 @@
           <input type="text" class="search-input" id="searchInput" placeholder="単語を検索..." oninput="filterWords()">
         </div>
       </div>
+      {% endif %}
     </div>
+    {% if words|length >= 5 %}
     {% if all_tags %}
     <div class="tag-filter-row" id="tagFilterRow">
       <button class="tag-chip tag-chip-all active" onclick="filterByTag(null,this)">すべて</button>
@@ -589,6 +597,7 @@
       <button class="speed-btn" data-speed="0.75" onclick="setPlaybackSpeed(0.75,this)">0.75×</button>
       <button class="speed-btn" data-speed="0.5" onclick="setPlaybackSpeed(0.5,this)">0.5×</button>
     </div>
+    {% endif %}
     <div class="word-grid" id="wordGrid">
       {% for w in words %}
       {% set pattern = accent_patterns.get(w.word_id, []) %}
@@ -664,7 +673,9 @@ let _activeAccent = '';
 let _playSpeed    = 1;
 
 function filterWords() {
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  // 検索欄は単語が5語以上のときだけ描画される
+  const searchEl = document.getElementById('searchInput');
+  const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
   let vis = 0;
   document.querySelectorAll('.word-card').forEach(c => {
     const matchText   = !q || (c.dataset.word||'').includes(q) || (c.dataset.reading||'').includes(q);
@@ -699,18 +710,19 @@ function loadSortPref() {
 }
 
 function updateSortKeyUI() {
-  document.getElementById('sortKeyLabel').textContent = SORT_KEY_LABELS[_sortKey] || '登録順';
+  const keyLabel = document.getElementById('sortKeyLabel');
+  if (keyLabel) keyLabel.textContent = SORT_KEY_LABELS[_sortKey] || '登録順';
   document.querySelectorAll('.sort-option').forEach(opt => {
     opt.classList.toggle('active', opt.dataset.key === _sortKey);
   });
 }
 
 function toggleSortMenu() {
-  document.getElementById('sortDropdown').classList.toggle('open');
+  document.getElementById('sortDropdown')?.classList.toggle('open');
 }
 
 function closeSortMenu() {
-  document.getElementById('sortDropdown').classList.remove('open');
+  document.getElementById('sortDropdown')?.classList.remove('open');
 }
 
 function selectSortKey(key, btn) {
@@ -737,6 +749,7 @@ function saveSortPref() {
 function updateSortDirUI() {
   const btn   = document.getElementById('sortDirBtn');
   const label = document.getElementById('sortDirLabel');
+  if (!btn || !label) return;          // 絞り込み非表示のときは何もしない
   const isDesc = _sortDir === 'desc';
   btn.classList.toggle('desc', isDesc);
   // 「点数順」は降順が自然な既定なので、ラベルの意味合いを表示に反映

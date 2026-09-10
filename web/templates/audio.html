@@ -185,6 +185,14 @@
       .lip-preview-container{width:110px;height:83px;}
       .lip-layout{grid-template-columns:110px 1fr;}
       #buttonStart, #buttonStop { height:58px; font-size:14px; border-radius:var(--r-lg); }
+
+      /* 録音ボタンは、スクロールしなくても押せる位置に置きたい。
+         スマホでは単語カードと動画を控えめにして、その分を確保する。 */
+      .word-section { padding:18px 16px; }
+      .ref-video-main { max-height:118px; }
+      .ref-preview-card { padding:10px 12px 8px; }
+      .vowel-link-row { margin:2px 0 6px; }
+      .step-guide { padding:8px 12px; font-size:12px; }
       .record-page { padding:0 16px 36px; }
       .word-section { padding:16px 0 14px; }
     }
@@ -301,6 +309,30 @@
     body[data-phase="done"] #buttonStart { flex:1 1 100%; }
 
     .vowel-link-row { text-align:center; margin:4px 0 8px; }
+
+    /* お手本の主役＝先生の口の動画 */
+    .ref-video-main {
+      width:100%; max-height:150px; object-fit:cover; display:block;
+      border-radius:var(--r); background:#000; margin:8px 0 6px;
+    }
+    .ref-video-play {
+      width:100%; height:40px; border-radius:var(--r-sm); cursor:pointer;
+      border:1px solid var(--border); background:var(--bg-muted); color:var(--text);
+      font-family:var(--font); font-size:13px; font-weight:700;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+      margin-bottom:8px; transition:background var(--dur);
+    }
+    .ref-video-play:hover { background:var(--bg-card); }
+
+    /* ピッチグラフは必要な人だけが開く */
+    .ref-pitch-fold { margin-top:10px; border-top:1px solid var(--border-light); padding-top:8px; }
+    .ref-pitch-fold > summary {
+      list-style:none; cursor:pointer; font-size:12px; font-weight:600;
+      color:var(--text-3); display:flex; align-items:center; gap:6px; padding:4px 0;
+    }
+    .ref-pitch-fold > summary::-webkit-details-marker { display:none; }
+    .ref-pitch-fold > summary::after { content:'▸'; margin-left:auto; transition:transform .2s; }
+    .ref-pitch-fold[open] > summary::after { transform:rotate(90deg); }
   </style>
 </head>
 <body>
@@ -428,7 +460,7 @@
       <div class="ref-preview-top">
         <span class="ref-preview-label">お手本を確認</span>
         <div style="display:flex;align-items:center;gap:6px;">
-          <div style="display:flex;gap:4px;">
+          <div class="ref-speed-chips" style="display:flex;gap:4px;">
             <button class="speed-chip active" data-speed="1" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(1,this)">1×</button>
             <button class="speed-chip" data-speed="0.75" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.75,this)">0.75×</button>
             <button class="speed-chip" data-speed="0.5" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.5,this)">0.5×</button>
@@ -440,14 +472,21 @@
         </div>
       </div>
       <audio id="refAudio" preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
-      <div class="pitch-graph-wrap">
-        <canvas id="pitchCanvas"></canvas>
-        <div id="pitchCursor"></div>
-      </div>
-      <div class="pitch-legend">
-        <div class="pitch-legend-item"><div class="pitch-legend-line ref"></div>お手本</div>
-        <div class="pitch-legend-item"><div class="pitch-legend-line user"></div>あなた（録音中）</div>
-      </div>
+
+      {#
+        聴覚障害のある生徒にとって、音の高さの折れ線より
+        「先生の口がどう動くか」のほうが直接まねできる手がかりになる。
+        そのため口の動画を常時表示の主役にし、ピッチグラフは
+        必要な人だけが開く折りたたみに移した。
+      #}
+      {% if has_ref_video %}
+      <video class="ref-video-main" id="refVideoPlayer" src="/sample_video/{{ word_id }}"
+             muted loop playsinline preload="metadata"></video>
+      <button class="ref-video-play" id="refVideoToggleBtn" type="button" onclick="toggleRefVideo()">
+        {{ icon('video') }} <span id="refVideoBtnLabel">先生の口の動きを再生</span>
+      </button>
+      {% endif %}
+
       <div class="mora-bar" id="moraBar">
         {% for m in ref_preview.moras %}
           <span class="mora-item {% if m.is_sil %}mora-sil{% endif %}"
@@ -456,12 +495,17 @@
                 style="width:{{ ((m.end - m.start) / ref_preview.duration_sec * 100)|round(2) }}%">{% if not m.is_sil %}{{ m.label }}{% endif %}</span>
         {% endfor %}
       </div>
-      {% if has_ref_video %}
-      <button class="ref-video-toggle" id="refVideoToggleBtn" type="button" onclick="toggleRefVideo()">
-        {{ icon('video') }} 先生の口の動きを見る
-      </button>
-      <video class="ref-video-player" id="refVideoPlayer" src="/sample_video/{{ word_id }}" muted loop playsinline style="display:none;"></video>
-      {% endif %}
+      <details class="ref-pitch-fold">
+        <summary>{{ icon('trend') }} 音の高さのグラフを見る</summary>
+        <div class="pitch-graph-wrap">
+          <canvas id="pitchCanvas"></canvas>
+          <div id="pitchCursor"></div>
+        </div>
+        <div class="pitch-legend">
+          <div class="pitch-legend-item"><div class="pitch-legend-line ref"></div>お手本</div>
+          <div class="pitch-legend-item"><div class="pitch-legend-line user"></div>あなた（録音中）</div>
+        </div>
+      </details>
     </div>
   </div>
   {% endif %}
@@ -707,23 +751,28 @@ function setSampleSpeed(speed, btn) {
   });
 }
 
+// 動画は常に見えている。ボタンは表示の切り替えではなく再生・一時停止を行う。
 function toggleRefVideo() {
   const video = document.getElementById('refVideoPlayer');
-  const btn   = document.getElementById('refVideoToggleBtn');
+  const label = document.getElementById('refVideoBtnLabel');
   if (!video) return;
-  const showing = video.style.display !== 'none';
-  if (showing) {
-    video.pause();
-    video.style.display = 'none';
-    btn.classList.remove('open');
-    btn.textContent = '{{ icon('video') }} 先生の口の動きを見る';
-  } else {
-    video.style.display = 'block';
+  if (video.paused) {
     video.play().catch(() => {});
-    btn.classList.add('open');
-    btn.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="M15.5 10.5l6-3.2v9.4l-6-3.2z"/></svg> 閉じる';
+    if (label) label.textContent = '一時停止';
+  } else {
+    video.pause();
+    if (label) label.textContent = '先生の口の動きを再生';
   }
 }
+
+// 繰り返し再生が終わったときにボタンの文言を戻す
+document.addEventListener('DOMContentLoaded', () => {
+  const v = document.getElementById('refVideoPlayer');
+  const label = document.getElementById('refVideoBtnLabel');
+  if (!v || !label) return;
+  v.addEventListener('pause', () => { label.textContent = '先生の口の動きを再生'; });
+  v.addEventListener('play',  () => { label.textContent = '一時停止'; });
+});
 </script>
 <script>window.CURRENT_WORD_ID = {{ word_id|tojson|safe }};</script>
 <!-- audio_recorder.js は AudioWorklet 専用（main.js が addModule で読み込む）。
