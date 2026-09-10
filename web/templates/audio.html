@@ -333,6 +333,14 @@
     .ref-pitch-fold > summary::-webkit-details-marker { display:none; }
     .ref-pitch-fold > summary::after { content:'▸'; margin-left:auto; transition:transform .2s; }
     .ref-pitch-fold[open] > summary::after { transform:rotate(90deg); }
+
+    /* リズムガイドの補足。
+       採点は各モーラの長さの「割合」で決まり、ガイドに合わせたかどうかは
+       見ていない。合わせられないと減点されると誤解させないために添える。 */
+    .rec-stage-note {
+      font-size:12px; line-height:1.7; color:rgba(255,255,255,.45);
+      margin-top:-14px;
+    }
   </style>
 </head>
 <body>
@@ -340,7 +348,7 @@
 <div class="guide-countdown" id="guideCountdown">
   <div class="guide-count-num" id="guideCountNum">3</div>
   <div class="guide-count-text">まもなく録音がはじまります</div>
-  <div class="guide-count-sub">画面の光る文字に合わせて発音しましょう</div>
+  <div class="guide-count-sub">光る文字は、お手本のリズムの目安です</div>
 </div>
 
 {#
@@ -358,7 +366,8 @@
   </div>
 
   <div class="rec-stage-chips" id="stageChips"></div>
-  <div class="rec-stage-hint" id="stageHint">光る文字に合わせて発音してください</div>
+  <div class="rec-stage-hint" id="stageHint">お手本のリズムの目安です</div>
+  <div class="rec-stage-note">ぴったり合わなくても大丈夫。<br>点数は「音の長さのバランス」で決まります</div>
 
   <div class="rec-stage-meter">
     <span class="rec-stage-dot"></span>
@@ -547,7 +556,7 @@
     </div>
     {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
     <button type="button" id="guideToggle" class="guide-toggle"
-            title="録音開始前にカウントダウンし、発音するタイミングを画面の光る文字で案内します">⏱ タイミングガイド：ON</button>
+            title="お手本のリズム（どの音を長く言うか）を光る文字で示します。合わせられなくても点数には影響しません">⏱ リズムガイド：ON</button>
     {% endif %}
   </div>
 
@@ -1261,7 +1270,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let enabled = localStorage.getItem(STORAGE_KEY) !== 'off';
   function renderToggle() {
-    toggle.textContent = '⏱ タイミングガイド：' + (enabled ? 'ON' : 'OFF');
+    toggle.textContent = '⏱ リズムガイド：' + (enabled ? 'ON' : 'OFF');
     toggle.classList.toggle('off', !enabled);
   }
   toggle.addEventListener('click', () => {
@@ -1310,7 +1319,7 @@ document.addEventListener('DOMContentLoaded', () => {
         numEl.style.animation = '';
       };
       show(n);
-      if (typeof setGuide === 'function') setGuide(2, 'まもなく録音開始 — 光る文字に合わせて発音', 'recording');
+      if (typeof setGuide === 'function') setGuide(2, 'まもなく録音開始 — 光る文字はリズムの目安です', 'recording');
       const iv = setInterval(() => {
         n--;
         if (n >= 1) { show(n); }
@@ -1359,7 +1368,7 @@ document.addEventListener('DOMContentLoaded', () => {
       stage.classList.add('show');
       stage.setAttribute('aria-hidden', 'false');
     }
-    if (stageHint) stageHint.textContent = '光る文字に合わせて発音してください';
+    if (stageHint) stageHint.textContent = 'お手本のリズムの目安です';
     if (rafId) cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(loop);
   });
