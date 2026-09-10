@@ -348,6 +348,24 @@
       max-width:1080px; margin:22px auto 8px; padding:0 16px;
       font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--text-3);
     }
+
+    /* 結果の一言（点数は「点数の内訳」に任せ、ここでは出さない） */
+    .result-verdict-solo {
+      max-width:1080px; margin:0 auto 14px; padding:14px 18px;
+      background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg);
+      font-size:15px; font-weight:700; color:var(--text);
+      display:flex; align-items:center; gap:9px;
+    }
+    @media (max-width:768px) {
+      .result-verdict-solo { margin:0 16px 12px; font-size:14px; padding:12px 14px; }
+    }
+
+    /* 折りたたみを開かなくても点数が読めるようにする */
+    .fold-score {
+      font-family:var(--mono); font-size:15px; font-weight:800; color:var(--text);
+      margin-left:2px;
+    }
+    .fold-score span { font-size:10px; font-weight:600; color:var(--text-3); margin-left:1px; }
   </style>
 </head>
 <body>
@@ -409,28 +427,17 @@
   {#
     点数の見せ方
 
-    以前は「グレード（C）」「点数（43）」「前回比（-0.2点）」の3つが
-    同時に並び、どれを見ればよいのか分からなくなっていた。
-    グレードは点数の言い換えなので円は色だけにし、数字は点数ひとつに絞る。
-    前回比は、3点以上動いたときだけ添える（0.2点差を赤字で出しても
-    意味がないうえ、減点の数字が主役になってしまうため）。
+    点数・グレード・内訳は「点数の内訳」のカードにまとまっている。
+    ここで同じ数字をもう一度出すと、画面に点数が何度も現れて
+    どれを見ればよいのか分からなくなるため、主画面では数字を出さない。
+    残すのは、結果を一言で伝える励ましの行だけ。
   #}
-  {% set delta_val = (score_delta|replace('+','')|float) if score_delta else 0 %}
-  <div class="result-hero">
-    <div class="result-grade-badge grade-dot" style="background:{{ gcol }};"></div>
-    <div>
-      <div class="result-total-row">
-        <span class="result-total">{{ score.total|int }}</span><span class="result-max">/100点</span>
-        {% if score_delta and (delta_val >= 3 or delta_val <= -3) %}<span class="result-delta {{ 'up' if score_delta.startswith('+') else 'down' }}">前回{{ score_delta }}点</span>{% endif %}
-      </div>
-      <div class="result-verdict">
-        {% if score.grade == 'S' %}{{ icon('trophy') }} すばらしい！お手本にとても近い発音です
-        {% elif score.grade == 'A' %}{{ icon('sparkle') }} とても良い発音です！
-        {% elif score.grade == 'B' %}{{ icon('check-circle') }} よくできました。あと少しで上級です
-        {% elif score.grade == 'C' %}{{ icon('trend') }} 伝わる発音になってきています
-        {% else %}{{ icon('flame') }} 1音ずつ、ゆっくり練習していきましょう{% endif %}
-      </div>
-    </div>
+  <div class="result-verdict-solo">
+    {% if score.grade == 'S' %}{{ icon('trophy') }} すばらしい！お手本にとても近い発音です
+    {% elif score.grade == 'A' %}{{ icon('sparkle') }} とても良い発音です！
+    {% elif score.grade == 'B' %}{{ icon('check-circle') }} よくできました。あと少しで上級です
+    {% elif score.grade == 'C' %}{{ icon('trend') }} 伝わる発音になってきています
+    {% else %}{{ icon('flame') }} 1音ずつ、ゆっくり練習していきましょう{% endif %}
   </div>
 
   {#
@@ -683,7 +690,10 @@
 </details>
 
 <details class="fold-section" id="detailsScore">
-  <summary class="fold-summary">{{ icon('trend') }} 点数の内訳 <span class="fold-hint">アクセント・長さ・母音</span></summary>
+  {# 開かなくても点数が分かるよう、見出しに点数を添える #}
+  <summary class="fold-summary">{{ icon('trend') }} 点数の内訳
+    <span class="fold-score">{{ score.total|int }}<span>/100点</span></span>
+    <span class="fold-hint">アクセント・長さ・母音</span></summary>
   <div class="fold-body">
 
   <div class="score-layout">
