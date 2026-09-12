@@ -391,6 +391,27 @@
     .teacher-fold-body .more-heading { display:none; }
     .teacher-fold-body .detail-tabs-fold,
     .teacher-fold-body .fold-section { padding-left:0; padding-right:0; }
+
+    /* 音ごとのできばえ（軸ベース） */
+    .mora-review { max-width:1080px; margin:0 auto 14px; padding:14px 16px;
+                   background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); }
+    .mora-review-title { font-size:12px; font-weight:700; color:var(--text-3); margin-bottom:10px; }
+    .mora-row { display:flex; align-items:center; gap:10px; padding:7px 0;
+                border-bottom:1px solid var(--border-light); }
+    .mora-row:last-of-type { border-bottom:none; }
+    .mr-kana { font-size:20px; font-weight:800; width:1.9em; text-align:center; color:var(--text); flex:none; }
+    .mr-mark { font-size:15px; font-weight:800; flex:none; width:1.2em; text-align:center; }
+    .mr-mark.ok { color:var(--green); }
+    .mr-mark.ng { color:var(--accent); }
+    .mr-msg { font-size:13.5px; color:var(--text-2); }
+    .mr-msg b { color:var(--text); font-weight:700; }
+    .mr-na { color:var(--text-3); font-size:12px; }
+    .mora-review-note { margin-top:10px; padding-top:9px; border-top:1px solid var(--border-light);
+                        font-size:11px; color:var(--text-3); }
+    @media (max-width:600px) {
+      .mora-review { margin:0 16px 12px; padding:12px 14px; }
+      .mr-msg { font-size:13px; }
+    }
   </style>
 </head>
 <body>
@@ -566,25 +587,49 @@
     次にやることは既に上のカードで示している。見たい人だけが開く形にする。
   #}
   {% if mora_scores %}
-  <details class="mora-fold">
-    <summary>{{ icon('chart') }} 音ごとのできばえ</summary>
-<div class="mora-lights">
-    <div class="mora-lights-row">
-      {% for m in mora_scores %}
-      {% set t = m.total %}
-      {% set cls = 'na' if t is none else ('ok' if t >= 75 else ('mid' if t >= 55 else 'ng')) %}
-      <div class="mora-light {{ cls }}">
-        <span class="ml-kana">{{ m.kana or m.label }}</span>
-        <span class="ml-icon">{% if cls=='ok' %}◎{% elif cls=='mid' %}○{% elif cls=='ng' %}△{% else %}−{% endif %}</span>
+  {#
+    音ごとのできばえ
+
+    以前は3軸（高さ・長さ・口の形）の平均だけで ◎○△ を付けていた。
+    平均は良い軸と悪い軸を打ち消し合うため、たとえば
+      「が」 高さ50 / 長さ93 / 口の形67 → 平均70 → △
+    のように、長さがほぼ完璧でも「直そう」としか出ず、
+    実際の録音では4音すべて △ になることが多かった。
+    できたことが数値としては存在するのに画面に出ない状態だった。
+
+    そこで軸ごとに見る。いちばん良い軸が75点以上ならそれを「できた」として
+    示し、そうでなければいちばん悪い軸を「直そう」として示す。
+    採点そのものは変えていないので、点数の意味は元のまま。
+  #}
+  {% set AXIS_NAME = {'accent': '高さ', 'length': '長さ', 'vowel': '口の形'} %}
+  <div class="mora-review">
+    <div class="mora-review-title">音ごとのできばえ</div>
+    {% for m in mora_scores %}
+      {% set axes = {} %}
+      {% if m.accent is not none %}{% set _ = axes.update({'accent': m.accent}) %}{% endif %}
+      {% if m.length is not none %}{% set _ = axes.update({'length': m.length}) %}{% endif %}
+      {% if m.vowel  is not none %}{% set _ = axes.update({'vowel':  m.vowel})  %}{% endif %}
+      <div class="mora-row">
+        <span class="mr-kana">{{ m.kana or m.label }}</span>
+        {% if not axes %}
+          <span class="mr-msg mr-na">測れませんでした</span>
+        {% else %}
+          {% set best = (axes.items()|sort(attribute='1')|last) %}
+          {% set worst = (axes.items()|sort(attribute='1')|first) %}
+          {% if best[1] >= 75 %}
+            <span class="mr-mark ok">◎</span>
+            <span class="mr-msg"><b>{{ AXIS_NAME[best[0]] }}</b>ができました</span>
+          {% else %}
+            <span class="mr-mark ng">△</span>
+            <span class="mr-msg"><b>{{ AXIS_NAME[worst[0]] }}</b>を直そう</span>
+          {% endif %}
+        {% endif %}
       </div>
-      {% endfor %}
+    {% endfor %}
+    <div class="mora-review-note">
+      高さ＝音の高低　長さ＝のばし方　口の形＝母音の形
     </div>
-    <div class="mora-lights-legend">
-      <span><span class="lg-dot" style="background:var(--green);"></span>◎ できた</span>
-      <span><span class="lg-dot" style="background:var(--quest);"></span>○ おしい</span>
-      <span><span class="lg-dot" style="background:var(--accent);"></span>△ ここを直そう</span>
-    </div>
-    </details>
+  </div>
   {% endif %}
 
   {# ══════════ ②' 音映像クロスチェック（試験運用・採点に非影響） ══════════ #}
