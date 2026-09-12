@@ -374,6 +374,23 @@
       .score-layout { margin-bottom:10px; }
       .result-verdict-solo { margin-top:0; }
     }
+
+    /* 指導者・研究者向けのまとまり。生徒向けの内容と区別が付くようにする */
+    .teacher-fold { max-width:1080px; margin:24px auto 12px; padding:0 16px; }
+    .teacher-fold > summary {
+      list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px;
+      padding:12px 14px; border:1px dashed var(--border); border-radius:var(--r-sm);
+      background:transparent; font-size:12px; font-weight:700; color:var(--text-3);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .teacher-fold > summary::-webkit-details-marker { display:none; }
+    .teacher-fold > summary::after { content:'▸'; margin-left:auto; transition:transform .2s; }
+    .teacher-fold[open] > summary::after { transform:rotate(90deg); }
+    .teacher-fold-body { padding-top:10px; }
+    /* 中の入口は控えめにして、二重に主張しないようにする */
+    .teacher-fold-body .more-heading { display:none; }
+    .teacher-fold-body .detail-tabs-fold,
+    .teacher-fold-body .fold-section { padding-left:0; padding-right:0; }
   </style>
 </head>
 <body>
@@ -724,7 +741,19 @@
   そこで主画面は「発音スコア」だけにし、残りは折りたたみの中へ移した。
   分析用の画面が必要な指導者・研究者は、そこを開けば従来どおり使える。
 #}
-<div class="more-heading">もっと見る</div>
+{#
+  ここから下は指導者・研究者向け
+
+  利用者は聴覚特別支援学校の中学部・高等部の生徒。ピッチ曲線・音色・
+  母音空間・Jitter・信頼区間といった指標は、練習の助けにならないどころか
+  「何を見ればよいのか」を分からなくする。
+  一方で研究にはすべて必要なので、消さずに1つの入口の下へまとめ、
+  生徒向けではないことが分かる見出しを付ける。
+#}
+<details class="teacher-fold">
+<summary>{{ icon('flask') }} くわしい分析 <span class="fold-hint">先生・研究用</span></summary>
+<div class="teacher-fold-body">
+
 <details class="detail-tabs-fold">
   <summary>{{ icon('flask') }} グラフでくらべる <span class="fold-hint">ピッチ・長さ・唇・音色</span></summary>
   <div class="tab-bar">
@@ -1078,6 +1107,9 @@
 
   </div>
   </details>
+
+</div>
+</details>
   {% endif %}
 </div>
 
