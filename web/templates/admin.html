@@ -56,7 +56,10 @@
     .tbl-search { padding:7px 12px 7px 28px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:12px; background:var(--bg-card); color:var(--text); width:200px; transition:border-color var(--dur),box-shadow var(--dur); }
     .tbl-search:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(14,30,69,.08); }
     .tbl-search-icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--text-3); }
-    .word-table-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-xs); }
+    /* overflow:hidden だと、狭い画面で右端の列が切り捨てられて読めない。
+       横スクロールに変え、表には最低幅を持たせる。 */
+    .word-table-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow-x:auto; -webkit-overflow-scrolling:touch; box-shadow:var(--shadow-xs); }
+    .word-table { min-width:560px; }
     .word-table { width:100%; border-collapse:collapse; font-size:12px; }
     .word-table th { text-align:left; padding:10px 16px; font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); background:var(--bg-muted); border-bottom:1px solid var(--border); }
     .word-table td { padding:12px 16px; border-bottom:1px solid var(--border-light); color:var(--text-2); vertical-align:middle; transition:background .12s; }

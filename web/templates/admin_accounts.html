@@ -36,6 +36,10 @@
     .err { background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0;
            border-radius:var(--r-sm); padding:10px 13px; font-size:12px; font-weight:500; margin-bottom:16px; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
+    /* 狭い画面でも表を読めるようにする。列を潰すと判読できなくなるため、
+       最低幅を確保したうえで横スクロールさせる。 */
+    .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .table-scroll table { min-width:520px; }
     th { text-align:left; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
          color:var(--text-3); padding:8px 10px; border-bottom:1px solid var(--border); }
     td { padding:10px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
@@ -96,6 +100,8 @@
       {% if not accounts %}
       <p class="empty">まだアカウントがありません。</p>
       {% else %}
+      {# 列が多く、スマホ幅では画面からはみ出す。横スクロールできる箱に入れる #}
+      <div class="table-scroll">
       <table>
         <thead>
           <tr>
@@ -147,6 +153,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% endif %}
     </div>
   </div>

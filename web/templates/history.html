@@ -36,6 +36,10 @@
     .sec-title-line { flex:1; height:1px; background:var(--border-light); }
 
     .word-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-bottom:32px; }
+    /* 320px 端末では、左右余白を引くと 240px を確保できず枠からあふれる */
+    @media (max-width:380px) {
+      .word-progress-grid { grid-template-columns:1fr; }
+    }
     .word-progress-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px; box-shadow:var(--shadow-xs); transition:box-shadow var(--dur),transform var(--dur); }
     .word-progress-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
     .wpc-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px; }
@@ -45,7 +49,8 @@
     .wpc-score { font-family:var(--mono); font-size:18px; font-weight:500; color:var(--text); margin-bottom:6px; }
     .wpc-score span { font-size:11px; color:var(--text-3); font-weight:400; }
     .wpc-count { font-size:10px; color:var(--text-3); margin-bottom:8px; }
-    .wpc-chart-wrap { height:60px; position:relative; }
+    .wpc-chart-wrap { height:60px; position:relative; width:100%; max-width:100%; overflow:hidden; }
+    .wpc-chart-wrap canvas { max-width:100% !important; }
     .wpc-footer { margin-top:10px; border-top:1px solid var(--border-light); padding-top:10px; }
     .wpc-practice-btn { width:100%; padding:7px 12px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:600; letter-spacing:.04em; cursor:pointer; transition:background var(--dur),transform var(--dur); }
     .wpc-practice-btn:hover { background:var(--navy-mid); }
@@ -112,6 +117,27 @@
     .empty-sub { font-size:14px; color:var(--text-3); line-height:1.7; margin-bottom:24px; }
 
     @media (max-width:800px) { .stats-row,.summary-grid { grid-template-columns:repeat(2,1fr); } .main,.a-main { padding:16px 20px; } .two-col { grid-template-columns:1fr; } .tab-bar { padding:0 16px; } }
+
+    /* グラフが画面からはみ出さないようにする。
+       Chart.js は canvas に実寸を書き込むため、親側で幅を抑えないと
+       狭い端末で右へあふれてページ全体が横スクロールしてしまう。 */
+    .chart-card { max-width:100%; overflow:hidden; }
+    .chart-wrap { width:100%; max-width:100%; }
+    .chart-wrap canvas { max-width:100% !important; height:auto !important; }
+    @media (max-width:420px) {
+      .chart-card { padding:14px 12px; }
+      .chart-wrap { height:220px; }
+    }
+
+    /* 単語ごとの推移カード（スパークライン）
+       グリッドの最小幅が 240px 固定のため、320px の端末では余白を差し引くと
+       収まらず右へあふれていた。狭い画面では最小幅の指定をやめて1列にする。
+       canvas も Chart.js が実寸を書き込むので、親側で上限を決めておく。 */
+    .wpc-chart-wrap canvas { max-width:100% !important; }
+    @media (max-width:400px) {
+      .word-progress-grid { grid-template-columns:1fr; }
+      .word-progress-card { padding:14px 12px; }
+    }
   </style>
 </head>
 <body>

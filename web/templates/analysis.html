@@ -55,6 +55,17 @@
 
     .empty-state { text-align:center; padding:48px; color:var(--text-3); font-size:13px; }
     @media(max-width:720px) { .summary-grid{grid-template-columns:repeat(2,1fr);} .two-col{grid-template-columns:1fr;} }
+
+    /* グラフが画面からはみ出さないようにする。
+       Chart.js は canvas に実寸を書き込むため、親側で幅を抑えないと
+       狭い端末で右へあふれてページ全体が横スクロールしてしまう。 */
+    .chart-card { max-width:100%; overflow:hidden; }
+    .chart-wrap { width:100%; max-width:100%; }
+    .chart-wrap canvas { max-width:100% !important; height:auto !important; }
+    @media (max-width:420px) {
+      .chart-card { padding:14px 12px; }
+      .chart-wrap { height:220px; }
+    }
   </style>
 </head>
 <body>
