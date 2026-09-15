@@ -116,6 +116,11 @@ def _has_audio(word_id: str) -> bool:
     return False
 
 
+def _has_video(word_id: str) -> bool:
+    """先生のお手本録画（口の動き）があるか。"""
+    return (RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.webm").exists()
+
+
 def _edit_distance(a: str, b: str) -> int:
     la, lb = len(a), len(b)
     dp = list(range(lb + 1))
@@ -143,8 +148,13 @@ def build_listening_quiz(words: list[dict], n: int = 20, n_choices: int = 3) -> 
         return []
 
     random.shuffle(pool)
+    # 「口の動きで当てる」は動画のある問題だけから画面側で出題するので、動画のある単語は数を絞らずに全部入れ、
+    # 残りの枠を音声だけの単語で埋める。以前は先に n 語へ絞ってから動画の有無を見ていたため、
+    # 動画のある単語が十分あっても「動画が足りない」になったり、1回の問題数が減ったりしていた。
+    with_video = [w for w in pool if _has_video(w["word_id"])]
+    targets = with_video + [w for w in pool if not _has_video(w["word_id"])][:max(0, n - len(with_video))]
     questions = []
-    for w in pool[:n]:
+    for w in targets:
         # 読みの編集距離が近い順に紛らわしい選択肢を選ぶ
         # 同じ読み・同じ表記の単語（重複登録）は問題が成立しないので除外
         others = sorted(
@@ -162,7 +172,7 @@ def build_listening_quiz(words: list[dict], n: int = 20, n_choices: int = 3) -> 
                     "reading": c.get("reading", "")}
                    for c in [w] + distractors]
         random.shuffle(choices)
-        has_video = (RAW_AUDIO_DIR / "sound" / w["word_id"] / f"{w['word_id']}.webm").exists()
+        has_video = _has_video(w["word_id"])
         questions.append({
             "audio":     f"/sample_audio/{w['word_id']}",
             "video":     f"/sample_video/{w['word_id']}" if has_video else None,

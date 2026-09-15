@@ -18,6 +18,7 @@ data/raw_audio/sound/<word_id>/ の <word_id>.wav と <word_id>.txt（ひらが�
 """
 from __future__ import annotations
 
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -60,9 +61,10 @@ def repair(word_id: str) -> bool:
             return False
 
         lab_list, mora_list, *_ = lab_load(tmp_lab)
-        tmp_lab.replace(lab_path)
+        # 一時フォルダと保存先が別のドライブ・ファイルシステムでも動くよう、移動ではなくコピーする
+        shutil.copyfile(tmp_lab, lab_path)
         if tmp_log.exists():
-            tmp_log.replace(log_path)
+            shutil.copyfile(tmp_log, log_path)
 
     print(f"  [OK] {len(lab_list)} 音素 / {len(mora_list)} モーラ: {' '.join(str(m[2]) for m in mora_list)}")
     print("  ※ お手本の口形データ（lip_refs.json の mora_data）は作り直していません。"

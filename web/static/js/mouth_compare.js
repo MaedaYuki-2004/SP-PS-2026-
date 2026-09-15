@@ -6,7 +6,9 @@
  * ・SPLipStore
  *     自分の口の動画は解析のためにサーバーへ送るが、解析が終わるとサーバーからは消える。
  *     結果画面でも見返せるよう、直前の1本だけをこの端末のブラウザ（IndexedDB）に置いておく。
- *     次の録音で上書きし、古いもの（2時間以上前）は使わない。ほかの人の端末には残らない。
+ *     録音を始めた時点で消し（clear）、その録音で撮れたときだけ保存する。古いもの（2時間以上前）は使わない。
+ *     消さずにおくと、口の動画を撮れなかった録音（カメラが使えない等）の結果画面に、
+ *     前の録音（共有の端末ならほかの生徒）の動画が「あなた」として出てしまうため。
  * ・SPMouthCompare.mount(el, { refSrc, userSrc })
  *     el の中に「お手本｜あなた」の2つの動画と、ならべて再生・速さ切り替えを作る。
  */
@@ -47,6 +49,16 @@
           req.onerror = function () { resolve(null); };
         });
       }).catch(function () { return null; });
+    },
+    clear: function () {
+      return openDb().then(function (db) {
+        return new Promise(function (resolve) {
+          var tx = db.transaction(STORE, 'readwrite');
+          tx.objectStore(STORE).delete('last');
+          tx.oncomplete = function () { resolve(true); };
+          tx.onerror = function () { resolve(false); };
+        });
+      }).catch(function () { return false; });
     }
   };
 

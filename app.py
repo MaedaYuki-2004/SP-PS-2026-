@@ -902,12 +902,31 @@ def _safe_next(target: str | None, default: str = "/admin") -> str:
     return default
 
 
+_LOOPBACK_ADDRS = {"127.0.0.1", "::1"}
+
+
+def _client_key() -> str:
+    """先生用パスワードの総当たり対策で、続けて間違えた回数を数える接続元。
+
+    ngrok のように同じ PC で動く中継を通ると、どの端末からの接続も 127.0.0.1 に見える。
+    そのまま数えると、生徒が5回間違えるだけで先生もしばらく入れなくなってしまう。
+    接続元が同じ PC（ループバック）のときだけ、中継が X-Forwarded-For の末尾に付けた
+    接続元を使う。PC に直接つないだ端末はこのヘッダーを自由に書けるので、それ以外では信用しない。
+    """
+    remote = request.remote_addr or "unknown"
+    if remote in _LOOPBACK_ADDRS:
+        forwarded = (request.headers.get("X-Forwarded-For") or "").split(",")[-1].strip()
+        if forwarded:
+            return forwarded
+    return remote
+
+
 def _teacher_try_unlock(password: str) -> tuple[bool, str | None, int]:
     """先生用パスワードを確かめる。(成功したか, エラー文, HTTP ステータス)"""
     if not teacher.is_configured():
         return False, ("先生用パスワードがまだ設定されていません。サーバーのPCで "
                        "python scripts/set_teacher_password.py を実行してください。"), 503
-    key = request.remote_addr or "unknown"
+    key = _client_key()
     wait = teacher.seconds_locked(key)
     if wait:
         return False, f"続けて間違えたため、{wait}秒待ってからもう一度入力してください。", 429
@@ -1212,7 +1231,9 @@ def upload_file():
 @app.route("/audio", methods=["GET", "POST"])
 def record_audio():
     if request.method == "GET":
-        return render_template("audio.html")
+        # 録音ページは単語の情報（読み・お手本など）が無いと表示できない。以前は単語を選ばずに
+        # 開くとテンプレートが word_id を JSON にできず 500 になっていたので、ホームへ戻す
+        return redirect("/select")
     try:
         file = request.files["file"]
         file.save(str(TEST_WAV_PATH))
@@ -1239,6 +1260,20 @@ def upload_lip_video():
         if not file:
             return jsonify({"error": "動画ファイルが送信されていません。"}), 400
 
+        # お手本を保存する単語。画面が表示中の単語 ID を送る（word_id）。
+        # 以前は共有ファイル word_id.txt だけを見ていたため、別の端末が単語を選ぶと別の単語に保存され、
+        # 削除済みの単語を指していると、その単語のフォルダと口形データを作り直してしまっていた。
+        current_word_id = None
+        if mode == "ref":
+            current_word_id = (request.form.get("word_id") or "").strip()
+            if not current_word_id:
+                try:
+                    current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
+                except OSError:
+                    current_word_id = ""
+            if not current_word_id or get_word(current_word_id) is None:
+                return jsonify({"error": "お手本を登録する単語が見つかりません。ホームから単語を選び直してください。"}), 404
+
         lip_video_paths = session.get("lip_video_paths", {})
         old_path = lip_video_paths.get(mode)
         if old_path and os.path.exists(old_path):
@@ -1255,11 +1290,6 @@ def upload_lip_video():
         if mode == 'ref' and MEDIA_PIPE_AVAILABLE:
             try:
                 reference_vectors, reference_ratios, reference_times = _extract_lip_data_timed(new_path)
-
-                try:
-                    current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
-                except Exception:
-                    current_word_id = None
 
                 if current_word_id:
                     _persist_ref_video(current_word_id, new_path)
@@ -1580,6 +1610,9 @@ def audio_analysis():
         lip_paths = session.get("lip_video_paths", {})
         ref_video = lip_paths.get("ref")
         test_video = lip_paths.get("test")
+        # 今回の録音で口の動画が届いたか。結果画面は、これが無いときに端末に残った
+        # 前の動画を「あなた」として出さないよう、この値を見る（下の一時ファイル削除より前に調べる）
+        user_lip_recorded = bool(test_video and os.path.exists(test_video))
         reference_vectors = None
         ref_lip_times     = None   # 音映像同期分析用（Noneなら30fps仮定）
         test_lip_times    = None
@@ -1734,6 +1767,7 @@ def audio_analysis():
             prev_score=prev_score,
             lip_mora_analysis=lip_mora_analysis,
             has_ref_video=has_sample_video(word_id),
+            user_lip_recorded=user_lip_recorded,
         )
 
         words_list = list_words()
@@ -1878,10 +1912,12 @@ def audio_analysis():
             _past.reverse()                                   # 古い順にする
             _now  = float(score_result["total"])
             _all  = _past + [_now]
+            # 表示は点数の輪（score.total|int）と同じく小数を切り捨てる。以前は四捨五入していたため、
+            # 自己ベストが 89.5〜89.9 点で「90点以上をとりました／マスター」と出ていた
             word_progress = {
-                "scores":  [int(round(v)) for v in _all[-10:]],   # 最近10回（今回を含む）
+                "scores":  [int(v) for v in _all[-10:]],          # 最近10回（今回を含む）
                 "count":   len(_all),                             # 今回が何回目か
-                "best":    int(round(max(_all))),
+                "best":    int(max(_all)),
                 "is_best": bool(_past) and _now > max(_past),     # 自己ベスト更新
             }
         except Exception:

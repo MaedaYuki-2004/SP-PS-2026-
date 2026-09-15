@@ -180,6 +180,7 @@ async function main() {
     let lipTestUploaded   = false;
     let hasSavedRef       = false;
     let lipUploadPromise  = Promise.resolve();
+    let lipStoreCleared   = Promise.resolve();
     const currentWordId   = window.CURRENT_WORD_ID || '';
 
     function updateLipButtons() {
@@ -254,7 +255,8 @@ async function main() {
             document.dispatchEvent(new CustomEvent('sp:lipready', { detail: { url, blob } }));
           }
           // 結果画面の「くらべる → 口の形」でも見返せるよう、この端末にだけ置いておく
-          if (window.SPLipStore) window.SPLipStore.save(currentWordId, blob);
+          // （録音開始時の clear が終わってから保存する。順番が逆になると今回の動画が消えるため）
+          if (window.SPLipStore) lipStoreCleared.then(() => window.SPLipStore.save(currentWordId, blob));
         }
         lipRecorder = null;
         lipMode = null;
@@ -277,6 +279,8 @@ async function main() {
       try {
         const formData = new FormData();
         formData.append('mode', mode);
+        // お手本（ref）をどの単語に保存するかは、この画面の単語で決める（サーバーの共有ファイルに頼らない）
+        if (currentWordId) formData.append('word_id', currentWordId);
         formData.append('file', blob, `${mode}.webm`);
         const response = await fetch('/upload_lip_video', {
           method: 'POST',
@@ -326,6 +330,10 @@ async function main() {
       speechStart  = null;
       silenceStart = null;
       buffers.splice(0, buffers.length);
+
+      // 前の録音の口の動画を端末から消す。この録音で撮れなかったときに、
+      // 結果画面へ前の動画（共有の端末ならほかの生徒の動画）が出ないようにするため
+      if (window.SPLipStore) lipStoreCleared = window.SPLipStore.clear();
 
       // 録音開始と同時に唇のテスト動画を自動録画（保存済みお手本がある場合）
       try {

@@ -6,6 +6,7 @@
   <title>解析結果 — {{ original_filename }} — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -2286,7 +2287,9 @@ localStorage.setItem('sp-ps-last-practice', String(Date.now()));
 <script>
 (function () {
   const box = document.getElementById('cmpMouth');
-  if (!box || !window.SPLipStore) return;
+  // 今回の録音で口の動画が撮れていないときは、端末に残った前の動画を出さない
+  const recordedNow = {{ (user_lip_recorded | default(false)) | tojson }};
+  if (!box || !window.SPLipStore || !recordedNow) return;
   SPLipStore.load({{ word_id | tojson }}).then(blob => {
     if (!blob) return;
     SPMouthCompare.mount(document.getElementById('cmpMouthPlayer'), {
