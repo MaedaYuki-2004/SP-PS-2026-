@@ -1,38 +1,35 @@
 """
 scripts/repair_alignment.py
-指定した単語IDのサンプル音声に対してJuliusアライメントを再実行するスクリプト。
-音声が短すぎる場合は前後に無音を追加してから処理する。
+指定した単語IDのお手本音声に対してJuliusアライメントを再実行するスクリプト。
 
 使い方：
   python scripts/repair_alignment.py word35
   python scripts/repair_alignment.py word35 word36 word37
+
+data/raw_audio/sound/<word_id>/ の <word_id>.wav と <word_id>.txt（ひらがな読み）から
+<word_id>.lab / <word_id>.log を作り直す。失敗したときは既存の .lab / .log を残す。
+
+【2026-09-14 修正】
+  以前は core.alignment から存在しない perl_run() を import していたため、起動時に
+  ImportError で止まっていた。また、短い音声には前後 0.5 秒の無音を足してから
+  アライメントし、その結果を「無音を足す前の wav」の .lab として保存していたため、
+  成功しても時刻が 0.5 秒ずれていた。無音の追加はやめ、保存されている wav そのものを
+  core.alignment.run_alignment_on_file() でアライメントする（単語登録と同じ処理）。
 """
 from __future__ import annotations
 
-import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from pydub import AudioSegment
-from config import AUDIO_WAV_DIR, RAW_AUDIO_DIR
-from core.alignment import perl_run
-
-MIN_DURATION_SEC = 1.5
-SILENCE_PAD_MS   = 500
+from config import RAW_AUDIO_DIR
+from core.alignment import lab_load, run_alignment_on_file
 
 
-def add_silence_padding(wav_path: Path) -> None:
-    sound   = AudioSegment.from_wav(str(wav_path))
-    silence = AudioSegment.silent(duration=SILENCE_PAD_MS, frame_rate=sound.frame_rate)
-    padded  = silence + sound + silence
-    padded.export(str(wav_path), format="wav")
-    print(f"  無音追加: {len(sound)/1000:.2f}s → {len(padded)/1000:.2f}s")
-
-
-def repair(word_id: str) -> None:
+def repair(word_id: str) -> bool:
     sound_dir = RAW_AUDIO_DIR / "sound" / word_id
     wav_path  = sound_dir / f"{word_id}.wav"
     txt_path  = sound_dir / f"{word_id}.txt"
@@ -43,56 +40,41 @@ def repair(word_id: str) -> None:
 
     if not wav_path.exists():
         print(f"  [NG] WAVファイルが見つかりません: {wav_path}")
-        return
+        return False
     if not txt_path.exists():
         print(f"  [NG] TXTファイルが見つかりません: {txt_path}")
-        return
+        return False
 
     reading = txt_path.read_text(encoding="utf-8").strip()
     print(f"  WAV : {wav_path.stat().st_size:,} bytes")
     print(f"  TXT : {reading}")
 
-    tmp_wav = AUDIO_WAV_DIR / f"{word_id}.wav"
-    tmp_txt = AUDIO_WAV_DIR / f"{word_id}.txt"
-    tmp_lab = AUDIO_WAV_DIR / f"{word_id}.lab"
-    tmp_log = AUDIO_WAV_DIR / f"{word_id}.log"
+    # いったん一時ファイルに出力し、成功したときだけ既存の .lab / .log を置き換える
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_lab = Path(tmpdir) / "result.lab"
+        tmp_log = Path(tmpdir) / "result.log"
+        try:
+            run_alignment_on_file(wav_path, reading, tmp_lab, tmp_log)
+        except Exception as e:
+            print(f"  [NG] アライメントに失敗しました（既存の .lab / .log はそのまま）: {e}")
+            return False
 
-    shutil.copy(wav_path, tmp_wav)
-    shutil.copy(txt_path, tmp_txt)
+        lab_list, mora_list, *_ = lab_load(tmp_lab)
+        tmp_lab.replace(lab_path)
+        if tmp_log.exists():
+            tmp_log.replace(log_path)
 
-    sound    = AudioSegment.from_wav(str(tmp_wav))
-    duration = len(sound) / 1000.0
-    if duration < MIN_DURATION_SEC:
-        print(f"  音声が短いため無音パディングを追加します（{duration:.2f}s）")
-        add_silence_padding(tmp_wav)
-
-    try:
-        perl_run()
-
-        if tmp_lab.exists() and tmp_lab.stat().st_size > 0:
-            shutil.copy(str(tmp_lab), str(lab_path))
-            shutil.copy(str(tmp_log), str(log_path))
-            print(f"  [OK] lab: {lab_path.stat().st_size:,} bytes")
-            print(f"  → アライメント成功！")
-        else:
-            print(f"  [NG] labファイルが生成されませんでした")
-            if tmp_log.exists() and tmp_log.stat().st_size > 0:
-                log_text = tmp_log.read_text(encoding="utf-8", errors="replace")
-                print("  --- Julius ログ（末尾200文字）---")
-                print("  " + log_text[-200:])
-
-    except Exception as e:
-        print(f"  [NG] エラー: {e}")
-    finally:
-        for p in [tmp_wav, tmp_txt, tmp_lab, tmp_log]:
-            p.unlink(missing_ok=True)
+    print(f"  [OK] {len(lab_list)} 音素 / {len(mora_list)} モーラ: {' '.join(str(m[2]) for m in mora_list)}")
+    print("  ※ お手本の口形データ（lip_refs.json の mora_data）は作り直していません。"
+          "口形も合わせたい場合は、先生モードでお手本を録り直してください。")
+    return True
 
 
 if __name__ == "__main__":
-    targets = sys.argv[1:] if len(sys.argv) > 1 else []
+    targets = sys.argv[1:]
     if not targets:
         print("使い方: python scripts/repair_alignment.py word35")
         sys.exit(1)
-    for word_id in targets:
-        repair(word_id)
-    print("\n完了しました。")
+    results = [repair(word_id) for word_id in targets]
+    print(f"\n完了しました（成功 {sum(results)} / {len(results)}）。")
+    sys.exit(0 if all(results) else 1)
