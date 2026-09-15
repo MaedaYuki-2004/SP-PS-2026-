@@ -111,3 +111,15 @@
 {%- endif -%}
 </svg>
 {%- endmacro %}
+
+{#
+  app_mark(size)：アプリのしるし（ログイン画面・初回ログイン画面の上に出すタイル）
+
+  左から「い」「え」「あ」と、口を少しずつ大きく開いていく形を並べたもの。
+  お手本と口の開き（縦と横の比）をくらべる、このアプリの考え方をそのまま形にしている。
+  UI のアイコンと違ってブランドの色を固定で持つ（currentColor は使わない）。
+  web/static/icon-192.svg・icon-512.svg も同じ形（ホーム画面用に角を丸めない全面版）。
+#}
+{% macro app_mark(size=76) -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 96 96" role="img" aria-label="SP-PS" focusable="false" style="display:block;flex:none;"><rect width="96" height="96" rx="30" fill="#F3F2FF"/><rect x=".75" y=".75" width="94.5" height="94.5" rx="29.25" fill="none" stroke="#D5D0FF" stroke-width="1.5"/><ellipse cx="24" cy="48" rx="8.5" ry="3.5" fill="#4A3AD0"/><ellipse cx="48" cy="48" rx="8.5" ry="8" fill="#4A3AD0"/><ellipse cx="72" cy="48" rx="8.5" ry="15" fill="#4A3AD0"/></svg>
+{%- endmacro %}
