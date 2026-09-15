@@ -1,11 +1,12 @@
 {% from "_icons.html" import icon %}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>母音練習 — {{ display }} — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -14,47 +15,47 @@
     body { display:flex; flex-direction:column; min-height:100vh; background:var(--bg); }
 
     /* ── ヘッダー ── */
-    .vt-header { background:var(--bg-card); border-bottom:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    .vt-header { max-width:960px; margin:0 auto; width:100%; padding:14px 24px 2px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
     .vt-title-area { flex:1; }
-    .vt-word  { font-size:22px; font-weight:700; color:var(--text); }
-    .vt-sub   { font-size:11px; color:var(--text-3); margin-top:2px; }
+    .vt-word  { font-size:26px; font-weight:700; color:var(--text); }
+    .vt-sub   { font-size:13px; color:var(--text-3); margin-top:2px; }
 
     /* ── 進捗バー ── */
-    .progress-wrap { padding:10px 24px; background:var(--bg-card); border-bottom:1px solid var(--border); }
+    .progress-wrap { max-width:960px; margin:0 auto; width:100%; padding:10px 24px; }
     .mora-dots { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .mora-dot  { display:flex; flex-direction:column; align-items:center; gap:4px; }
-    .mora-dot-circle { width:32px; height:32px; border-radius:50%; border:2px solid var(--border); background:var(--bg-muted); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--text-3); transition:all .3s; }
-    .mora-dot-circle.active  { border-color:var(--navy); background:var(--navy); color:#fff; box-shadow:0 0 0 4px rgba(124,106,224,.2); }
-    .mora-dot-circle.done    { border-color:var(--green); background:var(--green); color:#fff; }
+    .mora-dot-circle { width:38px; height:38px; border-radius:50%; border:none; background:var(--bg-card); box-shadow:var(--elev-1); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--text-3); transition:all .3s; }
+    .mora-dot-circle.active  { background:var(--grad-brand); color:#fff; box-shadow:0 0 0 5px color-mix(in srgb, var(--navy) 22%, transparent); }
+    .mora-dot-circle.done    { background:var(--grad-good); color:#fff; }
     .mora-dot-circle.skip    { border-color:var(--border); background:transparent; color:var(--text-3); opacity:.4; }
-    .mora-dot-vowel { font-size:9px; color:var(--text-3); font-family:var(--mono); }
+    .mora-dot-vowel { font-size:11px; color:var(--text-3); font-family:var(--mono); }
 
     /* ── メインエリア ── */
     .vt-main { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px 24px; max-width:960px; margin:0 auto; width:100%; box-sizing:border-box; }
 
     /* ── カメラパネル ── */
     .camera-panel { display:flex; flex-direction:column; gap:10px; }
-    .camera-panel-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
-    .camera-wrap { position:relative; border-radius:16px; overflow:hidden; background:#000; aspect-ratio:4/3; }
+    .camera-panel-title { font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--text-2); }
+    .camera-wrap { position:relative; border-radius:24px; box-shadow:var(--elev-1); overflow:hidden; background:#000; aspect-ratio:4/3; }
     .camera-wrap video  { width:100%; height:100%; object-fit:cover; display:block; transform:scaleX(-1); }
     .camera-wrap canvas { position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); }
-    .camera-status { position:absolute; top:8px; left:8px; font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:100px; }
+    .camera-status { position:absolute; top:8px; left:8px; font-size:11px; font-weight:700; letter-spacing:.04em; padding:4px 10px; border-radius:100px; backdrop-filter:blur(6px); }
     .camera-status.loading { background:rgba(0,0,0,.6); color:rgba(255,255,255,.6); }
-    .camera-status.active  { background:rgba(30,201,154,.25); color:#1EC99A; }
+    .camera-status.active  { background:rgba(141,139,242,.28); color:#E1E0FD; }
 
     /* 検出結果バッジ */
-    .detected-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:16px; text-align:center; }
-    .detected-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px; }
+    .detected-wrap { background:var(--bg-card); border:1px solid var(--surface-line); box-shadow:var(--elev-1); border-radius:20px; padding:16px; text-align:center; }
+    .detected-label { font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--text-3); margin-bottom:8px; }
     .detected-vowel { font-size:64px; font-weight:700; line-height:1; transition:color .2s,transform .15s; }
-    .detected-vowel.match   { color:var(--green); transform:scale(1.1); }
-    .detected-vowel.partial { color:var(--quest); }
-    .detected-vowel.wrong   { color:var(--accent); }
+    .detected-vowel.match   { color:var(--good); transform:scale(1.1); }
+    .detected-vowel.partial { color:var(--mid); }
+    .detected-vowel.wrong   { color:var(--todo); }
     .detected-vowel.closed  { color:var(--text-3); }
 
     /* ── ターゲットパネル ── */
     .target-panel { display:flex; flex-direction:column; gap:10px; }
-    .target-panel-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
-    .target-mora-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:20px; text-align:center; position:relative; overflow:hidden; }
+    .target-panel-title { font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--text-2); }
+    .target-mora-card { background:var(--bg-card); border:1px solid var(--surface-line); box-shadow:var(--elev-1); border-radius:24px; padding:20px; text-align:center; position:relative; overflow:hidden; }
     .target-mora-card::before { content:''; position:absolute; inset:0; opacity:.06; pointer-events:none; }
     .target-mora-sub  { font-size:11px; color:var(--text-3); margin-bottom:6px; }
     .target-mora-text { font-size:56px; font-weight:700; line-height:1.1; margin-bottom:4px; }
@@ -64,91 +65,129 @@
     .mouth-shape-wrap { margin:10px auto; width:120px; height:100px; position:relative; }
     .mouth-ref-video { width:120px; height:100px; object-fit:cover; border-radius:var(--r-sm); background:#000; }
     .mouth-view-tabs { display:flex; justify-content:center; gap:6px; margin-top:2px; }
-    .mouth-view-tab { padding:4px 12px; border-radius:100px; border:1px solid var(--border); background:transparent; color:var(--text-3); font-family:var(--font); font-size:10.5px; font-weight:700; cursor:pointer; transition:all .15s; }
+    .mouth-view-tab { min-height:32px; padding:4px 12px; border-radius:100px; border:none; background:var(--bg-muted); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; }
     .mouth-view-tab:hover { border-color:var(--navy); color:var(--navy); }
-    .mouth-view-tab.active { background:var(--navy); border-color:var(--navy); color:#fff; }
+    .mouth-view-tab.active { background:var(--grad-brand); color:#fff; }
     .mouth-svg { width:100%; height:100%; }
 
-    .target-hint { font-size:12px; color:var(--text-2); line-height:1.7; padding:10px 14px; background:var(--bg-muted); border-radius:var(--r-sm); border-left:2px solid var(--navy); text-align:left; }
+    .target-hint:empty { display:none; }
+    .target-hint { font-size:14px; color:var(--text-2); line-height:1.7; padding:12px 16px; background:var(--navy-soft); border-radius:18px; text-align:left; }
 
     /* ── 先生の開き比較ゲージ ── */
     .guide-block { margin:12px auto 8px; max-width:280px; text-align:left; display:none; }
     .guide-block.show { display:block; }
-    .guide-title { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
+    .guide-title { font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--text-3); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
     .guide-gauge { position:relative; height:16px; background:var(--bg-muted); border-radius:100px; }
-    .guide-band  { position:absolute; top:0; bottom:0; background:rgba(30,201,154,.22); border-left:2px solid var(--green); border-right:2px solid var(--green); border-radius:2px; }
+    .guide-band  { position:absolute; top:0; bottom:0; background:color-mix(in srgb, var(--good) 18%, transparent); border-left:2px solid var(--good); border-right:2px solid var(--good); border-radius:2px; }
     .guide-marker { position:absolute; top:-3px; bottom:-3px; width:5px; border-radius:3px; background:#fff; box-shadow:0 0 6px rgba(0,0,0,.5); transition:left .12s linear, background .2s; }
-    .guide-marker.ok   { background:var(--green); }
-    .guide-marker.low  { background:#F0A030; }
-    .guide-marker.high { background:var(--accent); }
+    .guide-marker.ok   { background:var(--good); }
+    .guide-marker.low  { background:var(--mid); }
+    .guide-marker.high { background:var(--todo); }
     .guide-scale { display:flex; justify-content:space-between; font-size:9px; color:var(--text-3); margin-top:3px; font-family:var(--mono); }
     .guide-hint  { font-size:11.5px; font-weight:600; margin-top:6px; min-height:16px; color:var(--text-2); }
-    .guide-hint.ok   { color:var(--green); }
-    .guide-hint.low  { color:#F0A030; }
-    .guide-hint.high { color:var(--accent); }
+    .guide-hint.ok   { color:var(--good); }
+    .guide-hint.low  { color:var(--mid-text); }
+    .guide-hint.high { color:var(--todo); }
 
     /* ── フィードバックバー ── */
     .feedback-bar { padding:12px 24px; max-width:960px; margin:0 auto; width:100%; box-sizing:border-box; }
-    .feedback-inner { border-radius:14px; padding:14px 18px; display:flex; align-items:center; gap:14px; transition:background .3s,border-color .3s; border:1px solid var(--border); background:var(--bg-card); }
-    .feedback-inner.match   { background:var(--green-bg); border-color:var(--green); }
+    .feedback-inner { border-radius:22px; padding:16px 18px; display:flex; align-items:center; gap:14px; transition:background .3s,border-color .3s,box-shadow .3s; border:1px solid var(--surface-line); background:var(--bg-card); box-shadow:var(--elev-1); }
+    .feedback-inner.match   { background:var(--good-bg); border-color:transparent; box-shadow:inset 0 0 0 2px var(--good); }
     .feedback-inner.wrong   { background:var(--bg-muted); }
     .feedback-inner.closed  { background:var(--bg-muted); }
     .feedback-icon-big { font-size:28px; flex-shrink:0; }
-    .feedback-msg  { font-size:14px; font-weight:600; color:var(--text); flex:1; }
+    .feedback-msg  { font-size:15px; font-weight:700; color:var(--text); flex:1; }
     .feedback-sub  { font-size:12px; color:var(--text-3); margin-top:3px; }
 
     /* キープ進捗バー */
-    .keep-bar-wrap { width:100%; height:6px; background:rgba(0,0,0,.1); border-radius:100px; overflow:hidden; margin-top:8px; display:none; }
-    .keep-bar-fill { height:100%; background:var(--green); border-radius:100px; transition:width .05s linear; }
+    .keep-bar-wrap { width:100%; height:8px; background:rgba(0,0,0,.1); border-radius:100px; overflow:hidden; margin-top:8px; display:none; }
+    .keep-bar-fill { height:100%; background:var(--good); border-radius:100px; transition:width .05s linear; }
     .keep-bar-wrap.show { display:block; }
 
     /* ── ナビゲーション ── */
     .vt-nav { padding:12px 24px 24px; max-width:960px; margin:0 auto; width:100%; box-sizing:border-box; display:flex; gap:10px; }
-    .nav-btn { flex:1; padding:13px; border-radius:var(--r); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-2); display:flex; align-items:center; justify-content:center; gap:6px; transition:all .15s; }
+    .nav-btn { flex:1; min-height:54px; padding:13px; border-radius:18px; font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; border:1px solid var(--surface-line); box-shadow:var(--elev-1); background:var(--bg-card); color:var(--text-2); display:flex; align-items:center; justify-content:center; gap:6px; transition:all .15s; }
     .nav-btn:hover:not(:disabled) { border-color:var(--navy); color:var(--navy); }
     .nav-btn:disabled { opacity:.3; cursor:not-allowed; }
-    .nav-btn.primary { background:var(--navy); color:#fff; border-color:var(--navy); }
-    .nav-btn.primary:hover { background:var(--navy-mid); }
+    .nav-btn.primary { background:var(--grad-brand); color:#fff; border-color:transparent; box-shadow:var(--shadow-brand); }
+    .nav-btn.primary:hover { color:#fff; filter:brightness(1.06); }
 
     /* ── 完了画面 ── */
     .complete-screen { display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; gap:20px; }
     .complete-screen.show { display:flex; }
-    .complete-icon { font-size:80px; line-height:1; }
-    .complete-title { font-size:28px; font-weight:700; color:var(--green); }
+
+    .complete-title { font-size:28px; font-weight:700; color:var(--text); }
+    .complete-icon { display:grid; place-items:center; width:104px; height:104px; border-radius:34px; background:var(--grad-hero); color:#fff; box-shadow:var(--shadow-brand); }
     .complete-sub { font-size:14px; color:var(--text-3); }
     .complete-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
-    .complete-btn { padding:12px 24px; border-radius:var(--r); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
-    .complete-btn.primary  { background:var(--navy); color:#fff; border:none; }
-    .complete-btn.secondary{ background:transparent; color:var(--text-3); border:1.5px solid var(--border); }
+    .complete-btn { min-height:54px; padding:12px 24px; border-radius:18px; font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+    .complete-btn.primary  { background:var(--grad-rec); color:#fff; border:none; box-shadow:var(--shadow-rec); }
+    .complete-btn.secondary{ background:var(--bg-card); color:var(--text-2); border:none; box-shadow:var(--elev-1); }
 
     /* スキップ画面（母音なしモーラのみの場合） */
     .skip-notice { background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--r); padding:20px; text-align:center; color:var(--text-3); font-size:13px; }
 
+    /* 下段（いまの口の形・開きゲージ・ヒント） */
+    .vt-below { max-width:960px; margin:0 auto; width:100%; padding:0 24px; display:flex; flex-direction:column; gap:10px; }
+    .vt-debug-row { display:none; text-align:right; margin-top:-4px; }
+    body.teacher-mode .vt-debug-row { display:block; }
+
     @media (max-width:640px) {
-      .vt-main { grid-template-columns:1fr; }
-      .vt-header { padding:12px 16px; }
-      .progress-wrap { padding:10px 16px; }
+      /* 自分の口とお手本は、並べて見比べられることが肝心。
+         縦に積むと同時に見えないので、小さくしてでも横2列のままにする。 */
+      .vt-main { grid-template-columns:1fr 1fr; gap:10px; padding:12px 16px; }
+      .vt-below { padding:0 16px; }
+      .vt-header { padding:10px 16px; }
+      .vt-word { font-size:22px; }
+      .progress-wrap { padding:8px 16px; }
       .feedback-bar, .vt-nav { padding-left:16px; padding-right:16px; }
+      .camera-panel-title, .target-panel-title { font-size:11px; }
+      /* 自分の口は大きく見えたほうが直しやすい。縦長にして列の高さに合わせる */
+      .camera-wrap { aspect-ratio:3/4; }
+      .target-mora-card { padding:10px 6px; }
+      .target-mora-sub { display:none; }
+      .target-mora-text { font-size:28px; }
+      .target-vowel-big { font-size:20px; padding:2px 12px; margin-bottom:8px; }
+      /* 「イラスト／先生の実写」は幅が足りずに折り返すので、縦に積む */
+      .mouth-view-tabs { flex-direction:column; align-items:stretch; gap:4px; }
+      .mouth-view-tab { padding:7px 6px; font-size:11px; white-space:nowrap; }
+      .mouth-shape-wrap { width:96px; height:80px; margin:8px auto; }
+      /* 判定はひと目で分かればよい。1行に収める */
+      .detected-wrap { display:flex; align-items:center; justify-content:center; gap:12px; padding:10px 14px; }
+      .detected-label { margin:0; }
+      .detected-vowel { font-size:40px; }
     }
+    /* ── 口の形キャリブレーション（全画面） ──
+       暗い背景の上に置くので、文字の色はテーマに依らず明るい色に固定する */
+    .cal-overlay { position:fixed; inset:0; z-index:200; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px; text-align:center;
+                   background:radial-gradient(110% 55% at 50% -5%, rgba(107,86,255,.45) 0%, rgba(107,86,255,0) 60%), #0C0A1A; color:#fff; }
+    .cal-kicker { display:inline-flex; align-items:center; min-height:30px; padding:4px 14px; border-radius:100px; background:rgba(255,255,255,.1);
+                  font-size:13px; font-weight:700; letter-spacing:.06em; color:rgba(255,255,255,.85); }
+    .cal-progress { font-family:var(--font-num); font-size:14px; font-weight:700; color:rgba(255,255,255,.62); }
+    .cal-vowel { display:grid; place-items:center; width:180px; height:180px; border-radius:50%; font-size:110px; font-weight:700; line-height:1; color:#fff;
+                 background:radial-gradient(closest-side, rgba(255,255,255,.12), rgba(255,255,255,.03)); box-shadow:inset 0 0 0 2px rgba(255,255,255,.14); transition:color .2s; }
+    .cal-instruction { font-size:15px; color:rgba(255,255,255,.86); max-width:320px; line-height:1.8; }
+    .cal-status { font-size:14px; font-weight:700; color:#8BE3BF; min-height:20px; }
+    .cal-bar { width:240px; height:8px; background:rgba(255,255,255,.14); border-radius:100px; overflow:hidden; }
+    .cal-bar-fill { height:100%; width:0%; border-radius:100px; background:linear-gradient(90deg,#4CC596,#8BE3BF); transition:width .08s; }
+    .cal-actions { display:flex; gap:10px; margin-top:6px; width:min(340px, 100%); }
+    .cal-record { flex:1; min-height:56px; border:none; border-radius:18px; background:var(--grad-brand); box-shadow:var(--shadow-brand); color:#fff;
+                  font-family:var(--font); font-size:16px; font-weight:700; cursor:pointer; }
+    .cal-record:disabled { opacity:.5; cursor:not-allowed; }
+    .cal-skip { min-height:56px; padding:0 18px; border:none; border-radius:18px; background:rgba(255,255,255,.1); color:rgba(255,255,255,.85);
+                font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer; }
+    .cal-note { margin-top:4px; font-size:13px; color:rgba(255,255,255,.62); max-width:300px; line-height:1.7; }
   </style>
 </head>
 <body>
 
-<!-- テーマ適用 -->
-<script>
-(function(){
-  const saved = localStorage.getItem('sp-ps-theme');
-  if (saved !== 'light') document.documentElement.setAttribute('data-theme','dark');
-})();
-</script>
+{# 調整用の表示（debug）は先生モードのときだけ出す。印は theme.js が body に付ける #}
 
-<nav class="top-nav">
-  <a href="/practice/word/{{ word_id }}" class="nav-link">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    録音に戻る
-  </a>
-  <span style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);">母音練習モード</span>
-</nav>
+<header class="app-header">
+  <a href="/practice/word/{{ word_id }}" class="app-header-left icon-btn" aria-label="もどる">{{ icon('back') }}</a>
+  <div class="app-header-title">口の形の練習</div>
+  <span class="app-header-right"></span>
+</header>
 
 <!-- ヘッダー -->
 <div class="vt-header">
@@ -185,12 +224,8 @@
         <span class="camera-status loading" id="camStatus">カメラ起動中…</span>
         <div id="debugOverlay" style="display:none;position:absolute;bottom:6px;left:6px;right:6px;background:rgba(0,0,0,.8);color:#0f0;font-family:monospace;font-size:10px;padding:4px 8px;border-radius:6px;line-height:1.6;pointer-events:none;"></div>
       </div>
-      <div style="text-align:right;margin-top:-4px;">
+      <div class="vt-debug-row">
         <button onclick="toggleDebug()" style="font-size:9px;font-family:monospace;padding:2px 8px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;" id="debugBtn">debug</button>
-      </div>
-      <div class="detected-wrap">
-        <div class="detected-label">検出中の母音</div>
-        <div class="detected-vowel closed" id="detectedVowel">—</div>
       </div>
     </div>
 
@@ -213,19 +248,31 @@
           <video class="mouth-ref-video" id="mouthRefVideo" src="/sample_video/{{ word_id }}" muted loop playsinline style="display:none;"></video>
           {% endif %}
         </div>
-        <div class="guide-block" id="guideBlock">
-          <div class="guide-title">{{ icon('school') }} 先生の口の開きと比較</div>
-          <div class="guide-gauge">
-            <div class="guide-band" id="guideBand"></div>
-            <div class="guide-marker" id="guideMarker"></div>
-          </div>
-          <div class="guide-scale"><span>閉じる</span><span>大きく開く</span></div>
-          <div class="guide-hint" id="guideHint">口を動かしてみましょう</div>
-        </div>
-        <div class="target-hint" id="targetHint">カメラに顔を向けてください</div>
       </div>
     </div>
 
+  </div>
+
+  {#
+    カメラと目標の口は、並べて見比べられることに意味がある。
+    スマホで縦に積むと同時に見えなくなるため、横2列のまま小さくし、
+    ゲージ・判定・ヒントは2つの口の下にまとめた。
+  #}
+  <div class="vt-below">
+    <div class="detected-wrap">
+      <div class="detected-label">いまの口の形</div>
+      <div class="detected-vowel closed" id="detectedVowel">—</div>
+    </div>
+    <div class="guide-block" id="guideBlock">
+      <div class="guide-title">{{ icon('school') }} 先生の口の開きとくらべる</div>
+      <div class="guide-gauge">
+        <div class="guide-band" id="guideBand"></div>
+        <div class="guide-marker" id="guideMarker"></div>
+      </div>
+      <div class="guide-scale"><span>閉じる</span><span>大きく開く</span></div>
+      <div class="guide-hint" id="guideHint">口を動かしてみましょう</div>
+    </div>
+    <div class="target-hint" id="targetHint"></div>
   </div>
 
   <!-- フィードバックバー -->
@@ -261,20 +308,20 @@
 </div>
 
 <!-- キャリブレーションオーバーレイ -->
-<div id="calOverlay" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(7,8,15,.97);flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;">
-  <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);">口の形キャリブレーション</div>
-  <div id="calProgress" style="font-size:12px;color:var(--text-3);">1 / 5</div>
-  <div id="calVowel" style="font-size:110px;font-weight:700;line-height:1;color:var(--text);transition:color .2s;"></div>
-  <div id="calInstruction" style="font-size:14px;color:var(--text-2);max-width:300px;line-height:1.8;"></div>
-  <div id="calStatus" style="font-size:12px;color:var(--text-3);min-height:18px;"></div>
-  <div id="calBar" style="display:none;width:220px;height:7px;background:var(--border);border-radius:100px;overflow:hidden;">
-    <div id="calBarFill" style="height:100%;background:var(--green);border-radius:100px;width:0%;transition:width .08s;"></div>
+<div id="calOverlay" class="cal-overlay" style="display:none;">
+  <div class="cal-kicker">口の形キャリブレーション</div>
+  <div id="calProgress" class="cal-progress">1 / 5</div>
+  <div id="calVowel" class="cal-vowel"></div>
+  <div id="calInstruction" class="cal-instruction"></div>
+  <div id="calStatus" class="cal-status"></div>
+  <div id="calBar" class="cal-bar" style="display:none;">
+    <div id="calBarFill" class="cal-bar-fill"></div>
   </div>
-  <div style="display:flex;gap:10px;margin-top:6px;">
-    <button id="calRecordBtn" onclick="startCalRecording()" style="padding:13px 28px;border-radius:var(--r);border:none;background:var(--navy);color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.02em;">記録する</button>
-    <button onclick="skipCalibration()" style="padding:13px 16px;border-radius:var(--r);border:1.5px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);font-size:12px;cursor:pointer;">スキップ</button>
+  <div class="cal-actions">
+    <button id="calRecordBtn" class="cal-record" onclick="startCalRecording()">記録する</button>
+    <button class="cal-skip" onclick="skipCalibration()">スキップ</button>
   </div>
-  <div style="margin-top:4px;font-size:11px;color:var(--text-3);max-width:280px;line-height:1.6;">普段通りの自然な発音で大丈夫です。大げさに開ける必要はありません。</div>
+  <div class="cal-note">普段通りの自然な発音で大丈夫です。大げさに開ける必要はありません。</div>
 </div>
 
 <!-- 完了画面 -->
@@ -300,54 +347,54 @@ const MORA_VOWELS = {{ mora_vowels | tojson }};
 /* 母音ごとの定義 */
 const VOWEL_DEF = {
   'あ': {
-    color: '#E87040',
+    color: '#7264F3',
     svgPath: `
-      <ellipse cx="60" cy="58" rx="28" ry="34" fill="#2A0800" stroke="#E87040" stroke-width="3"/>
-      <ellipse cx="60" cy="44" rx="26" ry="10" fill="#C05030" stroke="none"/>
-      <text x="60" y="14" text-anchor="middle" fill="#E87040" font-size="11" font-weight="700" font-family="sans-serif">縦に大きく開ける</text>
+      <ellipse cx="60" cy="58" rx="28" ry="34" fill="#1A1640" stroke="#9186FB" stroke-width="3"/>
+      <ellipse cx="60" cy="44" rx="26" ry="10" fill="#6A5FD0" stroke="none"/>
+      <text x="60" y="14" text-anchor="middle" fill="#9186FB" font-size="11" font-weight="700" font-family="sans-serif">縦に大きく開ける</text>
     `,
     hint: '顎を思い切り下ろして、口を縦に大きく開けましょう。舌は下に置き、口の中を広く開けるイメージです。',
     guide: '顎を下げる → 口を縦に大きく開ける',
     tips: ['顎を下げる', '口を縦に大きく開ける', '舌は下に'],
   },
   'い': {
-    color: '#5DA8F8',
+    color: '#7264F3',
     svgPath: `
-      <ellipse cx="60" cy="55" rx="44" ry="12" fill="#001828" stroke="#5DA8F8" stroke-width="3"/>
-      <line x1="20" y1="52" x2="100" y2="52" stroke="#3A7AB0" stroke-width="1"/>
-      <text x="60" y="14" text-anchor="middle" fill="#5DA8F8" font-size="11" font-weight="700" font-family="sans-serif">横に思い切り広げる</text>
+      <ellipse cx="60" cy="55" rx="44" ry="12" fill="#1A1640" stroke="#9186FB" stroke-width="3"/>
+      <line x1="20" y1="52" x2="100" y2="52" stroke="#5B58A8" stroke-width="1"/>
+      <text x="60" y="14" text-anchor="middle" fill="#9186FB" font-size="11" font-weight="700" font-family="sans-serif">横に思い切り広げる</text>
     `,
     hint: '口角を左右に思い切り引いて「イー」の形を作りましょう。上下の歯が少し見えるくらいが目安です。',
     guide: '口角を横に引く → 歯を少し見せる',
     tips: ['口角を横に引く', 'イーッと笑う形', '歯を少し見せる'],
   },
   'う': {
-    color: '#1EC99A',
+    color: '#7264F3',
     svgPath: `
-      <ellipse cx="60" cy="55" rx="16" ry="16" fill="#001A10" stroke="#1EC99A" stroke-width="3"/>
-      <ellipse cx="60" cy="45" rx="22" ry="8" fill="#0D6B50" stroke="none" opacity="0.6"/>
-      <text x="60" y="14" text-anchor="middle" fill="#1EC99A" font-size="11" font-weight="700" font-family="sans-serif">唇を丸く前に出す</text>
+      <ellipse cx="60" cy="55" rx="16" ry="16" fill="#1A1640" stroke="#9186FB" stroke-width="3"/>
+      <ellipse cx="60" cy="45" rx="22" ry="8" fill="#6A5FD0" stroke="none" opacity="0.6"/>
+      <text x="60" y="14" text-anchor="middle" fill="#9186FB" font-size="11" font-weight="700" font-family="sans-serif">唇を丸く前に出す</text>
     `,
     hint: '唇を少し前に突き出して、小さく丸くします。口の開きは最小限で、笛を吹くような口の形です。',
     guide: '唇を前に出す → 小さく丸める',
     tips: ['唇を前に突き出す', '小さく丸める', '笛を吹く形'],
   },
   'え': {
-    color: '#7C6AE0',
+    color: '#7264F3',
     svgPath: `
-      <ellipse cx="60" cy="55" rx="30" ry="18" fill="#0A0820" stroke="#7C6AE0" stroke-width="3"/>
-      <text x="60" y="14" text-anchor="middle" fill="#7C6AE0" font-size="11" font-weight="700" font-family="sans-serif">中くらいに開ける</text>
+      <ellipse cx="60" cy="55" rx="30" ry="18" fill="#1A1640" stroke="#9186FB" stroke-width="3"/>
+      <text x="60" y="14" text-anchor="middle" fill="#9186FB" font-size="11" font-weight="700" font-family="sans-serif">中くらいに開ける</text>
     `,
     hint: '「え」は「あ」と「い」の中間の口の形です。口を中くらいに開けて、少し横に引いた状態です。',
     guide: 'あ と い の中間の口の形',
     tips: ['口を中くらいに開ける', '少し横に引く', 'あとい の中間'],
   },
   'お': {
-    color: '#F0A030',
+    color: '#7264F3',
     svgPath: `
-      <ellipse cx="60" cy="55" rx="22" ry="30" fill="#1A0C00" stroke="#F0A030" stroke-width="3"/>
-      <ellipse cx="60" cy="46" rx="20" ry="8" fill="#A06020" stroke="none" opacity="0.5"/>
-      <text x="60" y="14" text-anchor="middle" fill="#F0A030" font-size="11" font-weight="700" font-family="sans-serif">丸く縦長に開ける</text>
+      <ellipse cx="60" cy="55" rx="22" ry="30" fill="#1A1640" stroke="#9186FB" stroke-width="3"/>
+      <ellipse cx="60" cy="46" rx="20" ry="8" fill="#6A5FD0" stroke="none" opacity="0.5"/>
+      <text x="60" y="14" text-anchor="middle" fill="#9186FB" font-size="11" font-weight="700" font-family="sans-serif">丸く縦長に開ける</text>
     `,
     hint: '唇を「O」の形に丸めて、縦長に開けます。「う」より大きく開けて、縦長の楕円形をイメージしてください。',
     guide: '唇を丸める → 縦長のO形',
@@ -498,13 +545,11 @@ function updateTargetUI() {
   // ヒント
   document.getElementById('targetHint').textContent = def.hint || '';
 
-  // ターゲットカードの左ボーダー色
-  document.getElementById('targetCard').style.borderTopColor = def.color;
-  document.getElementById('targetCard').style.borderTopWidth = '3px';
+  // （カード上端の色線は、角丸の大きいカードでは弧のように見えるため付けない。母音の色は上のバッジで示す）
 
   // ナビボタン
   document.getElementById('prevBtn').disabled = currentIdx === 0;
-  document.getElementById('nextBtn').disabled = true;
+  document.getElementById('nextBtn').disabled = !window._vtNoDetect;
 
   // 進捗ドット更新
   updateDots();
@@ -646,7 +691,7 @@ function showComplete() {
     .then(d => {
       if (d.completed_quests && d.completed_quests.length > 0) {
         const el = document.createElement('div');
-        el.style.cssText = 'margin-top:6px;padding:12px 20px;border-radius:14px;background:var(--quest-bg);border:1px solid var(--quest-border);color:var(--quest);font-size:14px;font-weight:700;';
+        el.style.cssText = 'margin-top:6px;padding:12px 20px;border-radius:14px;background:var(--good-bg);border:1px solid var(--good-line);color:var(--good-text);font-size:14px;font-weight:700;';
         el.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M8 3h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3"/><path d="M12 12v4M9 21h6M10 21c0-2 .8-3 2-3s2 1 2 3"/></svg> クエスト達成: ' + d.completed_quests.join(' / ');
         document.querySelector('.complete-sub')?.after(el);
       }
@@ -706,9 +751,7 @@ function skipCalibration() {
 
 function showCalStep() {
   const vowel = CAL_VOWELS[_calStep];
-  const color = (VOWEL_DEF[vowel] || {}).color || 'var(--text)';
   document.getElementById('calVowel').textContent = vowel;
-  document.getElementById('calVowel').style.color  = color;
   document.getElementById('calProgress').textContent = `${_calStep + 1} / ${CAL_VOWELS.length}`;
   document.getElementById('calInstruction').textContent =
     `「${vowel}」と発音して、その口の形のままキープしてください。準備ができたら「記録する」を押してください。`;
@@ -906,7 +949,7 @@ function onResults(results) {
   const LIP_INNER = [78,191,80,81,82,13,312,311,310,415,308,324,318,402,317,14,87,178,88,95,78];
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(124,106,224,0.8)';
+  ctx.strokeStyle = 'rgba(178,176,238,0.95)';
   ctx.lineWidth = 2;
   ctx.beginPath();
   LIP_OUTER.forEach((idx, i) => {
@@ -918,7 +961,7 @@ function onResults(results) {
   ctx.closePath();
   ctx.stroke();
 
-  ctx.strokeStyle = 'rgba(30,201,154,0.6)';
+  ctx.strokeStyle = 'rgba(178,176,238,0.55)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   LIP_INNER.forEach((idx, i) => {
@@ -947,24 +990,11 @@ function onResults(results) {
   document.getElementById('camStatus').textContent = '認識中';
 }
 
-const faceMesh = new FaceMesh({
-  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-});
-faceMesh.setOptions({
-  maxNumFaces: 1,
-  refineLandmarks: true,
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5,
-});
-faceMesh.onResults(onResults);
-
-const camera = new Camera(video, {
-  onFrame: async () => { await faceMesh.send({ image: video }); },
-  width: 640, height: 480,
-});
-
 /* ══════════════════════════════════════════════════════
    初期化
+   目標の口の形は、口の自動判定（MediaPipe）が読み込めなくても先に出す。
+   以前は読み込みに失敗すると、ここで止まって「—」のままカメラも映らなかった
+   （学校のネットワークで外部の読み込みが止められている場合など）。
 ══════════════════════════════════════════════════════ */
 loadCalibration();
 
@@ -975,18 +1005,54 @@ if (practiceItems.length === 0) {
   updateTargetUI();
 }
 
-// カメラ起動（1回のみ）
-camera.start().then(() => {
-  document.getElementById('camStatus').textContent = '認識中';
-  // キャリブレーション未登録なら自動起動
-  if (!_calData && practiceItems.length > 0) {
-    setTimeout(() => startCalibration(), 1000);
-  }
-}).catch(err => {
-  document.getElementById('camStatus').textContent = 'カメラエラー';
-  document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
-  console.error(err);
-});
+if (typeof FaceMesh !== 'undefined' && typeof Camera !== 'undefined') {
+  const faceMesh = new FaceMesh({
+    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+  });
+  faceMesh.setOptions({
+    maxNumFaces: 1,
+    refineLandmarks: true,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  });
+  faceMesh.onResults(onResults);
+
+  const camera = new Camera(video, {
+    onFrame: async () => { await faceMesh.send({ image: video }); },
+    width: 640, height: 480,
+  });
+
+  // カメラ起動（1回のみ）
+  camera.start().then(() => {
+    document.getElementById('camStatus').textContent = '認識中';
+    // キャリブレーション未登録なら自動起動
+    if (!_calData && practiceItems.length > 0) {
+      setTimeout(() => startCalibration(), 1000);
+    }
+  }).catch(err => {
+    document.getElementById('camStatus').textContent = 'カメラエラー';
+    document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
+    console.error(err);
+  });
+} else {
+  // 自動判定が使えないときは、カメラを「かがみ」として使う。自分で見くらべて「次へ」で進める
+  window._vtNoDetect = true;
+  document.getElementById('nextBtn').disabled = false;
+  document.getElementById('guideBlock')?.setAttribute('hidden', '');
+  document.querySelector('.detected-wrap')?.setAttribute('hidden', '');
+  document.getElementById('feedbackMsg').textContent = 'かがみモードで練習できます';
+  document.getElementById('feedbackSub').textContent = '口の形の自動判定が読み込めませんでした。右の「目標の口の形」と自分の口を見くらべて、できたら「次へ」を押しましょう。';
+  navigator.mediaDevices?.getUserMedia({ video: true }).then(stream => {
+    video.srcObject = stream;
+    video.play().catch(() => {});
+    const st = document.getElementById('camStatus');
+    st.className = 'camera-status active';
+    st.textContent = 'かがみ';
+  }).catch(() => {
+    document.getElementById('camStatus').textContent = 'カメラエラー';
+    document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
+  });
+}
 </script>
 </body>
 </html>

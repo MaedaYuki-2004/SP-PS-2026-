@@ -1,18 +1,21 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>参加者アカウント管理 — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
-    .page-header { background:var(--navy); padding:22px 32px; display:flex; align-items:flex-end;
+    .page-header { position:relative; overflow:hidden; background:var(--grad-hero); color:#fff; margin:16px auto 0; width:calc(100% - 32px); max-width:1036px; border-radius:28px; padding:22px 32px; display:flex; align-items:flex-end;
                    justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .page-header-title { font-size:20px; font-weight:700; color:#fff; }
-    .page-header-sub { font-size:11px; color:rgba(255,255,255,.5); margin-top:3px; }
+    .page-header-sub { font-size:12px; color:rgba(255,255,255,.82); margin-top:3px; }
     .page-header a { font-size:12px; color:rgba(255,255,255,.8); text-decoration:none; }
     .page-header a:hover { color:#fff; }
+    .hdr-lock { min-height:36px; padding:0 14px; border:none; border-radius:100px; background:rgba(255,255,255,.18); color:#fff;
+                font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer; }
     .main { max-width:1000px; margin:0 auto; padding:26px 32px; }
     .card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r);
             padding:22px; margin-bottom:22px; box-shadow:var(--shadow-xs); }
@@ -27,8 +30,8 @@
     .fld input:focus, .fld select:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(79,70,229,.09); }
     .btn { font-family:var(--font); font-size:12px; font-weight:700; border:none; border-radius:var(--r-sm);
            padding:9px 16px; cursor:pointer; }
-    .btn-primary { color:#fff; background:var(--navy); }
-    .btn-primary:hover { background:var(--navy-mid); }
+    .btn-primary { color:#fff; background:var(--navy-fill); }
+    .btn-primary:hover { filter:brightness(1.06); }
     .btn-ghost { color:var(--text-2); background:var(--bg-muted); }
     .btn-ghost:hover { background:var(--border); }
     .btn-danger { color:var(--accent); background:var(--accent-bg); }
@@ -55,9 +58,12 @@
   <div class="page-header">
     <div>
       <div class="page-header-title">参加者アカウント管理</div>
-      <div class="page-header-sub">研究者用 / ローカル運用前提</div>
+      <div class="page-header-sub">研究者用 / 先生モードのときだけ開けます</div>
     </div>
-    <a href="/admin">← 単語管理へ</a>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <a href="/admin">← 単語管理へ</a>
+      <form method="post" action="/teacher/lock" style="margin:0;"><input type="hidden" name="next" value="/select"><button type="submit" class="hdr-lock">先生モードを終わる</button></form>
+    </div>
   </div>
 
   <div class="main">

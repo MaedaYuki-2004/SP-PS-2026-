@@ -238,6 +238,24 @@ async function main() {
       lipRecorder.addEventListener('stop', () => {
         const blob = new Blob(lipChunks, { type: 'video/webm' });
         lipUploadPromise = sendLipVideo(mode, blob);
+
+        // 自分の口の動きをその場で見返せるようにする。
+        // 聞こえ方によっては音の録り直し判断ができないため、
+        // 「口が動いていたか」を目で確かめられることが手がかりになる。
+        if (mode === 'test') {
+          const replay = document.getElementById('userLipReplay');
+          if (replay) {
+            if (replay.dataset.url) URL.revokeObjectURL(replay.dataset.url);
+            const url = URL.createObjectURL(blob);
+            replay.dataset.url = url;
+            replay.src = url;
+            replay.classList.add('ready');
+            // 録音のあとの画面で「お手本とならべて見る」に使う
+            document.dispatchEvent(new CustomEvent('sp:lipready', { detail: { url, blob } }));
+          }
+          // 結果画面の「くらべる → 口の形」でも見返せるよう、この端末にだけ置いておく
+          if (window.SPLipStore) window.SPLipStore.save(currentWordId, blob);
+        }
         lipRecorder = null;
         lipMode = null;
         updateLipButtons();
@@ -304,6 +322,7 @@ async function main() {
       isRecording  = true;
       window._spRecording = true;
       hasRecording = false;
+      window._spHasRecording = false;
       speechStart  = null;
       silenceStart = null;
       buffers.splice(0, buffers.length);
@@ -324,10 +343,13 @@ async function main() {
 
     btnStart.addEventListener('click', () => {
       // ③ 録音済みの場合は確認ダイアログを表示
-      if (hasRecording) {
+      // 「お手本を見て録音する」の流れでは開始前に確認済みなので、
+      // そのときだけ二重に聞かない（_spSkipRerecordConfirm は一度きりの印）。
+      if (hasRecording && !window._spSkipRerecordConfirm) {
         const ok = confirm('前の録音を破棄して録音し直しますか？');
-        if (!ok) return;
+        if (!ok) { window._spSkipRerecordConfirm = false; return; }
       }
+      window._spSkipRerecordConfirm = false;
 
       // 聴覚障碍ユーザー向けタイミングガイド：カウントダウンを挟んでから開始
       const guide = window._spTimingGuide;
@@ -346,6 +368,7 @@ async function main() {
       isRecording  = false;
       window._spRecording = false;
       hasRecording = true;   // ③ 録音完了フラグ
+      window._spHasRecording = true;
       speechStart  = null;
       silenceStart = null;
 
@@ -354,8 +377,12 @@ async function main() {
       param.setValueAtTime(0, audioContext.currentTime);
 
       // 音声停止と同時に唇テスト録画も停止（音素タイムスタンプとの同期を保つため）
-      if (lipRecorder && lipRecorder.state === 'recording') {
+      const hadLip = !!(lipRecorder && lipRecorder.state === 'recording');
+      if (hadLip) {
         lipRecorder.stop();
+      } else {
+        // お手本の口が未登録の単語などで、口の動きを撮っていない
+        document.dispatchEvent(new CustomEvent('sp:lipnone'));
       }
 
       document.dispatchEvent(new CustomEvent('sp:recordstop'));

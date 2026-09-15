@@ -2,13 +2,13 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>はじめの設定 — SP-PS</title>
+  <title>先生モード — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
-    /* ログイン：テーマカラーの光の上に、カードを1枚浮かせる */
+    /* ログイン画面と同じ形。テーマカラーの光の上に、カードを1枚浮かせる */
     body { background-color:var(--bg);
            background-image:radial-gradient(120% 60% at 50% -10%, rgba(116,101,255,.30), rgba(116,101,255,0) 62%),
                             radial-gradient(70% 40% at 100% 100%, rgba(61,140,255,.14), rgba(61,140,255,0) 70%); }
@@ -17,31 +17,31 @@
     .auth-logo { width:76px; height:76px; border-radius:24px; display:flex; align-items:center; justify-content:center;
                  background:var(--grad-hero); color:#fff; margin-bottom:8px;
                  box-shadow:var(--shadow-brand), inset 0 1px 0 rgba(255,255,255,.25); }
-    .auth-name { font-family:var(--font-num); font-size:28px; font-weight:800; color:var(--text); letter-spacing:-.01em; }
+    .auth-name { font-size:24px; font-weight:700; color:var(--text); }
     .auth-tag { font-size:14px; color:var(--text-2); }
     .auth-card { width:100%; max-width:400px; background:var(--glass); border:1px solid var(--glass-line);
                  backdrop-filter:blur(20px) saturate(170%); -webkit-backdrop-filter:blur(20px) saturate(170%);
-                 border-radius:30px; padding:28px 22px 24px; }
+                 border-radius:30px; padding:26px 22px 22px; }
     body .auth-card { box-shadow:var(--elev-2); }
-    .auth-title { font-size:22px; font-weight:700; color:var(--text); }
-    .auth-sub { font-size:14px; color:var(--text-3); margin-top:4px; margin-bottom:22px; line-height:1.6; }
+    .auth-sub { font-size:14px; color:var(--text-2); margin-bottom:20px; line-height:1.7; }
     .field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
     .field label { font-size:13px; font-weight:700; color:var(--text-2); }
     .field input { font-family:var(--font); font-size:16px; padding:14px 16px; min-height:54px; border:1.5px solid transparent;
                    border-radius:16px; background:var(--bg-muted); color:var(--text); width:100%;
                    transition:border-color var(--dur),box-shadow var(--dur),background var(--dur); }
     .field input:focus { outline:none; background:var(--bg-card); border-color:var(--navy); box-shadow:0 0 0 4px color-mix(in srgb, var(--navy) 16%, transparent); }
-    .field .hint { font-size:12px; color:var(--text-3); }
     .btn-primary { width:100%; min-height:58px; margin-top:4px; font-family:var(--font); font-size:17px; font-weight:700; color:#fff;
                    background:var(--grad-brand); box-shadow:var(--shadow-brand); border:none; border-radius:18px; padding:12px;
                    cursor:pointer; transition:filter var(--dur), transform .15s var(--ease); }
     .btn-primary:hover { filter:brightness(1.06); }
     .btn-primary:active { transform:scale(.98); }
-    .auth-error { display:flex; gap:8px; align-items:flex-start; background:var(--danger-bg); color:var(--danger); border:none;
+    .auth-error { display:flex; gap:8px; align-items:flex-start; background:var(--danger-bg); color:var(--danger);
                   border-radius:16px; padding:12px 14px; font-size:14px; font-weight:600; margin-bottom:16px; line-height:1.6; }
+    .auth-error .ic { flex:none; margin-top:.25em; }
     .auth-note { font-size:13px; color:var(--text-3); margin-top:16px; line-height:1.7; padding:12px 14px; border-radius:16px; background:var(--bg-muted); }
-    .id-chip { display:inline-flex; align-items:center; gap:6px; font-family:var(--font-num); font-size:14px; font-weight:700; color:var(--navy);
-               background:var(--navy-soft); border-radius:100px; padding:4px 12px; margin-bottom:20px; }
+    .auth-note code { font-size:12px; word-break:break-all; }
+    .auth-back { display:inline-flex; align-items:center; min-height:44px; padding:8px 16px; border-radius:100px; color:var(--text-2);
+                 background:var(--bg-card); box-shadow:var(--elev-1); font-size:14px; font-weight:700; text-decoration:none; }
     .pw-wrap { position:relative; }
     .pw-wrap input { padding-right:78px !important; }
     .pw-toggle { position:absolute; right:7px; top:50%; transform:translateY(-50%); min-height:40px; padding:0 12px; border:none;
@@ -49,37 +49,40 @@
   </style>
 </head>
 <body>
+{#
+  先生モード（管理画面を開くためのパスワード入力）
+
+  単語・お手本・参加者アカウントの管理は、生徒の端末から操作されないよう
+  先生用パスワードを入れたときだけ使える。ホームの設定から ON にする場合は
+  この画面を通らず、設定シートの中でパスワードを入力する。
+#}
   <div class="auth-wrap">
     <div class="auth-brand">
-      <span class="auth-logo">{{ icon('mouth', size=30) }}</span>
-      <span class="auth-name">SP-PS</span>
-      <span class="auth-tag">声と口の形で、発音をれんしゅう</span>
+      <span class="auth-logo">{{ icon('school', size=34) }}</span>
+      <span class="auth-name">先生モード</span>
+      <span class="auth-tag">SP-PS の単語・お手本・アカウントの管理</span>
     </div>
     <div class="auth-card">
-      <div class="auth-title">はじめの設定</div>
-      <div class="auth-sub">ログイン用のパスワードを決めます。</div>
-      <span class="id-chip">利用者ID：{{ user_id }}</span>
+      <p class="auth-sub">単語の追加・削除、お手本の録画、参加者アカウントの管理は、先生だけが行えます。先生用パスワードを入力してください。</p>
 
-      {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
+      {% if error %}<div class="auth-error">{{ icon('alert') }}<span>{{ error }}</span></div>{% endif %}
 
-      <form method="post" action="/first_login" autocomplete="off">
-        <input type="hidden" name="user_id" value="{{ user_id }}">
-
+      {% if teacher_configured %}
+      <form method="post" action="/teacher" autocomplete="off">
+        <input type="hidden" name="next" value="{{ next_url }}">
         <div class="field">
-          <label for="password">パスワード</label>
-          <div class="pw-wrap"><input type="password" id="password" name="password" required minlength="6"
-                 placeholder="6文字以上"><button type="button" class="pw-toggle" data-for="password">表示</button></div>
-          <span class="hint">忘れないものにしてください。</span>
+          <label for="password">先生用パスワード</label>
+          <div class="pw-wrap"><input type="password" id="password" name="password" required autofocus><button type="button" class="pw-toggle" data-for="password">表示</button></div>
         </div>
-        <div class="field">
-          <label for="password2">パスワード（確認）</label>
-          <div class="pw-wrap"><input type="password" id="password2" name="password2" required minlength="6"
-                 placeholder="もう一度入力"><button type="button" class="pw-toggle" data-for="password2">表示</button></div>
-        </div>
-
-        <button type="submit" class="btn-primary">設定してはじめる</button>
+        <button type="submit" class="btn-primary">先生モードにする</button>
       </form>
+      <p class="auth-note">先生の操作をしないまま60分たつと、自動で先生モードが終わります。ログアウトしたときも終わります。</p>
+      {% else %}
+      <div class="auth-error">{{ icon('alert') }}<span>先生用パスワードがまだ設定されていません。</span></div>
+      <p class="auth-note">サーバーを動かしているPCで、次のコマンドを実行してパスワードを設定してください。<br><code>python scripts/set_teacher_password.py</code></p>
+      {% endif %}
     </div>
+    <a class="auth-back" href="/select">ホームにもどる</a>
   </div>
   <script>
     // パスワードの表示／非表示

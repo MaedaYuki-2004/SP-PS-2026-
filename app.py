@@ -15,8 +15,9 @@ import re
 import shutil
 import tempfile
 import traceback
+from functools import wraps
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 try:
     import cv2
@@ -44,11 +45,12 @@ from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_ar
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
 from core.timbre    import audio_mfcc, dtw_ascending_order
-from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_overall_score, get_weekly_report
+from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_overall_score, get_weekly_report, get_week_activity
 from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
+from core import teacher
 from core import usercontext
 
 JULIUS_GATE_THRESHOLD = -3000
@@ -736,10 +738,43 @@ def server_error(e):
 # ── 認証（研究参加者ログイン） ──────────────────────────────────────
 # 倫理審査資料 SP-PS §6.1：利用者 ID は研究者が割り当て、パスワードは本人が
 # 初回ログイン時に設定する。練習記録を個人ごとに分離するための土台。
-# 管理画面（/admin*）はローカル運用前提のため参加者ログインの対象外
-# （資料 §7 / README の記載どおり、別途保護が必要な場合はネットワーク側で行う）。
+#
+# 先生だけの操作（単語・お手本・参加者アカウントの管理）は、生徒の端末で使われても
+# 書き換えられないよう、先生用パスワードで ON にした「先生モード」のセッションでだけ受け付ける
+# （core/teacher.py）。管理画面（/admin*）は参加者ログインではなく先生モードで守る。
+# 最初の参加者アカウントを作る前にも開けるようにするため。
 
-_AUTH_EXEMPT_ENDPOINTS = {"login", "first_login", "logout", "static"}
+_AUTH_EXEMPT_ENDPOINTS = {"login", "first_login", "logout", "static",
+                          "teacher_page", "teacher_unlock_api", "teacher_lock"}
+
+
+def _wants_html() -> bool:
+    return "text/html" in (request.headers.get("Accept") or "")
+
+
+def _teacher_denied():
+    """先生モードでないときの返し方。画面の移動なら先生用パスワードの画面へ、通信なら 403。"""
+    if _wants_html():
+        # 画面を開こうとしたときはそのページへ、フォーム送信のときは送信元のページへ戻す
+        target = request.full_path if request.method == "GET" else (urlparse(request.referrer or "").path or "/admin")
+        return redirect(f"/teacher?next={quote(target.rstrip('?'), safe='')}")
+    return jsonify({
+        "error": "先生モードでないため、この操作はできません。設定から先生モードをONにしてください"
+                 "（先生モードは、先生の操作をしないまま"
+                 f"{teacher.SESSION_MINUTES}分たつと自動でOFFになります）。",
+        "teacher_required": True,
+    }), 403
+
+
+def teacher_required(fn):
+    """先生モードのセッションでだけ実行するルートに付ける。"""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not teacher.is_active(session):
+            return _teacher_denied()
+        teacher.activate(session)   # 先生の操作をしている間は期限を延ばす
+        return fn(*args, **kwargs)
+    return wrapper
 
 
 @app.before_request
@@ -748,7 +783,12 @@ def _require_login():
     usercontext.set_current_user(None)
 
     endpoint = request.endpoint or ""
-    if endpoint in _AUTH_EXEMPT_ENDPOINTS or request.path.startswith("/admin"):
+    if endpoint in _AUTH_EXEMPT_ENDPOINTS:
+        return
+    if request.path.startswith("/admin"):
+        if not teacher.is_active(session):
+            return _teacher_denied()
+        teacher.activate(session)
         return
     user_id = session.get(acc.SESSION_KEY)
     if user_id and acc.account_exists(user_id):
@@ -772,7 +812,11 @@ def _clear_user_context(exc=None):
 
 @app.context_processor
 def _inject_current_account():
-    return {"current_user_id": session.get(acc.SESSION_KEY)}
+    # is_teacher は画面の出し分け（<html class="teacher-mode">）にだけ使う。
+    # 操作を許すかどうかは、各ルートで teacher.is_active() を見て決める。
+    return {"current_user_id": session.get(acc.SESSION_KEY),
+            "is_teacher": teacher.is_active(session),
+            "teacher_configured": teacher.is_configured()}
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -842,6 +886,65 @@ def logout():
     return redirect("/login")
 
 
+# ── 先生モード ───────────────────────────────────────────────────────
+
+def _safe_next(target: str | None, default: str = "/admin") -> str:
+    """ログイン後などに戻る先。同じサイトの中のパスだけを許す。"""
+    if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
+        return target
+    return default
+
+
+def _teacher_try_unlock(password: str) -> tuple[bool, str | None, int]:
+    """先生用パスワードを確かめる。(成功したか, エラー文, HTTP ステータス)"""
+    if not teacher.is_configured():
+        return False, ("先生用パスワードがまだ設定されていません。サーバーのPCで "
+                       "python scripts/set_teacher_password.py を実行してください。"), 503
+    key = request.remote_addr or "unknown"
+    wait = teacher.seconds_locked(key)
+    if wait:
+        return False, f"続けて間違えたため、{wait}秒待ってからもう一度入力してください。", 429
+    if not teacher.verify_password(password):
+        teacher.record_failure(key)
+        return False, "先生用パスワードが正しくありません。", 401
+    teacher.clear_failures(key)
+    teacher.activate(session)
+    return True, None, 200
+
+
+@app.route("/teacher", methods=["GET", "POST"])
+def teacher_page():
+    """先生用パスワードの入力画面（管理画面を直接開いたときなど）。"""
+    next_url = _safe_next(request.values.get("next"))
+    if request.method == "GET":
+        if teacher.is_active(session):
+            return redirect(next_url)
+        return render_template("teacher_login.html", next_url=next_url)
+    ok, error, status = _teacher_try_unlock(request.form.get("password") or "")
+    if ok:
+        return redirect(next_url)
+    return render_template("teacher_login.html", next_url=next_url, error=error), status
+
+
+@app.route("/teacher/unlock", methods=["POST"])
+def teacher_unlock_api():
+    """設定シートの「先生モード」から呼ぶ（JSON）。"""
+    data = request.get_json(force=True, silent=True) or {}
+    ok, error, status = _teacher_try_unlock(data.get("password") or "")
+    if ok:
+        return jsonify({"ok": True, "minutes": teacher.SESSION_MINUTES})
+    return jsonify({"error": error}), status
+
+
+@app.route("/teacher/lock", methods=["POST"])
+def teacher_lock():
+    """先生モードを OFF にする。"""
+    teacher.deactivate(session)
+    if _wants_html():
+        return redirect(_safe_next(request.form.get("next"), default="/select"))
+    return jsonify({"ok": True})
+
+
 # ── ルーティング ─────────────────────────────────────────────────────
 
 @app.route("/", methods=["GET", "POST"])
@@ -884,7 +987,8 @@ def select():
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
                            weak_sounds=weak_sounds,
                            lesson=lesson,
-                           overall=get_overall_score(), weekly=get_weekly_report())
+                           overall=get_overall_score(), weekly=get_weekly_report(),
+                           week=get_week_activity())
 
 
 def _get_daily_lesson_safe(words: list[dict]) -> dict | None:
@@ -930,7 +1034,8 @@ def select_page():
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
                            weak_sounds=weak_sounds,
                            lesson=lesson,
-                           overall=get_overall_score(), weekly=get_weekly_report())
+                           overall=get_overall_score(), weekly=get_weekly_report(),
+                           week=get_week_activity())
 
 
 @app.route("/history")
@@ -1118,6 +1223,11 @@ def upload_lip_video():
         mode = request.form.get("mode", "").strip()
         if mode not in ("ref", "test"):
             return jsonify({"error": "mode は ref または test を指定してください。"}), 400
+        # ref（お手本）は単語のお手本音声・口形データを上書きするので先生だけ。test は生徒自身の録画
+        if mode == "ref":
+            if not teacher.is_active(session):
+                return _teacher_denied()
+            teacher.activate(session)
         file = request.files.get("file")
         if not file:
             return jsonify({"error": "動画ファイルが送信されていません。"}), 400
@@ -1358,6 +1468,7 @@ def api_vowel_trainer_complete():
 
 
 @app.route('/api/lip_refs/delete', methods=['POST'])
+@teacher_required
 def api_lip_refs_delete():
     try:
         data = request.get_json() or {}
@@ -1375,6 +1486,7 @@ def api_lip_refs_delete():
 
 
 @app.route('/api/lip_refs/overwrite', methods=['POST'])
+@teacher_required
 def api_lip_refs_overwrite():
     try:
         word_id = (request.form.get('word_id') or '').strip()
@@ -1614,6 +1726,7 @@ def audio_analysis():
             words=word_list, sort_distance=dtw_list, bar_color=colors,
             prev_score=prev_score,
             lip_mora_analysis=lip_mora_analysis,
+            has_ref_video=has_sample_video(word_id),
         )
 
         words_list = list_words()
@@ -1735,6 +1848,22 @@ def audio_analysis():
             ci_result = None
             ci_info   = None
 
+        # ── この単語のこれまで（結果画面の「この単語の記録」用。保存の前に読む） ──
+        word_progress = None
+        try:
+            _past = [float(r["total"]) for r in load_word_history(word_id) if r.get("total") is not None]
+            _past.reverse()                                   # 古い順にする
+            _now  = float(score_result["total"])
+            _all  = _past + [_now]
+            word_progress = {
+                "scores":  [int(round(v)) for v in _all[-10:]],   # 最近10回（今回を含む）
+                "count":   len(_all),                             # 今回が何回目か
+                "best":    int(round(max(_all))),
+                "is_best": bool(_past) and _now > max(_past),     # 自己ベスト更新
+            }
+        except Exception:
+            word_progress = None
+
         try:
             save_record(word_id, display, reading, score_result, mora_scores=mora_scores)
         except Exception:
@@ -1749,7 +1878,7 @@ def audio_analysis():
                                speaking_rate=user_rate, rate_feedback=rate_feedback,
                                score_delta=score_delta, suggestions=suggestions,
                                mora_scores=mora_scores, worst_mora=worst_mora,
-                               ci_info=ci_info,
+                               ci_info=ci_info, word_progress=word_progress,
                                native_formants=native_formants if 'native_formants' in dir() else None,
                                user_formants=user_formants if 'user_formants' in dir() else None,
                                lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios,

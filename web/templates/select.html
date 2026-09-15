@@ -1,157 +1,286 @@
 {% from "_icons.html" import icon %}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SP-PS — 日本語発音練習</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
-    /* ── ログイン中の利用者ID ── */
-    .nav-userid { display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:100px; font-family:var(--mono); font-size:12px; font-weight:500; color:var(--navy); background:var(--navy-soft); border:1px solid var(--border); white-space:nowrap; }
-    @media (max-width:560px) { .nav-userid { padding:5px 9px; font-size:11px; } }
+    /* ══ ホーム（v5） ══════════════════════════════════════════
+       ホームの役割は「今日やること」を1つ示し、ほかの練習と単語へ
+       迷わず進めること。ログアウト・テーマ・先生用の操作は
+       右上の「設定」にまとめ、画面の本文から外した。
 
-    /* ── Hero ── */
-    .hero { max-width:1200px; margin:0 auto; padding:18px 32px 0; }
-    .hero-card { position:relative; overflow:hidden; border-radius:var(--r-lg); padding:30px 34px 26px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%); color:#fff; box-shadow:var(--shadow); }
-    .hero-card::before { content:''; position:absolute; right:-90px; top:-100px; width:320px; height:320px; border-radius:50%; background:rgba(255,255,255,.08); pointer-events:none; }
-    .hero-card::after  { content:''; position:absolute; left:-70px; bottom:-140px; width:260px; height:260px; border-radius:50%; background:rgba(255,255,255,.05); pointer-events:none; }
-    .hero-eyebrow { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.6); margin-bottom:8px; position:relative; }
-    .hero-title { font-size:clamp(24px,4vw,38px); font-weight:900; color:#fff; line-height:1.25; margin-bottom:4px; position:relative; }
-    .hero-sub { font-size:13px; color:rgba(255,255,255,.6); margin-bottom:20px; position:relative; }
-    .hero-stats { display:flex; justify-content:flex-start; gap:10px; flex-wrap:wrap; position:relative; }
-    .stat-item { display:inline-flex; align-items:baseline; gap:7px; padding:8px 16px; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.14); border-radius:100px; backdrop-filter:blur(4px); }
-    .stat-num { font-family:var(--mono); font-size:17px; font-weight:500; color:#fff; }
-    .stat-lbl { font-size:11px; color:rgba(255,255,255,.65); letter-spacing:.04em; font-weight:600; }
-    .stat-item.streak-hot { background:rgba(255,179,64,.25); border-color:rgba(255,179,64,.4); }
-    .hero-main-row { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; position:relative; }
-    .hero-text-col { flex:1; min-width:0; }
-    .hero-score { text-align:center; flex-shrink:0; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); border-radius:var(--r-lg); padding:14px 22px 12px; backdrop-filter:blur(4px); }
-    .hero-score-num { font-family:var(--mono); font-size:42px; font-weight:500; color:#fff; line-height:1; }
-    .hero-score-unit { font-size:15px; color:rgba(255,255,255,.6); }
-    .hero-score-label { font-size:10.5px; font-weight:700; color:rgba(255,255,255,.75); margin-top:4px; letter-spacing:.04em; }
-    .hero-trend { font-family:var(--mono); font-size:10px; padding:1px 7px; border-radius:100px; margin-left:4px; }
-    .hero-trend.up   { background:rgba(43,217,165,.3); color:#7CF5D0; }
-    .hero-trend.down { background:rgba(255,122,85,.3); color:#FFB09A; }
-    .hero-weekly { margin-top:12px; padding:9px 14px; background:rgba(255,255,255,.09); border-radius:var(--r); font-size:11.5px; color:rgba(255,255,255,.75); position:relative; }
-    .hero-weekly b { color:#fff; font-weight:700; }
-    .hero-weekly .wk-up   { color:#7CF5D0; }
-    .hero-weekly .wk-down { color:#FFB09A; }
-    @media (max-width:700px) {
-      .hero-main-row { flex-direction:column; gap:10px; }
-      .hero-score { align-self:stretch; display:flex; align-items:baseline; justify-content:center; gap:10px; padding:10px 16px; }
-      .hero-score-num { font-size:30px; }
+       上から「あいさつ（自分がどうなっているか）」→「今日のれんしゅう（主役）」
+       →「今週のようす・記録と分析への入口」→「ほかの練習」→「単語」。
+       主役のボタンが、スマホの最初の1画面に必ず入る順にしている。 */
+
+    /* あいさつ：日付・あいさつ・今日のひとこと・連続記録 */
+    .hello { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:2px 12px; padding:2px 4px 0; }
+    .hello-date { grid-column:1; font-size:13px; font-weight:500; color:var(--text-3); letter-spacing:.02em; }
+    .hello-title { grid-column:1 / -1; font-size:26px; font-weight:700; line-height:1.25; color:var(--text); letter-spacing:.01em; }
+    /* 連続日数：「🔥 4日連続」を1行のピルで。日付と同じ行の右に置き、あいさつは横幅いっぱいを使う */
+    .hello-streak { grid-column:2; grid-row:1; align-self:center; display:inline-flex; align-items:center; gap:5px;
+                    min-height:44px; padding:0 14px 0 12px; border-radius:100px; background:var(--bg-card); box-shadow:var(--elev-1);
+                    text-decoration:none; color:var(--text); white-space:nowrap; }
+    .hello-streak-num { display:inline-flex; align-items:center; gap:4px; font-family:var(--font-num); font-size:20px; font-weight:800; line-height:1; letter-spacing:-.02em; }
+    .hello-streak-num .ic { color:#FF8A3D; }
+    .hello-streak small { font-size:13px; font-weight:700; color:var(--text-2); line-height:1; }
+    .hello-streak.is-off .hello-streak-num { color:var(--text-3); }
+    .me-msg { grid-column:1 / -1; font-feature-settings:'palt' 1; display:flex; align-items:flex-start; gap:6px; margin-top:4px; font-size:15px; line-height:1.6; color:var(--text-2); }
+    .me-msg .ic { margin-top:.25em; color:var(--brand-500); }
+    .me-msg b { color:var(--text); font-weight:700; }
+    .me-note { grid-column:1 / -1; justify-self:start; font-feature-settings:'palt' 1; display:inline-flex; align-items:center; gap:6px; margin-top:6px; padding:5px 12px; border-radius:100px;
+               background:var(--good-bg); color:var(--good-text); font-size:13px; }
+    .me-note b { font-weight:700; }
+
+    /* 今週のようす：今週（月〜日）＋ 記録・分析への入口 */
+    .me-card { background:var(--bg-card); border-radius:var(--r-lg); padding:14px; box-shadow:var(--elev-1); }
+    .me-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:2px 4px 10px; }
+    .me-card-head b { font-size:15px; font-weight:700; color:var(--text); }
+    .me-card-head span { font-size:13px; color:var(--text-3); }
+    .me-card-head span em { font-style:normal; font-family:var(--font-num); font-weight:800; color:var(--navy); font-size:15px; }
+    .me-week { display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; text-decoration:none; -webkit-tap-highlight-color:transparent; }
+    .wk { display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 0 6px; border-radius:16px; }
+    .wk-l { font-size:11px; font-weight:500; color:var(--text-3); line-height:1; }
+    .wk-c { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%;
+            background:var(--bg-muted); color:var(--text-3); font-family:var(--font-num); font-size:13px; font-weight:700; }
+    .wk.on .wk-c { background:var(--grad-brand); color:#fff; box-shadow:0 6px 12px -6px rgba(91,75,234,.8); }
+    .wk.is-today { background:var(--navy-soft); }
+    .wk.is-today .wk-l { color:var(--navy); font-weight:700; }
+    .wk.is-today:not(.on) .wk-c { background:var(--bg-card); color:var(--navy); box-shadow:inset 0 0 0 2px var(--navy); }
+    .wk.is-future .wk-c { background:transparent; box-shadow:inset 0 0 0 1.5px var(--border); }
+
+    /* 記録・分析への入口 */
+    .me-links { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; margin-top:12px; }
+    .me-link { position:relative; min-width:0; display:flex; flex-direction:column; gap:8px; min-height:92px; padding:12px 12px 12px 14px; border-radius:18px;
+               background:var(--bg-muted); color:var(--text); text-decoration:none; -webkit-tap-highlight-color:transparent;
+               transition:transform .15s var(--ease), background var(--dur); }
+    .me-link:hover { background:var(--navy-soft); }
+    .me-link-top { display:flex; align-items:center; justify-content:space-between; }
+    .me-link-ic { flex:none; display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:11px;
+                  background:var(--bg-card); color:var(--navy); box-shadow:var(--elev-1); }
+    .me-link-go { color:var(--text-3); }
+    .me-link-text { min-width:0; display:flex; flex-direction:column; line-height:1.3; }
+    .me-link-text b { font-size:15px; font-weight:700; }
+    .me-link-text small { font-size:12.5px; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .me-link-text small .up { color:var(--good); font-weight:700; }
+    @media (max-width:360px) {
+      .wk-c { width:30px; height:30px; }
+      .hello-title { font-size:23px; }
     }
 
-    /* ── Layout ── */
-    .main-layout { display:block; max-width:1200px; margin:0 auto; padding:28px 32px 48px; }
-    .words-section { border-right:none; padding:0; }
-    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap; padding-bottom:16px; border-bottom:1px solid var(--border); }
-    .section-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
-    .search-wrap { position:relative; }
-    .search-input { width:240px; padding:9px 14px 9px 36px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:13px; background:var(--bg-card); color:var(--text); transition:border-color var(--dur),box-shadow var(--dur); }
-    .search-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(124,106,224,.15); }
-    .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-3); }
-    .sort-wrap { display:flex; align-items:center; gap:6px; position:relative; }
+    /* ── はじめての使い方（最初の1回だけ） ──
+       説明を音声や動画で聞けない生徒にも伝わるよう、1画面に1つずつ、絵と短い文で見せる。 */
+    .intro { position:fixed; inset:0; z-index:700; display:flex; align-items:flex-end; justify-content:center;
+             background:rgba(12,10,30,.45); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+    .intro-panel { width:100%; max-width:480px; background:var(--bg-card); border-radius:32px 32px 0 0;
+                   padding:30px 22px calc(18px + env(safe-area-inset-bottom)); text-align:center; animation:intro-up .36s var(--spring); }
+    @media (min-width:600px) { .intro { align-items:center; } .intro-panel { border-radius:32px; } }
+    @keyframes intro-up { from { transform:translateY(40px); opacity:0; } to { transform:none; opacity:1; } }
+    .intro-step { display:none; }
+    .intro-step.active { display:block; animation:intro-fade .26s var(--ease); }
+    @keyframes intro-fade { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:none; } }
+    .intro-art { width:120px; height:120px; margin:0 auto 18px; border-radius:36px; background:var(--grad-hero); color:#fff;
+                 display:flex; align-items:center; justify-content:center; position:relative; box-shadow:var(--shadow-brand); }
+    .intro-art-num { position:absolute; right:-8px; top:-8px; width:36px; height:36px; border-radius:50%; background:var(--bg-card); color:var(--navy);
+                     font-family:var(--font-num); font-size:17px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:var(--elev-2); }
+    .intro-title { font-size:23px; font-weight:700; color:var(--text); line-height:1.4; }
+    .intro-text { font-size:15px; line-height:1.8; color:var(--text-2); margin:8px auto 0; max-width:320px; }
+    .intro-dots { display:flex; justify-content:center; gap:6px; margin:22px 0 16px; }
+    .intro-dots i { width:8px; height:8px; border-radius:100px; background:var(--border); transition:width .25s var(--ease), background .25s; }
+    .intro-dots i.on { width:24px; background:var(--navy); }
+    .intro-next { width:100%; min-height:58px; border:none; border-radius:18px; background:var(--grad-brand); color:#fff; box-shadow:var(--shadow-brand);
+                  font-family:var(--font); font-size:17px; font-weight:700; cursor:pointer; }
+    .intro-skip { width:100%; min-height:44px; margin-top:4px; border:none; background:none; color:var(--text-3);
+                  font-family:var(--font); font-size:14px; cursor:pointer; }
 
-    /* カスタムドロップダウン */
-    .sort-dropdown { position:relative; }
-    .sort-dropdown-btn { display:inline-flex; align-items:center; gap:7px; padding:8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-card); color:var(--text); font-family:var(--font); font-size:12.5px; font-weight:600; cursor:pointer; transition:border-color var(--dur),box-shadow var(--dur); }
-    .sort-dropdown-btn:hover { border-color:var(--navy); }
-    .sort-dropdown.open .sort-dropdown-btn { border-color:var(--navy); box-shadow:0 0 0 3px color-mix(in srgb, var(--navy) 15%, transparent); }
-    .sort-dropdown-btn svg:first-child { color:var(--text-3); flex-shrink:0; }
-    .sort-dropdown-chevron { color:var(--text-3); margin-left:2px; transition:transform .2s; flex-shrink:0; }
-    .sort-dropdown.open .sort-dropdown-chevron { transform:rotate(180deg); }
+    /* 今日のれんしゅう（ホームの主役） */
+    .today { padding:20px 20px 12px; border-radius:28px; }
+    .today-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .today-label { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:700; letter-spacing:.04em; color:rgba(255,255,255,.92); }
+    .today-label .ic { opacity:.9; }
+    .today-ring { --ring-size:56px; --ring-w:5px; --ring-color:#fff; --ring-track:rgba(255,255,255,.24); }
+    .today-count { font-family:var(--font-num); font-size:14px; font-weight:800; color:#fff; line-height:1; }
+    .today-count small { font-size:11px; font-weight:700; opacity:.75; }
+    .today-next { margin:10px 0 18px; }
+    .today-tag { display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:100px; background:rgba(255,255,255,.18);
+                 font-size:12.5px; font-weight:700; backdrop-filter:blur(4px); }
+    .today-word { font-size:46px; font-weight:700; line-height:1.15; margin-top:10px; letter-spacing:.02em; text-shadow:0 2px 18px rgba(20,10,80,.25); }
+    .today-reason { font-size:14px; color:rgba(255,255,255,.86); margin-top:6px; }
+    /* 白いボタンの文字はテーマに依らず濃い青紫（ダークでは --brand-700 が明るくなるため固定） */
+    .today .btn-hero { min-height:58px; background:#fff; color:#4A3AD0; box-shadow:0 12px 24px -12px rgba(20,10,80,.6); }
+    .today .btn-hero::after { display:none; }
+    .today-menu { display:flex; align-items:center; justify-content:center; gap:4px; width:100%; min-height:44px; margin-top:6px; padding:8px; border:none; background:none;
+                  color:rgba(255,255,255,.88); font-family:var(--font); font-size:13.5px; font-weight:500; cursor:pointer; }
+    .today-done { display:flex; align-items:flex-start; gap:10px; font-size:16px; font-weight:700; line-height:1.7; padding:12px 0 8px; }
+    .today-done .ic { flex:none; width:28px; height:28px; margin-top:2px; }
+    .today-empty { padding:20px; }
 
-    .sort-dropdown-menu { position:absolute; top:calc(100% + 6px); left:0; min-width:180px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow-lg); padding:6px; z-index:40; opacity:0; visibility:hidden; transform:translateY(-6px) scale(.98); transform-origin:top left; transition:opacity .15s,transform .15s,visibility .15s; }
-    .sort-dropdown.open .sort-dropdown-menu { opacity:1; visibility:visible; transform:translateY(0) scale(1); }
+    /* ほかの練習 */
+    .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+    .tile { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-height:118px; padding:14px 14px 13px;
+            border-radius:22px; border:1px solid var(--surface-line); background:var(--bg-card); color:var(--text);
+            text-decoration:none; text-align:left; font-family:var(--font); cursor:pointer; -webkit-tap-highlight-color:transparent;
+            transition:transform .15s var(--ease), box-shadow .2s; }
+    .tile:hover { box-shadow:var(--elev-2); }
+    .tile-ic { width:42px; height:42px; border-radius:14px; display:flex; align-items:center; justify-content:center; margin-bottom:auto;
+               background:var(--grad-brand); color:#fff; box-shadow:0 8px 16px -8px rgba(91,75,234,.75), inset 0 1px 0 rgba(255,255,255,.25); }
+    /* アイコンの面は、テーマカラーの仲間（青〜紫）の中で色味だけ変える。
+       緑・琥珀・橙・赤は「意味のある色」なので使わない */
+    .tile-ic.t-drill  { background:linear-gradient(135deg, #7C6CFF, #5B4BEA); }
+    .tile-ic.t-mouth  { background:linear-gradient(135deg, #A77BFF, #7B4DF0); box-shadow:0 8px 16px -8px rgba(123,77,240,.75), inset 0 1px 0 rgba(255,255,255,.25); }
+    .tile-ic.t-listen { background:linear-gradient(135deg, #5C8DFF, #4A63E8); box-shadow:0 8px 16px -8px rgba(74,99,232,.75), inset 0 1px 0 rgba(255,255,255,.25); }
+    .tile-ic.t-cont   { background:linear-gradient(135deg, #6E7BFF, #4E48D6); }
+    .tile-title { margin-top:12px; font-size:15px; font-weight:700; line-height:1.35; }
+    .tile-sub { font-size:12.5px; color:var(--text-3); line-height:1.45; }
 
-    .sort-option { display:flex; align-items:center; gap:10px; width:100%; padding:9px 10px; border:none; border-radius:var(--r-sm); background:transparent; color:var(--text-2); font-family:var(--font); font-size:13px; font-weight:600; text-align:left; cursor:pointer; transition:background .12s; }
-    .sort-option svg:first-child { color:var(--text-3); flex-shrink:0; }
-    .sort-option:hover { background:var(--bg-muted); }
-    .sort-option-check { margin-left:auto; color:var(--navy); opacity:0; flex-shrink:0; transform:scale(.7); transition:opacity .12s,transform .12s; }
-    .sort-option.active { color:var(--navy); background:var(--navy-soft); }
-    .sort-option.active svg:first-child { color:var(--navy); }
-    .sort-option.active .sort-option-check { opacity:1; transform:scale(1); }
+    /* 単語 */
+    .section-head h2 b { font-family:var(--font-num); font-size:13px; font-weight:700; color:var(--text-3);
+                         background:var(--bg-card); box-shadow:var(--elev-1); border-radius:100px; padding:2px 10px; margin-left:8px; vertical-align:2px; }
+    .search-box { position:relative; }
+    .search-box .ic { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--text-3); }
+    .search-input { width:100%; min-height:52px; padding:12px 16px 12px 46px; border:1px solid transparent; border-radius:16px;
+                    font-family:var(--font); font-size:16px; background:var(--bg-card); color:var(--text); box-shadow:var(--elev-1);
+                    transition:border-color var(--dur), box-shadow var(--dur); }
+    .search-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 4px color-mix(in srgb, var(--navy) 16%, transparent); }
+    .no-results { text-align:center; padding:28px 0; color:var(--text-3); font-size:14px; }
 
-    .sort-dir-btn { display:inline-flex; align-items:center; gap:5px; padding:8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; transition:border-color var(--dur),color var(--dur); }
-    .sort-dir-btn:hover { border-color:var(--navy); color:var(--navy); }
-    .sort-dir-btn svg { transition:transform .2s; }
-    .sort-dir-btn.desc svg { transform:rotate(180deg); }
-
-    /* ── Word cards ── */
-    .word-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
-    .word-card { background:var(--bg-card); border:1px solid var(--border); border-top:2px solid var(--border); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; transition:transform .22s,box-shadow .22s,border-top-color .22s; }
-    .word-card:hover { transform:translateY(-6px); box-shadow:0 22px 60px rgba(0,0,0,.5); }
-    .word-card:active { transform:translateY(-2px); }
+    /* ── 単語カード ──
+       上に単語、下に「お手本を聞く」「録音する」の2つのボタン。
+       以前は右端にアイコンだけの丸ボタン（▶ と マイク）を大きさ違いで置いていたが、
+       何のボタンか分からず、大きさの違いも意味があるように見えてしまっていた。
+       2つとも文字を付け、同じ大きさで横に並べる（色だけが「お手本／録音」で違う）。
+       単語の部分を押しても録音に進む（押せる範囲を広く取る）。 */
+    .word-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+    .word-card { position:relative; display:flex; flex-direction:column;
+                 background:var(--bg-card); border:1px solid var(--surface-line); border-radius:24px; overflow:hidden;
+                 transition:transform .15s var(--ease), box-shadow .2s; }
+    .word-card:hover { box-shadow:var(--elev-2); }
     .word-card.hidden { display:none; }
-    .word-card.grade-s { border-top-color:#F0A030; }
-    .word-card.grade-s:hover { box-shadow:0 22px 60px rgba(240,160,48,.2); }
-    .word-card.grade-a { border-top-color:#1EC99A; }
-    .word-card.grade-a:hover { box-shadow:0 22px 60px rgba(30,201,154,.2); }
-    .word-card.grade-b { border-top-color:#5DA8F8; }
-    .word-card.grade-b:hover { box-shadow:0 22px 60px rgba(93,168,248,.2); }
-    .word-card.grade-d { border-top-color:#E87040; }
-    .word-card.grade-d:hover { box-shadow:0 22px 60px rgba(232,112,64,.2); }
+    .wc-form { margin:0; min-width:0; }
+    .wc-hit { display:flex; width:100%; align-items:center; padding:16px 18px 12px; min-height:84px;
+              background:none; border:none; text-align:left; cursor:pointer; font-family:var(--font); color:var(--text);
+              -webkit-tap-highlight-color:transparent; transition:background var(--dur); }
+    .wc-hit:active { background:var(--bg-muted); }
+    .wc-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+    .wc-word { font-size:27px; font-weight:700; line-height:1.25; color:var(--text); word-break:break-all; letter-spacing:.01em; }
+    .wc-word.long  { font-size:23px; }
+    .wc-word.xlong { font-size:20px; }
+    .wc-reading { font-size:13px; color:var(--text-3); letter-spacing:.08em; }
+    .wc-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .wc-accent { display:inline-flex; align-items:center; gap:6px; min-height:26px; padding:0 10px; border-radius:100px; background:var(--bg-muted); }
+    .wc-accent-lbl { font-size:11.5px; color:var(--text-3); line-height:1; }
+    .wc-accent .accent-viz { display:flex; align-items:flex-end; gap:2px; height:12px; }
+    .wc-accent .av-bar { display:block; width:8px; border-radius:2px; }
+    .wc-accent .av-bar.H { height:11px; background:var(--navy); opacity:.8; }
+    .wc-accent .av-bar.L { height:4px; background:var(--text-3); opacity:.4; }
+    /* 最高点は点数の高さで色を変え、言葉（◎など）ではなく数字＋「最高」で読ませる */
+    .wc-best { display:inline-flex; align-items:baseline; gap:3px; min-height:26px; padding:3px 10px; border-radius:100px;
+               background:var(--bg-muted); font-size:11.5px; color:var(--text-3); }
+    .wc-best b { font-size:14px; color:var(--text-2); }
+    .wc-best.grade-s { background:var(--navy-soft); } .wc-best.grade-s b { color:var(--navy); }
+    .wc-best.grade-a { background:var(--good-bg); }   .wc-best.grade-a b { color:var(--good-text); }
+    .wc-new { display:inline-flex; align-items:center; gap:5px; min-height:26px; padding:3px 10px; border-radius:100px;
+              background:var(--navy-soft); font-size:12px; font-weight:700; color:var(--brand-700); }
+    .wc-note { font-size:12.5px; color:var(--text-2); background:var(--bg-muted); border-radius:10px; padding:4px 10px; margin-top:8px; line-height:1.5; align-self:flex-start; }
 
-    .word-card-body { padding:18px 18px 12px; flex:1; }
-    .word-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; margin-bottom:6px; }
-    .word-card-index { font-family:var(--mono); font-size:9px; color:var(--text-3); display:block; padding-top:1px; }
-    .word-card-text { font-size:46px; font-weight:700; color:var(--text); line-height:1.15; letter-spacing:.01em; margin-bottom:6px; word-break:keep-all; }
-    .word-card-text.long  { font-size:32px; }
-    .word-card-text.xlong { font-size:24px; }
-    .word-card-reading { font-size:12px; color:var(--text-3); letter-spacing:.06em; margin-bottom:8px; }
-    .word-card-best { font-size:10px; color:var(--text-3); margin-bottom:8px; }
-    .word-card-best .best-score { display:inline-block; padding:3px 10px; border-radius:100px; font-size:11px; font-weight:800; letter-spacing:.03em; }
-    .word-card-best .best-score.grade-s { background:rgba(240,160,48,.18); color:#F0A030; }
-    .word-card-best .best-score.grade-a { background:rgba(30,201,154,.15); color:#1EC99A; }
-    .word-card-best .best-score.grade-b { background:rgba(93,168,248,.15); color:#5DA8F8; }
-    .word-card-best .best-score.grade-c { background:var(--bg-muted); color:var(--text-2); }
-    .word-card-best .best-score.grade-d { background:rgba(232,112,64,.15); color:#E87040; }
+    /* お手本を聞く／録音する：同じ大きさの2つのボタン */
+    .wc-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 14px 14px; }
+    .wc-btn { display:flex; align-items:center; justify-content:center; gap:8px; min-width:0; min-height:52px; padding:8px 10px;
+              border:none; border-radius:16px; font-family:var(--font); font-size:15px; font-weight:700; line-height:1.2;
+              white-space:nowrap; cursor:pointer; -webkit-tap-highlight-color:transparent;
+              transition:transform .15s var(--ease), background var(--dur), color var(--dur), box-shadow var(--dur); }
+    .wc-btn:active { transform:scale(.96); }
+    .wc-btn .ic { width:20px; height:20px; }
+    .wc-play { background:var(--navy-soft); color:var(--brand-700); }
+    .wc-play .wc-lbl-stop { display:none; }
+    .wc-play.playing { background:var(--navy-fill); color:#fff; }
+    .wc-play.playing .wc-lbl-play { display:none; }
+    .wc-play.playing .wc-lbl-stop { display:inline-flex; align-items:center; gap:8px; }
+    .wc-rec { background:var(--grad-rec); color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.22); }
+    @media (max-width:340px) { .wc-btn { font-size:14px; gap:5px; } .wc-btn .ic { width:18px; height:18px; } }
 
-    .word-card-accent { margin-bottom:8px; }
-    .accent-type-label { font-size:9px; color:var(--text-3); letter-spacing:.04em; margin-bottom:3px; display:block; }
+    /* 先生モード：お手本の録画・削除（文字を付けて、カードのいちばん上に1行で置く） */
+    .word-card-actions { display:none; order:-1; justify-content:flex-end; gap:6px; padding:12px 12px 0; }
+    body.teacher-mode .word-card-actions { display:flex; }
+    .word-ref-btn, .word-del-btn { display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px; background:var(--bg-muted); border:none;
+                                   border-radius:100px; cursor:pointer; color:var(--text-2); font-family:var(--font); font-size:12.5px; font-weight:700; white-space:nowrap; }
+    .word-ref-btn .ic, .word-del-btn .ic { width:15px; height:15px; }
+    .word-ref-btn.has-ref { color:var(--good-text); background:var(--good-bg); }
+    .word-del-btn { position:relative; }
+    .word-del-btn.delete-pending { background:var(--danger-bg) !important; color:var(--danger) !important; }
+    .word-del-btn.delete-pending::before { content:'もう一度押すと削除'; position:absolute; top:calc(100% + 6px); right:0; background:var(--danger);
+                                           color:#fff; font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; white-space:nowrap; pointer-events:none; z-index:10; }
 
-    .word-card-audio { padding:0 16px 8px; }
-    .word-card-audio audio { width:100%; height:26px; border-radius:var(--r-xs); }
-    .word-card-footer { padding:0; border-top:none; }
-    .word-record-btn { width:100%; padding:15px; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%); color:#fff; border:none; border-radius:0 0 16px 16px; font-family:var(--font); font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:filter .15s,transform .08s; min-height:52px; }
-    .word-record-btn:hover { filter:brightness(1.15); }
-    .word-record-btn:active { transform:scaleY(.97); }
-    /* カード右上アイコンボタン群 */
-    .word-card-actions { display:flex; gap:4px; flex-shrink:0; }
-    .word-ref-btn,
-    .word-del-btn { width:26px; height:26px; padding:0; background:transparent; border:1px solid var(--border); border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background var(--dur),border-color var(--dur),color var(--dur); }
-    .word-ref-btn  { color:var(--text-3); }
-    .word-ref-btn:hover  { background:var(--bg-muted); border-color:var(--navy); color:var(--navy); }
-    .word-ref-btn.has-ref { color:var(--green); border-color:var(--green); background:var(--green-bg); }
-    .word-del-btn  { color:var(--text-3); position:relative; }
-    .word-del-btn:hover  { background:var(--accent-bg); border-color:var(--accent); color:var(--accent); }
-    .word-del-btn.delete-pending { background:var(--accent-bg) !important; border-color:var(--accent) !important; color:var(--accent) !important; }
-    .word-del-btn.delete-pending::before { content:'もう一度押すと削除'; position:absolute; bottom:calc(100% + 6px); right:0; background:var(--accent); color:#fff; font-size:8px; font-weight:700; padding:3px 7px; border-radius:4px; white-space:nowrap; pointer-events:none; z-index:10; }
+    /* 今日のメニュー（シートの中） */
+    .lesson-steps { list-style:none; display:flex; flex-direction:column; gap:8px; }
+    .lesson-step { display:flex; align-items:center; gap:12px; padding:12px; border-radius:18px; background:var(--bg-muted); border:2px solid transparent; }
+    .lesson-step.next { border-color:var(--navy); background:var(--navy-soft); }
+    .lesson-step.done { opacity:.6; }
+    .ls-num { width:32px; height:32px; border-radius:50%; background:var(--bg-card); color:var(--text-3);
+              font-family:var(--font-num); font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:var(--elev-1); }
+    .lesson-step.next .ls-num, .lesson-step.done .ls-num { background:var(--grad-brand); color:#fff; }
+    .ls-body { flex:1; min-width:0; display:flex; flex-direction:column; }
+    .ls-title { font-size:15px; font-weight:700; color:var(--text); }
+    .ls-title b { color:var(--navy); margin-left:2px; }
+    .lesson-step.done .ls-title { text-decoration:line-through; }
+    .ls-reason { font-size:12.5px; color:var(--text-3); }
+    .ls-btn { flex-shrink:0; min-height:42px; display:inline-flex; align-items:center; padding:8px 16px; border-radius:100px;
+              border:1px solid var(--border); background:var(--bg-card); color:var(--text-2); font-family:var(--font);
+              font-size:13px; font-weight:700; cursor:pointer; text-decoration:none; }
+    .lesson-step.next .ls-btn { background:var(--grad-brand); border-color:transparent; color:#fff; box-shadow:var(--shadow-brand); }
 
+    .teacher-only-row { display:none; }
+    body.teacher-mode .teacher-only-row { display:block; }
+    /* 先生用パスワードの入力（先生モードを ON にするときだけ出す） */
+    .teacher-unlock { margin-top:8px; padding:14px; border-radius:18px; background:var(--bg-muted); }
+    .teacher-unlock-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+    .teacher-pw { min-width:0; min-height:50px; padding:10px 14px; border:1.5px solid transparent; border-radius:14px;
+                  background:var(--bg-card); color:var(--text); font-family:var(--font); font-size:16px; }
+    .teacher-pw:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 4px color-mix(in srgb, var(--navy) 16%, transparent); }
+    .teacher-pw-go { min-height:50px; padding:0 18px; border:none; border-radius:14px; background:var(--grad-brand); color:#fff;
+                     font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .teacher-pw-go:disabled { opacity:.5; }
+    .teacher-unlock-msg { min-height:1.2em; margin-top:8px; font-size:13px; font-weight:700; color:var(--danger); line-height:1.6; }
+    .teacher-unlock-msg:empty { display:none; }
+    .teacher-unlock-note { margin-top:8px; font-size:12.5px; color:var(--text-3); line-height:1.7; }
+    .teacher-unlock-note code { font-size:12px; word-break:break-all; }
+    .teacher-on-note { display:flex; gap:8px; align-items:flex-start; margin:6px 0 4px; padding:10px 12px; border-radius:14px;
+                       background:var(--mid-bg); color:var(--mid-text); font-size:12.5px; line-height:1.6; }
+    .teacher-on-note .ic { flex:none; margin-top:.25em; }
+
+    .home-duo { display:flex; flex-direction:column; gap:16px; }
+    @media (min-width:760px) {
+      .page.home { max-width:900px; }
+      .word-grid { grid-template-columns:repeat(2, minmax(0,1fr)); }
+      .tiles { grid-template-columns:repeat(4, minmax(0,1fr)); }
+      .home-duo { display:grid; grid-template-columns:1.25fr 1fr; align-items:stretch; }
+      .home-duo > .today { display:flex; flex-direction:column; justify-content:space-between; }
+      /* 右の列は、入口のボタンを下にそろえて左の主役カードと高さを合わせる */
+      .home-duo > .me-card { display:flex; flex-direction:column; }
+      .home-duo > .me-card .me-links { margin-top:auto; padding-top:12px; }
+      .home-duo > .me-card .me-link { min-height:120px; }
+    }
+    @media (max-width:360px) {
+      .wc-word { font-size:24px; }
+      .today-word { font-size:36px; }
+    }
+
+
+    /* ── ここから下は先生用モーダル（単語追加・お手本録画）── */
     /* 単語編集モーダル */
     .edit-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:400; align-items:center; justify-content:center; }
     .edit-modal-overlay.open { display:flex; }
     .edit-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:24px; width:min(420px,92vw); display:flex; flex-direction:column; gap:14px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
     .edit-modal-title { font-size:15px; font-weight:700; color:var(--navy); }
     .edit-modal-status { font-size:12px; min-height:18px; }
-    .edit-modal-status.ok  { color:#2d6a4f; }
-    .edit-modal-status.err { color:var(--accent); }
+    .edit-modal-status.ok  { color:var(--good); }
+    .edit-modal-status.err { color:var(--danger); }
     .no-results { display:none; text-align:center; padding:48px; color:var(--text-3); font-size:14px; grid-column:1/-1; }
-
-    /* タグフィルター */
-    .tag-filter-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
-    .tag-chip { padding:5px 13px; border-radius:100px; font-size:11px; font-weight:700; cursor:pointer; border:1.5px solid var(--border); background:transparent; color:var(--text-3); font-family:var(--font); transition:background var(--dur),border-color var(--dur),color var(--dur); }
-    .tag-chip:hover { border-color:var(--navy); color:var(--navy); }
-    .tag-chip.active { background:var(--navy); border-color:var(--navy); color:#fff; }
-    .tag-chip-all { border-color:var(--navy); color:var(--navy); }
-    .tag-chip-all.active { background:var(--navy); color:#fff; }
-
-    /* 単語追加ボタン */
-    .add-word-btn { padding:7px 13px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background var(--dur); }
-    .add-word-btn:hover { background:var(--navy-mid); }
 
     /* 単語追加モーダル */
     .aw-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:300; align-items:center; justify-content:center; }
@@ -160,12 +289,12 @@
     .aw-steps { display:flex; align-items:center; gap:8px; }
     .aw-step { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--text-3); }
     .aw-step.active { color:var(--navy); }
-    .aw-step.done { color:#2d6a4f; }
+    .aw-step.done { color:var(--good); }
     .aw-step-num { width:20px; height:20px; border-radius:50%; background:var(--bg-muted); border:1px solid var(--border); font-size:10px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .aw-step.active .aw-step-num { background:var(--navy); color:#fff; border-color:var(--navy); }
-    .aw-step.done .aw-step-num { background:#2d6a4f; color:#fff; border-color:#2d6a4f; }
+    .aw-step.active .aw-step-num { background:var(--navy-fill); color:#fff; border-color:var(--navy-fill); }
+    .aw-step.done .aw-step-num { background:var(--navy-fill); color:#fff; border-color:var(--navy-fill); }
     .aw-step-arrow { color:var(--text-3); font-size:11px; padding:0 2px; }
-    .aw-done-icon { width:52px; height:52px; margin:4px auto 12px; border-radius:50%; background:var(--green-bg); color:var(--green); font-size:26px; font-weight:900; display:flex; align-items:center; justify-content:center; }
+    .aw-done-icon { width:52px; height:52px; margin:4px auto 12px; border-radius:50%; background:var(--good-bg); color:var(--good); font-size:26px; font-weight:700; display:flex; align-items:center; justify-content:center; }
     .aw-done-count { font-size:12px; color:var(--text-3); }
     .aw-title { font-size:15px; font-weight:700; color:var(--navy); }
     .aw-required-note { font-size:11.5px; color:var(--text-3); background:var(--bg-muted); border-left:3px solid var(--navy); border-radius:0 var(--r-xs) var(--r-xs) 0; padding:8px 10px; margin:8px 0 4px; line-height:1.6; }
@@ -173,13 +302,13 @@
     .aw-field { display:flex; flex-direction:column; gap:4px; }
     .aw-label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
     .aw-input { font-family:var(--font); font-size:13px; padding:10px 14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); color:var(--text); transition:border-color var(--dur),box-shadow var(--dur); }
-    .aw-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(14,30,69,.08); }
+    .aw-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(91,75,234,.14); }
     .aw-status { font-size:12px; min-height:18px; }
-    .aw-status.ok  { color:#2d6a4f; }
-    .aw-status.err { color:var(--accent); }
+    .aw-status.ok  { color:var(--good); }
+    .aw-status.err { color:var(--danger); }
     .aw-status.loading { color:var(--text-3); }
     .aw-actions { display:flex; gap:10px; }
-    .aw-btn-primary { flex:1; padding:11px; background:var(--navy); color:#fff; border:none; border-radius:10px; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
+    .aw-btn-primary { flex:1; padding:11px; background:var(--navy-fill); color:#fff; border:none; border-radius:10px; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
     .aw-btn-primary:disabled { opacity:.4; cursor:not-allowed; }
     .aw-btn-secondary { padding:11px 16px; background:transparent; color:var(--text-3); border:1px solid var(--border); border-radius:10px; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
     .aw-btn-secondary:hover { background:var(--bg-muted); }
@@ -193,139 +322,12 @@
     .ref-modal-video { width:100%; border-radius:12px; background:#000; aspect-ratio:4/3; object-fit:cover; }
     .ref-modal-status { font-size:12px; color:var(--text-2); min-height:18px; }
     .ref-modal-actions { display:flex; gap:10px; }
-    .ref-modal-record-btn { flex:1; padding:11px; background:var(--accent); color:#fff; border:none; border-radius:10px; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
+    .ref-modal-record-btn { flex:1; padding:11px; background:var(--rec); color:#fff; border:none; border-radius:10px; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
     .ref-modal-record-btn:disabled { opacity:.4; cursor:not-allowed; }
     .ref-modal-cancel-btn { padding:11px 18px; background:transparent; color:var(--text-3); border:1px solid var(--border); border-radius:10px; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; }
     .ref-modal-cancel-btn:hover { background:var(--bg-muted); }
-    .recording-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#e53e3e; margin-right:5px; animation:blink 1s infinite; vertical-align:middle; }
+    .recording-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--rec); margin-right:5px; animation:blink 1s infinite; vertical-align:middle; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
-
-    /* アクセント型フィルター */
-    .accent-filter-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; align-items:center; }
-
-    /* 再生速度コントロール */
-    .speed-row { display:flex; align-items:center; gap:6px; padding:8px 0 18px; }
-    .speed-lbl { font-size:10px; color:var(--text-3); letter-spacing:.04em; }
-    .speed-btn { padding:3px 9px; border-radius:100px; font-size:10px; font-weight:700; cursor:pointer; border:1.5px solid var(--border); background:transparent; color:var(--text-3); font-family:var(--font); transition:background var(--dur),border-color var(--dur),color var(--dur); }
-    .speed-btn:hover { border-color:var(--navy); color:var(--navy); }
-    .speed-btn.active { background:var(--navy); border-color:var(--navy); color:#fff; }
-
-    /* 発音メモ */
-    .word-card-note { font-size:11px; color:var(--text-2); background:var(--bg-muted); border-left:2px solid var(--navy); padding:5px 8px; border-radius:0 var(--r-xs) var(--r-xs) 0; margin-bottom:8px; line-height:1.5; }
-
-    /* スコア推移スパークライン */
-
-    /* 連続練習ボタン */
-    .continuous-btn { padding:7px 13px; background:var(--green); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background var(--dur),opacity var(--dur); }
-    .continuous-btn:hover { background:#16a47e; }
-
-    /* 通知パーミッションバナー */
-    .notify-bar { display:none; align-items:center; justify-content:space-between; gap:12px; padding:10px 18px; background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--r); margin-bottom:16px; font-size:12px; color:var(--text-2); flex-wrap:wrap; }
-    .notify-bar.show { display:flex; }
-    .notify-bar-btn { padding:6px 14px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; }
-    .notify-bar-dismiss { background:none; border:none; color:var(--text-3); cursor:pointer; font-size:16px; padding:0 4px; }
-
-    /* Quest section (bottom horizontal) */
-    .quest-section { margin-top:36px; padding-top:24px; border-top:1px solid var(--border); }
-    .quest-section-header { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
-    .quest-board-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
-    .quest-board-sub { font-size:10px; color:var(--text-3); }
-    .quest-scroll { display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none; }
-    .quest-scroll::-webkit-scrollbar { display:none; }
-
-    .quest-item { flex:0 0 260px; background:var(--bg-card); border:1px solid var(--border); border-radius:14px; overflow:hidden; transition:box-shadow .22s,transform .18s; }
-    .quest-item:hover { box-shadow:0 10px 30px rgba(0,0,0,.4); transform:translateY(-3px); }
-    .quest-item[data-cat="accent"] { border-top:2px solid var(--accent); }
-    .quest-item[data-cat="length"] { border-top:2px solid var(--green); }
-    .quest-item[data-cat="vowel"]  { border-top:2px solid var(--blue); }
-    .quest-item[data-cat="total"]  { border-top:2px solid var(--navy); }
-
-    .quest-item-body { padding:12px 14px 10px; }
-    .quest-item-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:4px; }
-    .quest-item-title { font-size:12px; font-weight:700; color:var(--text); line-height:1.35; flex:1; }
-    .quest-item-word { font-size:10px; color:var(--text-3); margin-bottom:6px; }
-    .quest-item-word span { font-size:13px; font-weight:700; color:var(--navy); margin-left:4px; }
-    .quest-item-desc { font-size:11px; color:var(--text-2); line-height:1.9; margin-bottom:8px; white-space:pre-line; }
-    .quest-progress-meta { display:flex; justify-content:space-between; font-size:10px; color:var(--text-3); margin-bottom:3px; }
-    .quest-progress-pct { font-family:var(--mono); font-weight:500; color:var(--quest); }
-    .quest-item-footer { padding:8px 14px 10px; }
-    .quest-practice-btn { width:100%; padding:8px 12px; background:var(--quest-bg); color:var(--quest); border:1px solid var(--quest-border); border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:700; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; transition:background var(--dur),color var(--dur),transform var(--dur); }
-    .quest-practice-btn:hover { background:var(--quest); color:#fff; }
-    .quest-practice-btn:active { transform:scale(.97); }
-
-    .quest-empty { display:none; }
-
-    /* ── 今日のレッスン ── */
-    .lesson-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px 22px; box-shadow:var(--shadow-sm); }
-    .lesson-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:14px; }
-    .lesson-title { font-size:16px; font-weight:900; color:var(--text); }
-    .lesson-sub { font-size:11px; color:var(--text-3); margin-top:2px; }
-    .lesson-count { font-family:var(--mono); font-size:26px; font-weight:500; color:var(--navy); flex-shrink:0; line-height:1; }
-    .lesson-count span { font-size:14px; color:var(--text-3); }
-    .lesson-count.all-done { color:var(--green); }
-    .lesson-steps { list-style:none; display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
-    .lesson-step { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:var(--r); background:var(--bg-muted); border:1.5px solid transparent; transition:all .2s; }
-    .lesson-step.next { border-color:var(--navy); background:var(--navy-soft); }
-    .lesson-step.done { opacity:.55; }
-    .ls-num { width:26px; height:26px; border-radius:50%; background:var(--bg-card); border:1.5px solid var(--border); color:var(--text-3); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .lesson-step.next .ls-num { background:var(--navy); border-color:var(--navy); color:#fff; }
-    .lesson-step.done .ls-num { background:var(--green); border-color:var(--green); color:#fff; }
-    .ls-body { flex:1; min-width:0; display:flex; flex-direction:column; }
-    .ls-title { font-size:13px; font-weight:700; color:var(--text); }
-    .ls-title b { color:var(--navy); margin-left:2px; }
-    .lesson-step.done .ls-title { text-decoration:line-through; }
-    .ls-reason { font-size:10.5px; color:var(--text-3); }
-    .ls-btn { flex-shrink:0; padding:6px 16px; border-radius:100px; border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer; text-decoration:none; transition:all .15s; }
-    .ls-btn:hover { border-color:var(--navy); color:var(--navy); }
-    .lesson-step.next .ls-btn { background:var(--navy); border-color:var(--navy); color:#fff; }
-    .lesson-cta { display:flex; width:100%; align-items:center; justify-content:center; padding:15px; border-radius:var(--r); border:none; background:linear-gradient(135deg,var(--navy),var(--navy-mid)); color:#fff; font-family:var(--font); font-size:14px; font-weight:800; letter-spacing:.02em; cursor:pointer; text-decoration:none; box-shadow:0 4px 18px color-mix(in srgb, var(--navy) 35%, transparent); transition:filter .15s,transform .15s; }
-    .lesson-cta:hover { filter:brightness(1.07); }
-    .lesson-cta:active { transform:scale(.985); }
-    .lesson-done-msg { text-align:center; padding:13px; border-radius:var(--r); background:var(--green-bg); color:var(--green); font-size:13px; font-weight:700; }
-
-    /* ── 折りたたみセクション ── */
-    .fold-section { border:1px solid var(--border-light); border-radius:var(--r); background:var(--bg-card); }
-    .fold-summary { padding:13px 18px; font-size:13px; font-weight:700; color:var(--text-2); cursor:pointer; list-style:none; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; user-select:none; }
-    .fold-summary::-webkit-details-marker { display:none; }
-    .fold-summary::before { content:'▸'; color:var(--text-3); transition:transform .2s; }
-    .fold-section[open] .fold-summary::before { transform:rotate(90deg); }
-    .fold-hint { font-size:10.5px; font-weight:400; color:var(--text-3); }
-    .fold-section .weak-section, .fold-section .quest-section { padding-left:18px; padding-right:18px; padding-bottom:14px; }
-
-    /* ── 今日の重点練習（苦手音カード） ── */
-    .weak-section { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:18px 20px; box-shadow:var(--shadow-xs); }
-    .weak-header { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
-    .weak-title { font-size:14px; font-weight:900; color:var(--text); }
-    .weak-sub { font-size:11px; color:var(--text-3); }
-    .weak-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
-    .weak-card { display:flex; gap:14px; align-items:center; padding:12px 14px; background:var(--bg-muted); border-radius:var(--r); border-left:3px solid var(--accent); }
-    .weak-card-left { text-align:center; flex-shrink:0; }
-    .weak-kana { font-size:30px; font-weight:900; color:var(--accent); line-height:1.1; }
-    .weak-score { font-family:var(--mono); font-size:12px; color:var(--text-3); }
-    .weak-score span { font-size:9px; }
-    .weak-card-right { flex:1; min-width:0; }
-    .weak-meta { font-size:10.5px; color:var(--text-3); margin-bottom:6px; }
-    .weak-words { display:flex; gap:6px; flex-wrap:wrap; }
-    .weak-word-btn { display:inline-flex; align-items:center; padding:4px 12px; border-radius:100px; border:1px solid var(--border); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; text-decoration:none; transition:all .15s; }
-    .weak-word-btn:hover { border-color:var(--navy); color:var(--navy); }
-    .weak-mouth-btn { border-color:var(--quest-border); color:var(--quest); }
-    .weak-drill-btn { border-color:var(--accent); color:var(--accent); font-weight:800; }
-
-    @media (max-width:700px) {
-      .hero { padding:12px 16px 0; }
-      .hero-card { padding:22px 20px 20px; }
-      .hero-stats { gap:7px; }
-      .stat-item { padding:6px 12px; }
-      .stat-num { font-size:15px; }
-      .main-layout { padding:20px 16px 40px; }
-      .word-grid { grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
-      .word-card-text { font-size:36px; }
-      .word-card-text.long  { font-size:25px; }
-      .word-card-text.xlong { font-size:19px; }
-      .word-record-btn { min-height:48px; font-size:12px; }
-      .search-input { width:180px; }
-    }
-    @media (max-width:380px) { .word-grid { grid-template-columns:1fr 1fr; } }
 
     /* 録画ガイドオーバーレイ */
     .rec-vid-wrap { position:relative; width:100%; }
@@ -335,107 +337,253 @@
     .mic-vol-wrap { display:flex; align-items:center; gap:8px; margin-top:8px; }
     .mic-vol-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; }
     .mic-vol-track { flex:1; height:4px; background:var(--bg-muted); border-radius:100px; overflow:hidden; }
-    .mic-vol-fill { height:100%; width:0%; border-radius:100px; background:#9E9890; transition:width 60ms, background 200ms; }
-    .mic-vol-warn { display:none; font-size:11px; font-weight:600; color:var(--accent); margin-top:6px; line-height:1.6; }
+    .mic-vol-fill { height:100%; width:0%; border-radius:100px; background:var(--ref-line); transition:width 60ms, background 200ms; }
+    .mic-vol-warn { display:none; font-size:11px; font-weight:600; color:var(--danger); margin-top:6px; line-height:1.6; }
     .mic-vol-warn.show { display:block; }
   </style>
 </head>
 <body>
-<nav class="top-nav">
-  <a href="/" class="nav-brand">
-    <span class="nav-brand-main">SP-PS</span>
-    <span class="nav-divider"></span>
-    <span class="nav-brand-sub">音×映像 発音トレーニング</span>
-  </a>
-  <div class="nav-actions">
-    {% if current_user_id %}
-    <span class="nav-userid" title="ログイン中の利用者ID">{{ icon('user') }} {{ current_user_id }}</span>
-    {% endif %}
-    <a href="/history" class="nav-link">記録・分析</a>
-    {% if current_user_id %}
-    <a href="/logout" class="nav-link">ログアウト</a>
-    {% endif %}
-    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え"><svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
-  </div>
-</nav>
-<script>
-  (function() {
-    // テーマ切替アイコン（絵文字はOSごとに見た目が変わるため SVG を使う）
-    const ICON_SUN  = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>';
-    const ICON_MOON = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
-    const root  = document.documentElement;
-    const btn   = document.getElementById('themeToggle');
-    const saved = localStorage.getItem('sp-ps-theme');
-    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.innerHTML=ICON_SUN; }
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      const isDark = root.getAttribute('data-theme') === 'dark';
-      if (isDark) { root.removeAttribute('data-theme'); btn.innerHTML=ICON_MOON; localStorage.setItem('sp-ps-theme','light'); }
-      else        { root.setAttribute('data-theme','dark'); btn.innerHTML=ICON_SUN; localStorage.setItem('sp-ps-theme','dark'); }
-    });
-  })();
-</script>
+{#
+  ホーム（v3）
 
-<div class="hero">
-  <div class="hero-card">
-    <div class="hero-main-row">
-      <div class="hero-text-col">
-        <p class="hero-eyebrow" id="heroDate">SP-PS 発音練習</p>
-        <h1 class="hero-title" id="heroGreeting">今日も練習を始めよう</h1>
-        <p class="hero-sub">音声{{ icon('mic') }} と 口の形{{ icon('mouth') }} の両面から、あなたの発音を見える化します</p>
-      </div>
-      {% if overall %}
-      <div class="hero-score">
-        <div class="hero-score-num">{{ overall.score|int }}<span class="hero-score-unit">点</span></div>
-        <div class="hero-score-label">
-          総合発音力・{{ overall.level }}
-          {% if overall.trend is not none and overall.trend > 0 %}<span class="hero-trend up">▲{{ overall.trend }}</span>
-          {% elif overall.trend is not none and overall.trend < 0 %}<span class="hero-trend down">▼{{ overall.trend|abs }}</span>{% endif %}
+  1画面目で分かるのは「今日やること」だけ。そこから下に
+  ほかの練習（4つ）と単語の一覧を置く。
+  ログアウト・テーマ・先生用の操作は、右上の「設定」にまとめる。
+  以前はヘッダーにログアウトとテーマ切り替えが並び、
+  ページ下にも先生用メニューがあって、生徒が触らなくてよい操作が目に入っていた。
+#}
+{% set streak = stats.streak if stats else 0 %}
+{% set best_map = (stats.word_best if stats and stats.word_best else {}) %}
+{% set n_all = words | length %}
+{% set ns = namespace(weak=0, new=0, master=0) %}
+{% for w in words %}
+  {% set b = best_map.get(w.word_id) %}
+  {% if b is none %}{% set ns.new = ns.new + 1 %}
+  {% elif b >= 90 %}{% set ns.master = ns.master + 1 %}
+  {% elif b < 60 %}{% set ns.weak = ns.weak + 1 %}{% endif %}
+{% endfor %}
+
+<header class="app-header">
+  <a href="/select" class="app-header-left app-brand">SP-PS</a>
+  <div class="app-header-title"></div>
+  <button type="button" class="app-header-right icon-btn" id="btnSettings" aria-label="設定をひらく">{{ icon('gear') }}</button>
+</header>
+
+<main class="page home">
+
+  <!-- あいさつ（自分がどうなっているか） -->
+  {% set total_sessions = stats.total_sessions if stats else 0 %}
+  {% set today_count = week.today_count if week else 0 %}
+  <section class="hello" aria-label="わたしの様子">
+    <div class="hello-date" id="heroDate"></div>
+    <h1 class="hello-title" id="heroGreeting">こんにちは</h1>
+    <a class="hello-streak{% if not streak %} is-off{% endif %}" href="/history#log" aria-label="{{ streak }}日連続で練習しています。記録を見る">
+      <span class="hello-streak-num">{% if streak %}{{ icon('flame', size=18) }}{% endif %}{{ streak }}</span>
+      <small>日連続</small>
+    </a>
+    <p class="me-msg">
+      {% if total_sessions == 0 %}
+        {{ icon('sparkle') }}<span>はじめまして！まずは1語、録音してみましょう</span>
+      {% elif today_count > 0 %}
+        {{ icon('check-circle') }}<span>今日は<b>{{ today_count }}回</b>練習しました。{% if streak >= 2 %}<b>{{ streak }}日連続</b>です！{% else %}いい調子です！{% endif %}</span>
+      {% elif streak >= 2 %}
+        {{ icon('flame') }}<span><b>{{ streak }}日連続</b>で練習中。今日も1語やってみよう</span>
+      {% else %}
+        {{ icon('sparkle') }}<span>おかえりなさい。今日も少しだけ練習しよう</span>
+      {% endif %}
+    </p>
+    {% if weekly and weekly.improved_sound %}
+    <div class="me-note">{{ icon('trend') }} 今週は「<b>{{ weekly.improved_sound.kana }}</b>」が <b>+{{ weekly.improved_sound.gain | round | int }}点</b> のびました</div>
+    {% endif %}
+  </section>
+
+  <div class="home-duo">
+  <!-- 今日のれんしゅう（主役） -->
+  {% if lesson %}
+  {% set next_step = (lesson.steps | rejectattr('done') | list | first) %}
+  {% set lesson_pct = ((lesson.done_count / lesson.total) * 100) | round | int if lesson.total else 0 %}
+  <section class="today aurora" aria-label="今日のれんしゅう">
+    <div class="today-top">
+      <span class="today-label">{{ icon('calendar', size=16) }} 今日のれんしゅう</span>
+      <span class="ring today-ring" style="--p:{{ lesson_pct }}" data-ring="{{ lesson_pct }}" role="img" aria-label="{{ lesson.total }}つ中 {{ lesson.done_count }}つ おわり">
+        <span class="today-count">{{ lesson.done_count }}<small>/{{ lesson.total }}</small></span>
+      </span>
+    </div>
+
+    {% if lesson.all_done %}
+    <div class="today-done">{{ icon('trophy') }}<span>今日のぶんは全部おわりました！<br>下の単語から自由に練習できます</span></div>
+    {% elif next_step %}
+    <div class="today-next">
+      <span class="today-tag">{{ next_step.title }}</span>
+      <div class="today-word">{{ next_step.display }}</div>
+      <div class="today-reason">{{ next_step.reason }}</div>
+    </div>
+    {% if next_step.kind == 'mouth' %}
+    <a href="/vowel_trainer/{{ next_step.word_id }}" class="btn-hero">{{ icon('mouth') }} はじめる</a>
+    {% else %}
+    <form action="/" method="post" style="margin:0;">
+      <input type="hidden" name="Words" value="{{ next_step.word_id }}">
+      <button type="submit" class="btn-hero">{{ icon('play') }} はじめる</button>
+    </form>
+    {% endif %}
+    {% endif %}
+    <button type="button" class="today-menu" id="btnTodayMenu">今日のメニュー（{{ lesson.total }}つ）を見る <span aria-hidden="true">›</span></button>
+  </section>
+  {% else %}
+  <section class="today aurora today-empty">
+    <div class="today-label">{{ icon('calendar', size=16) }} 今日のれんしゅう</div>
+    <div class="today-reason" style="margin-top:8px;">下の単語から、練習したいものを選びましょう</div>
+  </section>
+  {% endif %}
+
+  <!-- 今週のようす・記録と分析への入口 -->
+  <section class="me-card" aria-label="今週のようす">
+    <div class="me-card-head">
+      <b>今週のようす</b>
+      {% if week %}<span>練習した日 <em>{{ week.practiced_days }}</em> / 7</span>{% endif %}
+    </div>
+    {% if week %}
+    <a class="me-week" href="/history#log" aria-label="今週 {{ week.practiced_days }}日 練習しました。記録を見る">
+      {% for d in week.days %}
+      <span class="wk{% if d.count %} on{% endif %}{% if d.is_today %} is-today{% endif %}{% if d.is_future %} is-future{% endif %}">
+        <span class="wk-l">{{ '今日' if d.is_today else d.label }}</span>
+        <span class="wk-c">{% if d.count %}{{ icon('check', size=16) }}{% else %}{{ d.day }}{% endif %}</span>
+      </span>
+      {% endfor %}
+    </a>
+    {% endif %}
+
+    <div class="me-links">
+      <a class="me-link" href="/history#log">
+        <span class="me-link-top"><span class="me-link-ic">{{ icon('calendar', size=18) }}</span><span class="me-link-go" aria-hidden="true">{{ icon('arrow-right', size=16) }}</span></span>
+        <span class="me-link-text"><b>記録</b>
+          <small>{% if week and week.practiced_days %}今週 {{ week.practiced_days }}日{% if weekly %}・{{ weekly.sessions }}回{% endif %}{% else %}練習した日を見る{% endif %}</small>
+        </span>
+      </a>
+      <a class="me-link" href="/history#analysis">
+        <span class="me-link-top"><span class="me-link-ic">{{ icon('trend', size=18) }}</span><span class="me-link-go" aria-hidden="true">{{ icon('arrow-right', size=16) }}</span></span>
+        <span class="me-link-text"><b>分析</b>
+          <small>{% if overall %}最近 {{ overall.score | int }}点{% if overall.trend is not none and overall.trend > 0 %} <span class="up">▲{{ overall.trend | round | int }}</span>{% endif %}{% else %}のび方を見る{% endif %}</small>
+        </span>
+      </a>
+    </div>
+  </section>
+  </div>
+
+  <!-- ほかの練習 -->
+  <section>
+    <div class="section-head"><h2>ほかの練習</h2></div>
+    <div class="tiles">
+      {% if weak_sounds %}
+      <a class="tile" href="/sound_drill/{{ weak_sounds[0].kana }}">
+        <span class="tile-ic t-drill">{{ icon('target', size=22) }}</span>
+        <span class="tile-title">「{{ weak_sounds[0].kana }}」をドリル</span>
+        <span class="tile-sub">いちばん苦手な音</span>
+      </a>
+      {% endif %}
+      {% set mouth_word = (next_step.word_id if lesson and next_step else (words[0].word_id if words else none)) %}
+      {% if mouth_word %}
+      <a class="tile" href="/vowel_trainer/{{ mouth_word }}">
+        <span class="tile-ic t-mouth">{{ icon('mouth', size=22) }}</span>
+        <span class="tile-title">口の形</span>
+        <span class="tile-sub">カメラで口を合わせる</span>
+      </a>
+      {% endif %}
+      <a class="tile" href="/listening_quiz">
+        <span class="tile-ic t-listen">{{ icon('ear', size=22) }}</span>
+        <span class="tile-title">ことば当てクイズ</span>
+        <span class="tile-sub">口の動きや音で当てる</span>
+      </a>
+      <button type="button" class="tile" id="btnContinuous">
+        <span class="tile-ic t-cont">{{ icon('repeat', size=22) }}</span>
+        <span class="tile-title">れんぞく練習</span>
+        <span class="tile-sub">下の単語を順番に</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 単語 -->
+  <section>
+    <div class="section-head">
+      <h2>単語<b>{{ n_all }}</b></h2>
+      <button type="button" class="icon-btn" id="btnSearch" aria-label="単語をさがす" aria-expanded="false">{{ icon('search') }}</button>
+    </div>
+
+    <div class="search-box" id="searchBox" hidden style="margin-top:8px;">
+      {{ icon('search') }}
+      <input type="search" class="search-input" id="searchInput" placeholder="単語をさがす（ひらがなでもOK）" autocomplete="off">
+    </div>
+
+    {#
+      よく使う絞り込みだけをチップで出す。
+      以前は並び替え・タグ・アクセント型・再生速度が別々の段になっていた。
+    #}
+    <div class="chip-row" id="wordFilters" style="margin:10px 0;">
+      <button type="button" class="chip active" data-filter="all">すべて <b>{{ n_all }}</b></button>
+      {% if ns.weak %}<button type="button" class="chip" data-filter="weak">にがて <b>{{ ns.weak }}</b></button>{% endif %}
+      {% if ns.new %}<button type="button" class="chip" data-filter="new">まだ <b>{{ ns.new }}</b></button>{% endif %}
+      {% if ns.master %}<button type="button" class="chip" data-filter="master">マスター <b>{{ ns.master }}</b></button>{% endif %}
+      {% for tag in all_tags %}<button type="button" class="chip" data-tag="{{ tag }}">#{{ tag }}</button>{% endfor %}
+    </div>
+
+    <div class="word-grid" id="wordGrid">
+      {% for w in words %}
+      {% set pattern = accent_patterns.get(w.word_id, []) %}
+      {% set best = best_map.get(w.word_id) %}
+      {% set grade = ('s' if best >= 90 else ('a' if best >= 75 else ('b' if best >= 60 else ('c' if best >= 40 else 'd')))) if best is not none else '' %}
+      <div class="word-card" data-word="{{ w.display }}" data-reading="{{ w.reading }}" data-tags="{{ (w.tags or []) | join(',') }}" data-word-id="{{ w.word_id }}" data-best="{{ best if best is not none else -1 }}">
+        <form action="/" method="post" class="wc-form">
+          <input type="hidden" name="Words" value="{{ w.word_id }}">
+          <button type="submit" class="wc-hit" aria-label="{{ w.display }}（{{ w.reading }}）を録音する">
+            <span class="wc-text">
+              <span class="wc-word{% if w.display | length >= 6 %} xlong{% elif w.display | length >= 4 %} long{% endif %}">{{ w.display }}</span>
+              <span class="wc-reading">{{ w.reading }}</span>
+              <span class="wc-meta">
+                {% if best is not none %}<span class="wc-best grade-{{ grade }}">最高 <b>{{ best | int }}</b>点</span>
+                {% else %}<span class="wc-new">{{ icon('sparkle', size=13) }} まだ練習していません</span>{% endif %}
+                {% if pattern %}
+                <span class="wc-accent"><span class="wc-accent-lbl">高さ</span>
+                  <span class="accent-viz">{% for hl in pattern %}<span class="av-bar {{ hl }}"></span>{% endfor %}</span>
+                </span>
+                {% endif %}
+              </span>
+              {% if w.note %}<span class="wc-note">{{ w.note }}</span>{% endif %}
+            </span>
+          </button>
+          <div class="wc-actions">
+            {# type="button" なので、フォームの中に置いても送信（録音へ進む）はしない #}
+            <button type="button" class="wc-btn wc-play" data-word-id="{{ w.word_id }}">
+              <span class="wc-lbl-play">{{ icon('volume') }} お手本を聞く</span>
+              <span class="wc-lbl-stop">{{ icon('stop') }} とめる</span>
+            </button>
+            <button type="submit" class="wc-btn wc-rec">{{ icon('mic') }} 録音する</button>
+          </div>
+        </form>
+        <audio class="wc-audio" src="/sample_audio/{{ w.word_id }}" preload="none"></audio>
+        <div class="word-card-actions">
+          <button class="word-ref-btn {% if w.word_id in lip_ref_keys %}has-ref{% endif %}"
+                  data-word-id="{{ w.word_id }}" data-word-display="{{ w.display }}"
+                  title="{% if w.word_id in lip_ref_keys %}口のお手本登録済み（押すと録り直し）{% else %}口のお手本を登録{% endif %}">
+            {{ icon('video') }} {% if w.word_id in lip_ref_keys %}お手本を録り直す{% else %}お手本を録画{% endif %}
+          </button>
+          <button class="word-del-btn" data-word-id="{{ w.word_id }}" data-display="{{ w.display }}" title="削除">
+            {{ icon('trash') }} 削除
+          </button>
         </div>
       </div>
-      {% endif %}
+      {% endfor %}
     </div>
-    <div class="hero-stats">
-      {% set streak = stats.streak if stats else 0 %}
-      <div class="stat-item{% if streak >= 3 %} streak-hot{% endif %}" title="1日休んでも途切れません"><span class="stat-num">{% if streak >= 3 %}{{ icon('flame') }}{% endif %}{{ streak }}</span><span class="stat-lbl">連続日数</span></div>
-      <div class="stat-item"><span class="stat-num">{{ stats.total_sessions if stats else 0 }}</span><span class="stat-lbl">総練習回数</span></div>
-      <div class="stat-item"><span class="stat-num">{{ words|length }}</span><span class="stat-lbl">登録単語</span></div>
-    </div>
-    {% if weekly %}
-    <div class="hero-weekly">
-      {{ icon('calendar') }} 今週：<b>{{ weekly.sessions }}回</b>（{{ weekly.days }}日）練習
-      {% if weekly.avg is not none %} ・ 平均 <b>{{ weekly.avg|int }}点</b>{% endif %}
-      {% if weekly.delta is not none %} ・ 先週比 <b class="{{ 'wk-up' if weekly.delta >= 0 else 'wk-down' }}">{{ '+' if weekly.delta >= 0 }}{{ weekly.delta }}点</b>{% endif %}
-      {% if weekly.improved_sound %} ・ 一番伸びた音 <b>「{{ weekly.improved_sound.kana }}」+{{ weekly.improved_sound.gain|int }}点</b> {{ icon('check-circle') }}{% endif %}
-    </div>
-    {% endif %}
-  </div>
-</div>
-<script>
-  (function() {
-    const d = new Date();
-    const days = ['日','月','火','水','木','金','土'];
-    document.getElementById('heroDate').textContent =
-      `${d.getMonth()+1}月${d.getDate()}日（${days[d.getDay()]}）`;
-    const h = d.getHours();
-    const g = h < 5 ? 'こんばんは' : h < 11 ? 'おはようございます' : h < 18 ? 'こんにちは' : 'こんばんは';
-    document.getElementById('heroGreeting').textContent = `${g}！今日も練習しましょう`;
-  })();
-</script>
+    <div class="no-results" id="noResults" hidden>見つかりませんでした</div>
+  </section>
+</main>
 
+{# ── 今日のメニュー（シート） ── #}
 {% if lesson %}
-<div class="main-layout" style="padding-top:16px;padding-bottom:0;">
-  <div class="lesson-card">
-    <div class="lesson-head">
-      <div>
-        <div class="lesson-title">{{ icon('clipboard') }} 今日のレッスン</div>
-        <div class="lesson-sub">あなたの練習記録から自動で組みました。上から順に進めるだけでOK</div>
-      </div>
-      <div class="lesson-count{% if lesson.all_done %} all-done{% endif %}">{{ lesson.done_count }}<span>/{{ lesson.total }}</span></div>
-    </div>
-
+<div class="sheet" id="todaySheet" hidden>
+  <div class="sheet-panel" role="dialog" aria-label="今日のメニュー">
+    <div class="sheet-grip"></div>
+    <div class="sheet-title">今日のメニュー</div>
     <ol class="lesson-steps">
-      {% set next_step = (lesson.steps | rejectattr('done') | list | first) %}
       {% for s in lesson.steps %}
       <li class="lesson-step{% if s.done %} done{% elif next_step and s.word_id == next_step.word_id and s.type == next_step.type %} next{% endif %}">
         <span class="ls-num">{% if s.done %}{{ icon('check') }}{% else %}{{ loop.index }}{% endif %}</span>
@@ -445,397 +593,285 @@
         </span>
         {% if not s.done %}
           {% if s.kind == 'mouth' %}
-          <a href="/vowel_trainer/{{ s.word_id }}" class="ls-btn">開始</a>
+          <a href="/vowel_trainer/{{ s.word_id }}" class="ls-btn">はじめる</a>
           {% else %}
-          <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ s.word_id }}"><button type="submit" class="ls-btn">開始</button></form>
+          <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ s.word_id }}"><button type="submit" class="ls-btn">はじめる</button></form>
           {% endif %}
         {% endif %}
       </li>
       {% endfor %}
     </ol>
+    <button type="button" class="sheet-close" data-close-sheet>とじる</button>
+  </div>
+</div>
+{% endif %}
 
-    {% if lesson.all_done %}
-    <div class="lesson-done-msg">{{ icon('trophy') }} 今日のレッスン完了！おつかれさまでした。下の単語一覧から自由練習もできます</div>
-    {% elif next_step %}
-      {% if next_step.kind == 'mouth' %}
-      <a href="/vowel_trainer/{{ next_step.word_id }}" class="lesson-cta">▶ {% if lesson.done_count > 0 %}続きから{% else %}レッスンを始める{% endif %} — {{ next_step.title }}「{{ next_step.display }}」</a>
-      {% else %}
-      <form action="/" method="post" style="margin:0;">
-        <input type="hidden" name="Words" value="{{ next_step.word_id }}">
-        <button type="submit" class="lesson-cta">▶ {% if lesson.done_count > 0 %}続きから{% else %}レッスンを始める{% endif %} — {{ next_step.title }}「{{ next_step.display }}」</button>
-      </form>
-      {% endif %}
+{# ── 設定（シート） ──
+   ふだん使わない操作は全部ここ。生徒の本文からは外す。 #}
+<div class="sheet" id="settingsSheet" hidden>
+  <div class="sheet-panel" role="dialog" aria-label="設定">
+    <div class="sheet-grip"></div>
+    <div class="sheet-title">設定</div>
+
+    {% if current_user_id %}
+    <div class="sheet-group">
+      <div class="sheet-row">
+        <span class="sheet-row-text">{{ icon('user') }} 利用者ID</span>
+        <span class="sheet-row-text" style="font-family:var(--mono);">{{ current_user_id }}</span>
+      </div>
+    </div>
     {% endif %}
-  </div>
-</div>
-{% endif %}
 
-{% if weak_sounds %}
-<div class="main-layout" style="padding-top:16px;padding-bottom:0;">
-  <details class="fold-section">
-  <summary class="fold-summary">{{ icon('target') }} 苦手な音の分析 <span class="fold-hint">タップで開く</span></summary>
-  <div class="weak-section" style="border:none;box-shadow:none;padding-top:12px;">
-    <div class="weak-cards">
-      {% for ws in weak_sounds %}
-      <div class="weak-card">
-        <div class="weak-card-left">
-          <div class="weak-kana">{{ ws.kana }}</div>
-          <div class="weak-score">{{ ws.avg|int }}<span>点</span></div>
-        </div>
-        <div class="weak-card-right">
-          <div class="weak-meta">
-            {% if ws.worst_axis == 'accent' %}アクセント{% elif ws.worst_axis == 'length' %}長さ{% else %}口の形{% endif %}が弱め ・ {{ ws.count }}回計測
-          </div>
-          <div class="weak-words">
-            <a href="/sound_drill/{{ ws.kana }}" class="weak-word-btn weak-drill-btn">{{ icon('zap') }} 集中ドリル</a>
-            {% for w in ws.words %}
-            <form action="/" method="post" style="display:inline;margin:0;">
-              <input type="hidden" name="Words" value="{{ w.word_id }}">
-              <button type="submit" class="weak-word-btn">{{ w.display }}</button>
-            </form>
-            {% endfor %}
-            {% if ws.worst_axis == 'vowel' and ws.words %}
-            <a href="/vowel_trainer/{{ ws.words[0].word_id }}" class="weak-word-btn weak-mouth-btn">{{ icon('mouth') }} 口の形を練習</a>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  </details>
-</div>
-{% endif %}
-
-<div class="main-layout">
-  <!-- 単語グリッド -->
-  <div class="words-section">
-    <!-- 通知バナー -->
-    <div class="notify-bar" id="notifyBar">
-      <span>3日間練習がない場合にリマインダー通知を受け取れます</span>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="notify-bar-btn" id="notifyEnableBtn">通知を許可する</button>
-        <button class="notify-bar-dismiss" id="notifyDismissBtn" title="閉じる">×</button>
+    <div class="sheet-group">
+      <div class="sheet-label">画面の明るさ</div>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-theme-mode="auto">自動</button>
+        <button type="button" data-theme-mode="light">明るい</button>
+        <button type="button" data-theme-mode="dark">暗い</button>
       </div>
     </div>
-    <div class="section-header">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span class="section-title">単語一覧</span>
-        <button class="add-word-btn" id="btnAddWord">
-          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v9M1 5.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          単語を追加
-        </button>
-        <button class="continuous-btn" id="btnContinuous">
-          <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          連続練習
-        </button>
-        <a href="/listening_quiz" class="continuous-btn" style="text-decoration:none;">{{ icon('ear') }} 聞き分けテスト</a>
+
+    <div class="sheet-group">
+      <div class="sheet-label">お手本の速さ</div>
+      <div class="seg" id="speedSeg">
+        <button type="button" data-speed="1">ふつう</button>
+        <button type="button" data-speed="0.75">ゆっくり</button>
+        <button type="button" data-speed="0.5">とてもゆっくり</button>
+      </div>
+    </div>
+
+    <div class="sheet-group" id="hapticsGroup" hidden>
+      <div class="sheet-row">
+        <span><span class="sheet-row-text">振動で知らせる</span><br><span class="sheet-row-sub">録音の開始・終わりや、クイズの正解をスマホの振動で伝えます</span></span>
+        <label class="switch"><input type="checkbox" id="hapticsToggle"><span></span></label>
+      </div>
+    </div>
+
+    <div class="sheet-group">
+      <button type="button" class="sheet-link" id="btnShowIntro">{{ icon('bulb') }} 使い方を見る</button>
+    </div>
+
+    <div class="sheet-group" id="notifyGroup" hidden>
+      <div class="sheet-row">
+        <span><span class="sheet-row-text">練習のお知らせ</span><br><span class="sheet-row-sub">しばらく練習していないときに知らせます</span></span>
+        <button type="button" class="ls-btn" id="notifyEnableBtn">受け取る</button>
+      </div>
+    </div>
+
+    <div class="sheet-group">
+      <div class="sheet-row">
+        <span><span class="sheet-row-text">先生モード</span><br><span class="sheet-row-sub">単語の追加・お手本の録り直し・削除（先生用パスワードが必要）</span></span>
+        <label class="switch"><input type="checkbox" id="teacherModeToggle"{% if is_teacher %} checked{% endif %} aria-label="先生モード"><span></span></label>
       </div>
       {#
-        並び替え・検索・各種フィルタは、単語が増えてから必要になる道具。
-        登録が数個のうちは操作だけが並んで「何をすればよいか」が
-        埋もれるため、5語以上のときだけ折りたたみで出す。
+        先生モードを ON にするには先生用パスワードが要る（生徒が ON にできないように）。
+        許可するかどうかはサーバーが決めるので、ここは入力の窓口にすぎない。
       #}
-      {% if words|length >= 5 %}
-      <div class="list-tools" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <div class="sort-wrap">
-          <div class="sort-dropdown" id="sortDropdown">
-            <button class="sort-dropdown-btn" id="sortDropdownBtn" onclick="toggleSortMenu()" type="button">
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 4h9M4 6.5h5M5.5 9h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-              <span id="sortKeyLabel">登録順</span>
-              <svg class="sort-dropdown-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <div class="sort-dropdown-menu" id="sortDropdownMenu">
-              <button class="sort-option active" data-key="order" onclick="selectSortKey('order',this)">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-                登録順
-                <svg class="sort-option-check" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button class="sort-option" data-key="kana" onclick="selectSortKey('kana',this)">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><text x="1" y="11" font-size="10" font-weight="700" fill="currentColor">あ</text></svg>
-                あいうえお順
-                <svg class="sort-option-check" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-              <button class="sort-option" data-key="score" onclick="selectSortKey('score',this)">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 10V6M7 10V3M11 10V7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                点数順
-                <svg class="sort-option-check" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-            </div>
-          </div>
-          <button class="sort-dir-btn" id="sortDirBtn" onclick="toggleSortDir()" title="昇順/降順を切り替え">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" id="sortDirIcon"><path d="M3 4l3-3 3 3M6 1v10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span id="sortDirLabel">昇順</span>
-          </button>
+      <form class="teacher-unlock" id="teacherUnlock" hidden autocomplete="off">
+        {% if teacher_configured %}
+        <label class="sheet-label" for="teacherPassword">先生用パスワード</label>
+        <div class="teacher-unlock-row">
+          <input type="password" class="teacher-pw" id="teacherPassword" autocomplete="off" required>
+          <button type="submit" class="teacher-pw-go">ONにする</button>
         </div>
-        <div class="search-wrap">
-          <svg class="search-icon" width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9 9l2.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          <input type="text" class="search-input" id="searchInput" placeholder="単語を検索..." oninput="filterWords()">
-        </div>
+        <p class="teacher-unlock-msg" id="teacherUnlockMsg" role="alert"></p>
+        {% else %}
+        <p class="teacher-unlock-msg" role="alert">先生用パスワードがまだ設定されていません。</p>
+        <p class="teacher-unlock-note">サーバーを動かしているPCで <code>python scripts/set_teacher_password.py</code> を実行してください。</p>
+        {% endif %}
+      </form>
+      <div class="teacher-only-row">
+        <p class="teacher-on-note">{{ icon('alert') }}<span>先生の操作をしないまま60分たつと自動で終わります。生徒に端末を渡す前に、スイッチをOFFにしてください。</span></p>
+        <button type="button" class="sheet-link" id="btnAddWord">{{ icon('video') }} 単語を追加（お手本録画つき）</button>
+        <a class="sheet-link" href="/admin">{{ icon('clipboard') }} 単語の管理</a>
+        <a class="sheet-link" href="/history#analysis">{{ icon('chart') }} くわしい分析</a>
       </div>
-      {% endif %}
     </div>
-    {% if words|length >= 5 %}
-    {% if all_tags %}
-    <div class="tag-filter-row" id="tagFilterRow">
-      <button class="tag-chip tag-chip-all active" onclick="filterByTag(null,this)">すべて</button>
-      {% for tag in all_tags %}
-      <button class="tag-chip" onclick="filterByTag('{{ tag }}',this)">{{ tag }}</button>
-      {% endfor %}
-    </div>
-    {% endif %}
-    <div class="accent-filter-row" id="accentFilterRow">
-      <span class="speed-lbl">アクセント型</span>
-      <button class="tag-chip tag-chip-all active" onclick="filterByAccent('',this)">すべて</button>
-      <button class="tag-chip" onclick="filterByAccent('0',this)">平板型</button>
-      <button class="tag-chip" onclick="filterByAccent('1',this)">頭高型</button>
-      <button class="tag-chip" onclick="filterByAccent('mid',this)">中高型</button>
-    </div>
-    <div class="speed-row">
-      <span class="speed-lbl">再生速度</span>
-      <button class="speed-btn active" data-speed="1" onclick="setPlaybackSpeed(1,this)">1×</button>
-      <button class="speed-btn" data-speed="0.75" onclick="setPlaybackSpeed(0.75,this)">0.75×</button>
-      <button class="speed-btn" data-speed="0.5" onclick="setPlaybackSpeed(0.5,this)">0.5×</button>
-    </div>
-    {% endif %}
-    <div class="word-grid" id="wordGrid">
-      {% for w in words %}
-      {% set pattern = accent_patterns.get(w.word_id, []) %}
-      {% set best = (stats.word_best or {}).get(w.word_id) %}
-      {% set grade = ('s' if best >= 90 else ('a' if best >= 75 else ('b' if best >= 60 else ('c' if best >= 40 else 'd')))) if best is not none else '' %}
-      <div class="word-card{% if grade %} grade-{{ grade }}{% endif %}" data-word="{{ w.display }}" data-reading="{{ w.reading }}" data-tags="{{ (w.tags or [])|join(',') }}" data-accent="{{ w.accent if w.accent is not none else '' }}" data-word-id="{{ w.word_id }}" data-order="{{ loop.index }}" data-best="{{ best if best is not none else -1 }}">
-        <div class="word-card-body">
-          <div class="word-card-top">
-            <span class="word-card-index">No.{{ "%02d"|format(loop.index) }}</span>
-            <div class="word-card-actions">
-              <!-- お手本ボタン -->
-              <button class="word-ref-btn {% if w.word_id in lip_ref_keys %}has-ref{% endif %}"
-                      data-word-id="{{ w.word_id }}"
-                      data-word-display="{{ w.display }}"
-                      title="{% if w.word_id in lip_ref_keys %}口のお手本登録済み（クリックで再登録）{% else %}口のお手本を登録{% endif %}">
-                {% if w.word_id in lip_ref_keys %}
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 6l3 3L9.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                {% else %}
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="2.5" width="9" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 6l-2.5 1.8V4.2L7 6z" fill="currentColor"/></svg>
-                {% endif %}
-              </button>
-              <!-- 削除ボタン -->
-              <button class="word-del-btn"
-                      data-word-id="{{ w.word_id }}"
-                      data-display="{{ w.display }}"
-                      title="削除">
-                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 3h7M4.5 3V1.5h2V3M4 3v6h3V3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              </button>
-            </div>
-          </div>
-          <div class="word-card-text{% if w.display|length >= 6 %} xlong{% elif w.display|length >= 4 %} long{% endif %}">{{ w.display }}</div>
-          <div class="word-card-reading">{{ w.reading }}</div>
-          {% if best is not none %}
-            {% set grade_label = 'S' if grade == 's' else (grade|upper) %}
-            <div class="word-card-best">最高 <span class="best-score grade-{{ grade }}">{{ best|int }}点 {{ grade_label }}</span></div>
-          {% endif %}
-          {% if pattern %}
-          <div class="word-card-accent">
-            <span class="accent-type-label">{% if w.accent == 0 %}平板型{% elif w.accent == 1 %}頭高型{% elif w.accent is not none %}{{ w.accent }}型{% else %}型不明{% endif %}</span>
-            <div class="accent-viz">
-              {% for hl in pattern %}<div class="av-mora"><div class="av-bar {{ hl }}"></div></div>{% endfor %}
-            </div>
-          </div>
-          {% endif %}
-          {% if w.note %}
-          <div class="word-card-note">{{ w.note }}</div>
-          {% endif %}
-        </div>
-        <div class="word-card-audio">
-          <audio controls src="/sample_audio/{{ w.word_id }}" preload="none"></audio>
-        </div>
-        <div class="word-card-footer">
-          <form action="/" method="post">
-            <input type="hidden" name="Words" value="{{ w.word_id }}">
-            <button type="submit" class="word-record-btn">
-              録音する
-              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-          </form>
-        </div>
-      </div>
-      {% endfor %}
-      <div class="no-results" id="noResults">該当する単語が見つかりませんでした</div>
-    </div>
-  </div>
 
+    {% if current_user_id %}
+    <div class="sheet-group">
+      <a class="sheet-link danger" href="/logout">{{ icon('x-circle') }} ログアウト</a>
+    </div>
+    {% endif %}
+
+    <button type="button" class="sheet-close" data-close-sheet>とじる</button>
+  </div>
 </div>
 
-
 <script>
-let _activeTag    = null;
-let _activeAccent = '';
-let _playSpeed    = 1;
+/* ── あいさつ ── */
+(function () {
+  const h = new Date().getHours();
+  const g = h < 5 ? 'こんばんは' : h < 11 ? 'おはようございます' : h < 18 ? 'こんにちは' : 'こんばんは';
+  document.getElementById('heroGreeting').textContent = g;
+  const d = new Date();
+  const date = document.getElementById('heroDate');
+  if (date) date.textContent = `${d.getMonth() + 1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`;
+})();
 
-function filterWords() {
-  // 検索欄は単語が5語以上のときだけ描画される
-  const searchEl = document.getElementById('searchInput');
-  const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
-  let vis = 0;
-  document.querySelectorAll('.word-card').forEach(c => {
-    const matchText   = !q || (c.dataset.word||'').includes(q) || (c.dataset.reading||'').includes(q);
-    const matchTag    = !_activeTag || (c.dataset.tags||'').split(',').map(t=>t.trim()).includes(_activeTag);
-    const accentVal   = c.dataset.accent;
-    let   matchAccent = true;
-    if (_activeAccent === '0')   matchAccent = accentVal === '0';
-    else if (_activeAccent === '1')   matchAccent = accentVal === '1';
-    else if (_activeAccent === 'mid') matchAccent = accentVal !== '' && accentVal !== '0' && accentVal !== '1';
-    const show = matchText && matchTag && matchAccent;
-    c.classList.toggle('hidden', !show);
-    if(show) vis++;
+/* ── シート（今日のメニュー・設定）の開け閉め ── */
+function openSheet(id) { const s = document.getElementById(id); if (s) s.hidden = false; }
+function closeSheets() { document.querySelectorAll('.sheet').forEach(s => { s.hidden = true; }); }
+document.getElementById('btnSettings')?.addEventListener('click', () => openSheet('settingsSheet'));
+document.getElementById('btnTodayMenu')?.addEventListener('click', () => openSheet('todaySheet'));
+document.querySelectorAll('[data-close-sheet]').forEach(b => b.addEventListener('click', closeSheets));
+document.querySelectorAll('.sheet').forEach(s => s.addEventListener('click', e => { if (e.target === s) closeSheets(); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
+
+/* ── 画面の明るさ ── */
+(function () {
+  const seg = document.getElementById('themeSeg');
+  if (!seg || !window.SPTheme) return;
+  const paint = () => seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.themeMode === SPTheme.get()));
+  seg.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    SPTheme.set(b.dataset.themeMode); paint();
   });
-  document.getElementById('noResults').style.display = vis === 0 ? 'block' : 'none';
-  renumberVisibleCards();
-}
+  paint();
+})();
 
-/* ── 並べ替え（登録順 / あいうえお順 / 点数順、昇順・降順） ── */
-const SORT_LS_KEY = 'sp-ps-word-sort';
-let _sortKey = 'order';
-let _sortDir = 'asc';
-
-const SORT_KEY_LABELS = { order: '登録順', kana: 'あいうえお順', score: '点数順' };
-
-function loadSortPref() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SORT_LS_KEY));
-    if (saved && saved.key) { _sortKey = saved.key; _sortDir = saved.dir || 'asc'; }
-  } catch (e) {}
-  updateSortKeyUI();
-  updateSortDirUI();
-}
-
-function updateSortKeyUI() {
-  const keyLabel = document.getElementById('sortKeyLabel');
-  if (keyLabel) keyLabel.textContent = SORT_KEY_LABELS[_sortKey] || '登録順';
-  document.querySelectorAll('.sort-option').forEach(opt => {
-    opt.classList.toggle('active', opt.dataset.key === _sortKey);
+/* ── お手本の速さ（一覧の「お手本」ボタンと録音画面で使う） ── */
+let _playSpeed = 1;
+(function () {
+  const KEY = 'sp-ps-play-speed';
+  const seg = document.getElementById('speedSeg');
+  try { _playSpeed = parseFloat(localStorage.getItem(KEY)) || 1; } catch (e) {}
+  const paint = () => seg?.querySelectorAll('button').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.speed) === _playSpeed));
+  seg?.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    _playSpeed = parseFloat(b.dataset.speed);
+    try { localStorage.setItem(KEY, String(_playSpeed)); } catch (e) {}
+    document.querySelectorAll('.wc-audio').forEach(a => { a.playbackRate = _playSpeed; });
+    paint();
   });
+  paint();
+})();
+
+/* ── 単語のさがし方：チップ（すべて／にがて／まだ／マスター／タグ）＋検索 ── */
+function kanaNorm(str) {
+  return (str || '').toLowerCase().replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 }
+(function () {
+  const chips  = document.getElementById('wordFilters');
+  const input  = document.getElementById('searchInput');
+  const box    = document.getElementById('searchBox');
+  const btn    = document.getElementById('btnSearch');
+  const none   = document.getElementById('noResults');
+  let filter = 'all', tag = null;
 
-function toggleSortMenu() {
-  document.getElementById('sortDropdown')?.classList.toggle('open');
-}
-
-function closeSortMenu() {
-  document.getElementById('sortDropdown')?.classList.remove('open');
-}
-
-function selectSortKey(key, btn) {
-  _sortKey = key;
-  saveSortPref();
-  updateSortKeyUI();
-  updateSortDirUI();
-  sortWordCards();
-  closeSortMenu();
-}
-
-document.addEventListener('click', (e) => {
-  const dd = document.getElementById('sortDropdown');
-  if (dd && dd.classList.contains('open') && !dd.contains(e.target)) closeSortMenu();
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeSortMenu();
-});
-
-function saveSortPref() {
-  localStorage.setItem(SORT_LS_KEY, JSON.stringify({ key: _sortKey, dir: _sortDir }));
-}
-
-function updateSortDirUI() {
-  const btn   = document.getElementById('sortDirBtn');
-  const label = document.getElementById('sortDirLabel');
-  if (!btn || !label) return;          // 絞り込み非表示のときは何もしない
-  const isDesc = _sortDir === 'desc';
-  btn.classList.toggle('desc', isDesc);
-  // 「点数順」は降順が自然な既定なので、ラベルの意味合いを表示に反映
-  if (_sortKey === 'score') {
-    label.textContent = isDesc ? '高い順' : '低い順';
-  } else if (_sortKey === 'kana') {
-    label.textContent = isDesc ? 'ん→あ' : 'あ→ん';
-  } else {
-    label.textContent = isDesc ? '新しい順' : '古い順';
+  function apply() {
+    const q = kanaNorm((input?.value || '').trim());
+    let vis = 0;
+    document.querySelectorAll('.word-card').forEach(c => {
+      const best = parseFloat(c.dataset.best);
+      const okFilter = filter === 'all'
+        || (filter === 'new'    && best < 0)
+        || (filter === 'weak'   && best >= 0 && best < 60)
+        || (filter === 'master' && best >= 90);
+      const okTag  = !tag || (c.dataset.tags || '').split(',').map(t => t.trim()).includes(tag);
+      const okText = !q || kanaNorm(c.dataset.word).includes(q) || kanaNorm(c.dataset.reading).includes(q);
+      const show = okFilter && okTag && okText;
+      c.classList.toggle('hidden', !show);
+      if (show) vis++;
+    });
+    if (none) none.hidden = vis > 0;
   }
-}
 
-function toggleSortDir() {
-  _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
-  saveSortPref();
-  updateSortDirUI();
-  sortWordCards();
-}
+  chips?.addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    chips.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    filter = b.dataset.filter || 'all';
+    tag = b.dataset.tag || null;
+    apply();
+  });
+  input?.addEventListener('input', apply);
+  btn?.addEventListener('click', () => {
+    const open = box.hidden;
+    box.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    if (open) input.focus(); else { input.value = ''; apply(); }
+  });
+})();
 
-function sortWordCards() {
-  const grid  = document.getElementById('wordGrid');
-  const cards = Array.from(grid.querySelectorAll('.word-card'));
-  const dirMul = _sortDir === 'desc' ? -1 : 1;
+/* ── お手本の再生（カードの「お手本」ボタン） ── */
+(function () {
+  let playing = null;
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.wc-play');
+    if (!btn) return;
+    const audio = btn.closest('.word-card')?.querySelector('.wc-audio');
+    if (!audio) return;
+    if (playing && playing !== audio) { playing.pause(); playing.currentTime = 0; }
+    if (!audio.paused) { audio.pause(); audio.currentTime = 0; return; }
+    audio.playbackRate = _playSpeed;
+    audio.play().catch(() => {});
+    playing = audio;
+  });
+  document.querySelectorAll('.wc-audio').forEach(a => {
+    const btn = a.closest('.word-card')?.querySelector('.wc-play');
+    if (!btn) return;
+    a.addEventListener('play',  () => btn.classList.add('playing'));
+    a.addEventListener('pause', () => btn.classList.remove('playing'));
+    a.addEventListener('ended', () => btn.classList.remove('playing'));
+  });
+})();
 
-  cards.sort((a, b) => {
-    let va, vb;
-    if (_sortKey === 'kana') {
-      va = a.dataset.reading || '';
-      vb = b.dataset.reading || '';
-      return va.localeCompare(vb, 'ja') * dirMul;
-    } else if (_sortKey === 'score') {
-      va = parseFloat(a.dataset.best);
-      vb = parseFloat(b.dataset.best);
-      // 未計測(-1)は常に末尾に送る（昇順・降順どちらでも）
-      if (va < 0 && vb < 0) return 0;
-      if (va < 0) return 1;
-      if (vb < 0) return -1;
-      return (va - vb) * dirMul;
-    } else {
-      va = parseInt(a.dataset.order, 10);
-      vb = parseInt(b.dataset.order, 10);
-      return (va - vb) * dirMul;
+/* ── 先生モード ──
+   ON にするときは先生用パスワードを聞き、サーバーが確かめてから画面を読み込み直す。
+   OFF はその場で終わらせる。どちらもサーバーのセッションが正で、この画面は窓口だけ。 */
+(function () {
+  const cb   = document.getElementById('teacherModeToggle');
+  const form = document.getElementById('teacherUnlock');
+  const pw   = document.getElementById('teacherPassword');
+  const msg  = document.getElementById('teacherUnlockMsg');
+  if (!cb || !form || !window.SPTeacher) return;
+  cb.checked = SPTeacher.get();
+
+  cb.addEventListener('change', async () => {
+    if (cb.checked && !SPTeacher.get()) {
+      // まだ ON にはしない。パスワードが通ったら ON になる
+      cb.checked = false;
+      form.hidden = false;
+      if (msg) msg.textContent = '';
+      if (pw) { pw.value = ''; pw.focus(); }
+      return;
+    }
+    if (!cb.checked && SPTeacher.get()) {
+      cb.disabled = true;
+      try { await SPTeacher.lock(); } catch (e) {}
+      location.reload();
     }
   });
 
-  cards.forEach(c => grid.appendChild(c));
-  renumberVisibleCards();
-}
-
-function renumberVisibleCards() {
-  let n = 0;
-  document.querySelectorAll('.word-card').forEach(c => {
-    const idxEl = c.querySelector('.word-card-index');
-    if (!idxEl) return;
-    if (!c.classList.contains('hidden')) {
-      n++;
-      idxEl.textContent = 'No.' + String(n).padStart(2, '0');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!pw) return;
+    const go = form.querySelector('.teacher-pw-go');
+    if (go) go.disabled = true;
+    if (msg) msg.textContent = '';
+    try {
+      const r = await SPTeacher.unlock(pw.value);
+      if (r.ok) { location.reload(); return; }
+      if (msg) msg.textContent = r.error || 'ONにできませんでした。';
+      pw.select();
+    } catch (err) {
+      if (msg) msg.textContent = '通信できませんでした。もう一度ためしてください。';
     }
+    if (go) go.disabled = false;
   });
-}
 
-function filterByTag(tag, btn) {
-  _activeTag = tag;
-  document.getElementById('tagFilterRow')?.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  filterWords();
-}
+  // 設定を閉じたら、途中まで入れたパスワードは消す
+  document.querySelectorAll('#settingsSheet [data-close-sheet], #settingsSheet').forEach(el => el.addEventListener('click', e => {
+    if (e.target !== el) return;
+    form.hidden = true;
+    if (pw) pw.value = '';
+  }));
+})();
 
-function filterByAccent(val, btn) {
-  _activeAccent = val;
-  document.getElementById('accentFilterRow')?.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  filterWords();
-}
-
-function setPlaybackSpeed(speed, btn) {
-  _playSpeed = speed;
-  document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  document.querySelectorAll('.word-card audio').forEach(a => { a.playbackRate = speed; });
-}
-
-/* ── 連続練習モード ── */
+/* ── れんぞく練習：いま表示している単語を順番に ── */
 document.getElementById('btnContinuous').addEventListener('click', () => {
   const visible = [...document.querySelectorAll('.word-card:not(.hidden)')];
-  if (!visible.length) return;
   const ids = visible.map(c => c.dataset.wordId).filter(Boolean);
   if (!ids.length) return;
   localStorage.setItem('sp-ps-practice-queue', JSON.stringify(ids.slice(1)));
@@ -844,41 +880,24 @@ document.getElementById('btnContinuous').addEventListener('click', () => {
   if (first) first.submit();
 });
 
-/* ── PWA通知 ── */
+/* ── 練習のお知らせ（通知が使える端末で、まだ許可していないときだけ出す） ── */
 (function () {
-  const bar        = document.getElementById('notifyBar');
-  const enableBtn  = document.getElementById('notifyEnableBtn');
-  const dismissBtn = document.getElementById('notifyDismissBtn');
-
-  if (!('Notification' in window)) return;
-  const dismissed = localStorage.getItem('sp-ps-notify-dismissed');
-  if (dismissed) return;
-  if (Notification.permission === 'granted') return;
-  if (Notification.permission === 'denied') return;
-
-  const lastPractice = localStorage.getItem('sp-ps-last-practice');
-  const needsReminder = !lastPractice || (Date.now() - Number(lastPractice)) > 86400000;
-  if (needsReminder) bar.classList.add('show');
-
-  enableBtn.addEventListener('click', async () => {
+  const group = document.getElementById('notifyGroup');
+  const btn   = document.getElementById('notifyEnableBtn');
+  if (!group || !btn || !('Notification' in window)) return;
+  if (Notification.permission !== 'default') return;
+  group.hidden = false;
+  btn.addEventListener('click', async () => {
     const perm = await Notification.requestPermission();
-    bar.classList.remove('show');
+    group.hidden = true;
     if (perm === 'granted') {
-      new Notification('SP-PS 練習リマインダー', {
-        body: '3日間練習していない場合にお知らせします。今日も練習しましょう！',
+      new Notification('SP-PS 練習のお知らせ', {
+        body: 'しばらく練習していないときにお知らせします。',
         icon: '/static/icon-192.svg',
       });
     }
   });
-  dismissBtn.addEventListener('click', () => {
-    bar.classList.remove('show');
-    localStorage.setItem('sp-ps-notify-dismissed', '1');
-  });
 })();
-
-loadSortPref();
-sortWordCards();
-
 </script>
 
 <!-- 単語追加モーダル（Step1: 登録 → Step2: お手本録画） -->
@@ -1001,7 +1020,7 @@ function createMicVolumeMeter(stream, fillEl) {
     if (fillEl) {
       const pct = Math.min(100, rms * 400);
       fillEl.style.width = pct + '%';
-      fillEl.style.background = pct > 30 ? '#2D6A4F' : pct > 8 ? '#9E9890' : '#C03D20';
+      fillEl.style.background = pct > 30 ? '#1B7F5B' : pct > 8 ? '#A3A3AE' : '#C4453D';
     }
     rafId = requestAnimationFrame(tick);
   }
@@ -1344,7 +1363,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
       if (cardBtn) {
         cardBtn.classList.add('has-ref');
         cardBtn.title = '口のお手本登録済み（クリックで再登録）';
-        cardBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1.5 6l3 3L9.5 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        cardBtn.innerHTML = {{ (icon('video') ~ ' お手本を録り直す') | tojson }};
       }
       setTimeout(closeModal, 1200);
     } catch (err) {
@@ -1453,7 +1472,7 @@ document.addEventListener('DOMContentLoaded', function () {
     ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(215,70,40,0.65)';
+    ctx.strokeStyle = 'rgba(181,173,255,0.9)';
     ctx.lineWidth = Math.max(1.2, W * 0.003);
     ctx.beginPath();
     ctx.ellipse(cx, cy + ry * 0.38, rx * 0.52, ry * 0.16, 0, 0, Math.PI * 2);
@@ -1471,11 +1490,11 @@ document.addEventListener('DOMContentLoaded', function () {
     var ratio = x454 - x234;
     var bColor, statusTxt;
     if (ratio > 0.82) {
-      bColor = 'rgba(251,191,36,0.85)'; statusTxt = '近すぎます — 少し離れてください';
+      bColor = 'rgba(233,176,79,0.9)'; statusTxt = '近すぎます — 少し離れてください';
     } else if (ratio < 0.38) {
-      bColor = 'rgba(251,191,36,0.85)'; statusTxt = '遠すぎます — 近づいてください';
+      bColor = 'rgba(233,176,79,0.9)'; statusTxt = '遠すぎます — 近づいてください';
     } else {
-      bColor = 'rgba(52,211,153,0.75)'; statusTxt = '✓ 位置OK';
+      bColor = 'rgba(76,197,150,0.9)'; statusTxt = '✓ 位置OK';
     }
     ctx.save();
     ctx.strokeStyle = bColor; ctx.lineWidth = Math.max(2, W * 0.005);
@@ -1483,8 +1502,8 @@ document.addEventListener('DOMContentLoaded', function () {
     ctx.restore();
     drawConn(OVAL,      'rgba(255,255,255,0.30)', Math.max(1, W * 0.002));
     drawConn(NOSE,      'rgba(255,255,255,0.30)', Math.max(1, W * 0.002));
-    drawConn(LIP_OUTER, 'rgba(215,70,40,0.65)',   Math.max(1.5, W * 0.004));
-    drawConn(LIP_INNER, 'rgba(215,70,40,0.45)',   Math.max(1, W * 0.003));
+    drawConn(LIP_OUTER, 'rgba(181,173,255,0.9)',   Math.max(1.5, W * 0.004));
+    drawConn(LIP_INNER, 'rgba(181,173,255,0.55)',   Math.max(1, W * 0.003));
     if (STS) STS.textContent = statusTxt;
   }
 
@@ -1533,6 +1552,64 @@ document.addEventListener('DOMContentLoaded', function () {
   s.onload = function() { initFM(); };
   document.head.appendChild(s);
   setInterval(function() { if (!fm) initFM(); }, 1000);
+})();
+</script>
+{# はじめての使い方（初めて開いたときに1回だけ。設定の「使い方を見る」からも開ける） #}
+<div class="intro" id="intro" hidden role="dialog" aria-label="使い方">
+  <div class="intro-panel">
+    <div class="intro-step active">
+      <div class="intro-art">{{ icon('video', size=52) }}<span class="intro-art-num">1</span></div>
+      <div class="intro-title">お手本を見る</div>
+      <p class="intro-text">先生の口の動きと、音の高さ・長さを見ます。何回見てもOKです。</p>
+    </div>
+    <div class="intro-step">
+      <div class="intro-art">{{ icon('mic', size=52) }}<span class="intro-art-num">2</span></div>
+      <div class="intro-title">自分のペースで録音</div>
+      <p class="intro-text">お手本に合わせなくてだいじょうぶ。言い終わったら「録音停止」を押します。</p>
+    </div>
+    <div class="intro-step">
+      <div class="intro-art">{{ icon('target', size=52) }}<span class="intro-art-num">3</span></div>
+      <div class="intro-title">直すところは1つだけ</div>
+      <p class="intro-text">結果の「つぎは、ここだけ」を直していくと、点数がのびていきます。</p>
+    </div>
+    <div class="intro-dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+    <button type="button" class="intro-next" id="introNext">つぎへ</button>
+    <button type="button" class="intro-skip" id="introSkip">とばす</button>
+  </div>
+</div>
+<script>
+(function () {
+  const KEY = 'sp-ps-intro-seen';
+  const box = document.getElementById('intro');
+  if (!box) return;
+  const steps = Array.from(box.querySelectorAll('.intro-step'));
+  const dots = Array.from(box.querySelectorAll('.intro-dots i'));
+  const next = document.getElementById('introNext');
+  let i = 0;
+  function render() {
+    steps.forEach((el, k) => el.classList.toggle('active', k === i));
+    dots.forEach((el, k) => el.classList.toggle('on', k === i));
+    next.textContent = i === steps.length - 1 ? 'はじめる' : 'つぎへ';
+  }
+  function open() { i = 0; render(); box.hidden = false; }
+  function close() { box.hidden = true; try { localStorage.setItem(KEY, '1'); } catch (e) {} }
+  next.addEventListener('click', () => { if (i < steps.length - 1) { i++; render(); } else close(); });
+  document.getElementById('introSkip').addEventListener('click', close);
+  document.getElementById('btnShowIntro')?.addEventListener('click', () => { document.querySelectorAll('.sheet').forEach(s => s.hidden = true); open(); });
+  // まだ練習が少ない人にだけ、最初の1回だけ出す（慣れている人の邪魔をしない）
+  let seen = false;
+  try { seen = localStorage.getItem(KEY) === '1'; } catch (e) {}
+  if (!seen && {{ ((stats.total_sessions if stats else 0) < 3) | tojson }}) open();
+  else if (!seen) { try { localStorage.setItem(KEY, '1'); } catch (e) {} }
+
+  // 振動の設定（振動できない端末では項目ごと出さない）
+  const hg = document.getElementById('hapticsGroup');
+  const hc = document.getElementById('hapticsToggle');
+  if (hg && hc && window.SPHaptics && SPHaptics.supported()) {
+    hg.hidden = false;
+    hc.checked = SPHaptics.enabled();
+    hc.addEventListener('change', () => { SPHaptics.set(hc.checked); if (hc.checked) SPHaptics.tick(); });
+  }
 })();
 </script>
 <script src="/static/js/tabbar.js" defer></script>

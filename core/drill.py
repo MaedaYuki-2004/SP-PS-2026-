@@ -129,11 +129,14 @@ def _edit_distance(a: str, b: str) -> int:
     return dp[lb]
 
 
-def build_listening_quiz(words: list[dict], n: int = 8, n_choices: int = 3) -> list[dict]:
-    """聞き分けテストの問題リストを返す。
+def build_listening_quiz(words: list[dict], n: int = 20, n_choices: int = 3) -> list[dict]:
+    """ことば当てクイズ（聞き分け・読み取り）の問題リストを返す。
 
     音声のある単語から出題し、読みが似ている単語を選択肢に混ぜる
     （びょういん / びよういん のようなミニマルペアを優先）。
+    先生のお手本録画（口の動き）がある単語には video を付け、
+    画面側で「口の動きで当てる」「音で当てる」「口と音で当てる」を選べるようにする。
+    1回に出す問題数（8問）は画面側で決める。
     """
     pool = [w for w in words if _has_audio(w["word_id"]) and w.get("reading")]
     if len(pool) < n_choices:
@@ -159,8 +162,10 @@ def build_listening_quiz(words: list[dict], n: int = 8, n_choices: int = 3) -> l
                     "reading": c.get("reading", "")}
                    for c in [w] + distractors]
         random.shuffle(choices)
+        has_video = (RAW_AUDIO_DIR / "sound" / w["word_id"] / f"{w['word_id']}.webm").exists()
         questions.append({
             "audio":     f"/sample_audio/{w['word_id']}",
+            "video":     f"/sample_video/{w['word_id']}" if has_video else None,
             "answer_id": w["word_id"],
             "choices":   choices,
         })

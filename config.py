@@ -113,5 +113,30 @@ PITCH_FLOOR_FEMALE:    float = 150.0
 PITCH_CEILING_FEMALE:  float = 400.0
 
 # ── Flask シークレットキー ────────────────────────────────────────────
-FLASK_SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY", "change-this-secret-key")
+# ログイン状態と先生モードは、この鍵で署名したセッション Cookie に入っている。
+# 以前はリポジトリに書かれた固定の文字列を既定値にしていたため、鍵を知っていれば
+# Cookie を偽造して他人になりすましたり、先生モードにしたりできた。
+# 環境変数が無いときは、ランダムな鍵を作って data/config/ に保存する（data/ は Git 管理外）。
+def _load_or_create_secret_key() -> str:
+    env = os.environ.get("FLASK_SECRET_KEY")
+    if env:
+        return env
+    path = DATA_DIR / "config" / "flask_secret_key.txt"
+    try:
+        key = path.read_text(encoding="utf-8").strip()
+        if key:
+            return key
+    except OSError:
+        pass
+    import secrets
+    key = secrets.token_hex(32)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(key, encoding="utf-8")
+    except OSError:
+        pass  # 保存できない環境でも起動はする（再起動するとログインし直しになる）
+    return key
+
+
+FLASK_SECRET_KEY: str = _load_or_create_secret_key()
 

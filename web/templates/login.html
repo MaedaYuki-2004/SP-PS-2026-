@@ -1,36 +1,62 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ログイン — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
-    .auth-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
-    .auth-card { width:100%; max-width:380px; background:var(--bg-card); border:1px solid var(--border);
-                 border-radius:var(--r-lg); padding:32px 28px; box-shadow:var(--shadow); }
-    .auth-title { font-size:20px; font-weight:700; color:var(--navy); }
-    .auth-sub { font-size:12px; color:var(--text-3); margin-top:4px; margin-bottom:22px; }
-    .field { display:flex; flex-direction:column; gap:5px; margin-bottom:16px; }
-    .field label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
-    .field input { font-family:var(--font); font-size:14px; padding:11px 14px; border:1px solid var(--border);
-                   border-radius:var(--r-sm); background:var(--bg); color:var(--text); width:100%;
-                   transition:border-color var(--dur),box-shadow var(--dur); }
-    .field input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(79,70,229,.1); }
-    .btn-primary { width:100%; font-family:var(--font); font-size:14px; font-weight:700; color:#fff;
-                   background:var(--navy); border:none; border-radius:var(--r-sm); padding:12px;
-                   cursor:pointer; transition:background var(--dur); }
-    .btn-primary:hover { background:var(--navy-mid); }
-    .auth-error { background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0;
-                  border-radius:var(--r-sm); padding:10px 13px; font-size:12px; font-weight:500; margin-bottom:16px; }
-    .auth-note { font-size:11px; color:var(--text-3); margin-top:16px; line-height:1.6; }
+    /* ログイン：テーマカラーの光の上に、カードを1枚浮かせる */
+    body { background-color:var(--bg);
+           background-image:radial-gradient(120% 60% at 50% -10%, rgba(116,101,255,.30), rgba(116,101,255,0) 62%),
+                            radial-gradient(70% 40% at 100% 100%, rgba(61,140,255,.14), rgba(61,140,255,0) 70%); }
+    .auth-wrap { min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; padding:24px 18px; }
+    .auth-brand { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; }
+    .auth-logo { width:76px; height:76px; border-radius:24px; display:flex; align-items:center; justify-content:center;
+                 background:var(--grad-hero); color:#fff; margin-bottom:8px;
+                 box-shadow:var(--shadow-brand), inset 0 1px 0 rgba(255,255,255,.25); }
+    .auth-name { font-family:var(--font-num); font-size:28px; font-weight:800; color:var(--text); letter-spacing:-.01em; }
+    .auth-tag { font-size:14px; color:var(--text-2); }
+    .auth-card { width:100%; max-width:400px; background:var(--glass); border:1px solid var(--glass-line);
+                 backdrop-filter:blur(20px) saturate(170%); -webkit-backdrop-filter:blur(20px) saturate(170%);
+                 border-radius:30px; padding:28px 22px 24px; }
+    body .auth-card { box-shadow:var(--elev-2); }
+    .auth-title { font-size:22px; font-weight:700; color:var(--text); }
+    .auth-sub { font-size:14px; color:var(--text-3); margin-top:4px; margin-bottom:22px; line-height:1.6; }
+    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+    .field label { font-size:13px; font-weight:700; color:var(--text-2); }
+    .field input { font-family:var(--font); font-size:16px; padding:14px 16px; min-height:54px; border:1.5px solid transparent;
+                   border-radius:16px; background:var(--bg-muted); color:var(--text); width:100%;
+                   transition:border-color var(--dur),box-shadow var(--dur),background var(--dur); }
+    .field input:focus { outline:none; background:var(--bg-card); border-color:var(--navy); box-shadow:0 0 0 4px color-mix(in srgb, var(--navy) 16%, transparent); }
+    .field .hint { font-size:12px; color:var(--text-3); }
+    .btn-primary { width:100%; min-height:58px; margin-top:4px; font-family:var(--font); font-size:17px; font-weight:700; color:#fff;
+                   background:var(--grad-brand); box-shadow:var(--shadow-brand); border:none; border-radius:18px; padding:12px;
+                   cursor:pointer; transition:filter var(--dur), transform .15s var(--ease); }
+    .btn-primary:hover { filter:brightness(1.06); }
+    .btn-primary:active { transform:scale(.98); }
+    .auth-error { display:flex; gap:8px; align-items:flex-start; background:var(--danger-bg); color:var(--danger); border:none;
+                  border-radius:16px; padding:12px 14px; font-size:14px; font-weight:600; margin-bottom:16px; line-height:1.6; }
+    .auth-note { font-size:13px; color:var(--text-3); margin-top:16px; line-height:1.7; padding:12px 14px; border-radius:16px; background:var(--bg-muted); }
+    .id-chip { display:inline-flex; align-items:center; gap:6px; font-family:var(--font-num); font-size:14px; font-weight:700; color:var(--navy);
+               background:var(--navy-soft); border-radius:100px; padding:4px 12px; margin-bottom:20px; }
+    .pw-wrap { position:relative; }
+    .pw-wrap input { padding-right:78px !important; }
+    .pw-toggle { position:absolute; right:7px; top:50%; transform:translateY(-50%); min-height:40px; padding:0 12px; border:none;
+                 border-radius:12px; background:var(--bg-card); box-shadow:var(--elev-1); color:var(--text-2); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; }
   </style>
 </head>
 <body>
   <div class="auth-wrap">
+    <div class="auth-brand">
+      <span class="auth-logo">{{ icon('mouth', size=30) }}</span>
+      <span class="auth-name">SP-PS</span>
+      <span class="auth-tag">声と口の形で、発音をれんしゅう</span>
+    </div>
     <div class="auth-card">
-      <div class="auth-title">SP-PS ログイン</div>
+      <div class="auth-title">ログイン</div>
       <div class="auth-sub">配られた利用者IDとパスワードを入力してください。</div>
 
       {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
@@ -44,7 +70,7 @@
         </div>
         <div class="field">
           <label for="password">パスワード</label>
-          <input type="password" id="password" name="password" placeholder="はじめての人は空欄のまま">
+          <div class="pw-wrap"><input type="password" id="password" name="password" placeholder="はじめての人は空欄のまま"><button type="button" class="pw-toggle" data-for="password">表示</button></div>
         </div>
         <button type="submit" class="btn-primary">ログイン</button>
       </form>
@@ -55,5 +81,16 @@
       </p>
     </div>
   </div>
+  <script>
+    // パスワードの表示／非表示
+    document.querySelectorAll('.pw-toggle').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var input = document.getElementById(b.dataset.for);
+        var show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        b.textContent = show ? 'かくす' : '表示';
+      });
+    });
+  </script>
 </body>
 </html>

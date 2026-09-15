@@ -197,6 +197,33 @@ def get_streak() -> int:
     return streak
 
 
+def get_week_activity() -> dict:
+    """今週（月〜日）の練習した日と、今日の練習回数を返す（ホームの「今週」表示用）。
+
+    Returns: {days: [{label, date, day, count, is_today, is_future} × 7],
+              today_count, practiced_days}
+    """
+    from datetime import timedelta
+    counts: dict[str, int] = {}
+    for r in load_history():
+        d = r.get("timestamp", "")[:10]
+        if d:
+            counts[d] = counts.get(d, 0) + 1
+
+    today  = datetime.now().date()
+    monday = today - timedelta(days=today.weekday())
+    days = []
+    for i, label in enumerate("月火水木金土日"):
+        d   = monday + timedelta(days=i)
+        key = d.isoformat()
+        days.append({"label": label, "date": key, "day": d.day,
+                     "count": counts.get(key, 0),
+                     "is_today": d == today, "is_future": d > today})
+    return {"days": days,
+            "today_count": counts.get(today.isoformat(), 0),
+            "practiced_days": sum(1 for x in days if x["count"] > 0)}
+
+
 def get_overall_score() -> dict | None:
     """総合発音力スコアを返す（ELSA Score 方式）。
 
