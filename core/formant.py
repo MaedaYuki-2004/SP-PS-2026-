@@ -27,6 +27,19 @@ core/formant.py
   0.85 は集団平均値のため個人差を完全には吸収できない。
   「性別による評価の偏りを軽減した」であり、
   「完全に公平にした」ではない点に注意すること。
+
+【2026-09-14 見直し】
+  ・話者差補正を speaker_formant_scale() に切り出し、モーラ別の「口の形」
+    （evaluate.calc_mora_scores）にも同じ補正をかけるようにした。
+    以前は合計の母音点だけが補正され、モーラ別は補正なしで比べていたため、
+    お手本と声の高さ（声道の長さ）が違う生徒ほど「口の形」が低く出て、
+    苦手な音の分析でも「口の形」が弱点と判定されやすかった。
+  ・「こう」「せい」の後半（う・い）は前の母音と1つのまとまりとして測る
+    （core/utils.long_vowel_groups）。合計点ではまとまりを1回だけ数える。
+  ・性別の判定しきい値を estimate_pitch_range() の返す上限に合わせて直した
+    （下の _MALE_CEILING_THRESHOLD の説明を参照）。
+  ・お手本のフォルマントのキャッシュキーにモーラ区間を含めた。以前は wav の
+    更新時刻だけを見ていたので、アライメントをやり直すと古い区間の値が返っていた。
 """
 from __future__ import annotations
 
@@ -37,10 +50,16 @@ import parselmouth
 import parselmouth.praat
 from pathlib import Path
 
+from core.utils import long_vowel_groups, mora_group_kana
+
 _VOWEL_CHARS = {'a', 'i', 'u', 'e', 'o'}
 _SAMPLE_RATIOS = [0.30, 0.50, 0.70]
 _MALE_FORMANT_SCALE = 0.85
-_MALE_CEILING_THRESHOLD = 200.0
+# estimate_pitch_range() が返す上限は「有声フレームの90パーセンタイル × 1.5」。
+# 以前は Praat の男性用上限（200Hz）と同じ値で判定していたが、それだと
+# 90パーセンタイルが 133Hz 以下の人しか男性にならず、多くの男性が女性と判定されていた。
+# 300Hz は 90パーセンタイル 200Hz に当たる（男性の多くはこれより低く、女性の多くは高い）。
+_MALE_CEILING_THRESHOLD = 300.0
 
 # ── フォルマントキャッシュ ────────────────────────────────────────
 # ネイティブ音声のフォルマントは毎回同じ計算になるため、
@@ -49,15 +68,16 @@ _MALE_CEILING_THRESHOLD = 200.0
 _CACHE_PATH = Path(__file__).parent.parent / "data" / "config" / "formant_cache.json"
 
 
-def _cache_key(sound_file: str, max_formant: float) -> str:
-    """ファイルパス・更新時刻・max_formant からキャッシュキーを生成する。
+def _cache_key(sound_file: str, max_formant: float, mora_list: list) -> str:
+    """ファイルパス・更新時刻・max_formant・モーラ区間からキャッシュキーを生成する。
 
-    末尾の "v2" は抽出ロジックのバージョン。妥当性フィルタ導入（v2）で
-    旧キャッシュを無効化するために付与している。
+    末尾の "v3" は抽出ロジックのバージョン。妥当性フィルタ導入（v2）、
+    モーラ区間をキーに含める変更（v3）で旧キャッシュを無効化するために付与している。
     """
     p = Path(sound_file)
     mtime = str(p.stat().st_mtime) if p.exists() else "0"
-    raw = f"{sound_file}:{max_formant}:{mtime}:v2"
+    spans = ";".join(f"{float(m[0]):.4f}-{float(m[1]):.4f}-{m[2]}" for m in mora_list)
+    raw = f"{sound_file}:{max_formant}:{mtime}:{spans}:v3"
     return hashlib.md5(raw.encode()).hexdigest()
 
 
@@ -162,7 +182,7 @@ def extract_mora_formants(
     """
     if use_cache:
         cache = _load_formant_cache()
-        key   = _cache_key(sound_file, max_formant)
+        key   = _cache_key(sound_file, max_formant, mora_list)
         if key in cache:
             return cache[key]
 
@@ -217,6 +237,60 @@ def extract_mora_formants(
     return results
 
 
+def speaker_formant_scale(
+    native_formants:      list[dict],
+    user_formants:        list[dict],
+    pitch_ceiling_native: float | None = None,
+    pitch_ceiling_user:   float | None = None,
+) -> tuple[float, str]:
+    """
+    お手本と録音の声道の長さの違いを吸収する係数（お手本の F1/F2 にかける）を返す。
+
+    性別の2値判定ではなく、この録音ペア自体からスケール係数を推定する。
+    同じ位置のモーラ同士の F1/F2 比（録音/お手本）の中央値 ≒ 声道長の違い。
+    これにより境界上の話者で補正が ON/OFF に切り替わる問題を避ける。
+    比が2つ未満しか取れないときだけ、声の高さから推定した性別で補正する。
+
+    Returns
+    -------
+    (correction_factor, note)
+    """
+    n = min(len(native_formants), len(user_formants))
+    ratios: list[float] = []
+    for i in range(n):
+        na, us = native_formants[i], user_formants[i]
+        if not _has_vowel(na.get("label", "")):
+            continue
+        for k in ("f1", "f2"):
+            nf, uf = na.get(k), us.get(k)
+            if nf and uf and nf > 0:
+                ratios.append(uf / nf)
+
+    if len(ratios) >= 2:
+        correction = float(np.clip(np.median(ratios), 0.80, 1.25))
+        note       = "（話者差補正済み）" if abs(correction - 1.0) > 0.03 else ""
+        return correction, note
+    return _calc_correction(pitch_ceiling_native, pitch_ceiling_user)
+
+
+def vowel_distance(
+    native:        dict,
+    user:          dict,
+    correction:    float = 1.0,
+    bark_scale_f1: float = 3.0,
+    bark_scale_f2: float = 4.0,
+) -> float | None:
+    """お手本（補正後）と録音の母音の距離（Bark、F1 は 3、F2 は 4 で割って正規化）。
+    どちらかの F1/F2 が測れていなければ None。"""
+    nf1, nf2 = native.get("f1"), native.get("f2")
+    uf1, uf2 = user.get("f1"), user.get("f2")
+    if not (nf1 and nf2 and uf1 and uf2):
+        return None
+    db1 = (_hz_to_bark(nf1 * correction) - _hz_to_bark(uf1)) / bark_scale_f1
+    db2 = (_hz_to_bark(nf2 * correction) - _hz_to_bark(uf2)) / bark_scale_f2
+    return float(np.sqrt(db1 ** 2 + db2 ** 2))
+
+
 def calc_vowel_score(
     native_formants:     list[dict],
     user_formants:       list[dict],
@@ -229,75 +303,37 @@ def calc_vowel_score(
     """
     ネイティブと録音の F1/F2 を Bark スケールで比較して母音品質スコアを算出する。
 
-    【性別補正】
-    ネイティブとユーザーの pitch_ceiling を比較し、
-    性別の組み合わせに応じた補正係数をネイティブのF1/F2に適用する。
+    【話者差補正】
+    speaker_formant_scale() の係数をお手本の F1/F2 にかけてから比べる。
 
-    同性同士 → 補正なし
-    ネイティブ女性・ユーザー男性 → ネイティブ × 0.85
-    ネイティブ男性・ユーザー女性 → ネイティブ × 1.18
+    【長音】
+    「こう」の「う」のような長音の後半は、前のモーラと同じ区間で測った値が
+    入っているので（core/utils.long_vowel_spans）、まとまりごとに1回だけ数える。
 
     【サンプル数重み付け】
     有効サンプル数が少ないモーラほど距離計算への影響を下げる。
     """
     n = min(len(native_formants), len(user_formants))
+    correction, gender_note = speaker_formant_scale(
+        native_formants, user_formants, pitch_ceiling_native, pitch_ceiling_user,
+    )
 
-    # ── 話者スケール補正（連続値） ────────────────────────────────
-    # 性別の2値判定をやめ、この録音ペア自体からスケール係数を推定する。
-    # 同じ母音同士の F1/F2 比（user/native）の中央値 ≒ 声道長の違い。
-    # これにより境界上の話者で補正が ON/OFF に切り替わる問題を解消する。
-    _ratios: list[float] = []
-    for _i in range(n):
-        _na, _us = native_formants[_i], user_formants[_i]
-        if not _has_vowel(_na.get("label", "")):
-            continue
-        for _k in ("f1", "f2"):
-            _nf, _uf = _na.get(_k), _us.get(_k)
-            if _nf and _uf and _nf > 0:
-                _ratios.append(_uf / _nf)
-
-    if len(_ratios) >= 2:
-        correction  = float(np.clip(np.median(_ratios), 0.80, 1.25))
-        gender_note = "（話者差補正済み）" if abs(correction - 1.0) > 0.03 else ""
-    else:
-        # データ不足時は従来の性別ベース補正にフォールバック
-        correction, gender_note = _calc_correction(
-            pitch_ceiling_native, pitch_ceiling_user
-        )
+    labels = [str(f.get("label", "")) for f in native_formants[:n]]
     distances:  list[float] = []
     weights:    list[float] = []
     mora_dists: list[tuple[float, str]] = []
 
-    for i in range(n):
+    for group in long_vowel_groups(labels):
+        i      = group[0]
         native = native_formants[i]
         user   = user_formants[i]
-        label  = native["label"]
 
-        if not _has_vowel(label):
+        if not _has_vowel(labels[i]):
             continue
 
-        native_f1_raw = native["f1"]
-        native_f2_raw = native["f2"]
-        if native_f1_raw is None or native_f2_raw is None:
+        dist = vowel_distance(native, user, correction, bark_scale_f1, bark_scale_f2)
+        if dist is None:
             continue
-
-        # 性別補正を適用
-        native_f1 = native_f1_raw * correction
-        native_f2 = native_f2_raw * correction
-
-        user_f1 = user["f1"]
-        user_f2 = user["f2"]
-        if user_f1 is None or user_f2 is None:
-            continue
-
-        native_b1 = _hz_to_bark(native_f1)
-        native_b2 = _hz_to_bark(native_f2)
-        user_b1   = _hz_to_bark(user_f1)
-        user_b2   = _hz_to_bark(user_f2)
-
-        db1  = (native_b1 - user_b1) / bark_scale_f1
-        db2  = (native_b2 - user_b2) / bark_scale_f2
-        dist = float(np.sqrt(db1 ** 2 + db2 ** 2))
 
         # サンプル数重み付け
         n_native   = native.get("f1_n_samples", 3)
@@ -306,7 +342,7 @@ def calc_vowel_score(
 
         distances.append(dist)
         weights.append(confidence)
-        mora_dists.append((dist, label))
+        mora_dists.append((dist, mora_group_kana(labels, group)))
 
     if not distances:
         return round(max_score * 0.5, 1), "母音の評価データが不十分でした。"

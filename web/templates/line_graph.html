@@ -678,7 +678,7 @@
     <button class="fail-retry" onclick="history.back()">{{ icon('mic', size=18) }} もう一度録音する</button>
     <details class="fail-detail">
       <summary>先生用：解析データ</summary>
-      <div class="fail-score">Julius スコア：{{ julius_score or "取得不可" }} / 目安：-3000 以上が正常</div>
+      <div class="fail-score">Julius スコア：{{ julius_score or "取得不可" }} / 目安：-35 以上で採点（1フレームあたりの平均。正常な録音は -25〜-31 くらい）</div>
     </details>
   </div>
 
@@ -1782,7 +1782,8 @@
     if (!nf.length && !uf.length) return;
 
     function toPoints(arr) {
-      return arr.filter(function(f){ return f.f1 && f.f2; })
+      // 長音の後半（「こう」の「う」）は前のモーラと同じ区間で測った同じ点なので描かない
+      return arr.filter(function(f){ return f.f1 && f.f2 && !f.long_vowel_tail; })
                .map(function(f){ return {x: f.f2, y: f.f1, _label: f.label}; });
     }
     var nPts = toPoints(nf);

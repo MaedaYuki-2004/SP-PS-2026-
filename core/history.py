@@ -245,7 +245,7 @@ def get_overall_score() -> dict | None:
     elif score >= 50: level = "初中級"
     else:             level = "基礎"
 
-    # トレンド: 直近10回 vs その前10回
+    # トレンド: 直近5回 vs その前5回（10回以上の記録があるとき）
     trend = None
     if len(totals) >= 10:
         recent = sum(totals[:5])  / 5

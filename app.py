@@ -43,17 +43,24 @@ from core.vocab     import list_words, register_word, get_reading_for_julius, ge
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
-from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
+from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality, speaker_formant_scale
 from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_overall_score, get_weekly_report, get_week_activity
-from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
+from core.utils     import pct_length, sleep_second, romaji_mora_to_kana, long_vowel_groups, long_vowel_spans
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
 from core import teacher
 from core import usercontext
 
-JULIUS_GATE_THRESHOLD = -3000
+# Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
+# 以前は -3000 だったが、extract_julius_score() が返すのは 1フレームあたりの値（正常で -25〜-30 程度）
+# なので一度も発動していなかった（-3000 は発話全体の合計スコアの桁）。
+# 2026-09-14 の計測: 過去のお手本 86 本は -25.8〜-30.3、生徒の録音は -27.9〜-29.9、
+# わざと別の単語の読みでアライメントさせた 12 本も -27.9〜-30.7 で、この値では
+# 「別の単語を言った」を見分けられない（雑音・無音はアライメント自体が失敗する）。
+# そのため、観測した値より十分低い、明らかに異常な録音だけを止める値にしている。
+JULIUS_GATE_THRESHOLD = -35.0
 
 app = Flask(
     __name__,
@@ -1750,9 +1757,22 @@ def audio_analysis():
 
         max_formant_sample = 5500.0 if ceiling_sample > 400 else 5000.0
         max_formant_learn  = 5500.0 if ceiling_learn  > 400 else 5000.0
+        native_formants = user_formants = None
+        vowel_scale     = 1.0
         try:
-            native_formants = extract_mora_formants(audio_sample, mora_list1, max_formant=max_formant_sample, use_cache=True)
-            user_formants   = extract_mora_formants(audio_learn,  mora_list2, max_formant=max_formant_learn,  use_cache=False)
+            # 「こう」の「う」のような長音の後半は、前のモーラとまとめた区間で測る
+            # （Julius が置く2つの境界には音響的な根拠がないため。core/utils.long_vowel_groups）
+            native_formants = extract_mora_formants(audio_sample, long_vowel_spans(mora_list1), max_formant=max_formant_sample, use_cache=True)
+            user_formants   = extract_mora_formants(audio_learn,  long_vowel_spans(mora_list2), max_formant=max_formant_learn,  use_cache=False)
+            # 母音チャートで同じ点を2回描かないよう、長音の後半に印を付ける
+            for _formants in (native_formants, user_formants):
+                for _group in long_vowel_groups([f["label"] for f in _formants]):
+                    for _i in _group[1:]:
+                        _formants[_i] = {**_formants[_i], "long_vowel_tail": True}
+            vowel_scale, _ = speaker_formant_scale(
+                native_formants, user_formants,
+                pitch_ceiling_native=ceiling_sample, pitch_ceiling_user=ceiling_learn,
+            )
             vowel_score, vowel_feedback = calc_vowel_score(
                 native_formants,
                 user_formants,
@@ -1798,8 +1818,11 @@ def audio_analysis():
                 native_mora_length=pct_length(mora_length1),
                 user_mora_length=pct_length(mora_length2),
                 mora_labels=mora1,
-                native_formants=native_formants if 'native_formants' in dir() else None,
-                user_formants=user_formants   if 'user_formants'   in dir() else None,
+                native_formants=native_formants,
+                user_formants=user_formants,
+                pitch_native_raw=pitch_native_raw,
+                pitch_user_raw=pitch_user_raw,
+                vowel_scale=vowel_scale,
             )
             # ⑤ 最もスコアが低いモーラのフレーム範囲を取得
             valid = [m for m in mora_scores if m["total"] is not None]
@@ -1879,8 +1902,8 @@ def audio_analysis():
                                score_delta=score_delta, suggestions=suggestions,
                                mora_scores=mora_scores, worst_mora=worst_mora,
                                ci_info=ci_info, word_progress=word_progress,
-                               native_formants=native_formants if 'native_formants' in dir() else None,
-                               user_formants=user_formants if 'user_formants' in dir() else None,
+                               native_formants=native_formants,
+                               user_formants=user_formants,
                                lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios,
                                av_sync=av_sync)
 
