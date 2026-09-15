@@ -4,8 +4,8 @@
   "description": "日本語発音練習・評価アプリ（聴覚障害者向け）",
   "start_url": "/select",
   "display": "standalone",
-  "background_color": "#0E1E45",
-  "theme_color": "#0E1E45",
+  "background_color": "#F4F4F9",
+  "theme_color": "#5B4BEA",
   "lang": "ja",
   "icons": [
     {

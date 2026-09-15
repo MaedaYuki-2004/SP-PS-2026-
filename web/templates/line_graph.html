@@ -1,22 +1,26 @@
 {% from "_icons.html" import icon %}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>解析結果 — {{ original_filename }} — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
-    .results-header { background:var(--navy); padding:18px 32px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
-    .results-word { font-size:24px; font-weight:700; color:#fff; }
-    .results-sub  { font-size:11px; color:rgba(255,255,255,.65); margin-top:2px; }
+    .results-header { background:var(--navy); padding:10px 14px; display:flex; align-items:center; gap:12px; min-height:58px; }
+    .rh-back { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; flex:none; border-radius:100px; background:rgba(255,255,255,.14); color:#fff; text-decoration:none; }
+    .rh-back .ic { transform:rotate(180deg); }
+    .rh-word { flex:1; min-width:0; font-size:20px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .rh-sub { font-size:12px; font-weight:400; color:rgba(255,255,255,.6); margin-left:6px; }
     .delta-badge  { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:13px; font-weight:600; padding:5px 12px; border-radius:100px; }
-    .delta-up   { background:rgba(45,106,79,.3); color:#7fff9a; border:1px solid rgba(100,200,120,.3); }
-    .delta-down { background:rgba(192,61,32,.3); color:#ffb3a3; border:1px solid rgba(192,61,32,.3); }
+    .delta-up   { background:rgba(141,139,242,.22); color:#C5C4FA; border:1px solid rgba(141,139,242,.3); }
+    .delta-down { background:rgba(255,255,255,.08); color:rgba(255,255,255,.72); border:1px solid rgba(255,255,255,.14); }
 
     .tab-bar { display:flex; padding:0 32px; background:var(--bg-card); border-bottom:1px solid var(--border-light); overflow-x:auto; scrollbar-width:none; }
     .tab-bar::-webkit-scrollbar { display:none; }
@@ -25,19 +29,21 @@
     .sec-tab.active { color:var(--navy); border-bottom-color:var(--navy); }
 
     .section-panel { display:none; padding:24px 32px; max-width:1040px; margin:0 auto; }
+    .panel-back { display:inline-flex; align-items:center; min-height:44px; margin-bottom:14px; padding:10px 18px; border-radius:100px; border:1.5px solid var(--border); background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer; }
+    .panel-back:hover { border-color:var(--navy); color:var(--navy); }
     .section-panel.active { display:block; }
     .panel-heading { font-size:17px; font-weight:700; color:var(--navy); margin-bottom:4px; }
     .panel-sub { font-size:12px; color:var(--text-2); margin-bottom:20px; }
 
     /* ── 新リザルトヒーロー（3秒でわかる） ── */
     .result-hero { display:flex; align-items:center; gap:18px; padding:20px 22px; border-radius:var(--r-lg); background:var(--bg-card); border:1px solid var(--border); margin:14px 0 12px; box-shadow:var(--shadow-sm); }
-    .result-grade-badge { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:900; color:#fff; flex-shrink:0; box-shadow:var(--shadow-sm); }
+    .result-grade-badge { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:700; color:#fff; flex-shrink:0; box-shadow:var(--shadow-sm); }
     .result-total-row { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
     .result-total { font-family:var(--mono); font-size:38px; font-weight:500; color:var(--text); line-height:1; }
     .result-max { font-size:13px; color:var(--text-2); }
     .result-delta { font-family:var(--mono); font-size:12px; font-weight:700; padding:2px 10px; border-radius:100px; }
-    .result-delta.up   { background:var(--green-bg);  color:var(--green); }
-    .result-delta.down { background:var(--accent-bg); color:var(--accent); }
+    .result-delta.up   { background:var(--good-bg);  color:var(--good); }
+    .result-delta.down { background:var(--bg-muted); color:var(--text-2); }
     .result-verdict { font-size:14px; font-weight:700; color:var(--text-2); margin-top:6px; line-height:1.5; }
 
     /* ── モーラ信号機 ── */
@@ -45,48 +51,79 @@
     .mora-lights-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; }
     .mora-lights-row { display:flex; gap:8px; flex-wrap:wrap; }
     .mora-light { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:52px; padding:9px 8px 7px; border-radius:var(--r); border:2px solid transparent; }
-    .mora-light.ok  { background:var(--green-bg);  border-color:var(--green); }
-    .mora-light.mid { background:var(--quest-bg);  border-color:var(--quest-border); }
-    .mora-light.ng  { background:var(--accent-bg); border-color:var(--accent); }
+    .mora-light.ok  { background:var(--good-bg);  border-color:var(--good); }
+    .mora-light.mid { background:var(--mid-bg);  border-color:var(--mid-line); }
+    .mora-light.ng  { background:var(--todo-bg); border-color:var(--todo-line); }
     .mora-light.na  { background:var(--bg-muted); opacity:.6; }
-    .ml-kana { font-size:20px; font-weight:900; color:var(--text); line-height:1.15; }
+    .ml-kana { font-size:20px; font-weight:700; color:var(--text); line-height:1.15; }
     .ml-icon { font-size:12px; font-weight:700; }
-    .mora-light.ok  .ml-icon { color:var(--green); }
-    .mora-light.mid .ml-icon { color:var(--quest); }
-    .mora-light.ng  .ml-icon { color:var(--accent); }
+    .mora-light.ok  .ml-icon { color:var(--good); }
+    .mora-light.mid .ml-icon { color:var(--mid); }
+    .mora-light.ng  .ml-icon { color:var(--todo); }
     .mora-lights-legend { display:flex; gap:14px; margin-top:10px; font-size:10.5px; color:var(--text-2); flex-wrap:wrap; }
     .lg-dot { width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:4px; vertical-align:-1px; }
 
     /* ── 音映像クロスチェックカード（試験運用） ── */
     .av-sync-card { background:var(--bg-card); border:1px solid var(--border); border-left-width:3px; border-radius:var(--r-lg); padding:14px 18px; margin-bottom:12px; }
-    .av-sync-card.verdict-ok   { border-left-color:var(--green); }
-    .av-sync-card.verdict-warn { border-left-color:var(--quest); }
-    .av-sync-card.verdict-ng   { border-left-color:var(--accent); }
+    .av-sync-card.verdict-ok   { border-left-color:var(--good); }
+    .av-sync-card.verdict-warn { border-left-color:var(--mid); }
+    .av-sync-card.verdict-ng   { border-left-color:var(--todo-bar); }
     .av-sync-head { display:flex; align-items:flex-start; gap:12px; }
     .av-sync-icon { font-size:20px; flex-shrink:0; line-height:1.4; }
-    .av-sync-title { font-size:13.5px; font-weight:800; color:var(--text); }
+    .av-sync-title { font-size:13.5px; font-weight:700; color:var(--text); }
     .av-sync-val { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text-2); margin-left:8px; }
     .av-sync-sub { font-size:11px; color:var(--text-2); margin-top:2px; line-height:1.6; }
-    .av-sync-details { margin-top:8px; }
-    .av-sync-details summary { font-size:11px; font-weight:700; color:var(--text-2); cursor:pointer; user-select:none; }
-    .av-sync-chart-wrap { position:relative; height:260px; margin-top:10px; background:var(--bg-muted); border-radius:var(--r-sm); padding:8px; }
+    .av-sync-details { margin-top:12px; }
+    .av-sync-details summary { font-size:13px; font-weight:700; color:var(--text-2); cursor:pointer; user-select:none; min-height:40px; display:flex; align-items:center; }
     .av-sync-moras { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
-    .av-sync-mora { display:inline-flex; align-items:baseline; gap:5px; padding:5px 10px; border-radius:var(--r-sm); background:var(--bg-muted); font-size:12px; font-weight:700; color:var(--text); }
-    .av-sync-mora b { font-family:var(--mono); font-size:10.5px; font-weight:500; color:var(--text-2); }
-    .av-sync-note { font-size:10px; color:var(--text-2); margin-top:8px; line-height:1.7; }
+    .av-sync-mora { display:inline-flex; align-items:baseline; gap:5px; padding:5px 10px; border-radius:var(--r-sm); background:var(--bg-muted); font-size:13px; font-weight:700; color:var(--text); }
+    .av-sync-mora b { font-family:var(--mono); font-size:12px; font-weight:700; color:var(--text-2); }
+    .av-sync-note { font-size:12px; color:var(--text-3); margin-top:8px; line-height:1.7; }
+
+    /* ── 口と声の対応グラフ（●声の位置 と ◆口の位置 を横線でつなぐ） ── */
+    .avc { margin:0 0 16px; padding:14px 10px 10px; border-radius:18px; background:var(--bg-muted); }
+    .avc-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:0 4px; }
+    .avc-title { font-size:15px; font-weight:700; color:var(--text); }
+    .avc-how { font-size:13px; line-height:1.6; color:var(--text-2); margin-top:2px; }
+    .avc-how b { color:var(--text); }
+    .avc-how .k-voice { color:var(--navy); }
+    .avc-how .k-mouth { color:var(--brand-400); }
+    .avc-legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin:10px 4px 4px; font-size:12.5px; font-weight:700; color:var(--text-2); }
+    .avc-legend span { display:inline-flex; align-items:center; gap:6px; }
+    .avc-key { position:relative; display:inline-block; width:26px; height:12px; }
+    .avc-key::before { content:''; position:absolute; left:0; right:0; top:5px; border-top:2.5px solid currentColor; }
+    .avc-key.voice { color:var(--navy); }
+    .avc-key.voice::before { border-top-style:dashed; }
+    .avc-key.mouth { color:var(--brand-400); }
+    .avc-key::after { content:''; position:absolute; left:8px; top:1px; width:10px; height:10px; background:currentColor; box-shadow:0 0 0 1.5px var(--bg-muted); }
+    .avc-key.voice::after { border-radius:50%; }
+    .avc-key.mouth::after { transform:rotate(45deg) scale(.85); }
+    .avc-chart { position:relative; height:300px; }
+    .avc-chart canvas { width:100% !important; height:100% !important; }
+    .avc-foot { font-size:12px; line-height:1.6; color:var(--text-3); margin:6px 4px 0; }
+    .avc-mode { margin:10px 4px 0; }
+    .avc-mode button { min-height:36px; font-size:12.5px; }
 
     /* ── 次はこれだけカード ── */
-    .next-one-card { background:linear-gradient(135deg,var(--navy),var(--navy-mid)); border-radius:var(--r-lg); padding:20px 22px; color:#fff; margin-bottom:12px; box-shadow:var(--shadow); }
-    .next-one-label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.65); }
-    .next-one-kana { font-size:38px; font-weight:900; margin:4px 0 6px; }
-    .next-one-pts { font-family:var(--mono); font-size:14px; font-weight:500; color:rgba(255,255,255,.6); margin-left:8px; }
-    .next-one-why { font-size:15px; font-weight:800; }
-    .next-one-how { font-size:12px; color:rgba(255,255,255,.72); margin:5px 0 14px; line-height:1.7; }
+    .next-one-card { border-radius:28px; padding:20px 20px 18px; color:#fff; margin-bottom:12px; }
+    .next-one-label { display:inline-flex; align-items:center; gap:6px; min-height:28px; padding:3px 12px; border-radius:100px;
+                      background:rgba(255,255,255,.18); font-size:13px; font-weight:700; letter-spacing:.04em; color:#fff; }
+    .next-one-kana { font-size:48px; font-weight:700; line-height:1.15; margin:10px 0 8px; text-shadow:0 2px 18px rgba(20,10,80,.25); }
+    .next-one-pts { font-family:var(--font-num); font-size:14px; font-weight:700; color:rgba(255,255,255,.7); margin-left:8px; }
+    .next-one-why { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; }
+    .next-one-how { font-size:13.5px; color:rgba(255,255,255,.86); margin:6px 0 16px; line-height:1.7; }
     .next-one-actions { display:flex; flex-direction:column; gap:8px; }
-    .next-one-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px; border-radius:var(--r); border:none; background:#fff; color:var(--navy); font-family:var(--font); font-size:14px; font-weight:800; cursor:pointer; text-decoration:none; }
-    .next-one-btn:active { transform:scale(.985); }
-    .next-one-sub { display:flex; align-items:center; justify-content:center; gap:6px; padding:11px; border-radius:var(--r); border:1.5px solid rgba(255,255,255,.35); background:transparent; color:#fff; font-family:var(--font); font-size:12.5px; font-weight:700; cursor:pointer; text-decoration:none; }
-    .all-good-card { background:var(--green-bg); border:1px solid var(--green); border-radius:var(--r-lg); padding:20px; text-align:center; margin-bottom:12px; }
+    /* 白いボタンの文字はテーマに依らず濃い青紫 */
+    .next-one-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:56px; padding:12px; border-radius:18px; border:none;
+                    background:#fff; color:#4A3AD0; box-shadow:0 12px 24px -12px rgba(20,10,80,.6);
+                    font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; text-decoration:none; transition:transform .15s var(--ease); }
+    .next-one-btn:active { transform:scale(.97); }
+    .next-one-sub { display:flex; align-items:center; justify-content:center; gap:6px; min-height:50px; padding:10px; border-radius:16px; border:none;
+                    background:rgba(255,255,255,.14); color:#fff; font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer; text-decoration:none;
+                    transition:background var(--dur), transform .15s var(--ease); }
+    .next-one-sub:hover { background:rgba(255,255,255,.22); }
+    .next-one-sub:active { transform:scale(.97); }
+    .all-good-card { background:var(--good-bg); border:1px solid var(--good-line); border-radius:28px; padding:24px 20px; text-align:center; margin-bottom:12px; }
 
     /* ── 折りたたみ ── */
     .fold-section { border:1px solid var(--border-light); border-radius:var(--r); background:var(--bg-card); margin-top:12px; }
@@ -118,34 +155,81 @@
     .chart-wrap canvas { width:100%!important; max-height:360px; }
 
     /* Fail */
-    .fail-panel { text-align:center; padding:56px 24px; }
-    .fail-pill { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; padding:4px 12px; border-radius:3px; background:var(--accent-bg); color:var(--accent); margin-bottom:14px; }
-    .fail-title { font-size:20px; font-weight:700; color:var(--accent); margin-bottom:12px; }
-    .fail-list { display:inline-block; text-align:left; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:20px 28px; font-size:14px; line-height:2.1; color:var(--text); }
-    .fail-score { font-family:var(--mono); font-size:11px; color:var(--text-2); margin-top:10px; }
+    .fail-panel { text-align:center; padding:32px 16px 24px; max-width:520px; margin:0 auto; }
+    .fail-icon { width:84px; height:84px; margin:0 auto 18px; border-radius:28px; display:flex; align-items:center; justify-content:center;
+                 background:var(--grad-hero); color:#fff; box-shadow:var(--shadow-brand); }
+    .fail-title { font-size:23px; font-weight:700; color:var(--text); margin-bottom:8px; }
+    .fail-lead { font-size:15px; color:var(--text-2); line-height:1.8; margin-bottom:18px; }
+    .fail-list { list-style:none; display:flex; flex-direction:column; gap:8px; text-align:left; counter-reset:fail; }
+    .fail-list li { counter-increment:fail; display:flex; align-items:center; gap:12px; min-height:56px; padding:10px 14px; border-radius:18px;
+                    background:var(--bg-card); box-shadow:var(--elev-1); font-size:15px; line-height:1.6; color:var(--text-2); }
+    .fail-list li::before { content:counter(fail); flex:none; width:30px; height:30px; border-radius:50%; display:grid; place-items:center;
+                            background:var(--navy-soft); color:var(--navy); font-family:var(--font-num); font-size:14px; font-weight:800; }
+    .fail-list b { color:var(--text); font-weight:700; }
+    .fail-retry { display:flex; width:100%; min-height:62px; align-items:center; justify-content:center; gap:8px; margin-top:20px; border:none; border-radius:20px;
+                  background:var(--grad-rec); box-shadow:var(--shadow-rec); color:#fff; font-family:var(--font); font-size:17px; font-weight:700; cursor:pointer; }
+    .fail-detail { margin-top:22px; text-align:left; }
+    .fail-detail > summary { list-style:none; cursor:pointer; font-size:12px; color:var(--text-3); }
+    .fail-detail > summary::-webkit-details-marker { display:none; }
+    .fail-score { font-family:var(--mono); font-size:12px; color:var(--text-2); margin-top:8px; }
 
     /* Score layout */
-    .score-layout { display:grid; grid-template-columns:1fr 260px; gap:16px; margin-bottom:16px; }
-    .score-hero { background:var(--navy); border-radius:var(--r); padding:24px; text-align:center; position:relative; overflow:hidden; }
-    .score-hero::before { content:""; position:absolute; inset:0; background:radial-gradient(ellipse at 25% 60%,rgba(192,61,32,.15) 0%,transparent 55%); pointer-events:none; }
-    .score-grade { font-size:76px; font-weight:700; line-height:1; margin-bottom:8px; position:relative; }
-    .grade-S{color:#FBBF24;} .grade-A{color:#34D399;} .grade-B{color:#60A5FA;} .grade-C{color:#F87171;} .grade-D{color:#9CA3AF;}
-    .score-total { font-size:28px; font-weight:700; color:#fff; position:relative; }
-    .score-total span { font-size:14px; font-weight:400; color:rgba(255,255,255,.55); }
-    .score-breakdown { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:16px; position:relative; }
-    .score-item { background:rgba(255,255,255,.07); border-radius:var(--r-sm); padding:12px 12px 10px; position:relative; overflow:hidden; }
-    .score-item-label { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.65); margin-bottom:6px; display:flex; align-items:center; gap:5px; }
-    .score-item-icon { width:14px; height:14px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:8px; flex-shrink:0; }
-    .score-item-value { font-size:22px; font-weight:700; color:#fff; line-height:1; }
-    .score-item-max { font-size:10px; font-weight:400; color:rgba(255,255,255,.55); }
-    .score-bar { height:5px; background:rgba(255,255,255,.1); border-radius:100px; margin-top:8px; overflow:hidden; }
-    .score-bar-fill { height:100%; border-radius:100px; transition:width .6s cubic-bezier(.25,.1,.25,1); }
-    .score-pct { font-size:9px; color:rgba(255,255,255,.65); margin-top:3px; font-family:var(--mono); }
-    .metrics-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; justify-content:center; position:relative; }
-    .metric-pill { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.15); border-radius:var(--r-sm); padding:3px 10px; font-size:10px; color:rgba(255,255,255,.75); }
-    .metric-pill strong { color:#fff; font-weight:600; }
+    /* ── 結果カード（生徒が最初に見るところ） ──
+       数字は合計点の1つだけ。3軸は ◎○△ とバーで示し、
+       素点（31/50 など）と％は先生用の折りたたみに置く。 */
+    .result-card { background:var(--bg-card); border:1px solid var(--surface-line); border-radius:28px; padding:20px 18px 18px; margin-bottom:12px; }
+    .rc-head { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+    /* 点数はリングで。リングの伸び＝点数、色＝ランク（色だけに頼らず数字も出す） */
+    .rc-score { --ring-size:136px; --ring-w:12px; --ring-track:var(--bg-muted); }
+    .rc-score::before { background:conic-gradient(color-mix(in srgb, var(--ring-color) 50%, #fff) 0%, var(--ring-color) calc(var(--p) * 1%), var(--ring-track) calc(var(--p) * 1%)); }
+    .rc-score-in { display:flex; flex-direction:column; align-items:center; line-height:1; }
+    .rc-num { font-size:52px; line-height:1; color:var(--text); }
+    .rc-unit { font-size:14px; font-weight:700; color:var(--text-3); margin-top:4px; }
+    .rc-side { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+    .rc-grade { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:4px 14px 4px 5px; border-radius:100px; color:#fff;
+                box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 8px 18px -10px rgba(0,0,0,.4); font-size:13px; font-weight:700; }
+    .rc-grade b { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.22);
+                  font-family:var(--font-num); font-size:18px; font-weight:800; }
+    .rc-delta { font-size:13px; font-weight:700; padding:5px 12px; border-radius:100px; white-space:nowrap; }
+    .rc-delta.up   { background:var(--good-bg);  color:var(--good-text); }
+    .rc-delta.down { background:var(--bg-muted);  color:var(--text-2); }
+    .rc-verdict { display:flex; align-items:flex-start; gap:8px; font-size:15px; font-weight:700; color:var(--text); margin:16px 0 14px; padding:12px 14px;
+                  border-radius:16px; background:var(--bg-muted); line-height:1.6; }
+    .rc-verdict .ic { flex:none; margin-top:.3em; color:var(--navy); }
 
-    /* Radar */
+    .rc-axes { display:flex; flex-direction:column; gap:12px; }
+    .rc-axis { display:grid; grid-template-columns:34px 1fr; grid-template-areas:'mark name' 'mark bar'; align-items:center; column-gap:12px; row-gap:6px; }
+    .ax-mark { grid-area:mark; display:grid; place-items:center; width:34px; height:34px; border-radius:12px; font-size:18px; font-weight:700; line-height:1; }
+    .rc-axis.ok  .ax-mark { color:var(--good); background:var(--good-bg); }
+    .rc-axis.mid .ax-mark { color:var(--mid-text); background:var(--mid-bg); }
+    .rc-axis.ng  .ax-mark { color:var(--todo); background:var(--todo-bg); }
+    .ax-name { grid-area:name; font-size:15px; font-weight:700; color:var(--text); display:flex; align-items:baseline; gap:8px; }
+    .ax-name small { font-size:12px; font-weight:400; color:var(--text-3); }
+    .ax-bar { grid-area:bar; height:10px; border-radius:100px; background:var(--bg-muted); overflow:hidden; }
+    .ax-bar i { display:block; height:100%; border-radius:100px; transform-origin:left; animation:ax-grow .9s var(--ease) .15s both; }
+    @keyframes ax-grow { from { transform:scaleX(0); } to { transform:none; } }
+    .rc-axis.ok  .ax-bar i { background:linear-gradient(90deg, color-mix(in srgb, var(--good) 60%, #fff), var(--good)); }
+    .rc-axis.mid .ax-bar i { background:linear-gradient(90deg, color-mix(in srgb, var(--mid) 60%, #fff), var(--mid)); }
+    .rc-axis.ng  .ax-bar i { background:linear-gradient(90deg, color-mix(in srgb, var(--todo-bar) 60%, #fff), var(--todo-bar)); }
+    .rc-axes-legend { margin-top:14px; padding-top:12px; border-top:1px solid var(--border-light); font-size:12px; color:var(--text-3); }
+
+    /* ── つぎの行動（画面下に固定） ── */
+    .result-actions { display:flex; gap:10px; max-width:1080px; margin:0 auto; padding-left:16px; padding-right:16px; }
+    body.has-tabbar .result-actions.sticky-cta { background:linear-gradient(to top, var(--bg) 70%, color-mix(in srgb, var(--bg) 0%, transparent)); }
+    .ra-btn { flex:1; display:flex; align-items:center; justify-content:center; gap:7px; min-height:58px; border:none; border-radius:20px; font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; text-decoration:none; transition:transform .15s var(--ease), filter var(--dur); }
+    .ra-btn:active { transform:scale(.97); }
+    .ra-again { width:100%; background:var(--bg-card); color:var(--text); border:1px solid var(--surface-line); box-shadow:var(--elev-1); }
+    .ra-again .ic { color:var(--rec); }
+    .ra-next  { background:var(--grad-brand); color:#fff; box-shadow:var(--shadow-brand); }
+
+    /* 先生用の折りたたみの中で使う小物（測定値のピル・唇比較の見出し） */
+    .metrics-row { display:flex; gap:6px; flex-wrap:wrap; }
+    .metric-pill { background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--r-sm); padding:5px 12px; font-size:12px; color:var(--text-2); }
+    .metric-pill strong { color:var(--text); font-weight:700; }
+    .score-item-label { font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--text-3); }
+    .score-item-value { font-size:22px; font-weight:700; color:var(--text); line-height:1.2; }
+    .grade-S{color:var(--brand-800);} .grade-A{color:var(--brand-600);} .grade-B{color:var(--brand-500);} .grade-C{color:var(--text-2);} .grade-D{color:var(--text-3);}
+
     .radar-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:18px; display:flex; flex-direction:column; align-items:center; box-shadow:var(--shadow-xs); }
     .radar-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; align-self:flex-start; }
 
@@ -158,7 +242,7 @@
     .compare-now  { font-family:var(--mono); font-size:16px; font-weight:500; color:var(--text); }
     .compare-prev { font-family:var(--mono); font-size:10px; color:var(--text-2); }
     .compare-delta { font-family:var(--mono); font-size:10px; font-weight:600; margin-top:1px; }
-    .compare-delta.up { color:var(--green); } .compare-delta.down { color:var(--accent); }
+    .compare-delta.up { color:var(--good); } .compare-delta.down { color:var(--text-3); }
 
     /* 比較再生プレーヤー (4) */
     .compare-player {
@@ -184,13 +268,13 @@
       font-size: 10px; font-weight: 600; letter-spacing: .06em;
       text-transform: uppercase;
     }
-    .player-label.native { color: rgba(255,159,64,1); }
-    .player-label.user   { color: rgba(75,192,192,1); }
+    .player-label.native { color: var(--text-3); }
+    .player-label.user   { color: var(--navy); }
     .player-item audio { width: 100%; height: 28px; border-radius: var(--r-xs); }
     .alt-play-btn {
       width: 100%;
       padding: 9px 16px;
-      background: var(--navy);
+      background:var(--navy-fill);
       color: #fff;
       border: none;
       border-radius: var(--r-sm);
@@ -207,12 +291,12 @@
     }
     .alt-play-btn:hover { background: var(--navy-mid); }
     .alt-play-btn:active { transform: scale(.97); }
-    .alt-play-btn.playing { background: var(--accent); }
+    .alt-play-btn.playing { background: var(--brand-800); }
     .alt-play-status {
       font-size: 11px; color: var(--text-2); text-align: center;
       margin-top: 6px; min-height: 16px;
     }
-    .alt-play-status.active { color: var(--accent); font-weight: 500; }
+    .alt-play-status.active { color: var(--navy); font-weight: 500; }
 
     /* Feedback */
     .feedback-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
@@ -220,11 +304,11 @@
     .feedback-card.full { grid-column:1/-1; }
     .feedback-header { display:flex; align-items:center; gap:8px; }
     .feedback-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
-    .feedback-icon.accent { background:rgba(232,112,64,.15); }
-    .feedback-icon.length { background:rgba(30,201,154,.15); }
-    .feedback-icon.vowel  { background:rgba(93,168,248,.15); }
-    .feedback-icon.voiced { background:rgba(124,106,224,.15); }
-    .feedback-icon.rate   { background:rgba(240,160,48,.15); }
+    .feedback-icon.accent { background:var(--navy-soft); }
+    .feedback-icon.length { background:var(--navy-soft); }
+    .feedback-icon.vowel  { background:var(--navy-soft); }
+    .feedback-icon.voiced { background:var(--navy-soft); }
+    .feedback-icon.rate   { background:var(--navy-soft); }
     .feedback-icon.quality{ background:rgba(255,255,255,.08); }
     .feedback-label { font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--text); flex:1; }
     .feedback-text { font-size:13px; color:var(--text); line-height:1.8; }
@@ -232,13 +316,13 @@
     .accent-pattern { display:flex; gap:5px; flex-wrap:wrap; }
     .mora-badge { display:flex; flex-direction:column; align-items:center; gap:3px; }
     .mora-hl { width:28px; height:28px; border-radius:var(--r-xs); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
-    .mora-hl.H { background:rgba(232,112,64,.2); color:var(--accent); }
+    .mora-hl.H { background:var(--brand-100); color:var(--brand-700); }
     .mora-hl.L { background:var(--bg-muted); color:var(--text-2); }
     .mora-label { font-size:9px; color:var(--text-2); font-family:var(--mono); }
 
     /* Quest clear */
     @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
-    .quest-clear-banner { background:var(--green); border-radius:var(--r); padding:14px 18px; margin-bottom:8px; display:flex; align-items:center; gap:12px; animation:slideIn .3s ease; }
+    .quest-clear-banner { background:var(--navy-fill); border-radius:var(--r); padding:14px 18px; margin-bottom:8px; display:flex; align-items:center; gap:12px; animation:slideIn .3s ease; }
     .quest-clear-check { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .quest-clear-badge { font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.6); display:block; margin-bottom:2px; }
     .quest-clear-title { font-size:13px; font-weight:700; color:#fff; }
@@ -250,11 +334,11 @@
     .quest-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
     .quest-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; transition:box-shadow var(--dur),transform var(--dur); }
     .quest-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
-    .quest-card[data-cat="accent"] { border-left:3px solid var(--accent); }
-    .quest-card[data-cat="length"] { border-left:3px solid var(--green); }
-    .quest-card[data-cat="vowel"]  { border-left:3px solid var(--blue); }
+    .quest-card[data-cat="accent"] { border-left:3px solid var(--brand-400); }
+    .quest-card[data-cat="length"] { border-left:3px solid var(--brand-400); }
+    .quest-card[data-cat="vowel"]  { border-left:3px solid var(--brand-400); }
     .quest-card[data-cat="total"]  { border-left:3px solid var(--navy); }
-    .quest-card[data-cat="review"] { border-left:3px solid var(--quest); }
+    .quest-card[data-cat="review"] { border-left:3px solid var(--brand-400); }
     .quest-card-body { padding:14px 16px 12px; }
     .quest-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:5px; }
     .quest-card-title { font-size:13px; font-weight:700; color:var(--text); line-height:1.3; flex:1; }
@@ -262,9 +346,9 @@
     .quest-hint-bar { font-size:11px; color:var(--text-2); line-height:1.9; background:var(--bg-muted); border-left:2px solid var(--navy); padding:10px 12px; border-radius:0 var(--r-sm) var(--r-sm) 0; margin-bottom:8px; white-space:pre-line; }
     .quest-progress-meta { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px; }
     .quest-progress-vals { font-family:var(--mono); font-size:10px; color:var(--text-2); }
-    .quest-progress-pct  { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--quest); }
+    .quest-progress-pct  { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--mid-text); }
     .quest-card-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .cat-review { background:var(--quest-bg); color:var(--quest); }
+    .cat-review { background:var(--mid-bg); color:var(--mid-text); }
 
     /* Suggestions */
     .suggestions-section { margin-top:24px; }
@@ -278,7 +362,7 @@
     .suggestion-reading { font-size:11px; color:var(--text-2); margin-bottom:4px; }
     .suggestion-accent { font-size:10px; color:var(--text-2); }
     .suggestion-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); }
-    .suggestion-btn { width:100%; padding:8px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:600; letter-spacing:.04em; cursor:pointer; transition:background var(--dur),transform var(--dur); }
+    .suggestion-btn { width:100%; padding:8px; background:var(--navy-fill); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:600; letter-spacing:.04em; cursor:pointer; transition:background var(--dur),transform var(--dur); }
     .suggestion-btn:hover { background:var(--navy-mid); }
     .suggestion-btn:active { transform:scale(.97); }
 
@@ -290,16 +374,16 @@
     .lip-mora-label { font-family:var(--mono); font-size:15px; font-weight:700; color:var(--navy); }
     .lip-bar-wrap  { display:flex; flex-direction:column; gap:4px; }
     .lip-bar-track { position:relative; height:14px; background:var(--bg-muted); border-radius:100px; }
-    .lip-bar-expected { position:absolute; top:0; left:0; height:100%; background:rgba(14,30,69,.18); border-radius:100px; }
+    .lip-bar-expected { position:absolute; top:0; left:0; height:100%; background:rgba(17,17,20,.12); border-radius:100px; }
     .lip-bar-actual   { position:absolute; top:0; left:0; height:100%; border-radius:100px; opacity:.85; }
-    .lip-bar-actual.good { background:#2D6A4F; }
-    .lip-bar-actual.low  { background:#F97316; }
-    .lip-bar-actual.high { background:#C03D20; }
+    .lip-bar-actual.good { background:var(--good); }
+    .lip-bar-actual.low  { background:var(--mid); }
+    .lip-bar-actual.high { background:var(--todo-bar); }
     .lip-bar-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--text-2); }
     .lip-feedback-badge { font-size:10px; font-weight:700; white-space:nowrap; padding:3px 10px; border-radius:100px; }
-    .lip-feedback-badge.good { background:var(--green-bg); color:var(--green); }
-    .lip-feedback-badge.low  { background:#FEF3C7; color:#B45309; }
-    .lip-feedback-badge.high { background:var(--accent-bg); color:var(--accent); }
+    .lip-feedback-badge.good { background:var(--good-bg); color:var(--good); }
+    .lip-feedback-badge.low  { background:var(--mid-bg); color:var(--mid-text); }
+    .lip-feedback-badge.high { background:var(--todo-bg); color:var(--todo); }
 
     /* 画面下部のタブバーに操作ボタンが隠れないようにする */
     body { padding-bottom:calc(var(--tabbar-h, 62px) + 24px + env(safe-area-inset-bottom)); }
@@ -362,7 +446,7 @@
 
     /* 折りたたみを開かなくても点数が読めるようにする */
     .fold-score {
-      font-family:var(--mono); font-size:15px; font-weight:800; color:var(--text);
+      font-family:var(--mono); font-size:15px; font-weight:700; color:var(--text);
       margin-left:2px;
     }
     .fold-score span { font-size:10px; font-weight:600; color:var(--text-3); margin-left:1px; }
@@ -392,140 +476,281 @@
     .teacher-fold-body .detail-tabs-fold,
     .teacher-fold-body .fold-section { padding-left:0; padding-right:0; }
 
-    /* 音ごとのできばえ（軸ベース） */
-    .mora-review { max-width:1080px; margin:0 auto 14px; padding:14px 16px;
-                   background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); }
-    .mora-review-title { font-size:12px; font-weight:700; color:var(--text-3); margin-bottom:10px; }
-    .mora-row { display:flex; align-items:center; gap:10px; padding:7px 0;
-                border-bottom:1px solid var(--border-light); }
-    .mora-row:last-of-type { border-bottom:none; }
-    .mr-kana { font-size:20px; font-weight:800; width:1.9em; text-align:center; color:var(--text); flex:none; }
-    .mr-mark { font-size:15px; font-weight:800; flex:none; width:1.2em; text-align:center; }
-    .mr-mark.ok { color:var(--green); }
-    .mr-mark.ng { color:var(--accent); }
-    .mr-msg { font-size:13.5px; color:var(--text-2); }
-    .mr-msg b { color:var(--text); font-weight:700; }
-    .mr-na { color:var(--text-3); font-size:12px; }
-    .mora-review-note { margin-top:10px; padding-top:9px; border-top:1px solid var(--border-light);
-                        font-size:11px; color:var(--text-3); }
-    @media (max-width:600px) {
-      .mora-review { margin:0 16px 12px; padding:12px 14px; }
-      .mr-msg { font-size:13px; }
+    /* 音ごとのできばえ
+       1音ずつ縦に並べると、点数が低い回は「直そう」が4行続いて
+       責められているように見える。横一列のチップにして、
+       「どの音ができて、どの音が残っているか」をひと目で見せる。 */
+    .mora-review { max-width:1080px; margin:0 0 12px; padding:16px;
+                   background:var(--bg-card); border:1px solid var(--surface-line); border-radius:24px; }
+    .mora-review-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:12px; }
+    .mora-chips { display:grid; grid-template-columns:repeat(auto-fit, minmax(62px, 1fr)); gap:8px; }
+    .mora-chip { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;
+                 padding:12px 4px 10px; border-radius:18px; border:none; background:var(--bg-muted); }
+    .mora-chip.ok { background:var(--good-bg); box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--good) 45%, transparent); }
+    .mora-chip.ng { background:var(--todo-bg); box-shadow:inset 0 0 0 2px color-mix(in srgb, var(--todo-bar) 45%, transparent); }
+    .mora-chip.na { opacity:.6; }
+    .mc-kana { font-size:24px; font-weight:700; color:var(--text); line-height:1.2; }
+    .mc-mark { font-size:17px; font-weight:700; line-height:1; }
+    .mora-chip.ok .mc-mark { color:var(--good); }
+    .mora-chip.ng .mc-mark { color:var(--todo); }
+    .mora-chip.na .mc-mark { color:var(--text-3); }
+    .mc-axis { font-size:12px; font-weight:700; color:var(--text-2); }
+    .mora-review-note { margin-top:12px; padding-top:10px; border-top:1px solid var(--border-light);
+                        font-size:12px; color:var(--text-3); line-height:1.6; }
+
+    /* ── お手本とくらべる（生徒向けのグラフ） ── */
+    .compare-card { max-width:1080px; margin:0 16px 12px; padding:18px 16px 16px; border-radius:24px;
+                    background:var(--bg-card); border:1px solid var(--surface-line); }
+    .compare-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .compare-title { font-size:16px; font-weight:700; color:var(--text); }
+    .compare-legend { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-3); }
+    .compare-legend .lg { width:18px; height:4px; border-radius:2px; display:inline-block; }
+    .lg-ref { background:var(--ref-line); }
+    .lg-you { background:var(--navy); margin-left:8px; }
+
+    .compare-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:4px; border-radius:16px; background:var(--bg-muted); margin-bottom:14px; }
+    .cmp-tab { min-height:44px; border:none; border-radius:12px; background:transparent; color:var(--text-2); transition:background var(--dur), color var(--dur);
+               font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer; }
+    .cmp-tab.active { background:var(--bg-card); color:var(--navy); box-shadow:0 1px 2px rgba(22,20,60,.08), 0 2px 8px -2px rgba(22,20,60,.12); }
+    .cmp-chart { position:relative; height:190px; }
+    .cmp-yhi, .cmp-ylo { position:absolute; left:0; font-size:11px; color:var(--text-3); pointer-events:none; }
+    .cmp-yhi { top:2px; }
+    .cmp-ylo { bottom:2px; }
+    .cmp-chart-short { height:120px; }
+    .cmp-chart canvas { width:100% !important; height:100% !important; }
+    .cmp-how { margin-top:10px; font-size:13px; line-height:1.7; color:var(--text-2); }
+    .cmp-how b { color:var(--text); font-weight:700; }
+    .cmp-empty { font-size:13px; line-height:1.7; color:var(--text-3); padding:12px 0; }
+
+    /* 口の開き（モーラごとの2本バー） */
+    .lipc-list { display:flex; flex-direction:column; gap:10px; }
+    .lipc-row { display:grid; grid-template-columns:2.4em 1fr auto; align-items:center; gap:8px; }
+    .lipc-kana { font-size:17px; font-weight:700; color:var(--text); text-align:center; }
+    .lipc-bars { display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .lipc-line { display:flex; align-items:center; gap:6px; }
+    .lipc-tag { font-size:10px; color:var(--text-3); width:3.2em; flex:none; }
+    .lipc-track { flex:1; height:12px; border-radius:100px; background:var(--bg-muted); overflow:hidden; }
+    .lipc-bar { display:block; height:100%; border-radius:100px; }
+    .lipc-bar.ref { background:var(--ref-line); }
+    .lipc-bar.you { background:var(--grad-brand); }
+    .lipc-bar.you.low, .lipc-bar.you.high { background:var(--grad-brand); }
+    .lipc-msg { justify-self:end; font-size:12px; font-weight:700; color:var(--text-3); text-align:right; padding:4px 9px; border-radius:100px; white-space:nowrap; }
+    .lipc-msg.good { color:var(--good-text); background:var(--good-bg); }
+    .lipc-msg.low  { color:var(--mid-text); background:var(--mid-bg); }
+    .lipc-msg.high { color:var(--todo); background:var(--todo-bg); }
+
+    /* ── 口と声のタイミング ── */
+    .av-card { max-width:1080px; margin:0 16px 12px; padding:18px 16px; border-radius:24px;
+               background:var(--bg-card); border:1px solid var(--surface-line); box-shadow:var(--elev-1); }
+    .av-head { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+    .av-mark { flex:none; display:grid; place-items:center; width:46px; height:46px; border-radius:16px; color:var(--good); background:var(--good-bg); }
+    .verdict-warn .av-mark { color:var(--mid-text); background:var(--mid-bg); }
+    .verdict-ng   .av-mark { color:var(--todo); background:var(--todo-bg); }
+    .av-title { font-size:13px; font-weight:700; color:var(--text-3); }
+    .av-verdict { font-size:17px; font-weight:700; color:var(--text); line-height:1.4; }
+    /* ばらつきメーター（校正済みしきい値の可視化） */
+    .av-spread { margin-bottom:14px; padding:14px; border-radius:18px; background:var(--bg-muted); }
+    .av-spread-top { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px; }
+    .av-spread-label { font-size:13px; font-weight:700; color:var(--text-2); }
+    .av-spread-val { font-family:var(--mono); font-size:22px; font-weight:500; color:var(--text); }
+    .av-spread-val small { font-size:12px; color:var(--text-3); margin-left:2px; }
+    .av-spread-bar { position:relative; display:flex; height:12px; border-radius:100px; overflow:hidden; }
+    .av-spread-bar .band { display:block; height:100%; }
+    .av-spread-bar .band.ok   { background:color-mix(in srgb, var(--good) 50%, transparent); }
+    .av-spread-bar .band.warn { background:color-mix(in srgb, var(--mid) 50%, transparent); }
+    .av-spread-bar .band.ng   { background:color-mix(in srgb, var(--todo-bar) 50%, transparent); }
+    .av-spread-pin { position:absolute; top:-3px; bottom:-3px; width:4px; margin-left:-2px; border-radius:2px;
+                     background:var(--text); box-shadow:0 0 0 2px var(--bg-muted); }
+    .av-spread-scale { display:flex; justify-content:space-between; margin-top:4px; font-family:var(--mono); font-size:10.5px; color:var(--text-3); }
+    .av-spread-note { margin-top:8px; font-size:12px; line-height:1.7; color:var(--text-3); }
+    .av-spread-note b { color:var(--text-2); font-weight:700; }
+
+    .av-scale { display:flex; justify-content:space-between; font-size:11px; color:var(--text-3); padding:0 2px 4px; }
+    .av-rows { display:flex; flex-direction:column; gap:7px; }
+    .av-row { display:grid; grid-template-columns:2.6em 1fr 4.2em; align-items:center; gap:8px; }
+    .av-kana { font-size:17px; font-weight:700; color:var(--text); text-align:center; }
+    .av-track { position:relative; height:22px; border-radius:100px; background:var(--bg-muted); overflow:hidden; }
+    .av-zero { position:absolute; left:50%; top:0; bottom:0; width:2px; margin-left:-1px; background:var(--border); }
+    .av-bar { position:absolute; top:5px; bottom:5px; border-radius:100px; }
+    .av-bar.lv-ok  { background:var(--good); }
+    .av-bar.lv-mid { background:var(--mid); }
+    .av-bar.lv-big { background:var(--todo-bar); }
+    .av-ms { font-family:var(--mono); font-size:12px; color:var(--text-2); text-align:right; }
+    .av-ms small { font-size:9px; color:var(--text-3); }
+    .av-how { margin-top:12px; font-size:14px; line-height:1.7; color:var(--text-2); }
+    .av-how b { color:var(--text); font-weight:700; }
+    .av-note { margin-top:8px; padding-top:8px; border-top:1px solid var(--border-light); font-size:11.5px; color:var(--text-3); line-height:1.6; }
+
+    /* 自己ベスト */
+    .rc-best { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:100px;
+               background:var(--grad-flame); color:#3A1A00; font-size:13px; font-weight:700; white-space:nowrap; box-shadow:0 8px 16px -10px rgba(255,122,69,.9);
+               animation:best-pop .5s var(--ease) .2s both; }
+    @keyframes best-pop { from { transform:scale(.6); opacity:0; } to { transform:none; opacity:1; } }
+
+    /* この単語の記録（何回目・自己ベスト・マスターまで・最近の点数） */
+    .wp-card { background:var(--bg-card); border:1px solid var(--surface-line); border-radius:24px; padding:16px 16px 16px; margin-bottom:12px; }
+    .wp-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+    .wp-title { font-size:15px; font-weight:700; color:var(--text); }
+    .wp-count { font-size:13px; color:var(--text-3); white-space:nowrap; }
+    .wp-body { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .wp-stat { min-width:0; display:flex; flex-direction:column; justify-content:center; gap:2px; padding:12px 14px; border-radius:18px; background:var(--bg-muted); }
+    .wp-stat span { font-size:12px; color:var(--text-3); }
+    .wp-stat b { font-size:26px; color:var(--text); line-height:1.2; white-space:nowrap; }
+    .wp-stat b small { font-size:13px; margin-left:2px; color:var(--text-3); font-weight:700; }
+    .wp-stat b.is-master { display:flex; align-items:center; gap:4px; color:var(--navy); font-size:20px; }
+    .wp-spark-box { grid-column:1 / -1; display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:18px; background:var(--bg-muted); }
+    .wp-spark { flex:1; min-width:0; height:auto; display:block; }
+    .wp-spark polyline { fill:none; stroke:var(--navy); stroke-width:3; stroke-linejoin:round; stroke-linecap:round; }
+    .wp-spark .wp-90 { stroke:var(--brand-300); stroke-width:1.2; stroke-dasharray:4 4; }
+    .wp-spark circle { fill:var(--navy); stroke:var(--bg-muted); stroke-width:2; }
+    .wp-spark-cap { flex:none; font-size:12px; color:var(--text-3); line-height:1.4; }
+    .wp-spark-cap b { display:block; font-size:11px; font-weight:500; color:var(--brand-500); }
+
+    /* くらべる → 口の形：お手本とあなたの口の動画 */
+    .cmp-mouth { margin:4px 0 14px; padding-bottom:14px; border-bottom:1px solid var(--border-light); }
+    .cmp-mouth-title { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:700; color:var(--text-2); margin-bottom:8px; }
+
+    /* 「ぜんぶできた」ときのカード */
+    .ag-title { font-size:17px; font-weight:700; color:var(--good); margin:6px 0 4px; }
+    .ag-sub { font-size:13px; color:var(--text-2); }
+
+    @media (min-width:760px) {
+      .result-card, .next-one-card, .all-good-card, .mora-review, .wp-card, .av-card, .compare-card, .result-actions { max-width:720px; margin-left:auto; margin-right:auto; }
+      .cmp-chart { height:240px; }
     }
+
+
+    /* ── 結果のタブ ── */
+    .rs-tabs { position:sticky; top:calc(58px + env(safe-area-inset-top)); z-index:50; display:grid; grid-template-columns:repeat(3,1fr); gap:4px;
+               margin:4px 16px 14px; padding:4px; border-radius:18px;
+               background:color-mix(in srgb, var(--bg-muted) 82%, transparent);
+               backdrop-filter:blur(18px) saturate(170%); -webkit-backdrop-filter:blur(18px) saturate(170%);
+               box-shadow:inset 0 0 0 1px var(--border-light); }
+    .rs-tab { position:relative; min-height:46px; border:none; border-radius:14px; background:transparent; color:var(--text-2);
+              font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; transition:background var(--dur), color var(--dur); }
+    .rs-tab.active { background:var(--bg-card); color:var(--text); box-shadow:0 1px 2px rgba(22,20,60,.08), 0 4px 12px -4px rgba(22,20,60,.16); }
+    .rs-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-left:6px; vertical-align:2px; background:var(--good); }
+    .rs-dot.verdict-warn { background:var(--mid); }
+    .rs-dot.verdict-ng   { background:var(--todo-bar); }
+    .rs-panel { animation:rs-in .18s var(--ease); }
+    @keyframes rs-in { from { opacity:.4; transform:translateY(4px); } to { opacity:1; transform:none; } }
+    .rs-empty { margin:0 16px 12px; padding:24px 18px; border-radius:24px; background:var(--bg-card);
+                border:1px dashed var(--border); text-align:center; }
+    .rs-empty-title { font-size:15px; font-weight:700; color:var(--text-2); }
+    .rs-empty-sub { font-size:13px; line-height:1.7; color:var(--text-3); margin-top:6px; }
+    @media (min-width:760px) { .rs-tabs, .rs-empty { max-width:720px; margin-left:auto; margin-right:auto; } }
   </style>
 </head>
 <body>
 
-<div class="results-header">
-  <div>
-    <div class="results-word">{{ original_filename }}</div>
-    <div class="results-sub">お手本とくらべた結果{% if score and score.accent_label and score.accent_label != '不明' %} — {{ score.accent_label }}{% endif %}</div>
-  </div>
-  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-    {# 前回比はスコアカード内に表示する。ここに出すと、録音直後に最初に
-       目に入るのが減点の数字になってしまうため置かない。 #}
-    <a href="/history" class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">履歴</a>
-    <a href="/select"  class="btn btn-ghost" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2);">ホーム</a>
-    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え" style="border-color:rgba(255,255,255,.2);color:#fff;"><svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
-  </div>
-</div>
-<script>
-  (function() {
-    // テーマ切替アイコン（絵文字はOSごとに見た目が変わるため SVG を使う）
-    const ICON_SUN  = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>';
-    const ICON_MOON = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
-    const root  = document.documentElement;
-    const btn   = document.getElementById('themeToggle');
-    const saved = localStorage.getItem('sp-ps-theme');
-    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.innerHTML=ICON_SUN; }
-    btn.addEventListener('click', () => {
-      const isDark = root.getAttribute('data-theme') === 'dark';
-      if (isDark) { root.removeAttribute('data-theme'); btn.innerHTML=ICON_MOON; localStorage.setItem('sp-ps-theme','light'); }
-      else        { root.setAttribute('data-theme','dark'); btn.innerHTML=ICON_SUN; localStorage.setItem('sp-ps-theme','dark'); }
-    });
-  })();
-</script>
+{#
+  結果画面のヘッダー
 
-
-
+  以前は単語名・説明・「履歴」「ホーム」ボタン・テーマ切替で
+  スマホの1/3を使っていた。点数より先に見せるものではないので1行にする。
+  「履歴」は画面下のタブバーに同じ導線がある。
+#}
+<header class="app-header">
+  <a href="/select" class="app-header-left icon-btn" aria-label="ホームにもどる">{{ icon('back') }}</a>
+  <div class="app-header-title">{{ original_filename }}<small>の結果</small></div>
+  <span class="app-header-right"></span>
+</header>
 <!-- ── Score tab ── -->
 <div id="sec-score" class="section-panel active">
 
   {% if alignment_failed %}
+  {#
+    解析できなかったとき
+
+    生徒がいちばんよく出会う画面のひとつ。「失敗」と英語のラベルで
+    突き放さず、点数がつかなかった理由と、次にどうするかだけを出す。
+    Julius のスコアは原因調べに要るので、先生用としてたたんでおく。
+  #}
   <div class="fail-panel">
-    <span class="fail-pill">Analysis Failed</span>
-    <div class="fail-title">音声の解析に失敗しました</div>
+    <div class="fail-icon">{{ icon('mic', size=30) }}</div>
+    <div class="fail-title">うまく録音できませんでした</div>
+    <div class="fail-lead">発音が悪いわけではありません。<br>下のことを試して、もう一度録音してみましょう。</div>
     <ul class="fail-list">
-      <li>マイクに 10cm 以内に近づく</li>
-      <li>はっきりと、ゆっくり発音する</li>
-      <li>静かな環境で録音する</li>
-      <li>単語全体を一息で発音する</li>
+      <li><span>スマホを口から<b>10cmくらい</b>まで近づける</span></li>
+      <li><span><b>ゆっくり</b>、はっきり言う</span></li>
+      <li><span>まわりが<b>静かな場所</b>で録る</span></li>
+      <li><span>単語を<b>とちゅうで切らずに</b>言う</span></li>
     </ul>
-    <div class="fail-score">Julius スコア：{{ julius_score or "取得不可" }} / 目安：-3000 以上が正常</div>
-    <div style="margin-top:20px;"><button class="btn btn-primary btn-lg" onclick="history.back()">録音画面に戻る</button></div>
+    <button class="fail-retry" onclick="history.back()">{{ icon('mic', size=18) }} もう一度録音する</button>
+    <details class="fail-detail">
+      <summary>先生用：解析データ</summary>
+      <div class="fail-score">Julius スコア：{{ julius_score or "取得不可" }} / 目安：-35 以上で採点（1フレームあたりの平均。正常な録音は -25〜-31 くらい）</div>
+    </details>
   </div>
 
   {% elif score %}
 
   {# ══════════ ① 結果ヒーロー：3秒でわかる ══════════ #}
-  {% set gcolmap = {'S':'#12B886','A':'#2BB673','B':'#4C89D9','C':'#E8963E','D':'#E85D3D'} %}
-  {% set gcol = gcolmap.get(score.grade, '#9AA0B0') %}
+  {% set gcolmap = {'S':'#5B4BEA','A':'#1B7F5B','B':'#9A6412','C':'#C04E28','D':'#C04E28'} %}
+  {% set gcol = gcolmap.get(score.grade, '#85858F') %}
+  {#
+    結果のタブ
+
+    点数・つぎの一手・グラフ・口と声のタイミングを1本に並べると
+    スマホで2画面以上の長さになり、下の情報ほど見られなくなっていた。
+    録音画面と同じく「1画面＝1つの役割」に分ける。
+      まとめ   … 点数、つぎはここだけ、音ごとのできばえ
+      くらべる … お手本とのグラフ（高さ・長さ・口の形）
+      口と声   … 口と声のタイミング（ばらつきメーター・対応線グラフ）
+  #}
+  <nav class="rs-tabs" id="rsTabs" role="tablist">
+    <button type="button" class="rs-tab active" data-panel="summary" role="tab">まとめ</button>
+    <button type="button" class="rs-tab" data-panel="compare" role="tab">くらべる</button>
+    <button type="button" class="rs-tab" data-panel="sync" role="tab">口と声{% if av_sync %}<i class="rs-dot verdict-{{ av_sync.verdict }}"></i>{% endif %}</button>
+  </nav>
+  <section class="rs-panel" data-panel="summary">
   {#
     点数の見せ方
 
-    結果画面を開いて最初に知りたいのは点数なので、いちばん上に置く。
-    グレード・合計点・3軸の内訳・レーダーをひとつのカードにまとめてあり、
-    点数に関する情報はここだけを見ればよい（他の場所では数字を出さない）。
+    結果画面で生徒が知りたいのは「どうだった？」の1点だけ。
+    以前はここに グレード文字・合計点・3軸の素点（31/50 など）・％・バー・
+    レーダーチャートが同時に並び、同じことを4通りで表していた。
+    数字は合計点の1つに絞り、3軸は ◎○△ とバーで「どこが良くて、
+    どこがまだか」だけを示す。素点は先生用の折りたたみに残してある。
   #}
-  <div class="score-layout">
-    <div class="score-hero">
-      <div class="score-grade grade-{{ score.grade }}">{{ score.grade }}</div>
-      <div class="score-total">{{ score.total }}<span> / 100点</span></div>
-      <div class="score-breakdown">
-        {% set a_pct = (score.accent_score/50*100)|round|int %}
-        {% set l_pct = (score.length_score/30*100)|round|int %}
-        {% set v_pct = (score.vowel_score/20*100)|round|int %}
-        {% set a_col = '#34D399' if a_pct >= 80 else ('#FBBF24' if a_pct >= 55 else '#F87171') %}
-        {% set l_col = '#34D399' if l_pct >= 80 else ('#FBBF24' if l_pct >= 55 else '#F87171') %}
-        {% set v_col = '#34D399' if v_pct >= 80 else ('#FBBF24' if v_pct >= 55 else '#F87171') %}
-        <div class="score-item">
-          <div class="score-item-label"><span class="score-item-icon" style="background:rgba(248,113,113,.2);color:#F87171;">音</span>アクセント</div>
-          <div class="score-item-value">{{ score.accent_score|int }}<span class="score-item-max"> /50</span></div>
-          <div class="score-bar"><div class="score-bar-fill" style="width:{{ a_pct }}%;background:{{ a_col }};"></div></div>
-          <div class="score-pct">{{ a_pct }}%</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label"><span class="score-item-icon" style="background:rgba(52,211,153,.2);color:#34D399;">長</span>長さ</div>
-          <div class="score-item-value">{{ score.length_score|int }}<span class="score-item-max"> /30</span></div>
-          <div class="score-bar"><div class="score-bar-fill" style="width:{{ l_pct }}%;background:{{ l_col }};"></div></div>
-          <div class="score-pct">{{ l_pct }}%</div>
-        </div>
-        <div class="score-item">
-          <div class="score-item-label"><span class="score-item-icon" style="background:rgba(96,165,250,.2);color:#60A5FA;">声</span>母音</div>
-          <div class="score-item-value">{{ score.vowel_score|int }}<span class="score-item-max"> /20</span></div>
-          <div class="score-bar"><div class="score-bar-fill" style="width:{{ v_pct }}%;background:{{ v_col }};"></div></div>
-          <div class="score-pct">{{ v_pct }}%</div>
-        </div>
+  {% set a_pct = (score.accent_score/50*100)|round|int %}
+  {% set l_pct = (score.length_score/30*100)|round|int %}
+  {% set v_pct = (score.vowel_score/20*100)|round|int %}
+  <div class="result-card">
+    <div class="rc-head">
+      <div class="rc-score ring" style="--p:{{ [score.total|int, 100]|min }}; --ring-color:{{ gcol }};" data-ring="{{ [score.total|int, 100]|min }}"
+           role="img" aria-label="{{ score.total|int }}点">
+        <span class="rc-score-in"><span class="rc-num" data-count-up="{{ score.total|int }}">{{ score.total|int }}</span><span class="rc-unit">点</span></span>
+      </div>
+      <div class="rc-side">
+        <span class="rc-grade" style="background:{{ gcol }};"><b>{{ score.grade }}</b>ランク</span>
+        {% if word_progress and word_progress.is_best %}<span class="rc-best">{{ icon('trophy', size=13) }} 自己ベスト</span>{% endif %}
+        {% if score_delta %}{% set sd = score_delta|string %}{% set sdnum = sd|float|round|int %}<span class="rc-delta {{ 'up' if sdnum > 0 else 'down' }}">前回より {{ '+' if sdnum > 0 }}{{ sdnum }}点</span>{% endif %}
       </div>
     </div>
-    {#
-      3軸レーダーは、左の内訳バーと同じ内容を図にしたもの。
-      画面が狭いときは縦に積まれて画面を占領するだけなので、
-      スマホでは出さない（内訳バーで同じことが読める）。
-    #}
-    <div class="radar-card">
-      <div class="radar-title">3軸レーダー</div>
-      <canvas id="radarChart"></canvas>
+    <div class="rc-verdict">
+      {% if score.grade == 'S' %}{{ icon('trophy') }} すばらしい！お手本にとても近い発音です
+      {% elif score.grade == 'A' %}{{ icon('sparkle') }} とても良い発音です！
+      {% elif score.grade == 'B' %}{{ icon('check-circle') }} よくできました。あと少しで上級です
+      {% elif score.grade == 'C' %}{{ icon('trend') }} 伝わる発音になってきています
+      {% else %}{{ icon('flame') }} 1音ずつ、ゆっくり練習していきましょう{% endif %}
     </div>
-  </div>
 
-
-  <div class="result-verdict-solo">
-    {% if score.grade == 'S' %}{{ icon('trophy') }} すばらしい！お手本にとても近い発音です
-    {% elif score.grade == 'A' %}{{ icon('sparkle') }} とても良い発音です！
-    {% elif score.grade == 'B' %}{{ icon('check-circle') }} よくできました。あと少しで上級です
-    {% elif score.grade == 'C' %}{{ icon('trend') }} 伝わる発音になってきています
-    {% else %}{{ icon('flame') }} 1音ずつ、ゆっくり練習していきましょう{% endif %}
+    {% macro axis_row(name, pct, hint) %}
+    {% set mark = '◎' if pct >= 80 else ('○' if pct >= 55 else '△') %}
+    {% set cls  = 'ok' if pct >= 80 else ('mid' if pct >= 55 else 'ng') %}
+    <div class="rc-axis {{ cls }}">
+      <span class="ax-mark">{{ mark }}</span>
+      <span class="ax-name">{{ name }}<small>{{ hint }}</small></span>
+      <span class="ax-bar"><i style="width:{{ pct }}%"></i></span>
+    </div>
+    {% endmacro %}
+    <div class="rc-axes">
+      {{ axis_row('高さ', a_pct, '声の高い・低い') }}
+      {{ axis_row('長さ', l_pct, 'のばし方・リズム') }}
+      {{ axis_row('口の形', v_pct, '母音の形') }}
+    </div>
+    <div class="rc-axes-legend">◎ できている　○ もう少し　△ ここを直す</div>
   </div>
 
   {#
@@ -536,47 +761,43 @@
     次にやることへ辿り着く前に「全部だめ」を見せる形になっていた。
     先に「次はこれだけ直そう」を出し、そのあとに内訳を置く。
   #}
-  {# ══════════ ③ 次はこれだけ：1つの行動 ══════════ #}
+  {# ══════════ ② つぎの一手：やることを1つに絞る ══════════ #}
   {% set wm = mora_scores[worst_mora.mora_index] if (worst_mora and mora_scores and worst_mora.mora_index is not none and worst_mora.mora_index < mora_scores|length) else none %}
   {% set wm_kana = (wm.kana if wm and wm.kana else (worst_mora.label if worst_mora else '')) %}
   {% if worst_mora and worst_mora.total is not none and worst_mora.total < 75 %}
-  <div class="next-one-card">
-    <div class="next-one-label">{{ icon('target') }} 次はこれだけ直そう</div>
+  <div class="next-one-card aurora">
+    <div class="next-one-label">{{ icon('target') }} つぎは、ここだけ</div>
     <div class="next-one-kana">「{{ wm_kana }}」</div>
     {% set wa = worst_mora.accent if worst_mora.accent is not none else 999 %}
     {% set wl = worst_mora.length if worst_mora.length is not none else 999 %}
     {% set wv = worst_mora.vowel  if worst_mora.vowel  is not none else 999 %}
     {% if wv <= wa and wv <= wl %}
     <div class="next-one-why">{{ icon('mouth') }} 口の形がお手本とちがいます</div>
-    <div class="next-one-how">カメラで自分の口を見ながら合わせるのが一番の近道。耳に頼らず、目で直せます。</div>
+    <div class="next-one-how">カメラで自分の口を見ながら合わせるのが近道です。</div>
     <div class="next-one-actions">
-      <a class="next-one-btn" href="/vowel_trainer/{{ word_id }}">{{ icon('mouth') }} カメラで口の形を練習する</a>
+      <button class="next-one-btn" onclick="openCompare('lips')">{{ icon('mouth') }} 口の開きをくらべて見る</button>
+      <a class="next-one-sub" href="/vowel_trainer/{{ word_id }}">{{ icon('camera') }} カメラで口の形を練習する</a>
     {% elif wl <= wa %}
-    <div class="next-one-why">⏱ 長さ（リズム）がお手本とちがいます</div>
-    <div class="next-one-how">グラフで「{{ wm_kana }}」の長さをお手本と見比べて、のばす／短くするを目で確認しましょう。</div>
+    <div class="next-one-why">{{ icon('trend') }} 長さ（リズム）がお手本とちがいます</div>
+    <div class="next-one-how">お手本とくらべて、のばす／短くするを目で確かめましょう。</div>
     <div class="next-one-actions">
-      <button class="next-one-btn" onclick="gotoTab('length')">⏱ 長さをくらべて見る</button>
+      <button class="next-one-btn" onclick="openCompare('length')">{{ icon('trend') }} 長さをくらべて見る</button>
     {% else %}
     <div class="next-one-why">{{ icon('music') }} 高さ（アクセント）がお手本とちがいます</div>
-    <div class="next-one-how">声の高さは目で見て合わせられます。グラフの山と谷の形をお手本にそろえましょう。</div>
+    <div class="next-one-how">声の高さは、グラフの形をそろえると直せます。</div>
     <div class="next-one-actions">
-      <button class="next-one-btn" onclick="gotoTab('pitch-compare')">{{ icon('music') }} 高さの動きをくらべて見る</button>
+      <button class="next-one-btn" onclick="openCompare('pitch')">{{ icon('music') }} 高さの動きをくらべて見る</button>
     {% endif %}
       {% if wm_kana and 'ー' not in wm_kana and wm_kana not in ('ん','っ') %}
       <a class="next-one-sub" href="/sound_drill/{{ wm_kana }}">{{ icon('zap') }} 「{{ wm_kana }}」の集中ドリルをする</a>
       {% endif %}
-      <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="next-one-sub" style="width:100%;">{{ icon('mic') }} もう一度録音する</button></form>
     </div>
   </div>
   {% else %}
   <div class="all-good-card">
-    <div style="color:var(--accent);">{{ icon('trophy', size=30) }}</div>
-    <div style="font-size:15px;font-weight:900;color:var(--green);margin:4px 0;">すべての音がきれいに発音できています！</div>
-    <div style="font-size:12px;color:var(--text-2);margin-bottom:12px;">この単語はマスター。次の単語に進みましょう</div>
-    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-      <form action="/" method="post" style="margin:0;"><input type="hidden" name="Words" value="{{ word_id }}"><button type="submit" class="btn btn-ghost">{{ icon('mic') }} もう一度</button></form>
-      <a href="/select" class="btn btn-primary" style="text-decoration:none;">次の単語へ →</a>
-    </div>
+    <div style="color:var(--good);">{{ icon('trophy', size=32) }}</div>
+    <div class="ag-title">ぜんぶの音がきれいに言えています！</div>
+    <div class="ag-sub">この単語はマスター。つぎの単語にすすみましょう</div>
   </div>
   {% endif %}
 
@@ -604,66 +825,294 @@
   {% set AXIS_NAME = {'accent': '高さ', 'length': '長さ', 'vowel': '口の形'} %}
   <div class="mora-review">
     <div class="mora-review-title">音ごとのできばえ</div>
+    <div class="mora-chips">
     {% for m in mora_scores %}
       {% set axes = {} %}
       {% if m.accent is not none %}{% set _ = axes.update({'accent': m.accent}) %}{% endif %}
       {% if m.length is not none %}{% set _ = axes.update({'length': m.length}) %}{% endif %}
       {% if m.vowel  is not none %}{% set _ = axes.update({'vowel':  m.vowel})  %}{% endif %}
-      <div class="mora-row">
-        <span class="mr-kana">{{ m.kana or m.label }}</span>
-        {% if not axes %}
-          <span class="mr-msg mr-na">測れませんでした</span>
+      {% if not axes %}
+        <div class="mora-chip na">
+          <span class="mc-kana">{{ m.kana or m.label }}</span>
+          <span class="mc-mark">—</span>
+          <span class="mc-axis">測れず</span>
+        </div>
+      {% else %}
+        {% set best  = (axes.items()|sort(attribute='1')|last) %}
+        {% set worst = (axes.items()|sort(attribute='1')|first) %}
+        {% if best[1] >= 75 %}
+        <div class="mora-chip ok">
+          <span class="mc-kana">{{ m.kana or m.label }}</span>
+          <span class="mc-mark">◎</span>
+          <span class="mc-axis">{{ AXIS_NAME[best[0]] }}</span>
+        </div>
         {% else %}
-          {% set best = (axes.items()|sort(attribute='1')|last) %}
-          {% set worst = (axes.items()|sort(attribute='1')|first) %}
-          {% if best[1] >= 75 %}
-            <span class="mr-mark ok">◎</span>
-            <span class="mr-msg"><b>{{ AXIS_NAME[best[0]] }}</b>ができました</span>
-          {% else %}
-            <span class="mr-mark ng">△</span>
-            <span class="mr-msg"><b>{{ AXIS_NAME[worst[0]] }}</b>を直そう</span>
-          {% endif %}
+        <div class="mora-chip ng">
+          <span class="mc-kana">{{ m.kana or m.label }}</span>
+          <span class="mc-mark">△</span>
+          <span class="mc-axis">{{ AXIS_NAME[worst[0]] }}</span>
+        </div>
         {% endif %}
-      </div>
+      {% endif %}
     {% endfor %}
-    <div class="mora-review-note">
-      高さ＝音の高低　長さ＝のばし方　口の形＝母音の形
+    </div>
+    <div class="mora-review-note">◎ の下の名前は「できたところ」、△ の下は「つぎに直すところ」です</div>
+  </div>
+  {% endif %}
+
+  {#
+    この単語の記録
+
+    1回ごとの点数だけを見ると、下がった回に「だめだった」で終わってしまう。
+    何回目か・自己ベスト・マスター（90点）まであと何点かを並べ、
+    「この単語で自分がどこまで来ているか」を結果の画面の中で分かるようにする。
+  #}
+  {% if word_progress %}
+  {% set wp = word_progress %}
+  <div class="wp-card">
+    <div class="wp-head">
+      <div class="wp-title">「{{ original_filename }}」の記録</div>
+      <div class="wp-count">{{ wp.count }}回目</div>
+    </div>
+    <div class="wp-body">
+      <div class="wp-stat"><span>自己ベスト</span><b>{{ wp.best }}<small>点</small></b></div>
+      {% if wp.best >= 90 %}
+      <div class="wp-stat"><span>90点以上をとりました</span><b class="is-master">{{ icon('trophy', size=18) }}マスター</b></div>
+      {% else %}
+      <div class="wp-stat"><span>マスター（90点）まで</span><b>あと{{ 90 - wp.best }}<small>点</small></b></div>
+      {% endif %}
+      {% set n = wp.scores | length %}
+      {% if n >= 2 %}
+      <div class="wp-spark-box" aria-label="最近{{ n }}回の点数：{{ wp.scores | join('、') }}点">
+        <span class="wp-spark-cap">最近{{ n }}回<b>- - 90点</b></span>
+        <svg class="wp-spark" viewBox="0 0 300 48" aria-hidden="true">
+          <line class="wp-90" x1="4" x2="296" y1="{{ (44 - 90 * 0.4) | round(1) }}" y2="{{ (44 - 90 * 0.4) | round(1) }}"/>
+          <polyline points="{% for v in wp.scores %}{{ (6 + loop.index0 * 288 / (n - 1)) | round(1) }},{{ (44 - v * 0.4) | round(1) }} {% endfor %}"/>
+          <circle cx="294" cy="{{ (44 - wp.scores[-1] * 0.4) | round(1) }}" r="4.5"/>
+        </svg>
+      </div>
+      {% endif %}
     </div>
   </div>
   {% endif %}
 
-  {# ══════════ ②' 音映像クロスチェック（試験運用・採点に非影響） ══════════ #}
-  {% if av_sync %}
-  <div class="av-sync-card verdict-{{ av_sync.verdict }}">
-    <div class="av-sync-head">
-      <span class="av-sync-icon">
-        {% if av_sync.verdict == 'ok' %}{{ icon('film') }}{{ icon('check') }}{% elif av_sync.verdict == 'warn' %}{{ icon('film') }}{{ icon('alert') }}{% else %}{{ icon('film') }}{{ icon('x-circle') }}{% endif %}
-      </span>
-      <div class="av-sync-body">
-        <div class="av-sync-title">
-          口と声のタイミング：
-          {% if av_sync.verdict == 'ok' %}よく同期しています
-          {% elif av_sync.verdict == 'warn' %}少しばらつきがあります
-          {% else %}ずれが目立ちます{% endif %}
-          <span class="av-sync-val">ばらつき {{ av_sync.spread_ms }}ms</span>
-        </div>
-        <div class="av-sync-sub">口の動きと発声のタイミングが揃っているかの新しい分析です（試験運用中・スコアには影響しません）</div>
+  </section>
+
+  <section class="rs-panel" data-panel="compare" hidden>
+  {#
+    お手本とくらべる（グラフ）
+
+    高さ・長さ・口の開きは、聞こえ方に頼らず“形”で確かめられる数少ない手がかり。
+    生徒にとっても分かるフィードバックなので、先生用の折りたたみではなく
+    ここに置く。ただし出すのは「お手本」と「あなた」の2本だけにして、
+    目盛りの数字（正規化ピッチなど）は見せない。読み方も1行で添える。
+    最初に開くのは、いちばん点が低かった軸（直すところ）にする。
+  #}
+  {% if mora_scores %}
+  {% set cmp_default = 'pitch' if (a_pct <= l_pct and a_pct <= v_pct) else ('length' if l_pct <= v_pct else 'lips') %}
+  <div class="compare-card" id="compareCard" data-default="{{ cmp_default }}">
+    <div class="compare-head">
+      <div class="compare-title">お手本とくらべる</div>
+      <div class="compare-legend">
+        <span class="lg lg-ref"></span>お手本
+        <span class="lg lg-you"></span>あなた
       </div>
     </div>
-    <details class="av-sync-details" id="avSyncDetails">
-      <summary>対応線グラフとモーラごとのずれを見る</summary>
 
-      {% if av_sync.plot %}
-      <div class="av-sync-chart-wrap">
+    <div class="compare-tabs">
+      <button type="button" class="cmp-tab" data-cmp="pitch">高さ</button>
+      <button type="button" class="cmp-tab" data-cmp="length">長さ</button>
+      <button type="button" class="cmp-tab" data-cmp="lips">口の形</button>
+    </div>
+
+    <div class="cmp-pane" data-pane="pitch" hidden>
+      <div class="cmp-chart"><span class="cmp-yhi">高い</span><span class="cmp-ylo">低い</span><canvas id="cmpPitch"></canvas></div>
+      <p class="cmp-how">線の<b>形</b>（上がる・下がる）が似ているほど、高さが合っています。高さそのものがちがっても、形が同じならOKです。</p>
+    </div>
+
+    <div class="cmp-pane" data-pane="length" hidden>
+      <div class="cmp-chart cmp-chart-short"><canvas id="cmpLength"></canvas></div>
+      <p class="cmp-how">同じ音の帯の<b>よこ幅</b>をくらべます。お手本より細ければ短く、太ければのばしすぎです。</p>
+    </div>
+
+    <div class="cmp-pane" data-pane="lips" hidden>
+      {# 直前に撮った自分の口の動画（この端末に置いたもの）があれば、お手本とならべて再生できる #}
+      <div class="cmp-mouth" id="cmpMouth" hidden>
+        <div class="cmp-mouth-title">{{ icon('video', size=15) }} お手本とあなたの口</div>
+        <div id="cmpMouthPlayer"></div>
+      </div>
+      {% if lip_mora_analysis %}
+      <div class="lipc-list">
+        {% for m in lip_mora_analysis %}
+        {% if m.expected is not none and m.actual is not none %}
+        {% set mk = (mora_scores[loop.index0].kana if loop.index0 < mora_scores|length else '') or m.label %}
+        <div class="lipc-row">
+          <span class="lipc-kana">{{ mk }}</span>
+          <div class="lipc-bars">
+            <div class="lipc-line"><span class="lipc-tag">お手本</span><div class="lipc-track"><i class="lipc-bar ref" style="width:{{ [(m.expected * 100)|round|int, 100]|min }}%"></i></div></div>
+            <div class="lipc-line"><span class="lipc-tag">あなた</span><div class="lipc-track"><i class="lipc-bar you {{ m.status or '' }}" style="width:{{ [(m.actual * 100)|round|int, 100]|min }}%"></i></div></div>
+          </div>
+          <span class="lipc-msg {{ m.status or '' }}">
+            {% if m.status == 'good' %}OK{% elif m.status == 'low' %}もっと開ける{% elif m.status == 'high' %}開けすぎ{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      <p class="cmp-how">バーが長いほど口を大きく開けています。お手本と同じ長さになるのが目標です。</p>
+      {% else %}
+      <p class="cmp-empty">口の動きのデータがありません。カメラに顔が映っていたか確かめて、もう一度録音してみましょう。</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not mora_scores %}<div class="rs-empty"><div class="rs-empty-title">くらべるデータがありません</div></div>{% endif %}
+  </section>
+
+  <section class="rs-panel" data-panel="sync" hidden>
+  {#
+    口と声のタイミング（音映像クロスチェック）
+
+    このアプリの中核のひとつ。声だけ・口だけでは分からない
+    「口を動かしているのに声が遅れる」「声だけ先に出る」を見つけられる。
+    ミリ秒の数値そのものは生徒には意味が取れないので、
+    中央＝声と同時、右＝口が遅い、左＝口が先、の帯で見せる。
+    採点には入らないので、その旨も添える（減点されたと誤解させない）。
+  #}
+  {% if av_sync %}
+  {% set rel = [] %}
+  {% for m in av_sync.per_mora %}{% set _ = rel.append({'label': m.label, 'v': (m.offset_ms - av_sync.median_offset_ms)}) %}{% endfor %}
+  {% set maxabs = (rel | map(attribute='v') | map('abs') | max) if rel else 0 %}
+  {% set scale = [maxabs, 60] | max %}
+  {% set worst = (rel | sort(attribute='v') | last) %}
+  {% set worst_lead = (rel | sort(attribute='v') | first) %}
+  <div class="av-card verdict-{{ av_sync.verdict }}">
+    <div class="av-head">
+      <span class="av-mark">
+        {% if av_sync.verdict == 'ok' %}{{ icon('check-circle', size=22) }}
+        {% elif av_sync.verdict == 'warn' %}{{ icon('alert', size=22) }}
+        {% else %}{{ icon('x-circle', size=22) }}{% endif %}
+      </span>
+      <div>
+        <div class="av-title">口と声のタイミング</div>
+        <div class="av-verdict">
+          {% if av_sync.verdict == 'ok' %}口の動きと声がそろっています
+          {% elif av_sync.verdict == 'warn' %}音によって、少しばらついています
+          {% else %}口の動きと声がずれています{% endif %}
+        </div>
+      </div>
+    </div>
+
+    {#
+      口と声の対応グラフ
+
+      以前は「グラフで見る」の折りたたみの中にあった。同じ音の「声の位置（●）」と
+      「口の動きの位置（◆）」を横線でつなぐので、ズレが線の長さとして目で分かる。
+      聞こえに頼らずに確かめられる手がかりなので、開かなくても見えるところに置く。
+
+      ただし生のデータは、録画を始めたタイミングの差（機材の差）で全体が横にずれている。
+      そのまま出すと、判定が「そろっている」でも全部の線が長く見えてしまうため、
+      口の動き側をその差（median_offset_ms）の分だけずらし、下のバー・判定と同じ基準で描く。
+      生の位置は先生モードで切り替えて見られる。
+    #}
+    {% if av_sync.plot and av_sync.plot.mora_points %}
+    <div class="avc">
+      <div class="avc-head">
+        <div>
+          <div class="avc-title">音ごとの 口と声の位置</div>
+          <p class="avc-how">同じ音の <b class="k-voice">●</b> と <b class="k-mouth">◆</b> をつなぐ横線が<b>短いほど</b>、口と声がそろっています</p>
+        </div>
+      </div>
+      <div class="avc-legend" aria-hidden="true">
+        <span><i class="avc-key voice"></i>声（音から見つけた位置）</span>
+        <span><i class="avc-key mouth"></i>口の動き</span>
+      </div>
+      <div class="avc-chart" role="img"
+           aria-label="口と声の対応グラフ。{% for r in rel %}{{ r.label }} {{ '%+d' % r.v }}ミリ秒{% if not loop.last %}、{% endif %}{% endfor %}">
         <canvas id="avSyncChart"></canvas>
       </div>
-      <p class="av-sync-note" style="margin-top:4px;">
-        縦軸＝お手本の時間、横軸＝あなたの時間。<b style="color:#2BB673;">●緑＝声から特定した位置</b>、
-        <b style="color:#5DA8F8;">◆青＝口の動きから予測した位置</b>。同じモーラの2点を結ぶ線がそのモーラの
-        「ズレ」そのもので、線が短いほど同期しています。オレンジ色の線は特にズレが大きい箇所です。
-      </p>
-      {% endif %}
+      <p class="avc-foot" id="avcFoot">線の色：緑＝そろっている、黄＝少しずれている、橙＝ずれが大きい。録画を始めたときのタイミングの差（{{ av_sync.median_offset_ms }}ms）は差し引いて描いています。</p>
+      <div class="seg avc-mode" id="avcMode" data-teacher-only>
+        <button type="button" class="active" data-shift="1">差し引いて描く</button>
+        <button type="button" data-shift="0">生の位置（先生用）</button>
+      </div>
+    </div>
+    {% endif %}
 
+    {#
+      ばらつき（spread_ms＝モーラ間ズレの MAD）
+
+      これが「発話内で口と声が同期しているか」の主指標。
+      機材差（録画開始タイミングのずれ）の影響を受けないため、
+      median ではなくこの値でしきい値判定している。
+      しきい値は実データ＋合成ズレ注入で校正した値（core/sync.py）：
+        70ms 未満＝そろっている / 70〜140ms＝ばらつく / 140ms 以上＝ずれている
+      判定の根拠が画面から分かるよう、数値とバンドを並べて出す。
+    #}
+    {% set sp = av_sync.spread_ms %}
+    {% set sp_pos = [[(sp / 210 * 100), 1]|max, 99]|min %}
+    <div class="av-spread">
+      <div class="av-spread-top">
+        <span class="av-spread-label">ばらつき</span>
+        <span class="av-spread-val">{{ sp }}<small>ms</small></span>
+      </div>
+      <div class="av-spread-bar">
+        <span class="band ok"   style="width:33.3%"></span>
+        <span class="band warn" style="width:33.3%"></span>
+        <span class="band ng"   style="width:33.4%"></span>
+        <span class="av-spread-pin" style="left:{{ sp_pos|round(1) }}%"></span>
+      </div>
+      <div class="av-spread-scale"><span>0</span><span>70</span><span>140</span><span>210ms</span></div>
+      <div class="av-spread-note">
+        音ごとのズレのばらつき（中央値からの差）。
+        <b>70ms未満なら「そろっている」</b>、140ms以上で「ずれている」と判定しています。
+        全体が一律にずれている分（{{ av_sync.median_offset_ms }}ms）は録画開始のタイミング差を含むため、判定には使っていません。
+      </div>
+    </div>
+
+    <div class="av-scale"><span>口が先</span><span>ぴったり</span><span>口が遅い</span></div>
+    <div class="av-rows">
+      {% for r in rel %}
+      {# ほぼ0でも「測れている」ことが分かるよう、最小の太さを持たせる #}
+      {% set w = (r.v | abs) / scale * 50 %}
+      {% set w = [[w, 50] | min, 2.5] | max %}
+      <div class="av-row">
+        <span class="av-kana">{{ r.label }}</span>
+        <div class="av-track">
+          <div class="av-zero"></div>
+          {# 色はズレの大きさ、位置（左右）はズレの向きを表す #}
+          {% set lv = 'lv-ok' if (r.v|abs) < 30 else ('lv-mid' if (r.v|abs) < 80 else 'lv-big') %}
+          {% if r.v >= 10 %}
+          <div class="av-bar {{ lv }}" style="left:50%; width:{{ w|round(1) }}%;"></div>
+          {% elif r.v <= -10 %}
+          <div class="av-bar {{ lv }}" style="left:{{ (50 - w)|round(1) }}%; width:{{ w|round(1) }}%;"></div>
+          {% else %}
+          <div class="av-bar lv-ok" style="left:calc(50% - 9px); width:18px;"></div>
+          {% endif %}
+        </div>
+        <span class="av-ms">{{ '%+d' % r.v }}<small>ms</small></span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="av-how">
+      {% if av_sync.verdict == 'ok' %}
+      口を動かすタイミングと声を出すタイミングが合っています。この言い方を覚えておきましょう。
+      {% else %}
+        {% if worst and worst.v >= 60 %}
+        「{{ worst.label }}」で<b>口が声より遅れて</b>います。口の形を先に作ってから声を出すと合います。
+        {% elif worst_lead and worst_lead.v <= -60 %}
+        「{{ worst_lead.label }}」で<b>口が声より先に</b>動いています。口を作ったまま、すぐ声を出しましょう。
+        {% else %}
+        音によって口と声のタイミングが変わっています。ゆっくり、一定の速さで言ってみましょう。
+        {% endif %}
+      {% endif %}
+    </div>
+    <div class="av-note">口と声がそろっていると、相手に伝わりやすくなります。ここは点数には入りません（ためし運用中）。</div>
+
+    <details class="av-sync-details" id="avSyncDetails">
+      <summary>くわしい数値</summary>
       <div class="av-sync-moras">
         {% for m in av_sync.per_mora %}
         <span class="av-sync-mora">{{ m.label }}<b>{{ '%+d' % (m.offset_ms - av_sync.median_offset_ms) }}ms</b></span>
@@ -672,109 +1121,147 @@
       <p class="av-sync-note">値は発話全体の平均的なずれ（{{ av_sync.median_offset_ms }}ms・録画開始タイミングの機材差を含む）を基準にした相対値です。プラス＝口が声より遅い、マイナス＝口が先行。</p>
     </details>
   </div>
-  {% if av_sync.plot %}
+
+  {% if av_sync.plot and av_sync.plot.mora_points %}
   <script id="av-sync-data" type="application/json">{{ av_sync.plot | tojson }}</script>
   <script>
-  // 対応線グラフ（折りたたみを初めて開いたときに遅延初期化）
+  // 口と声の対応グラフ。タブが開いて画面に入ったときに初めて描く（隠れた canvas は大きさ0になるため）
   (function () {
-    let built = false;
-    const details = document.getElementById('avSyncDetails');
-    if (!details) return;
-    details.addEventListener('toggle', function () {
-      if (!details.open || built) return;
-      built = true;
-      try {
-        const plot = JSON.parse(document.getElementById('av-sync-data').textContent);
-        const toXY = p => ({ x: p[0], y: p[1] });
-        const ctx = document.getElementById('avSyncChart').getContext('2d');
+    const box = document.getElementById('avSyncChart');
+    if (!box || typeof Chart === 'undefined') return;
+    const plot   = JSON.parse(document.getElementById('av-sync-data').textContent);
+    const median = {{ av_sync.median_offset_ms | tojson }} / 1000;       // 録画開始のタイミング差（秒）
+    const REL    = {{ rel | map(attribute='v') | list | tojson }};       // 差し引いたズレ（ms）＝下のバーと同じ値
+    const RAW    = {{ av_sync.per_mora | map(attribute='offset_ms') | list | tojson }};
 
-        // モーラごとに「声の位置」と「映像が予測した位置」を結ぶギャップ線の
-        // アノテーションを作る（この線の長さ＝ズレそのものが一目でわかる）。
-        // ラベルに「モーラ名＋ズレ」を両方入れることで、カーソルを合わせなくても
-        // どの点がどの音に対応しているかが直接わかるようにする。
-        const gapAnnotations = {};
-        (plot.mora_points || []).forEach((m, idx) => {
-          const gapMs = Math.round((m.u_video - m.u_audio) * 1000);
-          const big = Math.abs(gapMs) >= 70;
-          gapAnnotations['gap' + idx] = {
-            type: 'line',
-            xMin: m.u_audio, xMax: m.u_video, yMin: m.r, yMax: m.r,
-            borderColor: big ? 'rgba(255,122,85,.9)' : 'rgba(180,186,201,.6)',
-            borderWidth: big ? 3 : 2,
-            label: {
-              display: true,
-              content: [m.label, (gapMs >= 0 ? '+' : '') + gapMs + 'ms'],
-              position: 'center', yAdjust: -16,
-              backgroundColor: big ? 'rgba(255,122,85,.95)' : 'rgba(120,126,141,.9)',
-              color: '#fff', font: { size: 11, weight: 'bold', lineHeight: 1.3 },
-              padding: 4, borderRadius: 5,
-            },
-          };
-        });
+    const css = getComputedStyle(document.documentElement);
+    const cv  = (name, fb) => (css.getPropertyValue(name) || '').trim() || fb;
+    const COL = {
+      voice: cv('--navy', '#5B4BEA'), mouth: cv('--brand-400', '#9186FB'),
+      ok: cv('--good', '#1B7F5B'), mid: cv('--mid', '#D08A1E'), big: cv('--todo-bar', '#E2754F'),
+      bigText: cv('--todo', '#C04E28'),
+      grid: cv('--border-light', 'rgba(0,0,0,.06)'), text: cv('--text-3', '#6A697B'), card: cv('--bg-muted', '#EEEEF5'),
+    };
+    // 色の段階は下のバー（av-rows）と同じ：30ms 未満＝緑、80ms 未満＝黄、それ以上＝橙
+    const level = ms => Math.abs(ms) < 30 ? 'ok' : (Math.abs(ms) < 80 ? 'mid' : 'big');
+    // ラベルの文字が読めるよう、背景の明るさに合わせて文字色を変える
+    // （ダークでは色が明るくなるので黒い文字、ライトの黄色も黒い文字。橙のラベルは濃い橙にする）
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const labelStyle = (lv) => {
+      if (!lv) return { bg: COL.text, fg: isDark ? '#0B0B12' : '#fff' };
+      const bg = lv === 'big' && !isDark ? COL.bigText : COL[lv];
+      return { bg, fg: (isDark || lv === 'mid') ? '#1A1300' : '#fff' };
+    };
 
-        new Chart(ctx, {
-          type: 'scatter',
-          data: {
-            datasets: [
-              {
-                label: '口の動きの対応線（映像DTW）',
-                data: plot.video_line.map(toXY),
-                showLine: true, pointRadius: 0, borderWidth: 2.5,
-                borderColor: 'rgba(93,168,248,.9)', fill: false, tension: 0,
-              },
-              {
-                label: '声の対応線（音声アライメント）',
-                data: plot.audio_line.map(toXY),
-                showLine: true, pointRadius: 0, borderWidth: 2.5,
-                borderColor: 'rgba(43,182,115,.9)', borderDash: [6, 3], fill: false, tension: 0,
-              },
-              {
-                label: '声から特定した位置',
-                data: plot.mora_points.map(m => ({ x: m.u_audio, y: m.r, label: m.label })),
-                pointRadius: 6, pointHoverRadius: 8, pointStyle: 'circle',
-                backgroundColor: 'rgba(43,182,115,1)', borderColor: '#fff', borderWidth: 1.5,
-                showLine: false,
-              },
-              {
-                label: '口の動きから予測した位置',
-                data: plot.mora_points.map(m => ({ x: m.u_video, y: m.r, label: m.label })),
-                pointRadius: 6, pointHoverRadius: 8, pointStyle: 'rectRot',
-                backgroundColor: 'rgba(93,168,248,1)', borderColor: '#fff', borderWidth: 1.5,
-                showLine: false,
-              },
-            ],
+    let chart = null;
+    function config(shiftOn) {
+      const s = shiftOn ? median : 0;
+      const pts = plot.mora_points || [];
+      const gaps = {};
+      pts.forEach((m, i) => {
+        const ms = shiftOn
+          ? (REL[i] != null ? REL[i] : Math.round((m.u_video - s - m.u_audio) * 1000))
+          : (RAW[i] != null ? RAW[i] : Math.round((m.u_video - m.u_audio) * 1000));
+        const lv = shiftOn ? level(ms) : null;
+        const c  = lv ? COL[lv] : COL.text;
+        const ls = labelStyle(lv);
+        // 横線は点の下に、ラベルは線や点の上に描く
+        gaps['g' + i] = {
+          type: 'line', drawTime: 'beforeDatasetsDraw',
+          xMin: m.u_audio, xMax: m.u_video - s, yMin: m.r, yMax: m.r,
+          borderColor: c, borderWidth: 4,
+        };
+        gaps['t' + i] = {
+          type: 'label', drawTime: 'afterDatasetsDraw',
+          xValue: (m.u_audio + m.u_video - s) / 2, yValue: m.r, yAdjust: -17,
+          content: `${m.label} ${ms >= 0 ? '+' : ''}${ms}ms`,
+          backgroundColor: ls.bg, color: ls.fg,
+          font: { size: 12, weight: 'bold' }, padding: { x: 7, y: 3 }, borderRadius: 7,
+        };
+      });
+      return {
+        type: 'scatter',
+        data: {
+          datasets: [
+            { label: '口の動き', data: plot.video_line.map(p => ({ x: p[0] - s, y: p[1] })),
+              showLine: true, pointRadius: 0, borderWidth: 2.5, borderColor: COL.mouth, tension: 0, order: 3 },
+            { label: '声', data: plot.audio_line.map(p => ({ x: p[0], y: p[1] })),
+              showLine: true, pointRadius: 0, borderWidth: 2.5, borderColor: COL.voice, borderDash: [6, 4], tension: 0, order: 3 },
+            { label: '声の位置', data: pts.map(m => ({ x: m.u_audio, y: m.r })),
+              pointRadius: 7, pointStyle: 'circle', backgroundColor: COL.voice, borderColor: COL.card, borderWidth: 2, order: 1 },
+            { label: '口の動きの位置', data: pts.map(m => ({ x: m.u_video - s, y: m.r })),
+              pointRadius: 8, pointStyle: 'rectRot', backgroundColor: COL.mouth, borderColor: COL.card, borderWidth: 2, order: 1 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 26, right: 8 } },
+          plugins: {
+            legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false },
+            annotation: { clip: false, annotations: gaps },
           },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            layout: { padding: { top: 18 } },
-            plugins: {
-              legend: { labels: { boxWidth: 14, font: { size: 9.5 } } },
-              annotation: { annotations: gapAnnotations },
-              // モーラ名とズレはギャップ線のラベル（gapAnnotations）に集約したので、
-              // 点自体への個別ラベルは表示しない（重複表示による煩雑さを避ける）
-              datalabels: { display: false },
-              tooltip: {
-                callbacks: {
-                  label: c => {
-                    if (c.datasetIndex === 2) return `声「${c.raw.label}」: あなた ${c.raw.x}s`;
-                    if (c.datasetIndex === 3) return `口の動きの予測「${c.raw.label}」: あなた ${c.raw.x}s`;
-                    return `あなた ${c.raw.x}s / お手本 ${c.raw.y}s`;
-                  },
-                },
-              },
-            },
-            scales: {
-              x: { title: { display: true, text: 'あなたの時間（秒）', font: { size: 10 } } },
-              y: { title: { display: true, text: 'お手本の時間（秒）', font: { size: 10 } } },
-            },
+          scales: {
+            x: { title: { display: true, text: 'あなたの時間（秒）', color: COL.text, font: { size: 11 } },
+                 ticks: { color: COL.text, font: { size: 11 }, maxTicksLimit: 6 }, grid: { color: COL.grid } },
+            y: { title: { display: true, text: 'お手本の時間（秒）', color: COL.text, font: { size: 11 } },
+                 ticks: { color: COL.text, font: { size: 11 }, maxTicksLimit: 6 }, grid: { color: COL.grid } },
           },
-        });
-      } catch (e) { console.error('av-sync chart error:', e); }
+        },
+      };
+    }
+    function draw(shiftOn) {
+      if (chart) chart.destroy();
+      chart = new Chart(box.getContext('2d'), config(shiftOn));
+    }
+
+    // 先生モード：差し引かない生の位置に切り替える
+    const mode = document.getElementById('avcMode');
+    const foot = document.getElementById('avcFoot');
+    const footText = foot ? foot.textContent : '';
+    mode?.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      mode.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+      const on = b.dataset.shift === '1';
+      if (foot) foot.textContent = on ? footText : `生の位置です。録画を始めたときのタイミングの差（${Math.round(median * 1000)}ms）を含むため、全体が横にずれて見えます。`;
+      draw(on);
     });
+
+    const start = () => { if (!chart) draw(true); };
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(entries => {
+        if (entries.some(en => en.isIntersecting)) { io.disconnect(); start(); }
+      });
+      io.observe(box);
+    } else {
+      start();
+    }
   })();
   </script>
   {% endif %}
   {% endif %}
+
+  {% if not av_sync %}
+  <div class="rs-empty">
+    <div class="rs-empty-title">今回はタイミングを調べられませんでした</div>
+    <div class="rs-empty-sub">口と声のタイミングは、録音のときに口がカメラに映っていて、
+      お手本にも口の動きのデータがあるときに調べられます。</div>
+  </div>
+  {% endif %}
+  </section>
+
+  {#
+    つぎの行動
+
+    録音のあとにやることは「もう一度録音する」か「つぎの単語へ行く」の
+    どちらか。スクロール位置に関係なく押せるよう、画面の下に固定する。
+  #}
+  <div class="result-actions sticky-cta">
+    <form action="/" method="post" style="margin:0;flex:1;">
+      <input type="hidden" name="Words" value="{{ word_id }}">
+      <button type="submit" class="ra-btn ra-again">{{ icon('mic', size=18) }} もう一度</button>
+    </form>
+    <a href="/select" class="ra-btn ra-next">つぎの単語へ {{ icon('arrow-right', size=18) }}</a>
+  </div>
 
   {# ══════════ ④ くわしい分析は折りたたみ ══════════ #}
   {#
@@ -920,7 +1407,7 @@
 ② 各母音をゆっくり大げさに作ってから発音する
 ③ 口を通常より2倍大きく開けることを意識して録音</div>
       <div style="margin-top:10px;">
-        <a href="/vowel_trainer/{{ word_id }}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#5DA8F8;text-decoration:none;padding:6px 14px;border-radius:var(--r);border:1.5px solid rgba(93,168,248,.3);background:rgba(93,168,248,.08);transition:all .15s;" onmouseover="this.style.borderColor='rgba(93,168,248,.7)'" onmouseout="this.style.borderColor='rgba(93,168,248,.3)'">
+        <a href="/vowel_trainer/{{ word_id }}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--navy);text-decoration:none;padding:6px 14px;border-radius:var(--r);border:1.5px solid var(--brand-200);background:var(--navy-soft);transition:all .15s;" onmouseover="this.style.borderColor='var(--brand-400)'" onmouseout="this.style.borderColor='var(--brand-200)'">
           {{ icon('mouth') }} カメラで口の形を練習する
         </a>
       </div>
@@ -954,7 +1441,7 @@
   <div class="feedback-card"><div class="feedback-text">スコアを計算できませんでした。</div></div>
   {% endif %}
 
-  {% if suggestions or ci_info or mora_scores or speaking_rate or voice_quality %}
+  {% if not alignment_failed and (suggestions or ci_info or mora_scores or speaking_rate or voice_quality) %}
   <details class="fold-section">
   <summary class="fold-summary">{{ icon('clipboard') }} そのほかのデータ <span class="fold-hint">音声の測定値・練習候補・信頼区間</span></summary>
   <div class="fold-body">
@@ -1042,9 +1529,9 @@
           left:{{ lower_pct }}%;
           width:{{ upper_pct - lower_pct }}%;
           height:100%;
-          background:rgba(42,95,150,.18);
-          border-left:2px solid rgba(42,95,150,.6);
-          border-right:2px solid rgba(42,95,150,.6);
+          background:var(--navy-soft);
+          border-left:2px solid var(--brand-400);
+          border-right:2px solid var(--brand-400);
         "></div>
         {# 現在のスコアのマーカー #}
         <div style="
@@ -1057,8 +1544,8 @@
           border-radius:2px;
         "></div>
         {# 下限・上限ラベル #}
-        <div style="position:absolute; left:{{ lower_pct }}%; transform:translateX(-50%); top:8px; font-family:var(--mono); font-size:11px; color:var(--blue); white-space:nowrap;">{{ ci_info.lower }}</div>
-        <div style="position:absolute; left:{{ upper_pct }}%; transform:translateX(-50%); top:8px; font-family:var(--mono); font-size:11px; color:var(--blue); white-space:nowrap;">{{ ci_info.upper }}</div>
+        <div style="position:absolute; left:{{ lower_pct }}%; transform:translateX(-50%); top:8px; font-family:var(--mono); font-size:11px; color:var(--brand-500); white-space:nowrap;">{{ ci_info.lower }}</div>
+        <div style="position:absolute; left:{{ upper_pct }}%; transform:translateX(-50%); top:8px; font-family:var(--mono); font-size:11px; color:var(--brand-500); white-space:nowrap;">{{ ci_info.upper }}</div>
       </div>
       <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-2);">
         <span>0</span><span>50</span><span>100</span>
@@ -1072,9 +1559,9 @@
           border-radius:100px;
           font-size:10px;
           font-weight:700;
-          {% if ci_info.reliability == 'high' %}background:var(--green-bg);color:var(--green);
-          {% elif ci_info.reliability == 'medium' %}background:var(--blue-bg);color:var(--blue);
-          {% else %}background:var(--quest-bg);color:var(--quest);{% endif %}
+          {% if ci_info.reliability == 'high' %}background:var(--good-bg);color:var(--good);
+          {% elif ci_info.reliability == 'medium' %}background:var(--navy-soft);color:var(--brand-500);
+          {% else %}background:var(--mid-bg);color:var(--mid-text);{% endif %}
         ">
           {% if ci_info.reliability == 'high' %}精度：高
           {% elif ci_info.reliability == 'medium' %}精度：中
@@ -1090,8 +1577,8 @@
 
     {% else %}
     {# データ不足の場合 #}
-    <div style="background:var(--quest-bg); border:1px solid var(--quest-border); border-radius:var(--r); padding:16px 20px;">
-      <div style="font-size:13px; font-weight:600; color:var(--quest); margin-bottom:6px;">
+    <div style="background:var(--mid-bg); border:1px solid var(--mid-line); border-radius:var(--r); padding:16px 20px;">
+      <div style="font-size:13px; font-weight:600; color:var(--mid-text); margin-bottom:6px;">
         {{ icon('chart') }} データが少なすぎます
       </div>
       <div style="font-size:12px; color:var(--text-2);">
@@ -1110,7 +1597,7 @@
     <div style="overflow-x:auto;">
       <table style="width:100%; border-collapse:collapse; font-size:12px;">
         <thead>
-          <tr style="background:var(--navy); color:#fff;">
+          <tr style="background:var(--navy-fill); color:#fff;">
             <th style="padding:8px 12px; text-align:left; border-radius:var(--r-sm) 0 0 0;">モーラ</th>
             <th style="padding:8px 12px; text-align:center;">アクセント</th>
             <th style="padding:8px 12px; text-align:center;">長さ</th>
@@ -1121,8 +1608,8 @@
         <tbody>
           {% for m in mora_scores %}
           {% set is_worst = worst_mora and m.mora_index == worst_mora.mora_index %}
-          <tr style="background:{% if is_worst %}rgba(192,61,32,.06){% elif loop.index is odd %}var(--bg-card){% else %}#fff{% endif %}; {% if is_worst %}border-left:3px solid var(--accent);{% endif %}">
-            <td style="padding:8px 12px; font-weight:{% if is_worst %}700{% else %}400{% endif %}; color:{% if is_worst %}var(--accent){% else %}var(--text){% endif %};">
+          <tr style="background:{% if is_worst %}var(--todo-bg){% elif loop.index is odd %}var(--bg-card){% else %}#fff{% endif %}; {% if is_worst %}border-left:3px solid var(--todo-bar);{% endif %}">
+            <td style="padding:8px 12px; font-weight:{% if is_worst %}700{% else %}400{% endif %}; color:{% if is_worst %}var(--todo){% else %}var(--text){% endif %};">
               {{ m.label }}{% if is_worst %} ⚠{% endif %}
             </td>
             {% for key in ['accent','length','vowel','total'] %}
@@ -1130,7 +1617,7 @@
             {% if val is none %}
             <td style="padding:8px 12px; text-align:center; color:var(--text-2);">—</td>
             {% else %}
-            {% set color = '#2D6A4F' if val >= 75 else ('#1E5C9E' if val >= 50 else '#C03D20') %}
+            {% set color = 'var(--good)' if val >= 75 else ('var(--mid-text)' if val >= 50 else 'var(--todo)') %}
             <td style="padding:8px 12px; text-align:center;">
               <span style="font-family:var(--mono); font-weight:{% if key=='total' %}700{% else %}400{% endif %}; color:{{ color }};">{{ val }}</span>
               <div style="background:var(--border-light); border-radius:2px; height:3px; margin-top:3px;">
@@ -1145,7 +1632,7 @@
       </table>
     </div>
     {% if worst_mora %}
-    <p style="margin-top:8px; font-size:11px; color:var(--accent);">⚠ 「{{ worst_mora.label }}」が最も改善が必要なモーラです（総合 {{ worst_mora.total }} 点）</p>
+    <p style="margin-top:8px; font-size:11px; color:var(--todo);">⚠ 「{{ worst_mora.label }}」が最も改善が必要なモーラです（総合 {{ worst_mora.total }} 点）</p>
     {% endif %}
   </div>
   {% endif %}
@@ -1162,7 +1649,7 @@
 <div id="sec-pitch-native" class="section-panel">
   <p class="panel-heading">ネイティブ音声のピッチ</p><p class="panel-sub">ネイティブ話者の基本周波数（F0）と音素・モーラ境界</p>
   <div class="chart-card">
-    <div class="chart-card-header"><span class="chart-label">F0 曲線</span><div style="display:flex;align-items:center;gap:10px;"><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(255,159,64,1);"></div><span>Sample</span></div></div><div class="toggle-pill" id="nativePill"><button class="active-pill" onclick="setNativeView('mora',this)">モーラ</button><button onclick="setNativeView('phoneme',this)">音素</button></div></div></div>
+    <div class="chart-card-header"><span class="chart-label">F0 曲線</span><div style="display:flex;align-items:center;gap:10px;"><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(150,150,162,1);"></div><span>お手本</span></div></div><div class="toggle-pill" id="nativePill"><button class="active-pill" onclick="setNativeView('mora',this)">モーラ</button><button onclick="setNativeView('phoneme',this)">音素</button></div></div></div>
     <div class="chart-wrap"><canvas id="NativeMoraChart"></canvas><canvas id="NativePhonemeChart" style="display:none;"></canvas></div>
   </div>
 </div>
@@ -1171,7 +1658,7 @@
 <div id="sec-pitch-user" class="section-panel">
   <p class="panel-heading">あなたの音声のピッチ</p><p class="panel-sub">録音した音声の基本周波数（F0）と音素・モーラ境界</p>
   <div class="chart-card">
-    <div class="chart-card-header"><span class="chart-label">F0 曲線</span><div style="display:flex;align-items:center;gap:10px;"><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(75,192,192,1);"></div><span>You</span></div></div><div class="toggle-pill" id="userPill"><button class="active-pill" onclick="setUserView('mora',this)">モーラ</button><button onclick="setUserView('phoneme',this)">音素</button></div></div></div>
+    <div class="chart-card-header"><span class="chart-label">F0 曲線</span><div style="display:flex;align-items:center;gap:10px;"><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(91,75,234,1);"></div><span>あなた</span></div></div><div class="toggle-pill" id="userPill"><button class="active-pill" onclick="setUserView('mora',this)">モーラ</button><button onclick="setUserView('phoneme',this)">音素</button></div></div></div>
     <div class="chart-wrap"><canvas id="UserMoraChart"></canvas><canvas id="UserPhonemeChart" style="display:none;"></canvas></div>
   </div>
 </div>
@@ -1180,7 +1667,7 @@
 <div id="sec-pitch-compare" class="section-panel">
   <p class="panel-heading">ピッチ比較（正規化）</p><p class="panel-sub">両者のピッチをモーラ境界に合わせて重ね合わせて比較</p>
   <div class="chart-card">
-    <div class="chart-card-header"><span class="chart-label">正規化 F0 曲線</span><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(255,159,64,1);"></div><span>Sample</span></div><div class="legend-item"><div class="legend-dot" style="background:rgba(75,192,192,1);"></div><span>You</span></div></div></div>
+    <div class="chart-card-header"><span class="chart-label">正規化 F0 曲線</span><div class="chart-legend"><div class="legend-item"><div class="legend-dot" style="background:rgba(150,150,162,1);"></div><span>お手本</span></div><div class="legend-item"><div class="legend-dot" style="background:rgba(91,75,234,1);"></div><span>あなた</span></div></div></div>
     <div class="chart-wrap"><canvas id="PitchLengthChart"></canvas></div>
   </div>
 </div>
@@ -1264,9 +1751,9 @@
 
 <!-- ── Timbre ── -->
 <div id="sec-timbre" class="section-panel">
-  <p class="panel-heading">音色評価（DTW距離）</p><p class="panel-sub">MFCC+DTWで各単語との音色類似度を比較。赤いバーが選択した単語です</p>
+  <p class="panel-heading">音色評価（DTW距離）</p><p class="panel-sub">MFCC+DTWで各単語との音色類似度を比較。藍色のバーが選択した単語です</p>
   <div class="chart-card">
-    <div class="chart-card-header"><span class="chart-label">DTW距離（昇順）</span><div class="legend-item"><div class="legend-dot" style="background:var(--accent);"></div><span>選択した単語</span></div></div>
+    <div class="chart-card-header"><span class="chart-label">DTW距離（昇順）</span><div class="legend-item"><div class="legend-dot" style="background:var(--navy);"></div><span>選択した単語</span></div></div>
     <div class="chart-wrap"><canvas id="DistanceChart"></canvas></div>
   </div>
 </div>
@@ -1280,8 +1767,8 @@
     <div class="chart-card-header">
       <span class="chart-label">F1/F2 母音マップ</span>
       <div style="display:flex;gap:12px;">
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(14,30,69,0.8);"></div><span>ネイティブ</span></div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(192,61,32,0.8);"></div><span>あなた</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(150,150,162,.85);"></div><span>ネイティブ</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(91,75,234,.8);"></div><span>あなた</span></div>
       </div>
     </div>
     <div class="chart-wrap">
@@ -1296,7 +1783,8 @@
     if (!nf.length && !uf.length) return;
 
     function toPoints(arr) {
-      return arr.filter(function(f){ return f.f1 && f.f2; })
+      // 長音の後半（「こう」の「う」）は前のモーラと同じ区間で測った同じ点なので描かない
+      return arr.filter(function(f){ return f.f1 && f.f2 && !f.long_vowel_tail; })
                .map(function(f){ return {x: f.f2, y: f.f1, _label: f.label}; });
     }
     var nPts = toPoints(nf);
@@ -1311,22 +1799,22 @@
           {
             label: 'ネイティブ',
             data: nPts,
-            backgroundColor: 'rgba(14,30,69,0.75)',
+            backgroundColor: 'rgba(150,150,162,.85)',
             pointRadius: 7,
             pointHoverRadius: 9,
             datalabels: { align:'top', anchor:'end',
               formatter: function(v){ return v._label; },
-              color: '#0E1E45', font: {size:11, weight:'700'} }
+              color: '#72727C', font: {size:11, weight:'700'} }
           },
           {
             label: 'あなた',
             data: uPts,
-            backgroundColor: 'rgba(192,61,32,0.75)',
+            backgroundColor: 'rgba(91,75,234,.8)',
             pointRadius: 7,
             pointHoverRadius: 9,
             datalabels: { align:'bottom', anchor:'start',
               formatter: function(v){ return v._label; },
-              color: '#C03D20', font: {size:11, weight:'700'} }
+              color: '#5B4BEA', font: {size:11, weight:'700'} }
           }
         ]
       },
@@ -1388,6 +1876,32 @@ function gotoTab(name){
     if (oc.indexOf("'" + name + "'") !== -1) { b.click(); window.scrollTo({top:0,behavior:'smooth'}); }
   });
 }
+
+/* ── グラフ画面から結果へ戻る ──
+   タブの並びは「くわしい分析」の折りたたみの中にあり、
+   グラフを開くと発音スコアのパネルごと隠れてしまう。
+   そのままでは戻る手段が画面に無くなるので、
+   各グラフの先頭に戻るボタンを必ず置く。 */
+function backToScore(){
+  document.querySelectorAll('.section-panel').forEach(function(p){ p.classList.remove('active'); });
+  var score = document.getElementById('sec-score');
+  if (score) score.classList.add('active');
+  document.querySelectorAll('.sec-tab').forEach(function(t){ t.classList.remove('active'); });
+  var scoreTab = document.querySelector('.sec-tab[onclick*="score"]');
+  if (scoreTab) scoreTab.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.section-panel').forEach(function(panel){
+    if (panel.id === 'sec-score') return;
+    var back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'panel-back';
+    back.textContent = '← 結果にもどる';
+    back.addEventListener('click', backToScore);
+    panel.insertBefore(back, panel.firstChild);
+  });
+});
 // 折りたたみを開いたとき Chart.js を再描画（隠れたcanvasはサイズ0のため）
 document.addEventListener('DOMContentLoaded', function(){
   document.querySelectorAll('details.fold-section').forEach(function(d){
@@ -1490,16 +2004,16 @@ if (rc) new Chart(rc, {
     labels: ['アクセント','長さ','母音'],
     datasets: [{
       data: [d.accent_pct, d.length_pct, d.vowel_pct],
-      backgroundColor: 'rgba(14,30,69,.1)',
-      borderColor: 'rgba(14,30,69,.7)',
+      backgroundColor: 'rgba(91,75,234,.1)',
+      borderColor: 'rgba(91,75,234,.8)',
       borderWidth: 2,
-      pointBackgroundColor: ['#C03D20','#2D6A4F','#2A5F96'],
+      pointBackgroundColor: '#5B4BEA',
       pointRadius: 5, pointHoverRadius: 7,
     }]
   },
   options: {
     responsive: true, maintainAspectRatio: true,
-    scales: { r: { min:0, max:100, ticks:{stepSize:25,font:{size:9},color:'#9E9890'}, grid:{color:'#EAE6DC'}, pointLabels:{font:{size:11,weight:'bold'},color:'#1A1714'} } },
+    scales: { r: { min:0, max:100, ticks:{stepSize:25,font:{size:9},color:'#72727C'}, grid:{color:'#E6E6EC'}, pointLabels:{font:{size:11,weight:'bold'},color:'#111114'} } },
     plugins: { legend: { display: false } }
   }
 });
@@ -1521,18 +2035,18 @@ function safeChart(id, cfg) {
 
 var chartErrorDiv = document.createElement('div');
 chartErrorDiv.id = 'chart-error-msg';
-chartErrorDiv.style = 'display:none;background:#fee;color:#c00;padding:8px 12px;border-radius:6px;font-size:12px;margin:8px 0;';
+chartErrorDiv.style = 'display:none;background:var(--danger-bg);color:var(--danger);padding:8px 12px;border-radius:6px;font-size:12px;margin:8px 0;';
 document.getElementById('sec-score').prepend(chartErrorDiv);
-var pal=['rgba(75,192,192,.7)','rgba(255,99,132,.7)','rgba(255,205,86,.7)','rgba(153,102,255,.7)','rgba(255,159,64,.7)'];
+var pal=['rgba(91,75,234,.85)','rgba(145,134,251,.85)','rgba(58,46,166,.85)','rgba(181,173,255,.9)','rgba(114,100,243,.85)'];
 var gen=(l,dat)=>l.map((lb,i)=>({label:lb,data:dat.map(v=>v[i]),backgroundColor:pal[i%pal.length],borderWidth:0}));
 
-safeChart('NativeMoraChart',{type:'line',data:{labels:d.Native_time,datasets:[{data:d.Native_pitch,fill:true,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start1-.1,max:d.end1+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.Native_mora_values,d.mora_labels,'rgba(192,61,32,.5)')},legend:{display:false}}})});
-safeChart('NativePhonemeChart',{type:'line',data:{labels:d.Native_time,datasets:[{data:d.Native_pitch,fill:true,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start1-.1,max:d.end1+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.Native_phoneme_values,d.phoneme_labels,'rgba(192,61,32,.5)')},legend:{display:false}}})});
-safeChart('UserMoraChart',{type:'line',data:{labels:d.User_time,datasets:[{data:d.User_pitch,fill:true,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start2-.1,max:d.end2+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.User_mora_values,d.mora_labels,'rgba(42,130,130,.6)')},legend:{display:false}}})});
-safeChart('UserPhonemeChart',{type:'line',data:{labels:d.User_time,datasets:[{data:d.User_pitch,fill:true,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start2-.1,max:d.end2+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.User_phoneme_values,d.phoneme_labels,'rgba(42,130,130,.6)')},legend:{display:false}}})});
-safeChart('PitchLengthChart',{type:'line',data:{labels:d.x_axis,datasets:[{label:'Sample',data:d.pitch_fin,backgroundColor:'rgba(255,159,64,.1)',borderColor:'rgba(255,159,64,1)',borderWidth:2},{label:'You',data:d.pitch_fin2,backgroundColor:'rgba(75,192,192,.1)',borderColor:'rgba(75,192,192,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{min:-5,type:'linear',title:{display:true,text:'Frame'}},y:{title:{display:true,text:'Normalized Pitch'}}},plugins:{annotation:{annotations:Object.assign({},ann(d.mora_values,d.mora_labels,'rgba(192,61,32,.4)'),{% if worst_mora %}{worstHighlight:{type:'box',xMin:{{ worst_mora.frame_start }},xMax:{{ worst_mora.frame_end }},backgroundColor:'rgba(192,61,32,.12)',borderColor:'rgba(192,61,32,.5)',borderWidth:2}}{% else %}{}{% endif %})}}})});
-safeChart('groupedBarChart1',{type:'bar',data:{labels:['Sample','You'],datasets:gen(d.mora_labels,[d.Native_mora_length,d.User_mora_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
-safeChart('groupedBarChart2',{type:'bar',data:{labels:['Sample','You'],datasets:gen(d.phoneme_labels,[d.Native_phoneme_length,d.User_phoneme_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
+safeChart('NativeMoraChart',{type:'line',data:{labels:d.Native_time,datasets:[{data:d.Native_pitch,fill:true,backgroundColor:'rgba(150,150,162,.08)',borderColor:'rgba(150,150,162,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start1-.1,max:d.end1+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.Native_mora_values,d.mora_labels,'rgba(91,75,234,.45)')},legend:{display:false}}})});
+safeChart('NativePhonemeChart',{type:'line',data:{labels:d.Native_time,datasets:[{data:d.Native_pitch,fill:true,backgroundColor:'rgba(150,150,162,.08)',borderColor:'rgba(150,150,162,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start1-.1,max:d.end1+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.Native_phoneme_values,d.phoneme_labels,'rgba(91,75,234,.45)')},legend:{display:false}}})});
+safeChart('UserMoraChart',{type:'line',data:{labels:d.User_time,datasets:[{data:d.User_pitch,fill:true,backgroundColor:'rgba(91,75,234,.1)',borderColor:'rgba(91,75,234,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start2-.1,max:d.end2+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.User_mora_values,d.mora_labels,'rgba(150,150,162,.6)')},legend:{display:false}}})});
+safeChart('UserPhonemeChart',{type:'line',data:{labels:d.User_time,datasets:[{data:d.User_pitch,fill:true,backgroundColor:'rgba(91,75,234,.1)',borderColor:'rgba(91,75,234,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{type:'linear',min:d.start2-.1,max:d.end2+.1,title:{display:true,text:'Time (s)'}},y:{title:{display:true,text:'Hz'}}},plugins:{annotation:{annotations:ann(d.User_phoneme_values,d.phoneme_labels,'rgba(150,150,162,.6)')},legend:{display:false}}})});
+safeChart('PitchLengthChart',{type:'line',data:{labels:d.x_axis,datasets:[{label:'お手本',data:d.pitch_fin,backgroundColor:'rgba(150,150,162,.08)',borderColor:'rgba(150,150,162,1)',borderWidth:2},{label:'あなた',data:d.pitch_fin2,backgroundColor:'rgba(91,75,234,.1)',borderColor:'rgba(91,75,234,1)',borderWidth:2}]},options:Object.assign({},lo,{scales:{x:{min:-5,type:'linear',title:{display:true,text:'Frame'}},y:{title:{display:true,text:'Normalized Pitch'}}},plugins:{annotation:{annotations:Object.assign({},ann(d.mora_values,d.mora_labels,'rgba(91,75,234,.4)'),{% if worst_mora %}{worstHighlight:{type:'box',xMin:{{ worst_mora.frame_start }},xMax:{{ worst_mora.frame_end }},backgroundColor:'rgba(91,75,234,.1)',borderColor:'rgba(91,75,234,.45)',borderWidth:2}}{% else %}{}{% endif %})}}})});
+safeChart('groupedBarChart1',{type:'bar',data:{labels:['お手本','あなた'],datasets:gen(d.mora_labels,[d.Native_mora_length,d.User_mora_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
+safeChart('groupedBarChart2',{type:'bar',data:{labels:['お手本','あなた'],datasets:gen(d.phoneme_labels,[d.Native_phoneme_length,d.User_phoneme_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
 var lipEl=document.getElementById('LipCompareChart');
 if(lipEl && Array.isArray(d.lip_ref_ratios) && Array.isArray(d.lip_test_ratios)){
   try{
@@ -1541,8 +2055,8 @@ if(lipEl && Array.isArray(d.lip_ref_ratios) && Array.isArray(d.lip_test_ratios))
       data: {
         labels: d.lip_ref_ratios.map((_,i)=>`フレーム${i+1}`),
         datasets: [
-          {label:'お手本', data:d.lip_ref_ratios, borderColor:'rgba(255,159,64,1)', backgroundColor:'rgba(255,159,64,0.1)', fill:false, tension:0.2, pointRadius:3, borderWidth:2},
-          {label:'あなた', data:d.lip_test_ratios, borderColor:'rgba(75,192,192,1)', backgroundColor:'rgba(75,192,192,0.1)', fill:false, tension:0.2, pointRadius:3, borderWidth:2}
+          {label:'お手本', data:d.lip_ref_ratios, borderColor:'rgba(150,150,162,1)', backgroundColor:'rgba(150,150,162,.08)', fill:false, tension:0.2, pointRadius:3, borderWidth:2},
+          {label:'あなた', data:d.lip_test_ratios, borderColor:'rgba(91,75,234,1)', backgroundColor:'rgba(91,75,234,.1)', fill:false, tension:0.2, pointRadius:3, borderWidth:2}
         ]
       },
       options: {
@@ -1579,42 +2093,161 @@ function setCmpSpeed(speed, btn) {
   });
 }
 
-/* ── 連続練習モード ── */
+
+/* ── 結果のタブ ── */
+function showResultPanel(name) {
+  document.querySelectorAll('.rs-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
+  document.querySelectorAll('.rs-panel').forEach(p => { p.hidden = (p.dataset.panel !== name); });
+  const tabs = document.getElementById('rsTabs');
+  if (tabs) window.scrollTo({ top: Math.max(0, tabs.offsetTop - 64), behavior: 'smooth' });
+  window.dispatchEvent(new Event('resize'));   // 隠れていたグラフの大きさを合わせ直す
+}
+document.getElementById('rsTabs')?.addEventListener('click', e => {
+  const t = e.target.closest('.rs-tab'); if (t) showResultPanel(t.dataset.panel);
+});
+
+/* ── お手本とくらべる（生徒向けグラフ） ──────────────────────────
+   出すのは「お手本」と「あなた」の2本だけ。目盛りの数字は見せない
+   （正規化ピッチの数値は読めても意味が取れないため）。
+   タブを開いたときに初めて描画する（隠れた canvas は大きさ0になるため）。 */
 (function () {
-  const isContinuous = localStorage.getItem('sp-ps-continuous') === '1';
-  if (!isContinuous) return;
+  const card = document.getElementById('compareCard');
+  if (!card || typeof Chart === 'undefined') return;
+
+  const css     = getComputedStyle(document.documentElement);
+  const COL_REF = (css.getPropertyValue('--ref-line') || '').trim() || '#A3A3AE';
+  const COL_YOU = (css.getPropertyValue('--navy') || '').trim() || '#5B4BEA';
+  const COL_GRID= (css.getPropertyValue('--border-light') || '').trim() || '#eee';
+  const COL_TXT = (css.getPropertyValue('--text-3') || '').trim() || '#999';
+
+  // モーラのかな表記（グラフの目印に使う。無ければローマ字のまま）
+  const KANA = {{ (mora_scores | map(attribute='kana') | list) | tojson if mora_scores else '[]' }};
+  const labelAt = i => (KANA[i] || (d.mora_labels && d.mora_labels[i]) || '');
+
+  // モーラの境目に細い線とかなを置く
+  function moraLines(values) {
+    const out = {};
+    (values || []).forEach((v, i) => {
+      out['m' + i] = {
+        type: 'line', xMin: v, xMax: v,
+        borderColor: COL_GRID, borderWidth: 1,
+        label: { display: true, content: labelAt(i), position: 'end',
+                 backgroundColor: 'transparent', color: COL_TXT,
+                 font: { size: 12, weight: 'bold' }, yAdjust: -10 },
+      };
+    });
+    return out;
+  }
+
+  const built = {};
+  function build(name) {
+    if (built[name]) return;
+    built[name] = true;
+
+    if (name === 'pitch') {
+      const el = document.getElementById('cmpPitch');
+      if (!el || !d.pitch_fin) return;
+      new Chart(el, {
+        type: 'line',
+        data: { labels: d.x_axis, datasets: [
+          { label: 'お手本', data: d.pitch_fin,  borderColor: COL_REF, borderWidth: 3,
+            borderDash: [6, 4], pointRadius: 0, tension: .3, fill: false, spanGaps: true },
+          { label: 'あなた', data: d.pitch_fin2, borderColor: COL_YOU, borderWidth: 3.5,
+            pointRadius: 0, tension: .3, fill: false, spanGaps: true },
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 14 } },
+          plugins: {
+            legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false },
+            annotation: { annotations: moraLines(d.mora_values) },
+          },
+          scales: {
+            x: { type: 'linear', ticks: { display: false }, grid: { display: false } },
+            y: { ticks: { display: false }, grid: { color: COL_GRID } },
+          },
+        },
+      });
+    }
+
+    if (name === 'length') {
+      const el = document.getElementById('cmpLength');
+      if (!el || !d.Native_mora_length) return;
+      // モーラごとに1つの帯。お手本とあなたを上下に並べて幅をくらべる
+      const sets = (d.mora_labels || []).map((lb, i) => ({
+        label: labelAt(i),
+        data: [d.Native_mora_length[i], d.User_mora_length[i]],
+        backgroundColor: i % 2 ? '#7264F3' : '#B5ADFF',
+        borderColor: 'rgba(255,255,255,.35)', borderWidth: 1,
+      }));
+      new Chart(el, {
+        type: 'bar',
+        data: { labels: ['お手本', 'あなた'], datasets: sets },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }, tooltip: { enabled: false },
+            datalabels: { color: '#fff', font: { size: 12, weight: 'bold' },
+                          formatter: (v, c) => (v >= 8 ? c.dataset.label : '') },
+          },
+          scales: {
+            x: { max: 100, stacked: true, ticks: { display: false }, grid: { display: false } },
+            y: { stacked: true, grid: { display: false },
+                 ticks: { color: COL_TXT, font: { size: 13, weight: 'bold' } } },
+          },
+        },
+        plugins: [ChartDataLabels],
+      });
+    }
+  }
+
+  function show(name) {
+    card.querySelectorAll('.cmp-tab').forEach(t => t.classList.toggle('active', t.dataset.cmp === name));
+    card.querySelectorAll('.cmp-pane').forEach(p => { p.hidden = (p.dataset.pane !== name); });
+    // 長さの帯は音ごとの色分けなので、お手本／あなたの凡例は出さない
+    const legend = card.querySelector('.compare-legend');
+    if (legend) legend.hidden = (name === 'length');
+    build(name);
+  }
+
+  card.querySelectorAll('.cmp-tab').forEach(t => {
+    t.addEventListener('click', () => show(t.dataset.cmp));
+  });
+
+  // 最初に開くのは、いちばん直したい軸
+  show(card.dataset.default || 'pitch');
+
+  // 「つぎは、ここだけ」のボタンからここへ来るための入口
+  window.openCompare = function (name) {
+    if (typeof showResultPanel === 'function') showResultPanel('compare');
+    show(name);
+  };
+})();
+
+/* ── 連続練習モード ──
+   以前は結果の先頭に「残り N 単語」のバーを差し込んでいたが、
+   画面下の「つぎの単語へ」を押すと一覧に戻ってしまい、
+   連続練習の列から外れてしまっていた。
+   下のボタン自体を次の単語へ向け、残り数もそこに出す。 */
+(function () {
+  if (localStorage.getItem('sp-ps-continuous') !== '1') return;
 
   const queue = JSON.parse(localStorage.getItem('sp-ps-practice-queue') || '[]');
-  const panel = document.getElementById('sec-score');
-  if (!panel) return;
-
-  const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:var(--bg-muted);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;flex-wrap:wrap;';
-  const info = document.createElement('span');
-  info.style.cssText = 'font-size:13px;font-weight:600;color:var(--text-2);';
-  info.textContent = queue.length > 0 ? `残り ${queue.length} 単語` : '連続練習 完了！';
-  bar.appendChild(info);
+  const next  = document.querySelector('.result-actions .ra-next');
+  if (!next) return;
 
   if (queue.length > 0) {
-    const nextId  = queue[0];
-    const nextBtn = document.createElement('a');
-    nextBtn.href  = `/practice/word/${nextId}`;
-    nextBtn.style.cssText = 'padding:9px 20px;background:var(--green);color:#fff;border-radius:var(--r-sm);font-family:var(--font);font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;';
-    nextBtn.innerHTML = '次の単語へ <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5h7M6.5 2.5l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    nextBtn.addEventListener('click', () => {
+    const nextId = queue[0];
+    next.setAttribute('href', `/practice/word/${nextId}`);
+    next.innerHTML = `つぎの単語へ（のこり ${queue.length}）`;
+    next.addEventListener('click', () => {
       localStorage.setItem('sp-ps-practice-queue', JSON.stringify(queue.slice(1)));
     });
-    bar.appendChild(nextBtn);
   } else {
     localStorage.removeItem('sp-ps-continuous');
     localStorage.removeItem('sp-ps-practice-queue');
-    const doneBtn = document.createElement('a');
-    doneBtn.href  = '/select';
-    doneBtn.style.cssText = 'padding:9px 20px;background:var(--navy);color:#fff;border-radius:var(--r-sm);font-family:var(--font);font-size:13px;font-weight:700;text-decoration:none;';
-    doneBtn.textContent = '単語選択に戻る';
-    bar.appendChild(doneBtn);
+    next.innerHTML = 'れんぞく練習おわり！一覧へ';
   }
-  panel.insertBefore(bar, panel.firstChild);
 })();
 
 /* ── 最終練習時刻を記録（通知リマインダー用） ── */
@@ -1632,8 +2265,8 @@ localStorage.setItem('sp-ps-last-practice', String(Date.now()));
   // 紙吹雪は絵文字ではなく色付きの小片で描く。
   // 絵文字は OS ごとに絵柄も大きさも変わり、画面の印象が揃わないため。
   const confettiColors = grade === 'S'
-    ? ['#f97316', '#fbbf24', '#34d399', '#60a5fa']
-    : ['#f97316', '#fbbf24', '#60a5fa'];
+    ? ['#5B4BEA', '#9186FB', '#2BAE7A', '#FFB547', '#FF7A45']
+    : ['#5B4BEA', '#9186FB', '#2BAE7A', '#FFB547'];
   for (let i = 0; i < 26; i++) {
     const el = document.createElement('span');
     el.className = 'confetti-piece';
@@ -1648,6 +2281,23 @@ localStorage.setItem('sp-ps-last-practice', String(Date.now()));
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 6000);
   }
+})();
+</script>
+<script src="/static/js/mouth_compare.js"></script>
+<script>
+(function () {
+  const box = document.getElementById('cmpMouth');
+  // 今回の録音で口の動画が撮れていないときは、端末に残った前の動画を出さない
+  const recordedNow = {{ (user_lip_recorded | default(false)) | tojson }};
+  if (!box || !window.SPLipStore || !recordedNow) return;
+  SPLipStore.load({{ word_id | tojson }}).then(blob => {
+    if (!blob) return;
+    SPMouthCompare.mount(document.getElementById('cmpMouthPlayer'), {
+      refSrc: {{ ('/sample_video/' ~ word_id) | tojson if has_ref_video else 'null' }},
+      userSrc: URL.createObjectURL(blob),
+    });
+    box.hidden = false;
+  });
 })();
 </script>
 <script src="/static/js/tabbar.js" defer></script>

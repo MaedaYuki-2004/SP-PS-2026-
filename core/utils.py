@@ -98,3 +98,53 @@ def romaji_mora_to_kana(label: str) -> str:
             if kana != " ":
                 return kana + long_mark
     return label
+
+
+# ── 長音のまとまり ────────────────────────────────────────────────────
+# 読みを「がっこう」「せんせい」のように書くと、Julius は「k o u」「s e i」と
+# 前の母音と「う」「い」を別の音素に分けてアライメントする。
+# 実際の発音は「こー」「せー」という1つの長い母音なので、2つの境界には
+# 音響的な手がかりがなく、Julius はたいてい片方に最短の3フレーム（30ms）
+# だけを割り当てる。お手本と録音で境界の位置がばらばらになるため、
+# 長さ・母音の評価ではこの2モーラを1つのまとまりとして扱う。
+_LONG_VOWEL_PAIRS = {
+    ("a", "a"), ("i", "i"), ("u", "u"), ("e", "e"),
+    ("e", "i"), ("o", "o"), ("o", "u"),
+}
+
+
+def long_vowel_groups(mora_labels: list[str]) -> list[list[int]]:
+    """モーラの並びを、長音を1つにまとめたグループ（モーラ番号のリスト）に分ける。
+
+    例: ["ga", "q", "ko", "u"] → [[0], [1], [2, 3]]
+    「おもう」の「もう」のように長音でない場合もまとまるが、長さはまとまりの合計で、
+    母音はまとまり全体の区間で比べるだけなので、評価が不当に下がることはない。
+    """
+    groups: list[list[int]] = []
+    for i, label in enumerate(mora_labels):
+        lab = str(label)
+        if groups and lab in _VOWEL_INDEX:
+            prev = str(mora_labels[i - 1])
+            if prev and (prev[-1], lab) in _LONG_VOWEL_PAIRS:
+                groups[-1].append(i)
+                continue
+        groups.append([i])
+    return groups
+
+
+def long_vowel_spans(mora_list: list) -> list[list]:
+    """モーラ区間 [start, end, label] のうち、長音のまとまりに入るものの区間を
+    まとまり全体の区間に置き換えたコピーを返す（母音のフォルマント測定用）。"""
+    labels = [str(m[2]) for m in mora_list]
+    spans  = [list(m) for m in mora_list]
+    for group in long_vowel_groups(labels):
+        if len(group) > 1:
+            start, end = mora_list[group[0]][0], mora_list[group[-1]][1]
+            for i in group:
+                spans[i][0], spans[i][1] = start, end
+    return spans
+
+
+def mora_group_kana(mora_labels: list[str], group: list[int]) -> str:
+    """グループに含まれるモーラをかなでつなげて返す（例: ["ko", "u"] → "こう"）。"""
+    return "".join(romaji_mora_to_kana(str(mora_labels[i])) for i in group)

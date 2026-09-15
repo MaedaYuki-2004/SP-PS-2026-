@@ -15,8 +15,9 @@ import re
 import shutil
 import tempfile
 import traceback
+from functools import wraps
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 try:
     import cv2
@@ -42,16 +43,24 @@ from core.vocab     import list_words, register_word, get_reading_for_julius, ge
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
-from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality
+from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality, speaker_formant_scale
 from core.timbre    import audio_mfcc, dtw_ascending_order
-from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_overall_score, get_weekly_report
-from core.utils     import pct_length, sleep_second, romaji_mora_to_kana
+from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_overall_score, get_weekly_report, get_week_activity
+from core.utils     import pct_length, sleep_second, romaji_mora_to_kana, long_vowel_groups, long_vowel_spans
 from core.analysis  import compute_learning_stats
 from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
+from core import teacher
 from core import usercontext
 
-JULIUS_GATE_THRESHOLD = -3000
+# Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
+# 以前は -3000 だったが、extract_julius_score() が返すのは 1フレームあたりの値（正常で -25〜-30 程度）
+# なので一度も発動していなかった（-3000 は発話全体の合計スコアの桁）。
+# 2026-09-14 の計測: 過去のお手本 86 本は -25.8〜-30.3、生徒の録音は -27.9〜-29.9、
+# わざと別の単語の読みでアライメントさせた 12 本も -27.9〜-30.7 で、この値では
+# 「別の単語を言った」を見分けられない（雑音・無音はアライメント自体が失敗する）。
+# そのため、観測した値より十分低い、明らかに異常な録音だけを止める値にしている。
+JULIUS_GATE_THRESHOLD = -35.0
 
 app = Flask(
     __name__,
@@ -736,10 +745,43 @@ def server_error(e):
 # ── 認証（研究参加者ログイン） ──────────────────────────────────────
 # 倫理審査資料 SP-PS §6.1：利用者 ID は研究者が割り当て、パスワードは本人が
 # 初回ログイン時に設定する。練習記録を個人ごとに分離するための土台。
-# 管理画面（/admin*）はローカル運用前提のため参加者ログインの対象外
-# （資料 §7 / README の記載どおり、別途保護が必要な場合はネットワーク側で行う）。
+#
+# 先生だけの操作（単語・お手本・参加者アカウントの管理）は、生徒の端末で使われても
+# 書き換えられないよう、先生用パスワードで ON にした「先生モード」のセッションでだけ受け付ける
+# （core/teacher.py）。管理画面（/admin*）は参加者ログインではなく先生モードで守る。
+# 最初の参加者アカウントを作る前にも開けるようにするため。
 
-_AUTH_EXEMPT_ENDPOINTS = {"login", "first_login", "logout", "static"}
+_AUTH_EXEMPT_ENDPOINTS = {"login", "first_login", "logout", "static",
+                          "teacher_page", "teacher_unlock_api", "teacher_lock"}
+
+
+def _wants_html() -> bool:
+    return "text/html" in (request.headers.get("Accept") or "")
+
+
+def _teacher_denied():
+    """先生モードでないときの返し方。画面の移動なら先生用パスワードの画面へ、通信なら 403。"""
+    if _wants_html():
+        # 画面を開こうとしたときはそのページへ、フォーム送信のときは送信元のページへ戻す
+        target = request.full_path if request.method == "GET" else (urlparse(request.referrer or "").path or "/admin")
+        return redirect(f"/teacher?next={quote(target.rstrip('?'), safe='')}")
+    return jsonify({
+        "error": "先生モードでないため、この操作はできません。設定から先生モードをONにしてください"
+                 "（先生モードは、先生の操作をしないまま"
+                 f"{teacher.SESSION_MINUTES}分たつと自動でOFFになります）。",
+        "teacher_required": True,
+    }), 403
+
+
+def teacher_required(fn):
+    """先生モードのセッションでだけ実行するルートに付ける。"""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not teacher.is_active(session):
+            return _teacher_denied()
+        teacher.activate(session)   # 先生の操作をしている間は期限を延ばす
+        return fn(*args, **kwargs)
+    return wrapper
 
 
 @app.before_request
@@ -748,7 +790,12 @@ def _require_login():
     usercontext.set_current_user(None)
 
     endpoint = request.endpoint or ""
-    if endpoint in _AUTH_EXEMPT_ENDPOINTS or request.path.startswith("/admin"):
+    if endpoint in _AUTH_EXEMPT_ENDPOINTS:
+        return
+    if request.path.startswith("/admin"):
+        if not teacher.is_active(session):
+            return _teacher_denied()
+        teacher.activate(session)
         return
     user_id = session.get(acc.SESSION_KEY)
     if user_id and acc.account_exists(user_id):
@@ -772,7 +819,11 @@ def _clear_user_context(exc=None):
 
 @app.context_processor
 def _inject_current_account():
-    return {"current_user_id": session.get(acc.SESSION_KEY)}
+    # is_teacher は画面の出し分け（<html class="teacher-mode">）にだけ使う。
+    # 操作を許すかどうかは、各ルートで teacher.is_active() を見て決める。
+    return {"current_user_id": session.get(acc.SESSION_KEY),
+            "is_teacher": teacher.is_active(session),
+            "teacher_configured": teacher.is_configured()}
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -842,6 +893,84 @@ def logout():
     return redirect("/login")
 
 
+# ── 先生モード ───────────────────────────────────────────────────────
+
+def _safe_next(target: str | None, default: str = "/admin") -> str:
+    """ログイン後などに戻る先。同じサイトの中のパスだけを許す。"""
+    if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
+        return target
+    return default
+
+
+_LOOPBACK_ADDRS = {"127.0.0.1", "::1"}
+
+
+def _client_key() -> str:
+    """先生用パスワードの総当たり対策で、続けて間違えた回数を数える接続元。
+
+    ngrok のように同じ PC で動く中継を通ると、どの端末からの接続も 127.0.0.1 に見える。
+    そのまま数えると、生徒が5回間違えるだけで先生もしばらく入れなくなってしまう。
+    接続元が同じ PC（ループバック）のときだけ、中継が X-Forwarded-For の末尾に付けた
+    接続元を使う。PC に直接つないだ端末はこのヘッダーを自由に書けるので、それ以外では信用しない。
+    """
+    remote = request.remote_addr or "unknown"
+    if remote in _LOOPBACK_ADDRS:
+        forwarded = (request.headers.get("X-Forwarded-For") or "").split(",")[-1].strip()
+        if forwarded:
+            return forwarded
+    return remote
+
+
+def _teacher_try_unlock(password: str) -> tuple[bool, str | None, int]:
+    """先生用パスワードを確かめる。(成功したか, エラー文, HTTP ステータス)"""
+    if not teacher.is_configured():
+        return False, ("先生用パスワードがまだ設定されていません。サーバーのPCで "
+                       "python scripts/set_teacher_password.py を実行してください。"), 503
+    key = _client_key()
+    wait = teacher.seconds_locked(key)
+    if wait:
+        return False, f"続けて間違えたため、{wait}秒待ってからもう一度入力してください。", 429
+    if not teacher.verify_password(password):
+        teacher.record_failure(key)
+        return False, "先生用パスワードが正しくありません。", 401
+    teacher.clear_failures(key)
+    teacher.activate(session)
+    return True, None, 200
+
+
+@app.route("/teacher", methods=["GET", "POST"])
+def teacher_page():
+    """先生用パスワードの入力画面（管理画面を直接開いたときなど）。"""
+    next_url = _safe_next(request.values.get("next"))
+    if request.method == "GET":
+        if teacher.is_active(session):
+            return redirect(next_url)
+        return render_template("teacher_login.html", next_url=next_url)
+    ok, error, status = _teacher_try_unlock(request.form.get("password") or "")
+    if ok:
+        return redirect(next_url)
+    return render_template("teacher_login.html", next_url=next_url, error=error), status
+
+
+@app.route("/teacher/unlock", methods=["POST"])
+def teacher_unlock_api():
+    """設定シートの「先生モード」から呼ぶ（JSON）。"""
+    data = request.get_json(force=True, silent=True) or {}
+    ok, error, status = _teacher_try_unlock(data.get("password") or "")
+    if ok:
+        return jsonify({"ok": True, "minutes": teacher.SESSION_MINUTES})
+    return jsonify({"error": error}), status
+
+
+@app.route("/teacher/lock", methods=["POST"])
+def teacher_lock():
+    """先生モードを OFF にする。"""
+    teacher.deactivate(session)
+    if _wants_html():
+        return redirect(_safe_next(request.form.get("next"), default="/select"))
+    return jsonify({"ok": True})
+
+
 # ── ルーティング ─────────────────────────────────────────────────────
 
 @app.route("/", methods=["GET", "POST"])
@@ -884,7 +1013,8 @@ def select():
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
                            weak_sounds=weak_sounds,
                            lesson=lesson,
-                           overall=get_overall_score(), weekly=get_weekly_report())
+                           overall=get_overall_score(), weekly=get_weekly_report(),
+                           week=get_week_activity())
 
 
 def _get_daily_lesson_safe(words: list[dict]) -> dict | None:
@@ -930,7 +1060,8 @@ def select_page():
                            lip_ref_keys=lip_ref_keys, all_tags=all_tags,
                            weak_sounds=weak_sounds,
                            lesson=lesson,
-                           overall=get_overall_score(), weekly=get_weekly_report())
+                           overall=get_overall_score(), weekly=get_weekly_report(),
+                           week=get_week_activity())
 
 
 @app.route("/history")
@@ -1100,7 +1231,9 @@ def upload_file():
 @app.route("/audio", methods=["GET", "POST"])
 def record_audio():
     if request.method == "GET":
-        return render_template("audio.html")
+        # 録音ページは単語の情報（読み・お手本など）が無いと表示できない。以前は単語を選ばずに
+        # 開くとテンプレートが word_id を JSON にできず 500 になっていたので、ホームへ戻す
+        return redirect("/select")
     try:
         file = request.files["file"]
         file.save(str(TEST_WAV_PATH))
@@ -1118,9 +1251,28 @@ def upload_lip_video():
         mode = request.form.get("mode", "").strip()
         if mode not in ("ref", "test"):
             return jsonify({"error": "mode は ref または test を指定してください。"}), 400
+        # ref（お手本）は単語のお手本音声・口形データを上書きするので先生だけ。test は生徒自身の録画
+        if mode == "ref":
+            if not teacher.is_active(session):
+                return _teacher_denied()
+            teacher.activate(session)
         file = request.files.get("file")
         if not file:
             return jsonify({"error": "動画ファイルが送信されていません。"}), 400
+
+        # お手本を保存する単語。画面が表示中の単語 ID を送る（word_id）。
+        # 以前は共有ファイル word_id.txt だけを見ていたため、別の端末が単語を選ぶと別の単語に保存され、
+        # 削除済みの単語を指していると、その単語のフォルダと口形データを作り直してしまっていた。
+        current_word_id = None
+        if mode == "ref":
+            current_word_id = (request.form.get("word_id") or "").strip()
+            if not current_word_id:
+                try:
+                    current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
+                except OSError:
+                    current_word_id = ""
+            if not current_word_id or get_word(current_word_id) is None:
+                return jsonify({"error": "お手本を登録する単語が見つかりません。ホームから単語を選び直してください。"}), 404
 
         lip_video_paths = session.get("lip_video_paths", {})
         old_path = lip_video_paths.get(mode)
@@ -1138,11 +1290,6 @@ def upload_lip_video():
         if mode == 'ref' and MEDIA_PIPE_AVAILABLE:
             try:
                 reference_vectors, reference_ratios, reference_times = _extract_lip_data_timed(new_path)
-
-                try:
-                    current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
-                except Exception:
-                    current_word_id = None
 
                 if current_word_id:
                     _persist_ref_video(current_word_id, new_path)
@@ -1358,6 +1505,7 @@ def api_vowel_trainer_complete():
 
 
 @app.route('/api/lip_refs/delete', methods=['POST'])
+@teacher_required
 def api_lip_refs_delete():
     try:
         data = request.get_json() or {}
@@ -1375,6 +1523,7 @@ def api_lip_refs_delete():
 
 
 @app.route('/api/lip_refs/overwrite', methods=['POST'])
+@teacher_required
 def api_lip_refs_overwrite():
     try:
         word_id = (request.form.get('word_id') or '').strip()
@@ -1461,6 +1610,9 @@ def audio_analysis():
         lip_paths = session.get("lip_video_paths", {})
         ref_video = lip_paths.get("ref")
         test_video = lip_paths.get("test")
+        # 今回の録音で口の動画が届いたか。結果画面は、これが無いときに端末に残った
+        # 前の動画を「あなた」として出さないよう、この値を見る（下の一時ファイル削除より前に調べる）
+        user_lip_recorded = bool(test_video and os.path.exists(test_video))
         reference_vectors = None
         ref_lip_times     = None   # 音映像同期分析用（Noneなら30fps仮定）
         test_lip_times    = None
@@ -1614,6 +1766,8 @@ def audio_analysis():
             words=word_list, sort_distance=dtw_list, bar_color=colors,
             prev_score=prev_score,
             lip_mora_analysis=lip_mora_analysis,
+            has_ref_video=has_sample_video(word_id),
+            user_lip_recorded=user_lip_recorded,
         )
 
         words_list = list_words()
@@ -1637,9 +1791,22 @@ def audio_analysis():
 
         max_formant_sample = 5500.0 if ceiling_sample > 400 else 5000.0
         max_formant_learn  = 5500.0 if ceiling_learn  > 400 else 5000.0
+        native_formants = user_formants = None
+        vowel_scale     = 1.0
         try:
-            native_formants = extract_mora_formants(audio_sample, mora_list1, max_formant=max_formant_sample, use_cache=True)
-            user_formants   = extract_mora_formants(audio_learn,  mora_list2, max_formant=max_formant_learn,  use_cache=False)
+            # 「こう」の「う」のような長音の後半は、前のモーラとまとめた区間で測る
+            # （Julius が置く2つの境界には音響的な根拠がないため。core/utils.long_vowel_groups）
+            native_formants = extract_mora_formants(audio_sample, long_vowel_spans(mora_list1), max_formant=max_formant_sample, use_cache=True)
+            user_formants   = extract_mora_formants(audio_learn,  long_vowel_spans(mora_list2), max_formant=max_formant_learn,  use_cache=False)
+            # 母音チャートで同じ点を2回描かないよう、長音の後半に印を付ける
+            for _formants in (native_formants, user_formants):
+                for _group in long_vowel_groups([f["label"] for f in _formants]):
+                    for _i in _group[1:]:
+                        _formants[_i] = {**_formants[_i], "long_vowel_tail": True}
+            vowel_scale, _ = speaker_formant_scale(
+                native_formants, user_formants,
+                pitch_ceiling_native=ceiling_sample, pitch_ceiling_user=ceiling_learn,
+            )
             vowel_score, vowel_feedback = calc_vowel_score(
                 native_formants,
                 user_formants,
@@ -1685,8 +1852,11 @@ def audio_analysis():
                 native_mora_length=pct_length(mora_length1),
                 user_mora_length=pct_length(mora_length2),
                 mora_labels=mora1,
-                native_formants=native_formants if 'native_formants' in dir() else None,
-                user_formants=user_formants   if 'user_formants'   in dir() else None,
+                native_formants=native_formants,
+                user_formants=user_formants,
+                pitch_native_raw=pitch_native_raw,
+                pitch_user_raw=pitch_user_raw,
+                vowel_scale=vowel_scale,
             )
             # ⑤ 最もスコアが低いモーラのフレーム範囲を取得
             valid = [m for m in mora_scores if m["total"] is not None]
@@ -1735,6 +1905,24 @@ def audio_analysis():
             ci_result = None
             ci_info   = None
 
+        # ── この単語のこれまで（結果画面の「この単語の記録」用。保存の前に読む） ──
+        word_progress = None
+        try:
+            _past = [float(r["total"]) for r in load_word_history(word_id) if r.get("total") is not None]
+            _past.reverse()                                   # 古い順にする
+            _now  = float(score_result["total"])
+            _all  = _past + [_now]
+            # 表示は点数の輪（score.total|int）と同じく小数を切り捨てる。以前は四捨五入していたため、
+            # 自己ベストが 89.5〜89.9 点で「90点以上をとりました／マスター」と出ていた
+            word_progress = {
+                "scores":  [int(v) for v in _all[-10:]],          # 最近10回（今回を含む）
+                "count":   len(_all),                             # 今回が何回目か
+                "best":    int(max(_all)),
+                "is_best": bool(_past) and _now > max(_past),     # 自己ベスト更新
+            }
+        except Exception:
+            word_progress = None
+
         try:
             save_record(word_id, display, reading, score_result, mora_scores=mora_scores)
         except Exception:
@@ -1749,9 +1937,9 @@ def audio_analysis():
                                speaking_rate=user_rate, rate_feedback=rate_feedback,
                                score_delta=score_delta, suggestions=suggestions,
                                mora_scores=mora_scores, worst_mora=worst_mora,
-                               ci_info=ci_info,
-                               native_formants=native_formants if 'native_formants' in dir() else None,
-                               user_formants=user_formants if 'user_formants' in dir() else None,
+                               ci_info=ci_info, word_progress=word_progress,
+                               native_formants=native_formants,
+                               user_formants=user_formants,
                                lip_compare=lip_compare, lip_ref_ratios=lip_ref_ratios, lip_test_ratios=lip_test_ratios,
                                av_sync=av_sync)
 

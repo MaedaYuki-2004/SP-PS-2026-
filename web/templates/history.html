@@ -1,79 +1,140 @@
 {% from "_icons.html" import icon %}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>練習記録 — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    .page-header { background:var(--bg); border-bottom:1px solid var(--border); padding:32px 32px 28px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; position:relative; overflow:hidden; }
-    .page-header::before { content:''; position:absolute; top:-60px; left:-60px; width:300px; height:300px; border-radius:50%; background:radial-gradient(circle,rgba(124,106,224,.1) 0%,transparent 70%); pointer-events:none; }
-    .page-header-title { font-size:26px; font-weight:700; background:linear-gradient(135deg,var(--text) 0%,var(--navy-mid) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; position:relative; }
-    .page-header-sub { font-size:12px; color:var(--text-3); margin-top:3px; position:relative; }
-    .header-actions { display:flex; gap:8px; }
+    /* ── わたしの記録（生徒向け） ─────────────────────────────── */
+    .rec-main { max-width:760px; margin:0 auto; padding:14px 16px 32px; display:flex; flex-direction:column; gap:16px; }
+    .rec-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .rec-title { font-size:22px; font-weight:700; color:var(--text); }
+    .rec-go { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:8px 16px; border-radius:100px;
+              background:var(--grad-brand); box-shadow:var(--shadow-brand); color:#fff; font-size:14px; font-weight:700; text-decoration:none; }
 
-    /* タブバー */
-    .tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border); background:var(--bg-card); padding:0 32px; }
-    .tab-btn { padding:13px 20px; background:none; border:none; border-bottom:2px solid transparent; font-family:var(--font); font-size:13px; font-weight:600; color:var(--text-3); cursor:pointer; transition:color .15s,border-color .15s; margin-bottom:-1px; }
-    .tab-btn:hover { color:var(--text); }
-    .tab-btn.active { color:var(--navy); border-bottom-color:var(--navy); }
+    .rec-card { background:var(--bg-card); border:1px solid var(--surface-line); border-radius:24px; padding:18px; }
+    .rec-card-title { font-size:16px; font-weight:700; color:var(--text); }
+    .rec-card-sub { font-size:13px; color:var(--text-3); margin:2px 0 12px; line-height:1.6; }
+    .rec-card-sub b { color:var(--text-2); font-weight:700; }
 
-    .main { max-width:1100px; margin:0 auto; padding:28px 32px; }
+    /* ① ひと目で分かるまとめ：最近の点数を主役の面に */
+    .rec-summary { display:grid; grid-template-columns:1.3fr 1fr; gap:10px; }
+    .rs-main { border-radius:28px; padding:18px 18px 16px; }
+    body .rs-main { box-shadow:var(--elev-2); border:none; }
+    .rs-label { font-size:13px; font-weight:700; color:rgba(255,255,255,.92); }
+    .rs-label small { font-size:11.5px; font-weight:400; color:rgba(255,255,255,.75); margin-left:2px; }
+    .rs-value { font-size:60px; line-height:1.05; color:#fff; margin:6px 0 10px; }
+    .rs-value span { font-family:var(--font); font-size:18px; font-weight:700; color:rgba(255,255,255,.8); margin-left:3px; letter-spacing:0; }
+    .rs-delta { display:inline-flex; align-items:center; gap:5px; font-size:13px; line-height:1.5; padding:5px 12px; border-radius:100px;
+                background:rgba(255,255,255,.18); color:#fff; }
+    .rs-delta b { font-weight:700; }
+    .rs-delta.up { background:#fff; color:var(--good); }
+    [data-theme="dark"] .rs-delta.up { color:#1B7F5B; }
+    .rs-side { display:flex; flex-direction:column; gap:10px; }
+    .rs-item { flex:1; display:flex; flex-direction:column; justify-content:center; gap:2px; background:var(--bg-card);
+               border:1px solid var(--surface-line); border-radius:22px; padding:12px 16px; }
+    .rs-item.hot .rs-item-val .ic { color:#FF7A45; }
+    .rs-item-val { display:flex; align-items:baseline; gap:3px; font-size:30px; color:var(--text); line-height:1.1; }
+    .rs-item-val .ic { align-self:center; margin-right:2px; }
+    .rs-item-val small { font-family:var(--font); font-size:12px; font-weight:700; color:var(--text-3); letter-spacing:0; }
+    .rs-item-lbl { font-size:12px; color:var(--text-3); }
 
-    /* ── 練習ログタブ ── */
-    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
-    .stat-card { background:var(--bg-card); border:1px solid var(--border); border-top:2px solid var(--navy); border-radius:var(--r); padding:18px 20px; box-shadow:var(--shadow-xs); transition:transform .2s,box-shadow .2s; }
-    .stat-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-sm); }
-    .stat-card-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px; }
-    .stat-card-value { font-family:var(--mono); font-size:32px; font-weight:500; color:var(--text); }
-    .stat-card-sub { font-size:11px; color:var(--text-3); margin-top:3px; }
-    .grade-S-c{color:#F0A030;} .grade-A-c{color:var(--green);} .grade-B-c{color:var(--blue);} .grade-C-c{color:var(--accent);} .grade-D-c{color:var(--text-3);}
+    /* ② 点数のうつりかわり */
+    .trend-wrap { position:relative; height:210px; }
+    .trend-legend { display:flex; gap:16px; justify-content:center; margin-top:10px; font-size:12px; color:var(--text-3); }
+    .trend-legend span { display:inline-flex; align-items:center; gap:6px; }
+    .tl-line { display:inline-block; width:18px; height:4px; border-radius:2px; background:var(--grad-brand); }
+    .tl-dot  { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--ref-line); }
 
-    .sec-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+    /* ③ 単語ごとの成長 */
+    .word-growth { list-style:none; display:flex; flex-direction:column; }
+    .wg-row { display:grid; grid-template-columns:minmax(0,1fr) 70px 5.4em 44px; align-items:center; gap:10px;
+              padding:12px 0; border-top:1px solid var(--border-light); }
+    .wg-row:first-child { border-top:none; }
+    .wg-word { display:flex; flex-direction:column; min-width:0; }
+    .wg-display { font-size:18px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .wg-meta { font-size:11.5px; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .wg-meta b { font-family:var(--mono); font-weight:500; color:var(--text-2); }
+    .wg-spark { width:70px; height:34px; overflow:visible; }
+    .wg-spark polyline { fill:none; stroke:var(--navy); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
+    .wg-spark circle { fill:var(--navy); }
+    .wg-spark .wg-s90 { stroke:var(--brand-300); stroke-width:1; stroke-dasharray:2 2; }
+    .wg-row.plateau .wg-spark polyline { stroke:var(--mid); }
+    .wg-row.plateau .wg-spark circle { fill:var(--mid); }
+    .wg-badge { justify-self:center; font-size:12px; font-weight:700; padding:5px 10px; border-radius:100px; white-space:nowrap; }
+    .wg-badge.plateau { background:var(--mid-bg); color:var(--mid-text); }
+    .wg-badge.up      { background:var(--good-bg); color:var(--good); }
+    .wg-badge.doing   { background:var(--bg-muted); color:var(--text-3); }
+    .wg-badge.master  { background:var(--grad-brand); color:#fff; }
+    .wg-form { margin:0; }
+    .wg-go { width:44px; height:44px; border-radius:50%; border:none; background:var(--bg-muted);
+             color:var(--rec); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .15s var(--ease); }
+    .wg-go:active { transform:scale(.9); }
+    .wg-row.plateau .wg-go { background:var(--grad-rec); box-shadow:var(--shadow-rec); color:#fff; }
+    .wg-note { margin-top:8px; font-size:11.5px; color:var(--text-3); }
+
+    /* ④ 練習した日 */
+    .cal-scroll { overflow-x:auto; padding-bottom:4px; }
+    .cal { display:inline-flex; flex-direction:column; gap:4px; min-width:max-content; }
+    .cal-months { display:grid; grid-auto-flow:column; grid-auto-columns:18px; gap:4px; margin-left:24px; height:16px;
+                  font-size:10.5px; color:var(--text-3); white-space:nowrap; }
+    .cal-body { display:flex; gap:6px; }
+    .cal-wd { display:grid; grid-template-rows:repeat(7,18px); gap:4px; width:18px; font-size:10.5px; color:var(--text-3); line-height:18px; text-align:center; }
+    .heatmap-grid { display:grid; grid-template-rows:repeat(7,18px); grid-auto-flow:column; grid-auto-columns:18px; gap:4px; }
+    .heatmap-cell { width:18px; height:18px; border-radius:6px; transition:transform .15s var(--ease); }
+    .heatmap-cell.pad { background:transparent !important; }
+    .heatmap-cell.today, .cal-today-sample { box-shadow:0 0 0 2px var(--navy); }
+    .cal-today-sample { background:var(--bg-muted); }
+    .heatmap-legend { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-top:10px; font-size:11.5px; color:var(--text-3); }
+    .heatmap-legend .heatmap-cell { width:13px; height:13px; border-radius:4px; }
+
+    /* ⑤ さいきんの練習 */
+    .recent-list { list-style:none; }
+    .rl-row { display:grid; grid-template-columns:minmax(0,1fr) auto 3.4em; align-items:center; gap:12px;
+              min-height:52px; padding:6px 0; border-top:1px solid var(--border-light); }
+    .rl-row:first-child { border-top:none; }
+    .rl-word { font-size:16px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .rl-score { display:inline-flex; align-items:baseline; justify-content:center; min-width:62px; padding:4px 10px; border-radius:100px; background:var(--bg-muted); font-size:17px; }
+    .rl-score small { font-family:var(--font); font-size:11px; color:var(--text-3); margin-left:1px; }
+    .rl-score.g-s { color:var(--navy); background:var(--navy-soft); } .rl-score.g-a { color:var(--good-text); background:var(--good-bg); } .rl-score.g-b { color:var(--text); } .rl-score.g-c { color:var(--text-2); }
+    .rl-date { font-family:var(--font-num); font-size:12.5px; font-weight:600; color:var(--text-3); text-align:right; }
+    .rl-more { width:100%; min-height:48px; margin-top:10px; border-radius:16px; border:none;
+               background:var(--bg-muted); color:var(--text-2); font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer; }
+
+    /* ⑥ 先生用 */
+    .teacher-fold { margin-top:10px; border:1.5px dashed var(--border); border-radius:20px; }
+    .teacher-fold > summary { list-style:none; cursor:pointer; padding:14px 16px; font-size:14px; font-weight:700;
+                              color:var(--text-3); display:flex; align-items:center; gap:8px; }
+    .teacher-fold > summary::-webkit-details-marker { display:none; }
+    .teacher-fold > summary::after { content:'▸'; margin-left:auto; transition:transform .2s; }
+    .teacher-fold[open] > summary::after { transform:rotate(90deg); }
+    .teacher-fold-body { padding:0 12px 16px; }
+    .teacher-fold-body .a-main { padding:12px 0 0; max-width:none; }
+    .tf-actions { margin-bottom:16px; }
+    .acc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:24px; }
+    .grade-S-c{color:var(--navy);} .grade-A-c{color:var(--good);} .grade-B-c{color:var(--mid-text);} .grade-C-c{color:var(--todo);} .grade-D-c{color:var(--text-3);}
+    .sec-title { font-size:12px; font-weight:700; letter-spacing:.06em; color:var(--text-3); margin-bottom:12px; display:flex; align-items:center; gap:10px; }
     .sec-title-line { flex:1; height:1px; background:var(--border-light); }
 
-    .word-progress-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-bottom:32px; }
-    /* 320px 端末では、左右余白を引くと 240px を確保できず枠からあふれる */
-    @media (max-width:380px) {
-      .word-progress-grid { grid-template-columns:1fr; }
+    /* とても狭い端末では、ミニ推移を外して単語名を読めるようにする（状態はバッジで分かる） */
+    @media (max-width:360px) {
+      .word-growth .wg-row { grid-template-columns:minmax(0,1fr) auto 40px !important; }
+      .word-growth .wg-spark { display:none; }
     }
-    .word-progress-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px; box-shadow:var(--shadow-xs); transition:box-shadow var(--dur),transform var(--dur); }
-    .word-progress-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
-    .wpc-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px; }
-    .wpc-word { font-size:20px; font-weight:700; color:var(--navy); }
-    .wpc-reading { font-size:10px; color:var(--text-3); }
-    .wpc-grade { font-size:22px; font-weight:700; }
-    .wpc-score { font-family:var(--mono); font-size:18px; font-weight:500; color:var(--text); margin-bottom:6px; }
-    .wpc-score span { font-size:11px; color:var(--text-3); font-weight:400; }
-    .wpc-count { font-size:10px; color:var(--text-3); margin-bottom:8px; }
-    .wpc-chart-wrap { height:60px; position:relative; width:100%; max-width:100%; overflow:hidden; }
-    .wpc-chart-wrap canvas { max-width:100% !important; }
-    .wpc-footer { margin-top:10px; border-top:1px solid var(--border-light); padding-top:10px; }
-    .wpc-practice-btn { width:100%; padding:7px 12px; background:var(--navy); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-size:11px; font-weight:600; letter-spacing:.04em; cursor:pointer; transition:background var(--dur),transform var(--dur); }
-    .wpc-practice-btn:hover { background:var(--navy-mid); }
-    .wpc-practice-btn:active { transform:scale(.97); }
-
-    .table-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:12px; flex-wrap:wrap; }
-    .filter-wrap { position:relative; }
-    .filter-input { padding:7px 12px 7px 28px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:12px; background:var(--bg-card); color:var(--text); width:180px; transition:border-color var(--dur),box-shadow var(--dur); }
-    .filter-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(14,30,69,.08); }
-    .filter-icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--text-3); }
-    .hist-table-wrap { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; box-shadow:var(--shadow-xs); }
-    .hist-table { width:100%; border-collapse:collapse; font-size:13px; }
-    .hist-table th { text-align:left; padding:10px 16px; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); background:var(--bg-muted); border-bottom:1px solid var(--border); }
-    .hist-table td { padding:10px 16px; border-bottom:1px solid var(--border-light); color:var(--text-2); vertical-align:middle; }
-    .hist-table tr:last-child td { border-bottom:none; }
-    .hist-table tr:hover td { background:var(--bg); }
-    .tbl-word { font-size:16px; font-weight:700; color:var(--navy); }
-    .tbl-reading { font-size:10px; color:var(--text-3); display:block; }
-    .tbl-score { font-family:var(--mono); font-weight:500; color:var(--text); }
-    .tbl-grade { font-size:16px; font-weight:700; }
-    .tbl-date { font-family:var(--mono); font-size:11px; color:var(--text-3); }
-    .mini-bars { display:flex; gap:3px; align-items:flex-end; height:14px; }
-    .mini-bar { width:5px; border-radius:2px; }
+    @media (max-width:420px) {
+      .rec-summary { grid-template-columns:1fr 1fr; }
+      .rs-main { grid-column:1 / -1; }
+      .rs-side { flex-direction:row; grid-column:1 / -1; }
+      .rs-value { font-size:46px; }
+      .wg-row { grid-template-columns:minmax(0,1fr) 58px 5em 40px; gap:8px; }
+      .wg-spark { width:58px; }
+    }
 
     /* ── 分析タブ ── */
     .a-main { max-width:1100px; margin:0 auto; padding:28px 32px; }
@@ -89,34 +150,25 @@
     .chart-wrap { position:relative; height:260px; }
     .two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
     .data-table { width:100%; border-collapse:collapse; font-size:12px; }
-    .data-table th { background:var(--navy); color:#fff; padding:8px 12px; text-align:left; font-weight:600; font-size:11px; letter-spacing:.04em; }
+    .data-table th { background:var(--bg-muted); color:var(--text-2); padding:8px 12px; text-align:left; font-weight:700; font-size:11px; letter-spacing:.04em; }
     .data-table th:first-child { border-radius:var(--r-sm) 0 0 0; }
     .data-table th:last-child { border-radius:0 var(--r-sm) 0 0; }
     .data-table td { padding:9px 12px; border-bottom:1px solid var(--border-light); color:var(--text); }
     .data-table tr:hover td { background:var(--bg-muted); }
     .data-table tr:last-child td { border-bottom:none; }
-    .badge-up      { display:inline-block; background:var(--green-bg);  color:var(--green);  font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
-    .badge-plateau { display:inline-block; background:var(--quest-bg);   color:var(--quest);  font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
-    .badge-down    { display:inline-block; background:var(--accent-bg); color:var(--accent); font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+    .badge-up      { display:inline-block; background:var(--good-bg);  color:var(--good);  font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+    .badge-plateau { display:inline-block; background:var(--mid-bg);   color:var(--mid-text);  font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+    .badge-down    { display:inline-block; background:var(--todo-bg); color:var(--todo); font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
     .word-select-row { display:flex; gap:8px; align-items:center; margin-bottom:16px; }
     .word-select { padding:8px 12px; border:1px solid var(--border); border-radius:var(--r-sm); font-family:var(--font); font-size:13px; background:var(--bg-card); color:var(--text); min-width:200px; }
     .word-select:focus { outline:none; border-color:var(--navy); }
-
-    /* カレンダーヒートマップ */
-    .heatmap-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:18px 20px; box-shadow:var(--shadow-xs); margin-bottom:28px; overflow-x:auto; }
-    .heatmap-grid { display:grid; grid-template-rows:repeat(7,14px); grid-auto-flow:column; gap:3px; min-width:max-content; }
-    .heatmap-cell { width:14px; height:14px; border-radius:3px; cursor:default; transition:transform .1s; }
-    .heatmap-cell:hover { transform:scale(1.3); }
-    .heatmap-cell[title] { cursor:pointer; }
-    .heatmap-legend { display:flex; align-items:center; gap:4px; margin-top:10px; font-size:10px; color:var(--text-3); }
-    .heatmap-legend .heatmap-cell { width:12px; height:12px; cursor:default; }
-    .heatmap-legend .heatmap-cell:hover { transform:none; }
 
     .empty-state { text-align:center; padding:64px 24px; }
     .empty-title { font-size:18px; font-weight:700; color:var(--text-2); margin-bottom:10px; }
     .empty-sub { font-size:14px; color:var(--text-3); line-height:1.7; margin-bottom:24px; }
 
-    @media (max-width:800px) { .stats-row,.summary-grid { grid-template-columns:repeat(2,1fr); } .main,.a-main { padding:16px 20px; } .two-col { grid-template-columns:1fr; } .tab-bar { padding:0 16px; } }
+    @media (max-width:800px) { .summary-grid { grid-template-columns:repeat(2,1fr); } .two-col { grid-template-columns:1fr; } }
+
 
     /* グラフが画面からはみ出さないようにする。
        Chart.js は canvas に実寸を書き込むため、親側で幅を抑えないと
@@ -138,614 +190,595 @@
       .word-progress-grid { grid-template-columns:1fr; }
       .word-progress-card { padding:14px 12px; }
     }
+
+    /* ── 記録／分析の面 ── */
+    .to-insight { display:flex; align-items:center; justify-content:center; gap:6px; min-height:48px; margin-top:12px;
+                  border-radius:16px; background:var(--navy-soft); color:var(--brand-700); font-size:14px; font-weight:700; text-decoration:none; }
+    .hs-panel { display:flex; flex-direction:column; gap:14px; animation:hs-in .18s var(--ease); }
+    .hs-panel[hidden] { display:none; }
+    @keyframes hs-in { from { opacity:.4; transform:translateY(4px); } to { opacity:1; transform:none; } }
+
+    /* のび方 */
+    .pace { margin:10px 0 14px; }
+    .pace-main { font-size:17px; line-height:1.6; color:var(--text-2); }
+    .pace-main b { font-size:22px; font-weight:700; color:var(--text); }
+    .pace-main.up b { color:var(--good); }
+    .pace-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .ps { display:flex; flex-direction:column; align-items:center; gap:4px; padding:14px 6px; border-radius:18px; background:var(--bg-muted); }
+    .ps b { font-size:30px; line-height:1.1; color:var(--text); }
+    .ps span { font-size:12px; color:var(--text-3); }
+    .ps.up b { color:var(--good); } .ps.plateau b { color:var(--mid-text); } .ps.master b { color:var(--navy); }
+
+    /* 単語ごとの点数のうつりかわり */
+    .curve-wrap { position:relative; height:210px; }
+    .curve-caption { margin-top:8px; font-size:13px; color:var(--text-2); text-align:center; }
+    .curve-caption b { font-weight:700; color:var(--text); }
+
+    /* アクセントの型 */
+    .acc-list { list-style:none; display:flex; flex-direction:column; gap:14px; margin-top:6px; }
+    .acc-head { display:flex; align-items:baseline; gap:8px; }
+    .acc-name { font-size:15px; font-weight:700; color:var(--text); }
+    .acc-hint { font-size:12px; color:var(--text-3); flex:1; }
+    .acc-score { font-size:12px; color:var(--text-3); }
+    .acc-score b { font-size:18px; font-weight:700; color:var(--text); }
+    .acc-bar { height:10px; border-radius:100px; background:var(--bg-muted); overflow:hidden; margin-top:6px; }
+    .acc-bar i { display:block; height:100%; border-radius:100px; background:var(--grad-brand); }
+    .acc-row.weak .acc-bar i { background:var(--todo-bar); }
+    .acc-foot { font-size:12px; color:var(--text-3); margin-top:4px; }
+    .acc-foot b { color:var(--todo); font-weight:700; }
+
+    /* マスター */
+    .master-line { font-size:16px; color:var(--text-2); margin:8px 0 2px; }
+    .master-line b { font-family:var(--font-num); font-size:26px; font-weight:800; color:var(--navy); }
+
+    /* 数値の詳細 */
+    .tbl-scroll { overflow-x:auto; }
+    .data-table { width:100%; border-collapse:collapse; font-size:12.5px; white-space:nowrap; }
+    .data-table th { text-align:left; padding:8px 10px; font-weight:700; color:var(--text-3); border-bottom:1px solid var(--border); }
+    .data-table td { padding:8px 10px; color:var(--text); border-bottom:1px solid var(--border-light); }
+    .tf-text { font-size:13px; line-height:1.8; color:var(--text-2); }
   </style>
 </head>
 <body>
-<nav class="top-nav">
-  <a href="/select" class="nav-link">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    ホーム
-  </a>
-  <div class="nav-actions">
-    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え"><svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
-  </div>
-</nav>
-<script>
-  (function() {
-    // テーマ切替アイコン（絵文字はOSごとに見た目が変わるため SVG を使う）
-    const ICON_SUN  = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>';
-    const ICON_MOON = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
-    const root  = document.documentElement;
-    const btn   = document.getElementById('themeToggle');
-    if (!btn) return;
-    const saved = localStorage.getItem('sp-ps-theme');
-    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.innerHTML=ICON_SUN; }
-    btn.addEventListener('click', () => {
-      const isDark = root.getAttribute('data-theme') === 'dark';
-      if (isDark) { root.removeAttribute('data-theme'); btn.innerHTML=ICON_MOON; localStorage.setItem('sp-ps-theme','light'); }
-      else        { root.setAttribute('data-theme','dark'); btn.innerHTML=ICON_SUN; localStorage.setItem('sp-ps-theme','dark'); }
-    });
-  })();
-</script>
+<header class="app-header">
+  <a href="/select" class="app-header-left app-brand">SP-PS</a>
+  <div class="app-header-title" id="hsTitle">わたしの記録</div>
+  <span class="app-header-right"></span>
+</header>
+{#
+  わたしの記録
 
-<div class="page-header">
-  <div>
-    <div class="page-header-title">練習記録</div>
-    <div class="page-header-sub">録音ログと学習曲線の分析</div>
-  </div>
-  <div class="header-actions">
-    <a href="/history/export.csv" class="btn btn-ghost">CSVダウンロード</a>
-    <a href="/select" class="btn btn-primary">練習する</a>
-  </div>
-</div>
-
-<!-- タブバー -->
-<div class="tab-bar">
-  <button class="tab-btn active" id="tabBtnLog" onclick="switchTab('log')">練習ログ</button>
-  <button class="tab-btn" id="tabBtnAnalysis" onclick="switchTab('analysis')">分析</button>
-</div>
-
-<!-- ══════════════ 練習ログタブ ══════════════ -->
-<div id="tabLog">
-<div class="main">
+  生徒がこの画面で知りたいのは3つ。
+    ・うまくなってる？      → 最近の点数と「はじめのころ」との差、点数のうつりかわり
+    ・どの単語ができた？    → 単語ごとの成長（のびている／足ぶみ中／マスター）
+    ・どれくらい練習した？  → 連続記録、練習した日のカレンダー
+  以前は「総録音回数」「平均スコア」などの数字が文脈なしに並び、
+  上達速度（点/回）・R²・Sランク到達分布などの研究用の指標がタブで同列に置かれていた。
+  研究用の指標は、ページ下の「くわしい分析（先生・研究用）」にまとめる。
+#}
+{% set sc = (analysis_stats.overall_trend.scores if analysis_stats and analysis_stats.overall_trend else []) %}
+{% set n_sc = sc | length %}
+<main class="rec-main">
   {% if stats.total_sessions == 0 %}
   <div class="empty-state">
-    <div class="empty-title">まだ練習記録がありません</div>
-    <div class="empty-sub">単語を録音して解析すると、ここにスコアの記録が蓄積されます。</div>
-    <a href="/select" class="btn btn-primary btn-lg">最初の録音をする</a>
+    <div class="empty-title">まだ記録がありません</div>
+    <div class="empty-sub">単語を録音すると、ここに点数ののびや<br>練習した日が記録されていきます。</div>
+    <a href="/select" class="btn btn-primary btn-lg">{{ icon('mic') }} さいしょの録音をする</a>
   </div>
   {% else %}
 
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="stat-card-label">総録音回数</div>
-      <div class="stat-card-value">{{ stats.total_sessions }}</div>
-      <div class="stat-card-sub">回</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-label">練習した単語</div>
-      <div class="stat-card-value">{{ stats.unique_words }}</div>
-      <div class="stat-card-sub">/ {{ words|length }} 語</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-label">平均スコア</div>
-      <div class="stat-card-value">{{ stats.avg_score }}</div>
-      <div class="stat-card-sub">点</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-label">連続練習日数</div>
-      <div class="stat-card-value" style="color:{% if stats.streak >= 7 %}#d97706{% elif stats.streak >= 3 %}var(--green){% else %}var(--navy){% endif %};">{{ stats.streak }}</div>
-      <div class="stat-card-sub">日連続 {{ icon('flame') }}</div>
-    </div>
-  </div>
+  {#
+    記録と分析
 
-  <!-- カレンダーヒートマップ -->
-  <div class="sec-title">練習カレンダー（過去84日）<div class="sec-title-line"></div></div>
-  <div class="heatmap-card">
-    <div class="heatmap-grid" id="heatmapGrid"></div>
-    <div class="heatmap-legend">
-      <span>少ない</span>
-      <div class="heatmap-cell" style="background:var(--bg-muted);"></div>
-      <div class="heatmap-cell" style="background:rgba(5,150,105,.3);"></div>
-      <div class="heatmap-cell" style="background:rgba(5,150,105,.6);"></div>
-      <div class="heatmap-cell" style="background:#059669;"></div>
-      <span>多い</span>
-    </div>
-  </div>
+    「これまで何をしたか（記録）」と「自分はどうのびているか（分析）」は
+    見たいタイミングが違うので、1本に並べず2つの面に分ける。どちらも生徒が見られる。
+    切り替えは画面下のタブ（/history#log・/history#analysis）で行い、1タップで開ける。
+  #}
 
-  {% if accent_stats %}
-  <div class="sec-title">アクセント型別の平均スコア（苦手順）<div class="sec-title-line"></div></div>
-  <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:28px;">
-    {% for a in accent_stats %}
-    {% set pct = ((a.avg_total / 100) * 100)|int %}
-    {% set color = '#2D6A4F' if a.avg_total >= 75 else ('#1E5C9E' if a.avg_total >= 60 else '#C03D20') %}
-    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px; box-shadow:var(--shadow-xs);">
-      <div style="font-size:11px; font-weight:700; letter-spacing:.05em; color:var(--text-3); margin-bottom:6px; text-transform:uppercase;">{{ a.label }}</div>
-      <div style="font-family:var(--mono); font-size:28px; font-weight:500; color:{{ color }};">{{ a.avg_total }}</div>
-      <div style="font-size:10px; color:var(--text-3); margin-bottom:10px;">点平均（{{ a.count }}回）</div>
-      <div style="background:var(--border-light); border-radius:4px; height:6px; margin-bottom:10px;">
-        <div style="background:{{ color }}; width:{{ pct }}%; height:6px; border-radius:4px; transition:width .4s;"></div>
-      </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; text-align:center;">
-        <div><div style="font-size:9px; color:var(--text-3);">アクセント</div><div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_accent }}</div></div>
-        <div><div style="font-size:9px; color:var(--text-3);">長さ</div><div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_length }}</div></div>
-        <div><div style="font-size:9px; color:var(--text-3);">母音</div><div style="font-family:var(--mono); font-size:12px; font-weight:500;">{{ a.avg_vowel }}</div></div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
+  <section class="hs-panel" data-panel="log">
+  {# ── ① ひと目で分かるまとめ ─────────────────────────── #}
+  {% if n_sc >= 6 %}
+    {% set k = 5 if n_sc >= 10 else (n_sc // 2) %}
+    {% set early  = (sc[:k] | sum) / k %}
+    {% set recent = (sc[-k:] | sum) / k %}
+    {% set delta  = (recent - early) | round | int %}
   {% endif %}
-
-  {% if word_latest %}
-  <details class="fold-section" id="wordProgressFold">
-  <summary class="fold-summary">{{ icon('trend') }} 単語別スコア推移（{{ word_latest|length }}単語） <span class="fold-hint">タップで開く</span></summary>
-  <div class="fold-body">
-  <div class="word-progress-grid">
-    {% for wid, rec in word_latest.items() %}
-    {% set recs = word_history.get(wid, []) %}
-    {% set count = recs|length %}
-    <div class="word-progress-card">
-      <div class="wpc-header">
-        <div>
-          <div class="wpc-word">{{ rec.display }}</div>
-          <div class="wpc-reading">{{ rec.reading }}</div>
-        </div>
-        <div class="wpc-grade grade-{{ rec.grade }}-c">{{ rec.grade }}</div>
+  <section class="rec-summary">
+    <div class="rs-main aurora">
+      <div class="rs-label">最近の点数{% if n_sc >= 6 %}<small>（最近{{ k }}回の平均）</small>{% endif %}</div>
+      <div class="rs-value">
+        {% if n_sc >= 6 %}{{ recent | round | int }}{% else %}{{ stats.avg_score | round | int }}{% endif %}<span>点</span>
       </div>
-      <div class="wpc-score">{{ rec.total or 0 }}<span> / 100点</span></div>
-      <div class="wpc-count">{{ count }}回練習</div>
-      <div class="wpc-chart-wrap">
-        <canvas id="chart-{{ wid }}" height="60"></canvas>
+      {% if n_sc >= 6 %}
+      <div class="rs-delta {{ 'up' if delta > 0 else ('down' if delta < 0 else 'flat') }}">
+        {% if delta > 0 %}{{ icon('up', size=14) }} はじめのころより <b>+{{ delta }}点</b>
+        {% elif delta < 0 %}はじめのころより {{ delta }}点
+        {% else %}はじめのころと同じくらい{% endif %}
       </div>
-      <div class="wpc-footer">
-        <form action="/" method="post">
-          <input type="hidden" name="Words" value="{{ wid }}">
-          <button type="submit" class="wpc-practice-btn">もう一度練習する</button>
-        </form>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  </div>
-  </details>
-  {% endif %}
-
-  <div class="table-header">
-    <div class="sec-title" style="margin-bottom:0;">録音ログ（最新100件）<div class="sec-title-line"></div></div>
-    <div class="filter-wrap">
-      <svg class="filter-icon" width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 8l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-      <input type="text" class="filter-input" id="filterInput" placeholder="単語を絞り込む..." oninput="filterHistory()">
-    </div>
-  </div>
-  <div class="hist-table-wrap">
-    <table class="hist-table" id="historyTable">
-      <thead>
-        <tr>
-          <th>単語</th><th>スコア</th><th>内訳</th><th>グレード</th><th>日時</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for rec in history %}
-        <tr data-word="{{ rec.display }}">
-          <td><span class="tbl-word">{{ rec.display }}</span><span class="tbl-reading">{{ rec.reading }}</span></td>
-          <td class="tbl-score">{{ rec.total or "—" }}点</td>
-          <td>
-            <div class="mini-bars">
-              <div class="mini-bar" style="height:{{ ((rec.accent_score or 0)/50*12)|round|int }}px;background:var(--accent);" title="Ac {{ rec.accent_score }}"></div>
-              <div class="mini-bar" style="height:{{ ((rec.length_score or 0)/30*12)|round|int }}px;background:var(--green);"  title="Le {{ rec.length_score }}"></div>
-              <div class="mini-bar" style="height:{{ ((rec.vowel_score  or 0)/20*12)|round|int }}px;background:var(--blue);"   title="Vo {{ rec.vowel_score }}"></div>
-            </div>
-          </td>
-          <td><span class="tbl-grade grade-{{ rec.grade }}-c">{{ rec.grade }}</span></td>
-          <td class="tbl-date">{{ rec.timestamp[:16].replace("T"," ") if rec.timestamp else "—" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <button id="showMoreRows" style="display:none;width:100%;margin-top:10px;padding:12px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--bg-card);color:var(--text-2);font-family:var(--font);font-size:12.5px;font-weight:700;cursor:pointer;">さらに20件表示する</button>
-  {% endif %}
-</div>
-</div><!-- /tabLog -->
-
-<script>
-// ── 録音ログの段階表示（初期20件 → +20件ずつ） ──
-(function () {
-  var VISIBLE = 20;
-  var rows = Array.prototype.slice.call(document.querySelectorAll('#historyTable tbody tr'));
-  var btn  = document.getElementById('showMoreRows');
-  if (!btn || rows.length <= VISIBLE) return;
-  var shown = VISIBLE;
-  function apply() {
-    rows.forEach(function (r, i) { r.style.display = i < shown ? '' : 'none'; });
-    btn.style.display = shown < rows.length ? '' : 'none';
-    btn.textContent = 'さらに20件表示する（残り' + (rows.length - shown) + '件）';
-  }
-  btn.addEventListener('click', function () { shown += 20; apply(); });
-  // 検索フィルタ使用時は filterHistory() に表示を任せ、ボタンだけ隠す
-  var filter = document.getElementById('filterInput');
-  if (filter) filter.addEventListener('input', function () {
-    if (filter.value.trim()) { btn.style.display = 'none'; }
-    else { apply(); }
-  });
-  apply();
-})();
-
-// ── 折りたたみを開いたとき Chart.js を再描画 ──
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('details.fold-section').forEach(function (d) {
-    d.addEventListener('toggle', function () { if (d.open) window.dispatchEvent(new Event('resize')); });
-  });
-});
-</script>
-
-<!-- ══════════════ 分析タブ ══════════════ -->
-<div id="tabAnalysis" style="display:none;">
-<div class="a-main">
-
-{% if analysis_stats.summary.total_sessions < 5 %}
-<div class="empty-state">
-  <div style="margin-bottom:12px;color:var(--text-3);">{{ icon('chart', size=32) }}</div>
-  <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;">データが少なすぎます</div>
-  <div>分析には5回以上の練習が必要です。<br>まずはいくつかの単語を練習してみてください。</div>
-  <a href="/select" class="btn btn-primary" style="margin-top:20px;">練習を始める</a>
-</div>
-{% else %}
-
-<div class="a-sec">
-  <div class="sec-title">サマリー <div class="sec-title-line"></div></div>
-  <div class="summary-grid">
-    <div class="s-card">
-      <div class="s-card-label">総練習回数</div>
-      <div class="s-card-value">{{ analysis_stats.summary.total_sessions }}</div>
-      <div class="s-card-sub">回</div>
-    </div>
-    <div class="s-card">
-      <div class="s-card-label">平均上達速度</div>
-      <div class="s-card-value" style="color:{% if analysis_stats.summary.avg_slope and analysis_stats.summary.avg_slope > 0 %}var(--green){% else %}var(--accent){% endif %};">
-        {% if analysis_stats.summary.avg_slope %}{{ "%+.2f"|format(analysis_stats.summary.avg_slope) }}{% else %}—{% endif %}
-      </div>
-      <div class="s-card-sub">点/回</div>
-    </div>
-    <div class="s-card">
-      <div class="s-card-label">上達中 / 停滞中</div>
-      <div class="s-card-value">{{ analysis_stats.summary.n_improving }} <span style="font-size:16px;color:var(--text-3);">/ {{ analysis_stats.summary.n_plateau }}</span></div>
-      <div class="s-card-sub">単語</div>
-    </div>
-    <div class="s-card">
-      <div class="s-card-label">Sランク到達単語</div>
-      <div class="s-card-value" style="color:#F59E0B;">{{ analysis_stats.summary.n_s_rank }}</div>
-      <div class="s-card-sub">/ {{ analysis_stats.summary.total_words }} 単語</div>
-    </div>
-  </div>
-</div>
-
-<div class="a-sec">
-  <div class="sec-title">全体のスコア推移 <div class="sec-title-line"></div></div>
-  <div class="chart-card">
-    <div class="chart-card-title">練習順スコア + 5回移動平均</div>
-    <div class="chart-card-sub">すべての練習を時系列に並べたスコアの推移。移動平均線が右上がりなら全体的に上達しています。</div>
-    <div class="chart-wrap"><canvas id="overallChart"></canvas></div>
-  </div>
-</div>
-
-<div class="a-sec">
-  <div class="sec-title">アクセント型ごとの上達しやすさ <div class="sec-title-line"></div></div>
-  <div class="two-col">
-    <div class="chart-card">
-      <div class="chart-card-title">平均上達速度（傾き）</div>
-      <div class="chart-card-sub">値が大きいほど「1回の練習で多くスコアが上がる」アクセント型</div>
-      <div class="chart-wrap"><canvas id="accentSlopeChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-card-title">Sランク到達率</div>
-      <div class="chart-card-sub">各アクセント型の単語のうち一度でもSランクになった割合</div>
-      <div class="chart-wrap"><canvas id="accentSRateChart"></canvas></div>
-    </div>
-  </div>
-  <div class="chart-card">
-    <div class="chart-card-title">アクセント型ごとの詳細</div>
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>アクセント型</th><th>単語数</th><th>総練習回数</th><th>平均上達速度</th><th>Sランク到達率</th></tr></thead>
-        <tbody>
-          {% for a in analysis_stats.accent_stats %}
-          <tr>
-            <td style="font-weight:600;">{{ a.label }}</td>
-            <td>{{ a.n_words }}</td>
-            <td>{{ a.n_sessions }}</td>
-            <td>
-              {% if a.avg_slope is not none %}
-              <span style="font-family:var(--mono); color:{% if a.avg_slope > 0.3 %}var(--green){% elif a.avg_slope < -0.3 %}var(--accent){% else %}var(--text-3){% endif %};">
-                {{ "%+.3f"|format(a.avg_slope) }} 点/回
-              </span>
-              {% else %}—{% endif %}
-            </td>
-            <td><span style="font-family:var(--mono);">{{ a.s_rate }}%</span></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-{% if analysis_stats.s_rank_dist %}
-<div class="a-sec">
-  <div class="sec-title">Sランク到達回数の分布 <div class="sec-title-line"></div></div>
-  <div class="two-col">
-    <div class="chart-card">
-      <div class="chart-card-title">何回目の練習で初めてSランクになったか</div>
-      <div class="chart-card-sub">{{ analysis_stats.s_rank_dist.n }}単語がSランクに到達。平均{{ analysis_stats.s_rank_dist.mean }}回、中央値{{ analysis_stats.s_rank_dist.median }}回</div>
-      <div class="chart-wrap"><canvas id="sRankDistChart"></canvas></div>
-    </div>
-    <div class="s-card" style="display:flex;flex-direction:column;justify-content:center;gap:16px;padding:24px;">
-      <div><div class="s-card-label">平均</div><div class="s-card-value">{{ analysis_stats.s_rank_dist.mean }}<span style="font-size:14px;color:var(--text-3);">回</span></div></div>
-      <div><div class="s-card-label">中央値</div><div class="s-card-value">{{ analysis_stats.s_rank_dist.median }}<span style="font-size:14px;color:var(--text-3);">回</span></div></div>
-      <div><div class="s-card-label">最少 / 最多</div><div style="font-family:var(--mono);font-size:20px;color:var(--text);">{{ analysis_stats.s_rank_dist.min }} / {{ analysis_stats.s_rank_dist.max }}回</div></div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-<div class="a-sec">
-  <div class="sec-title">単語ごとの学習曲線 <div class="sec-title-line"></div></div>
-  <div class="word-select-row">
-    <select id="wordSelector" class="word-select" onchange="updateWordChart()">
-      {% for w in analysis_stats.word_stats %}
-      {% if w.n_sessions >= 2 %}
-      <option value="{{ loop.index0 }}">{{ w.display }}（{{ w.accent_label }}・{{ w.n_sessions }}回）</option>
+      {% else %}
+      <div class="rs-delta flat">練習をつづけると、のびが分かるようになります</div>
       {% endif %}
-      {% endfor %}
-    </select>
-  </div>
-  <div class="chart-card">
-    <div id="wordChartTitle" class="chart-card-title"></div>
-    <div id="wordChartSub" class="chart-card-sub"></div>
-    <div class="chart-wrap"><canvas id="wordChart"></canvas></div>
-  </div>
-</div>
-
-{% if analysis_stats.summary.n_plateau > 0 %}
-<div class="a-sec">
-  <div class="sec-title">停滞中の単語 <div class="sec-title-line"></div></div>
-  <div class="chart-card">
-    <div class="chart-card-title">直近10回で上達速度が低下している単語</div>
-    <div class="chart-card-sub">傾きが ±0.3点/回 未満を停滞と判定。クエスト機能と組み合わせて重点的に練習することを推奨します。</div>
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>単語</th><th>アクセント型</th><th>練習回数</th><th>最高スコア</th><th>直近スコア</th><th>全体傾き</th></tr></thead>
-        <tbody>
-          {% for w in analysis_stats.word_stats if w.is_plateau %}
-          <tr>
-            <td style="font-weight:600;">{{ w.display }}</td>
-            <td>{{ w.accent_label }}</td>
-            <td>{{ w.n_sessions }}</td>
-            <td style="font-family:var(--mono);">{{ w.best }}</td>
-            <td style="font-family:var(--mono);">{{ w.latest }}</td>
-            <td>{% if w.regression %}<span style="font-family:var(--mono);color:var(--text-3);">{{ "%+.3f"|format(w.regression.slope) }}</span>{% else %}—{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
     </div>
-  </div>
-</div>
-{% endif %}
+    <div class="rs-side">
+      <div class="rs-item{% if stats.streak >= 3 %} hot{% endif %}" title="1日休んでも連続記録は途切れません">
+        <span class="rs-item-val">{% if stats.streak >= 3 %}{{ icon('flame', size=22) }}{% endif %}{{ stats.streak }}<small>日連続</small></span>
+        <span class="rs-item-lbl">{% if stats.streak == 0 %}今日練習すると1日目{% else %}1日休んでもOK{% endif %}</span>
+      </div>
+      <div class="rs-item">
+        <span class="rs-item-val">{{ stats.total_sessions }}<small>回</small></span>
+        <span class="rs-item-lbl">{{ stats.unique_words }}語を練習</span>
+      </div>
+    </div>
+  </section>
 
-<div class="a-sec">
-  <div class="sec-title">全単語の上達速度一覧 <div class="sec-title-line"></div></div>
-  <div class="chart-card">
-    <div style="overflow-x:auto;">
-      <table class="data-table">
-        <thead><tr><th>単語</th><th>アクセント型</th><th>練習回数</th><th>最高</th><th>直近</th><th>上達速度</th><th>R²</th><th>状態</th></tr></thead>
-        <tbody>
+  {# ── ② 点数のうつりかわり ───────────────────────────── #}
+  {% if n_sc >= 2 %}
+  <section class="rec-card">
+    <div class="rec-card-title">点数のうつりかわり</div>
+    <div class="rec-card-sub">線が<b>右上がり</b>なら、うまくなっています</div>
+    <div class="trend-wrap"><canvas id="studentTrendChart"></canvas></div>
+    <div class="trend-legend">
+      <span><i class="tl-line"></i>5回ごとの平均</span>
+      <span><i class="tl-dot"></i>1回ごとの点数</span>
+    </div>
+    <a class="to-insight" href="/history#analysis">{{ icon('trend') }} 単語ごとの のび方は「分析」で見る <span aria-hidden="true">›</span></a>
+  </section>
+  {% endif %}
+
+  {# ── ④ 練習した日 ───────────────────────────────────── #}
+  <section class="rec-card">
+    <div class="rec-card-title">練習した日</div>
+    <div class="rec-card-sub" id="calSummary">&nbsp;</div>
+    <div class="cal-scroll" id="calScroll">
+      <div class="cal">
+        <div class="cal-months" id="calMonths"></div>
+        <div class="cal-body">
+          <div class="cal-wd"><span>日</span><span></span><span>火</span><span></span><span>木</span><span></span><span>土</span></div>
+          <div class="heatmap-grid" id="heatmapGrid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="heatmap-legend">
+      <span class="heatmap-cell" style="background:var(--bg-muted);"></span><span>練習なし</span>
+      <span class="heatmap-cell" style="background:var(--brand-300);margin-left:8px;"></span>
+      <span class="heatmap-cell" style="background:var(--brand-600);"></span><span>たくさん練習</span>
+      <span class="heatmap-cell cal-today-sample" style="margin-left:8px;"></span><span>今日</span>
+    </div>
+  </section>
+
+  {# ── ⑤ さいきんの練習 ───────────────────────────────── #}
+  <section class="rec-card">
+    <div class="rec-card-title">さいきんの練習</div>
+    <ul class="recent-list" id="recentList">
+      {% for rec in history %}
+      {% set t = rec.total %}
+      <li class="rl-row"{% if loop.index > 10 %} hidden{% endif %}>
+        <span class="rl-word">{{ rec.display }}</span>
+        <span class="rl-score {{ 'g-s' if t is not none and t >= 90 else ('g-a' if t is not none and t >= 75 else ('g-b' if t is not none and t >= 60 else 'g-c')) }}">{{ (t | round | int) if t is not none else '—' }}<small>点</small></span>
+        <span class="rl-date">{% if rec.timestamp %}{{ rec.timestamp[5:7] | int }}/{{ rec.timestamp[8:10] | int }}{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if history | length > 10 %}
+    <button type="button" class="rl-more" id="recentMore">もっと見る</button>
+    {% endif %}
+  </section>
+  </section>
+
+  <section class="hs-panel" data-panel="insight" hidden>
+  {#
+    分析（生徒向け）
+
+    以前は「上達速度 +0.42 点/回」「R²」「Sランク到達分布」など研究用の言葉のまま
+    先生用の折りたたみに入れていた。生徒にとっても「自分はどうのびているか」は
+    知りたい情報なので、言葉と見せ方を変えて生徒の画面に出す。
+    数値そのものは、いちばん下の「数値の詳細（先生・研究用）」に残す。
+  #}
+  {% set sm = analysis_stats.summary if analysis_stats and analysis_stats.summary else {} %}
+  {% set enough = (sm.total_sessions or 0) >= 5 %}
+
+  {% if not enough %}
+  <div class="rec-card hs-note">
+    <div class="rec-card-title">もう少し練習すると、分析が見られます</div>
+    <div class="rec-card-sub">分析には5回以上の練習が必要です（いま {{ sm.total_sessions or 0 }} 回）。</div>
+  </div>
+  {% else %}
+
+  {# ── のび方のまとめ ── #}
+  {% set slope = sm.avg_slope %}
+  <section class="rec-card">
+    <div class="rec-card-title">のび方</div>
+    <div class="pace">
+      {% if slope is not none %}
+        {% if slope > 0.05 %}
+        <div class="pace-main up">1回練習するごとに<br><b>平均 +{{ '%.1f' | format(slope) }}点</b> ずつ、のびています</div>
+        {% elif slope < -0.05 %}
+        <div class="pace-main down">最近は<b>少し下がりぎみ</b>です。<br>足ぶみ中の単語から練習してみましょう</div>
+        {% else %}
+        <div class="pace-main flat">点数は<b>安定</b>しています。<br>新しい単語にも挑戦してみましょう</div>
+        {% endif %}
+      {% else %}
+        <div class="pace-main flat">もう少し練習すると、のび方が分かります</div>
+      {% endif %}
+    </div>
+    <div class="pace-stats">
+      <div class="ps up"><b>{{ sm.n_improving or 0 }}</b><span>のびている</span></div>
+      <div class="ps plateau"><b>{{ sm.n_plateau or 0 }}</b><span>足ぶみ中</span></div>
+      <div class="ps master"><b>{{ sm.n_s_rank or 0 }}</b><span>マスター</span></div>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ── ③ 単語ごとの成長 ───────────────────────────────── #}
+  {% set ws_all = (analysis_stats.word_stats if analysis_stats else []) %}
+  {% if ws_all %}
+  {% set g_plateau = [] %}{% set g_up = [] %}{% set g_doing = [] %}{% set g_master = [] %}
+  {% for w in ws_all %}
+    {% if w.best >= 90 %}{% set _ = g_master.append(w) %}
+    {% elif w.is_plateau %}{% set _ = g_plateau.append(w) %}
+    {% elif w.regression and w.regression.slope > 0.3 %}{% set _ = g_up.append(w) %}
+    {% else %}{% set _ = g_doing.append(w) %}{% endif %}
+  {% endfor %}
+  <section class="rec-card">
+    <div class="rec-card-title">単語ごとの成長</div>
+    <div class="rec-card-sub">線は最近10回の点数。<b>足ぶみ中</b>の単語は、練習するとのびやすいです</div>
+    <ul class="word-growth">
+      {% for group, kind in [(g_plateau, 'plateau'), (g_up, 'up'), (g_doing, 'doing'), (g_master, 'master')] %}
+      {% for w in group %}
+      {% set pts = w.scores[-10:] %}
+      {% set np = pts | length %}
+      {% set line = [] %}
+      {# 30〜100点を高さいっぱいに使う（0〜100だと変化が小さく、線が平らに見える） #}
+      {% for v in pts %}{% set vv = [[v, 30] | max, 100] | min %}{% set _ = line.append(((loop.index0 / ((np - 1) if np > 1 else 1)) * 64) | round(1) ~ ',' ~ (30 - ((vv - 30) / 70) * 28) | round(1)) %}{% endfor %}
+      {% set last = line[-1].split(',') %}
+      <li class="wg-row {{ kind }}">
+        <div class="wg-word">
+          <span class="wg-display">{{ w.display }}</span>
+          <span class="wg-meta">{{ w.n_sessions }}回・最高 <b>{{ w.best | round | int }}点</b></span>
+        </div>
+        <svg class="wg-spark" viewBox="-3 -2 70 34" aria-hidden="true">
+          <line x1="0" y1="{{ (30 - ((90 - 30) / 70) * 28) | round(1) }}" x2="64" y2="{{ (30 - ((90 - 30) / 70) * 28) | round(1) }}" class="wg-s90"/>
+          {% if np > 1 %}<polyline points="{{ line | join(' ') }}"/>{% endif %}
+          <circle cx="{{ last[0] }}" cy="{{ last[1] }}" r="2.6"/>
+        </svg>
+        <span class="wg-badge {{ kind }}">
+          {% if kind == 'master' %}マスター{% elif kind == 'plateau' %}足ぶみ中{% elif kind == 'up' %}のびている{% else %}練習中{% endif %}
+        </span>
+        <form action="/" method="post" class="wg-form">
+          <input type="hidden" name="Words" value="{{ w.word_id }}">
+          <button type="submit" class="wg-go" aria-label="{{ w.display }} を練習する">{{ icon('mic', size=16) }}</button>
+        </form>
+      </li>
+      {% endfor %}
+      {% endfor %}
+    </ul>
+    <div class="wg-note">点線は90点（マスター）のライン</div>
+  </section>
+  {% endif %}
+
+
+
+  {% if enough %}
+  {# ── 単語の点数のうつりかわり（1語ずつ） ── #}
+  {% set curve_words = (analysis_stats.word_stats | selectattr('n_sessions', 'ge', 2) | list) if analysis_stats else [] %}
+  {% if curve_words %}
+  <section class="rec-card">
+    <div class="rec-card-title">単語ごとの点数のうつりかわり</div>
+    <div class="rec-card-sub">点線は、のび方の目安です。<b>右上がり</b>なら、その単語はのびています</div>
+    <div class="chip-row" id="curveChips" style="margin:4px 0 10px;">
+      {% for w in curve_words %}
+      <button type="button" class="chip{% if loop.first %} active{% endif %}" data-curve="{{ loop.index0 }}">{{ w.display }}</button>
+      {% endfor %}
+    </div>
+    <div class="curve-wrap"><canvas id="wordCurveChart"></canvas></div>
+    <div class="curve-caption" id="curveCaption">&nbsp;</div>
+  </section>
+  {% endif %}
+
+  {# ── アクセントの型ごと ── #}
+  {% if accent_stats %}
+  {% set acc_min = (accent_stats | map(attribute='avg_total') | min) %}
+  <section class="rec-card">
+    <div class="rec-card-title">アクセントの型ごとの点数</div>
+    <div class="rec-card-sub">どの型の単語が得意か・にがてかが分かります</div>
+    <ul class="acc-list">
+      {% for a in accent_stats | sort(attribute='avg_total', reverse=True) %}
+      <li class="acc-row{% if accent_stats | length > 1 and a.avg_total == acc_min %} weak{% endif %}">
+        <div class="acc-head">
+          <span class="acc-name">{{ a.label }}</span>
+          <span class="acc-hint">
+            {% if a.accent == 0 %}低く始まり、高いまま{% elif a.accent == 1 %}はじめだけ高い{% else %}とちゅうが高い{% endif %}
+          </span>
+          <span class="acc-score"><b>{{ a.avg_total | round | int }}</b>点</span>
+        </div>
+        <div class="acc-bar"><i style="width:{{ [a.avg_total, 100] | min }}%"></i></div>
+        <div class="acc-foot">{{ a.count }}回の練習{% if accent_stats | length > 1 and a.avg_total == acc_min %}・<b>にがてな型</b>{% endif %}</div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {# ── マスターまで ── #}
+  {% set sd = analysis_stats.s_rank_dist if analysis_stats else {} %}
+  <section class="rec-card">
+    <div class="rec-card-title">マスターまでの道のり</div>
+    {% if sd and sd.n %}
+    <div class="master-line"><b>{{ sd.n }}語</b>がマスター（90点以上）になりました</div>
+    <div class="rec-card-sub" style="margin-bottom:0;">マスターになるまで、平均 <b>{{ sd.mean | round | int }}回</b> 練習しています。</div>
+    {% else %}
+    <div class="rec-card-sub" style="margin-bottom:0;">まだマスター（90点以上）になった単語はありません。<br>足ぶみ中の単語から練習すると近道です。</div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {# ── 数値の詳細（先生・研究用）：研究で使う指標はそのまま残す ── #}
+  <details class="teacher-fold" id="teacherFold">
+    <summary>{{ icon('flask') }} 数値の詳細 <span class="fold-hint">先生・研究用</span></summary>
+    <div class="teacher-fold-body">
+      <div class="tf-actions">
+        <a href="/history/export.csv" class="btn btn-ghost">{{ icon('down') }} CSVダウンロード</a>
+      </div>
+      {% if analysis_stats and analysis_stats.word_stats_by_slope %}
+      <div class="sec-title">単語ごとの上達速度 <div class="sec-title-line"></div></div>
+      <div class="tbl-scroll">
+        <table class="data-table">
+          <thead><tr><th>単語</th><th>回数</th><th>最高</th><th>直近</th><th>傾き（点/回）</th><th>R²</th><th>状態</th></tr></thead>
+          <tbody>
           {% for w in analysis_stats.word_stats_by_slope %}
           <tr>
-            <td style="font-weight:600;">{{ w.display }}</td>
-            <td>{{ w.accent_label }}</td>
-            <td>{{ w.n_sessions }}</td>
-            <td style="font-family:var(--mono);">{{ w.best }}</td>
-            <td style="font-family:var(--mono);">{{ w.latest }}</td>
-            <td style="font-family:var(--mono); color:{% if w.regression and w.regression.slope > 0.3 %}var(--green){% elif w.regression and w.regression.slope < -0.3 %}var(--accent){% else %}var(--text-3){% endif %};">
-              {% if w.regression %}{{ "%+.3f"|format(w.regression.slope) }} 点/回{% else %}—{% endif %}
-            </td>
-            <td style="font-family:var(--mono);color:var(--text-3);">{% if w.regression %}{{ w.regression.r_squared }}{% else %}—{% endif %}</td>
-            <td>
-              {% if w.is_plateau %}<span class="badge-plateau">停滞</span>
-              {% elif w.regression and w.regression.slope > 0.3 %}<span class="badge-up">上達中</span>
-              {% elif w.regression and w.regression.slope < -0.3 %}<span class="badge-down">低下</span>
-              {% else %}<span style="font-size:11px;color:var(--text-3);">安定</span>{% endif %}
-            </td>
+            <td>{{ w.display }}</td><td>{{ w.n_sessions }}</td><td>{{ w.best }}</td><td>{{ w.latest }}</td>
+            <td>{% if w.regression %}{{ '%+.3f' | format(w.regression.slope) }}{% else %}—{% endif %}</td>
+            <td>{% if w.regression %}{{ w.regression.r_squared }}{% else %}—{% endif %}</td>
+            <td>{% if w.is_plateau %}停滞{% elif w.regression and w.regression.slope > 0.3 %}上達中{% elif w.regression and w.regression.slope < -0.3 %}低下{% else %}安定{% endif %}</td>
           </tr>
           {% endfor %}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+      {% if analysis_stats and analysis_stats.accent_stats %}
+      <div class="sec-title" style="margin-top:18px;">アクセント型ごとの上達しやすさ <div class="sec-title-line"></div></div>
+      <div class="tbl-scroll">
+        <table class="data-table">
+          <thead><tr><th>型</th><th>単語数</th><th>練習回数</th><th>平均傾き</th><th>Sランク到達率</th></tr></thead>
+          <tbody>
+          {% for a in analysis_stats.accent_stats %}
+          <tr><td>{{ a.label }}</td><td>{{ a.n_words }}</td><td>{{ a.n_sessions }}</td>
+              <td>{% if a.avg_slope is not none %}{{ '%+.3f' | format(a.avg_slope) }}{% else %}—{% endif %}</td><td>{{ a.s_rate }}%</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+      {% if analysis_stats and analysis_stats.s_rank_dist and analysis_stats.s_rank_dist.n %}
+      <div class="sec-title" style="margin-top:18px;">Sランク到達回数 <div class="sec-title-line"></div></div>
+      <p class="tf-text">到達 {{ analysis_stats.s_rank_dist.n }}語 ／ 平均 {{ analysis_stats.s_rank_dist.mean }}回 ／ 中央値 {{ analysis_stats.s_rank_dist.median }}回 ／ 最少 {{ analysis_stats.s_rank_dist.min }}回・最多 {{ analysis_stats.s_rank_dist.max }}回</p>
+      {% endif %}
+      {% if accent_stats %}
+      <div class="sec-title" style="margin-top:18px;">アクセント型ごとの平均点（3軸） <div class="sec-title-line"></div></div>
+      <p class="tf-text">{% for a in accent_stats %}{{ a.label }}：合計 {{ a.avg_total }}（アクセント {{ a.avg_accent }} / 長さ {{ a.avg_length }} / 母音 {{ a.avg_vowel }}、{{ a.count }}回）{% if not loop.last %}<br>{% endif %}{% endfor %}</p>
+      {% endif %}
     </div>
-  </div>
-</div>
+  </details>
+  </section>
 
-{% endif %}
-</div>
-</div><!-- /tabAnalysis -->
+  {% endif %}
+</main>
+
 
 <script>
-// ── カレンダーヒートマップ ────────────────────────────────────────
-(async function initHeatmap() {
-  const grid = document.getElementById('heatmapGrid');
+// ── 練習した日（カレンダー） ─────────────────────────────────────
+// 以前は色のついたマスが並ぶだけで、曜日も月も今日の位置も分からなかった。
+// 曜日を行、週を列にそろえ、月の切り替わりと今日に印を付ける。
+(async function initCalendar() {
+  const grid    = document.getElementById('heatmapGrid');
+  const months  = document.getElementById('calMonths');
+  const summary = document.getElementById('calSummary');
+  const scroll  = document.getElementById('calScroll');
   if (!grid) return;
+
   let data = {};
   try {
     const res = await fetch('/api/history/calendar?days=84');
     if (res.ok) data = await res.json();
-  } catch(e) { return; }
+  } catch (e) { return; }
+
   const dates = Object.keys(data).sort();
+  if (!dates.length) return;
   const maxVal = Math.max(1, ...Object.values(data));
-  dates.forEach(d => {
-    const n   = data[d] || 0;
-    const pct = n / maxVal;
+  const toDate = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+
+  // 1列目の頭を日曜にそろえるため、最初の日の曜日ぶん空マスを入れる
+  const offset = toDate(dates[0]).getDay();
+  for (let i = 0; i < offset; i++) {
+    const pad = document.createElement('div');
+    pad.className = 'heatmap-cell pad';
+    grid.appendChild(pad);
+  }
+
+  const todayStr = dates[dates.length - 1];
+  const monthAt = {};   // 列番号 → 月
+  dates.forEach((d, i) => {
+    const n    = data[d] || 0;
+    const pct  = n / maxVal;
     const cell = document.createElement('div');
-    cell.className = 'heatmap-cell';
-    cell.title = `${d}：${n}回`;
-    if (n === 0) {
-      cell.style.background = 'var(--bg-muted)';
-    } else if (pct < 0.33) {
-      cell.style.background = 'rgba(5,150,105,.3)';
-    } else if (pct < 0.66) {
-      cell.style.background = 'rgba(5,150,105,.6)';
-    } else {
-      cell.style.background = '#059669';
-    }
+    cell.className = 'heatmap-cell' + (d === todayStr ? ' today' : '');
+    const dt = toDate(d);
+    cell.title = `${dt.getMonth() + 1}月${dt.getDate()}日：${n ? n + '回' : '練習なし'}`;
+    cell.style.background = n === 0 ? 'var(--bg-muted)'
+                          : pct < 0.34 ? 'var(--brand-200)'
+                          : pct < 0.67 ? 'var(--brand-400)' : 'var(--brand-600)';
     grid.appendChild(cell);
+
+    // その列で初めて出てきた月（1日を含む列、または最初の列）にラベルを付ける
+    const col = Math.floor((offset + i) / 7);
+    if (dt.getDate() === 1 || i === 0) monthAt[col] = dt.getMonth() + 1;
+  });
+
+  if (months) {
+    const cols = Math.ceil((offset + dates.length) / 7);
+    if (monthAt[0] && Object.keys(monthAt).some(c => c > 0 && c < 3)) delete monthAt[0];
+    for (let c = 0; c < cols; c++) {
+      const m = document.createElement('span');
+      m.textContent = monthAt[c] ? monthAt[c] + '月' : '';
+      months.appendChild(m);
+    }
+  }
+
+  // この4週間で何日練習したか（数字1つで伝える）
+  if (summary) {
+    const last28 = dates.slice(-28);
+    const days = last28.filter(d => (data[d] || 0) > 0).length;
+    summary.innerHTML = `この4週間で <b>${days}日</b> 練習しました`;
+  }
+
+  // スマホでは最新（右端）が見えるようにする
+  if (scroll) scroll.scrollLeft = scroll.scrollWidth;
+})();
+
+// ── さいきんの練習：もっと見る ─────────────────────────────────────
+(function () {
+  const btn = document.getElementById('recentMore');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const hidden = Array.from(document.querySelectorAll('#recentList .rl-row[hidden]'));
+    hidden.slice(0, 20).forEach(r => { r.hidden = false; });
+    if (hidden.length <= 20) btn.remove();
   });
 })();
 
-// ── タブ切り替え ──────────────────────────────────────────────────
-let analysisChartsInited = false;
-
-function switchTab(tab) {
-  document.getElementById('tabLog').style.display      = tab === 'log'      ? '' : 'none';
-  document.getElementById('tabAnalysis').style.display = tab === 'analysis' ? '' : 'none';
-  document.getElementById('tabBtnLog').classList.toggle('active',      tab === 'log');
-  document.getElementById('tabBtnAnalysis').classList.toggle('active', tab === 'analysis');
-  if (tab === 'analysis' && !analysisChartsInited) {
-    initAnalysisCharts();
-    analysisChartsInited = true;
-  }
+// グラフの線の下に敷く、上から下へ消えていくうすい色（線と同じ色から作る）
+function spFade(hex) {
+  return function (c) {
+    const area = c.chart.chartArea;
+    if (!area) return 'transparent';
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec((hex || '').trim());
+    const rgb = m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)].join(',') : '91,75,234';
+    const g = c.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, `rgba(${rgb},.26)`);
+    g.addColorStop(1, `rgba(${rgb},0)`);
+    return g;
+  };
 }
 
-// ── テーブル絞り込み ──────────────────────────────────────────────
-function filterHistory() {
-  const q = document.getElementById('filterInput').value.trim().toLowerCase();
-  document.querySelectorAll('#historyTable tbody tr').forEach(row => {
-    row.style.display = !q || (row.dataset.word||'').toLowerCase().includes(q) ? '' : 'none';
-  });
-}
+// ── 点数のうつりかわり（生徒向け） ───────────────────────────────────
+// 出すのは「5回ごとの平均」の太い線と、1回ごとの点（うすく）だけ。
+// 目盛りは 0・50・75・90 に絞り、90点（マスター）の線に色を付ける。
+(function () {
+  const el = document.getElementById('studentTrendChart');
+  if (!el || typeof Chart === 'undefined') return;
+  const tr = {{ (analysis_stats.overall_trend if analysis_stats and analysis_stats.overall_trend else {}) | tojson }};
+  if (!tr.scores || tr.scores.length < 2) return;
 
-// ── 単語別スコア推移グラフ（練習ログタブ） ─────────────────────
-const wordHistories = {{ word_history | tojson | safe }};
+  const css  = getComputedStyle(document.documentElement);
+  const NAVY = (css.getPropertyValue('--navy') || '').trim() || '#5B4BEA';
+  const GRID = (css.getPropertyValue('--border-light') || '').trim() || '#eee';
+  const TXT  = (css.getPropertyValue('--text-3') || '').trim() || '#999';
+  const x    = tr.scores.map((_, i) => i + 1);
+  const fade = spFade(NAVY);
 
-Object.entries(wordHistories).forEach(([wid, recs]) => {
-  const canvas = document.getElementById('chart-' + wid);
-  if (!canvas || recs.length < 2) {
-    if (canvas && recs.length === 1) {
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#9E9890';
-      ctx.font = '10px "Noto Sans JP"';
-      ctx.textAlign = 'center';
-      ctx.fillText('2回目以降から推移グラフが表示されます', canvas.width/2, 30);
-    }
-    return;
-  }
-  const labels  = recs.map((r, i) => `${i + 1}回目`);
-  const totals  = recs.map(r => r.total || 0);
-  const accents = recs.map(r => ((r.accent_score || 0) / 50 * 100).toFixed(1));
-  const lengths = recs.map(r => ((r.length_score || 0) / 30 * 100).toFixed(1));
-  const vowels  = recs.map(r => ((r.vowel_score  || 0) / 20 * 100).toFixed(1));
-  new Chart(canvas, {
+  new Chart(el, {
     type: 'line',
     data: {
-      labels,
+      labels: x,
       datasets: [
-        { label:'合計', data:totals,  borderColor:'#0E1E45', backgroundColor:'rgba(14,30,69,.08)', borderWidth:2, pointRadius:3, tension:.3 },
-        { label:'Ac%', data:accents, borderColor:'#C03D20', borderWidth:1, pointRadius:2, tension:.3, borderDash:[3,3] },
-        { label:'Le%', data:lengths, borderColor:'#2D6A4F', borderWidth:1, pointRadius:2, tension:.3, borderDash:[3,3] },
-        { label:'Vo%', data:vowels,  borderColor:'#2A5F96', borderWidth:1, pointRadius:2, tension:.3, borderDash:[3,3] },
-      ]
+        { label: '5回ごとの平均', data: tr.moving_average, borderColor: NAVY, borderWidth: 3.5,
+          pointRadius: 0, tension: .35, fill: 'origin', backgroundColor: fade },
+        { label: '1回ごとの点数', data: tr.scores, borderColor: 'transparent', showLine: false,
+          pointRadius: 3, pointBackgroundColor: 'rgba(150,150,162,.55)', pointBorderWidth: 0 },
+      ],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      scales: { x: { display:false }, y: { display:false, min:0, max:100 } },
-      plugins: { legend:{ display:false }, tooltip:{ mode:'index', intersect:false } }
-    }
-  });
-});
-
-// ── 分析チャート（分析タブ初回表示時に初期化） ──────────────────
-const analysisData = {{ analysis_stats | tojson | safe }};
-let wordChart = null;
-
-function initAnalysisCharts() {
-  const ot = analysisData.overall_trend;
-  new Chart(document.getElementById('overallChart'), {
-    type: 'line',
-    data: {
-      labels: ot.timestamps,
-      datasets: [
-        { label: 'スコア', data: ot.scores, borderColor: 'rgba(42,95,150,.4)', backgroundColor: 'rgba(42,95,150,.05)', borderWidth: 1.5, pointRadius: 2, tension: 0.2 },
-        { label: '移動平均（5回）', data: ot.moving_average, borderColor: 'rgba(14,30,69,1)', backgroundColor: 'transparent', borderWidth: 2.5, pointRadius: 0, tension: 0.4 },
-      ]
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: { ticks: { display: false }, grid: { display: false },
+             title: { display: true, text: '← はじめ　　　　　最近 →', color: TXT, font: { size: 11 } } },
+        y: {
+          min: 0, max: 100,
+          afterBuildTicks: axis => { axis.ticks = [0, 50, 75, 90].map(v => ({ value: v })); },
+          ticks: { color: TXT, font: { size: 11 }, callback: v => v + '点' },
+          grid: { color: ctx => ctx.tick && ctx.tick.value === 90 ? 'rgba(145,134,251,.55)' : GRID },
+        },
+      },
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      scales: { x: { display: false }, y: { min: 0, max: 100, title: { display: true, text: 'スコア' } } },
-      plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } }
-    }
   });
+})();
 
-  const ac = analysisData.accent_stats;
-  const acLabels = ac.map(a => a.label);
-  const acSlopes = ac.map(a => a.avg_slope ?? 0);
-  new Chart(document.getElementById('accentSlopeChart'), {
-    type: 'bar',
-    data: {
-      labels: acLabels,
-      datasets: [{ label: '平均傾き（点/回）', data: acSlopes,
-        backgroundColor: acSlopes.map(s => s > 0.3 ? 'rgba(45,106,79,.7)' : s < -0.3 ? 'rgba(192,61,32,.7)' : 'rgba(42,95,150,.5)') }]
-    },
-    options: { responsive: true, maintainAspectRatio: false,
-      scales: { y: { title: { display: true, text: '点/回' } } },
-      plugins: { legend: { display: false } }
-    }
-  });
-  new Chart(document.getElementById('accentSRateChart'), {
-    type: 'bar',
-    data: {
-      labels: acLabels,
-      datasets: [{ label: 'Sランク到達率（%）', data: ac.map(a => a.s_rate), backgroundColor: 'rgba(245,158,11,.6)' }]
-    },
-    options: { responsive: true, maintainAspectRatio: false,
-      scales: { y: { min: 0, max: 100, title: { display: true, text: '%' } } },
-      plugins: { legend: { display: false } }
-    }
-  });
-
-  {% if analysis_stats.s_rank_dist %}
-  const sd = analysisData.s_rank_dist.distribution;
-  new Chart(document.getElementById('sRankDistChart'), {
-    type: 'bar',
-    data: {
-      labels: Object.keys(sd).map(k => k + '回目'),
-      datasets: [{ label: '単語数', data: Object.values(sd), backgroundColor: 'rgba(245,158,11,.6)' }]
-    },
-    options: { responsive: true, maintainAspectRatio: false,
-      scales: { y: { ticks: { stepSize: 1 }, title: { display: true, text: '単語数' } } },
-      plugins: { legend: { display: false } }
-    }
-  });
-  {% endif %}
-
-  const eligibleWords = analysisData.word_stats.filter(w => w.n_sessions >= 2);
-  window._eligibleWords = eligibleWords;
-  if (eligibleWords.length > 0) updateWordChart();
+// ── 記録／分析タブ ──────────────────────────────────────────────
+function showHistoryPanel(name) {
+  const wasHidden = document.querySelector(`.hs-panel[data-panel="${name}"]`)?.hidden;
+  document.querySelectorAll('.hs-panel').forEach(p => { p.hidden = (p.dataset.panel !== name); });
+  const title = document.getElementById('hsTitle');
+  if (title) title.textContent = name === 'insight' ? 'わたしの分析' : 'わたしの記録';
+  document.title = (name === 'insight' ? '分析' : '記録') + ' — SP-PS';
+  if (wasHidden) window.scrollTo(0, 0);
+  window.dispatchEvent(new Event('resize'));
+  if (name === 'insight') buildWordCurve();
+  // 画面下のタブの選択状態も合わせる（関数から直接切り替えたとき用）
+  const want = name === 'insight' ? '#analysis' : '#log';
+  if (location.hash !== want) history.replaceState(null, '', want);
+  window.SPTabbar?.refresh();
 }
+function syncPanelWithHash() { showHistoryPanel(location.hash === '#analysis' ? 'insight' : 'log'); }
+window.addEventListener('hashchange', syncPanelWithHash);
 
-function updateWordChart() {
-  const eligibleWords = window._eligibleWords;
-  if (!eligibleWords || !eligibleWords.length) return;
-  const idx = parseInt(document.getElementById('wordSelector').value);
-  const w   = eligibleWords[idx];
-  if (!w) return;
-  const scores = w.scores;
-  const x      = scores.map((_, i) => i + 1);
-  let regrLine = null;
+// ── 単語ごとの点数のうつりかわり（分析タブ） ─────────────────────────
+const CURVE_WORDS = {{ ((analysis_stats.word_stats | selectattr('n_sessions', 'ge', 2) | list) if analysis_stats and analysis_stats.word_stats else []) | tojson }};
+let curveChart = null, curveIndex = 0;
+function buildWordCurve() {
+  const el = document.getElementById('wordCurveChart');
+  if (!el || typeof Chart === 'undefined' || !CURVE_WORDS.length) return;
+  const w = CURVE_WORDS[curveIndex];
+  const css  = getComputedStyle(document.documentElement);
+  const NAVY = (css.getPropertyValue('--navy') || '').trim() || '#5B4BEA';
+  const GRID = (css.getPropertyValue('--border-light') || '').trim() || '#eee';
+  const TXT  = (css.getPropertyValue('--text-3') || '').trim() || '#888';
+  const x = w.scores.map((_, i) => i + 1);
+  const sets = [{ label: '点数', data: w.scores, borderColor: NAVY, backgroundColor: spFade(NAVY), borderWidth: 3,
+                  pointRadius: 3.5, pointHoverRadius: 5, pointBackgroundColor: NAVY, tension: .25, fill: 'origin' }];
   if (w.regression) {
     const { slope, intercept } = w.regression;
-    regrLine = x.map(xi => Math.min(100, Math.max(0, slope * (xi - 1) + intercept)));
+    sets.push({ label: 'のび方の目安', data: x.map(i => Math.max(0, Math.min(100, slope * (i - 1) + intercept))),
+                borderColor: 'rgba(148,148,160,.8)', borderDash: [6, 5], borderWidth: 2, pointRadius: 0, tension: 0 });
   }
-  document.getElementById('wordChartTitle').textContent = w.display + '（' + w.accent_label + '）';
-  const slope_txt = w.regression ? (w.regression.slope > 0 ? '+' : '') + w.regression.slope.toFixed(3) + ' 点/回 R²=' + w.regression.r_squared : '';
-  document.getElementById('wordChartSub').textContent = slope_txt + (w.is_plateau ? '　⚠ 停滞中' : '');
-  const datasets = [
-    { label: 'スコア', data: scores, borderColor: 'rgba(42,95,150,.8)', backgroundColor: 'rgba(42,95,150,.1)', borderWidth: 2, pointRadius: 4, tension: 0.2 },
-  ];
-  if (regrLine) {
-    const color = w.regression.slope > 0.3 ? 'rgba(45,106,79,.8)' : w.regression.slope < -0.3 ? 'rgba(192,61,32,.8)' : 'rgba(158,152,144,.8)';
-    datasets.push({ label: '回帰直線', data: regrLine, borderColor: color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, borderDash: [6,3], tension: 0 });
-  }
-  if (wordChart) wordChart.destroy();
-  wordChart = new Chart(document.getElementById('wordChart'), {
+  if (curveChart) curveChart.destroy();
+  curveChart = new Chart(el, {
     type: 'line',
-    data: { labels: x.map(i => i + '回目'), datasets },
-    options: { responsive: true, maintainAspectRatio: false,
-      scales: { y: { min: 0, max: 100, title: { display: true, text: 'スコア' } } },
-      plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } }
-    }
+    data: { labels: x.map(i => i + '回目'), datasets: sets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: true, displayColors: false,
+                 callbacks: { label: c => c.datasetIndex === 0 ? c.raw + '点' : '' } } },
+      scales: {
+        x: { ticks: { color: TXT, font: { size: 11 }, maxTicksLimit: 6 }, grid: { display: false } },
+        y: { min: 0, max: 100,
+             afterBuildTicks: ax => { ax.ticks = [0, 50, 75, 90].map(v => ({ value: v })); },
+             ticks: { color: TXT, font: { size: 11 }, callback: v => v + '点' },
+             grid: { color: c => c.tick && c.tick.value === 90 ? 'rgba(145,134,251,.55)' : GRID } },
+      },
+    },
   });
+  const cap = document.getElementById('curveCaption');
+  if (cap) {
+    const first = w.scores[0], last = w.scores[w.scores.length - 1];
+    const diff = Math.round(last - first);
+    cap.innerHTML = `${w.display}：${w.scores.length}回で ` +
+      (diff > 0 ? `<b>+${diff}点</b> のびました` : diff < 0 ? `${diff}点（ここから立て直そう）` : '同じくらいの点数です') +
+      (w.is_plateau ? '・<b>足ぶみ中</b>' : '');
+  }
 }
+document.getElementById('curveChips')?.addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if (!c) return;
+  document.querySelectorAll('#curveChips .chip').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  curveIndex = parseInt(c.dataset.curve, 10) || 0;
+  buildWordCurve();
+});
 
-// URLハッシュでタブ選択
-if (location.hash === '#analysis') switchTab('analysis');
+// 開いたときの面は URL で決める（/history#analysis なら分析）
+syncPanelWithHash();
 </script>
 <script src="/static/js/tabbar.js" defer></script>
 </body>

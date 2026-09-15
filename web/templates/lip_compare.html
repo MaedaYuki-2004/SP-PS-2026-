@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>唇比較 — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
     .compare-page { max-width:860px; margin:0 auto; padding:24px; display:grid; gap:20px; }
@@ -22,8 +24,8 @@
     button { border:none; border-radius:12px; padding:14px 18px; font-size:13px; font-weight:700; cursor:pointer; transition:transform .15s ease,box-shadow .15s ease; }
     button:hover:not(:disabled) { transform:translateY(-1px); }
     button:disabled { opacity:.45; cursor:not-allowed; }
-    .btn-primary { background:var(--navy); color:#fff; }
-    .btn-secondary { background:var(--accent); color:#fff; }
+    .btn-primary { background:var(--navy-fill); color:#fff; }
+    .btn-secondary { background:var(--rec); color:#fff; }
     .status { min-height:22px; color:var(--text); font-size:14px; }
     .result-card { display:grid; gap:18px; }
     .score-badge { font-size:48px; font-weight:800; color:var(--navy); }

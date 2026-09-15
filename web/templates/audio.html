@@ -1,175 +1,270 @@
 {% from "_icons.html" import icon %}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>録音 — {{ display or test }}</title>
   <link rel="manifest" href="/static/manifest.json">
-  <meta name="theme-color" content="#0E1E45">
+  <meta name="theme-color" content="#F4F4F9">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
-    .record-page { flex:1; display:flex; flex-direction:column; max-width:540px; margin:0 auto; width:100%; padding:0 24px 44px; }
+    /* 全画面の段階（お手本 → 3・2・1 → 録音中）の背景。3つとも同じにして1本の流れに見せる */
+    :root { --stage-bg:
+      radial-gradient(110% 55% at 50% -5%, rgba(107,86,255,.45) 0%, rgba(107,86,255,0) 60%),
+      radial-gradient(80% 40% at 50% 105%, rgba(61,123,255,.18) 0%, rgba(61,123,255,0) 70%),
+      #0C0A1A; }
+
+    /* ── 録音ページ：画面ごとの器 ──────────────────────────────
+       1画面＝1つの役割。スクロールしなくても全部見えることを基準にする。 */
+    .record-page { flex:1; display:flex; flex-direction:column; max-width:520px; margin:0 auto; width:100%;
+                   padding:0 20px 28px; }
+    .rp-view { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+               gap:22px; padding:18px 0; text-align:center; }
+
+    /* 単語：うしろにテーマカラーの光を置いて、画面の主役にする */
+    .rp-word { position:relative; display:flex; flex-direction:column; align-items:center; gap:8px; padding:18px 8px 8px; isolation:isolate; }
+    .rp-word::before { content:''; position:absolute; left:50%; top:50%; width:min(320px, 80vw); aspect-ratio:1; z-index:-1;
+                       transform:translate(-50%,-50%); border-radius:50%; pointer-events:none;
+                       background:radial-gradient(closest-side, color-mix(in srgb, var(--brand-400) 26%, transparent), transparent 72%); }
+    .rp-reading { display:inline-flex; align-items:center; min-height:30px; padding:2px 14px; border-radius:100px;
+                  background:var(--bg-card); box-shadow:var(--elev-1); font-size:14px; letter-spacing:.16em; color:var(--text-2); }
+    .rp-display { font-size:clamp(50px,14vw,76px); font-weight:700; line-height:1.1; color:var(--text); letter-spacing:.02em; }
+    .rp-word-sm { padding-top:4px; }
+    .rp-word-sm::before { width:min(200px, 60vw); }
+    .rp-word-sm .rp-display { font-size:clamp(28px,7.5vw,36px); }
+
+    /* 入口は2つだけ */
+    .rp-actions { display:flex; flex-direction:column; gap:12px; width:100%; }
+    .rp-btn { position:relative; display:flex; width:100%; min-height:70px; align-items:center; justify-content:center; gap:12px;
+              border:none; border-radius:24px; cursor:pointer; font-family:var(--font);
+              font-size:19px; font-weight:700; -webkit-tap-highlight-color:transparent;
+              transition:transform .15s var(--ease), box-shadow .2s, filter .2s; }
+    .rp-btn:active { transform:scale(.97); }
+    .rp-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .rp-btn-ref { background:var(--bg-card); color:var(--text); box-shadow:var(--elev-1); border:1px solid var(--surface-line); }
+    .rp-btn-ref .ic { width:36px !important; height:36px !important; padding:10px; border-radius:50%; background:var(--navy-soft); color:var(--navy); box-sizing:border-box; }
+    .rp-btn-rec { background:var(--grad-rec); color:#fff; box-shadow:var(--shadow-rec); }
+    .rp-btn-rec::after { content:''; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 1px 0 rgba(255,255,255,.22); pointer-events:none; }
+    .rp-btn-rec svg { width:18px; height:18px; filter:drop-shadow(0 0 6px rgba(255,255,255,.5)); }
+    .rp-btn-rec:hover { filter:brightness(1.05); }
+    /* 押せる状態のあいだ、録音の印をゆっくり脈打たせる（押す場所がここだと分かるように） */
+    body[data-phase="ready"] .rp-btn-rec:not(:disabled) svg { animation:rec-breathe 2.2s ease-in-out infinite; }
+    @keyframes rec-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.2); } }
+
+    /* マイク・カメラの状態（困っているときだけ目立たせる） */
+    .rp-status { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:100px;
+                 font-size:13px; color:var(--text-3); background:var(--bg-muted); max-width:100%; }
+    .rp-status-dot { width:8px; height:8px; border-radius:50%; background:var(--text-3); flex:none; }
+    .rp-status[data-state="ok"]   { color:var(--good); background:var(--good-bg); }
+    .rp-status[data-state="ok"] .rp-status-dot { background:var(--good); }
+    .rp-status[data-state="warn"] { color:var(--mid-text); background:var(--mid-bg); }
+    .rp-status[data-state="warn"] .rp-status-dot { background:var(--mid); }
+    .rp-status[data-state="err"]  { color:var(--danger); background:var(--danger-bg); }
+    .rp-status[data-state="err"] .rp-status-dot { background:var(--danger); }
+
+    /* 画面のすみに置く小さな導線（押せることが分かるよう、小さなピルにする） */
+    .rp-links { display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;
+                font-size:13px; color:var(--text-3); }
+    .rp-links a, .rp-links button { display:inline-flex; align-items:center; min-height:40px; padding:6px 14px; border-radius:100px;
+                                    color:var(--text-2); text-decoration:none; background:var(--bg-card); border:none; box-shadow:var(--elev-1);
+                                    font-family:var(--font); font-size:13px; font-weight:500; cursor:pointer; }
+    .rp-links a:hover, .rp-links button:hover { color:var(--navy); }
+    .rp-links-sep { display:none; }
+
+    /* ⑤ 録音のあと */
+    .rp-replay { width:100%; display:flex; flex-direction:column; gap:6px; align-items:stretch; }
+    .rp-replay-label { font-size:13px; font-weight:700; color:var(--text-3); text-align:left; }
+    .rp-again { display:flex; gap:10px; width:100%; }
+    .rp-again-btn { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+                    min-height:52px; border-radius:16px; border:1px solid var(--surface-line); background:var(--bg-card); box-shadow:var(--elev-1);
+                    color:var(--text-2); font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer;
+                    transition:transform .15s var(--ease), color var(--dur); }
+    .rp-again-btn:hover { color:var(--navy); }
+    .rp-again-btn:active { transform:scale(.97); }
+
+    /* 画面に出さない部品の置き場 */
+    .rp-parts { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+
+    /* 練習の設定（下から出るシート。ホームの設定と同じ部品を使う） */
+    #prepSheet { z-index:950; }
 
     /* Mic quality banner */
-    .mic-quality-warn { display:none; align-items:center; gap:10px; padding:10px 16px; border-radius:var(--r); font-size:12px; font-weight:600; margin-bottom:12px; }
-    .mic-quality-warn.warn-noise { background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.35); color:#92400e; }
-    .mic-quality-warn.warn-low   { background:rgba(192,61,32,.08); border:1px solid rgba(192,61,32,.25); color:var(--accent); }
-    [data-theme="dark"] .mic-quality-warn.warn-noise { color:#fbbf24; }
-    [data-theme="dark"] .mic-quality-warn.warn-low   { color:#fca5a5; }
 
-    /* Steps */
-    .steps { display:flex; align-items:center; padding:20px 0 16px; }
+    /* Steps（画面が広いときだけ出す。スマホではヘッダーの「2/3」で足りる） */
+    @media (max-width:700px) { .steps { display:none; } }
     .step { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
-    .step-num { width:20px; height:20px; border-radius:50%; background:var(--bg-muted); color:var(--text-3); font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
-    .step.done .step-num  { background:var(--green); color:#fff; }
-    .step.active .step-num{ background:var(--navy);  color:#fff; }
-    .step.active { color:var(--navy); }
-    .step-line { flex:1; height:1px; background:var(--border); margin:0 8px; }
 
     /* Word */
-    .word-section { text-align:center; padding:28px 0 24px; margin:0 -24px 20px; background:var(--navy); border-radius:0 0 32px 32px; position:relative; overflow:hidden; }
-    .word-section::before { content:''; position:absolute; right:-80px; top:-80px; width:340px; height:340px; border-radius:50%; background:rgba(255,255,255,.03); pointer-events:none; }
-    .word-reading { font-size:12px; letter-spacing:.14em; color:rgba(255,255,255,.45); margin-bottom:8px; }
-    .word-display { font-size:clamp(54px,14vw,82px); font-weight:700; color:#fff; line-height:1.05; letter-spacing:.01em; margin-bottom:16px; text-shadow:0 2px 16px rgba(0,0,0,.25); }
-    .sample-wrap  { display:flex; align-items:center; justify-content:center; gap:10px; }
-    .sample-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.4); }
-    .sample-audio { height:28px; width:160px; border-radius:var(--r-xs); }
 
     /* Step guide — contextual hint */
-    .step-guide { display:flex; align-items:center; gap:10px; margin:14px 0 16px; padding:10px 14px; background:var(--bg-muted); border:1px solid var(--border-light); border-radius:var(--r); font-size:12px; color:var(--text-2); transition:background .3s; }
-    .step-guide-num { width:22px; height:22px; border-radius:50%; background:var(--navy); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .3s; }
-    .step-guide.recording { background:rgba(192,61,32,.07); border-color:rgba(192,61,32,.2); }
-    .step-guide.recording .step-guide-num { background:var(--accent); }
-    .step-guide.done { background:rgba(45,106,79,.07); border-color:rgba(45,106,79,.2); }
-    .step-guide.done .step-guide-num { background:#2D6A4F; }
 
     /* Recording action buttons — prominent, above waveform */
-    .record-actions { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
-    .record-btn-row { display:flex; gap:10px; }
-    #buttonStart, #buttonStop { flex:1; border-radius:var(--r); font-family:var(--font); font-weight:800; letter-spacing:.06em; cursor:pointer; border:none; display:flex; align-items:center; justify-content:center; gap:8px; transition:filter .15s,box-shadow var(--dur),transform var(--dur),opacity var(--dur); -webkit-tap-highlight-color:transparent; }
-    #buttonStart:active:not(:disabled), #buttonStop:active:not(:disabled) { transform:scale(.97); }
-    #buttonStart:disabled, #buttonStop:disabled { opacity:.3; cursor:not-allowed; }
-    @keyframes pulse-ready { 0%,70%,100%{box-shadow:0 6px 20px rgba(192,61,32,.35)} 35%{box-shadow:0 6px 30px rgba(192,61,32,.6),0 0 0 9px rgba(192,61,32,.1)} }
-    #buttonStart { background:linear-gradient(135deg,#C03D20 0%,#e84a2a 100%); color:#fff; height:64px; font-size:15px; }
-    #buttonStart:not(:disabled) { animation:pulse-ready 2.4s ease infinite; }
-    #buttonStart:not(:disabled):hover, #buttonStart:not(:disabled):active { animation:none; filter:brightness(1.1); box-shadow:0 6px 22px rgba(192,61,32,.45); }
-    #buttonStop  { background:var(--navy); color:#fff; height:64px; font-size:14px; }
-    #buttonStop:not(:disabled):hover  { background:var(--navy-mid); box-shadow:0 4px 16px rgba(14,30,69,.3); }
-    .shortcut-hint { display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; color:var(--text-3); }
-    .key-badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 8px; border:1px solid var(--border); border-radius:4px; font-family:var(--mono); font-size:10px; color:var(--text-3); background:var(--bg-muted); box-shadow:0 1px 0 var(--border); letter-spacing:.04em; }
+    @keyframes pulse-ready { 0%,70%,100%{box-shadow:0 1px 2px rgba(0,0,0,.08)} 35%{box-shadow:0 6px 30px rgba(238,90,95,.55),0 0 0 9px rgba(238,90,95,.12)} }
+    body[data-phase="recording"] .watch-rec-btn,
 
     /* Waveform visualizer */
-    @keyframes rec-glow { 0%,100%{box-shadow:0 0 0 0 rgba(192,61,32,.45)} 50%{box-shadow:0 0 0 5px rgba(192,61,32,.18)} }
+    @keyframes rec-glow { 0%,100%{box-shadow:0 0 0 0 rgba(91,75,234,.45)} 50%{box-shadow:0 0 0 5px rgba(91,75,234,.18)} }
     .visualizer-section { margin-bottom:14px; }
     /* 波形は明るい背景だと見えないため、テーマに依らず濃紺で固定 */
-    .viz-card { width:100%; background:linear-gradient(160deg,#191b38 0%,#0d0f28 100%); border:1px solid rgba(255,255,255,.06); border-radius:var(--r-lg); padding:16px 18px; transition:box-shadow .4s; }
-    .viz-card.recording { animation:rec-glow 1.6s ease infinite; }
-    #visualizer { width:100%; height:64px; display:block; border-radius:var(--r-sm); }
-    .rec-status { display:flex; align-items:center; gap:8px; margin-top:10px; height:20px; }
-    .rec-dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.2); }
-    .rec-dot.active { background:var(--accent); animation:blink 1s ease infinite; }
     @keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.3;transform:scale(.7)} }
-    .rec-label { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.35); }
-    .rec-label.recording { color:var(--accent); }
-    .rec-time { font-family:var(--mono); font-size:11px; color:rgba(255,255,255,.3); margin-left:auto; display:none; }
-    .rec-time.active { display:block; color:rgba(255,255,255,.5); }
-    .volume-wrap { width:100%; display:flex; align-items:center; gap:8px; margin-top:8px; }
-    .volume-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.3); white-space:nowrap; }
-    .volume-track { flex:1; height:4px; background:rgba(255,255,255,.1); border-radius:100px; overflow:hidden; }
-    #volumeFill { height:100%; width:0%; border-radius:100px; background:#9E9890; transition:width 60ms, background 200ms; }
 
     /* タイミングガイド（聴覚障碍ユーザー向け：発音タイミングの視覚合図） */
     .guide-toggle { margin-top:10px; align-self:center; padding:5px 14px; border-radius:100px; border:1.5px solid var(--border); background:transparent; color:var(--text-2); font-family:var(--font); font-size:11px; font-weight:700; cursor:pointer; transition:background .15s,color .15s,border-color .15s; }
-    .guide-toggle:not(.off) { border-color:var(--navy); background:var(--navy); color:#fff; }
+    .guide-toggle:not(.off) { border-color:var(--navy-fill); background:var(--navy-fill); color:#fff; }
     .guide-toggle.off { opacity:.65; }
-    .guide-countdown { display:none; position:fixed; inset:0; background:rgba(14,30,69,.94); z-index:1000; flex-direction:column; align-items:center; justify-content:center; gap:18px; }
+    /* カウントダウンは、お手本ステージと録音ステージのあいだに挟まる画面。
+       背景を同じ色にして、3つで1つの流れに見えるようにする。 */
+    .guide-countdown { display:none; position:fixed; inset:0; background:var(--stage-bg); z-index:1000; flex-direction:column; align-items:center; justify-content:flex-start; gap:16px; padding:calc(env(safe-area-inset-top) + 5vh) 20px 20px; }
     .guide-countdown.show { display:flex; }
-    .guide-count-num { font-size:100px; font-weight:800; line-height:1; color:#fff; animation:count-pop 1s ease; }
-    @keyframes count-pop { 0% { transform:scale(1.55); opacity:0; } 30% { transform:scale(1); opacity:1; } 100% { opacity:.92; } }
-    .guide-count-text { font-size:15px; font-weight:700; color:rgba(255,255,255,.85); }
-    .guide-count-sub { font-size:12px; color:rgba(255,255,255,.55); }
-    .karaoke-strip { display:none; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center; padding:10px 4px 12px; }
-    .karaoke-strip.show { display:flex; }
-    .karaoke-chip { min-width:36px; text-align:center; padding:8px 11px; border-radius:10px; font-size:17px; font-weight:800; background:rgba(255,255,255,.08); color:rgba(255,255,255,.4); transition:transform .12s,background .12s,color .12s; }
-    .karaoke-chip.now { background:#e84a2a; color:#fff; transform:scale(1.22); box-shadow:0 0 16px rgba(232,74,42,.55); }
-    .karaoke-chip.done { background:rgba(45,106,79,.4); color:rgba(255,255,255,.8); }
-    .karaoke-finish { display:none; font-size:12px; font-weight:700; color:#7ee2a8; }
-    .karaoke-strip.finished .karaoke-finish { display:inline; }
-    #autoStopCountdown { display:none; font-size:12px; color:#fbbf24; text-align:center; font-weight:700; letter-spacing:.05em; margin-top:8px; padding:6px 12px; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.25); border-radius:var(--r-sm); }
+    .guide-count-word { font-size:30px; font-weight:700; color:#fff; letter-spacing:.04em; }
+    .guide-count-num { position:relative; display:grid; place-items:center; width:132px; height:132px; border-radius:50%;
+                       font-family:var(--font-num); font-size:80px; font-weight:800; line-height:1; color:#fff;
+                       background:radial-gradient(closest-side, rgba(255,255,255,.14), rgba(255,255,255,.04));
+                       box-shadow:inset 0 0 0 2px rgba(255,255,255,.18); animation:count-pop 1s var(--ease); }
+    .guide-count-num::after { content:''; position:absolute; inset:-2px; border-radius:50%; box-shadow:0 0 0 3px rgba(181,173,255,.85);
+                              animation:count-ring 1s ease-out; opacity:0; }
+    @keyframes count-pop { 0% { transform:scale(1.4); opacity:0; } 30% { transform:scale(1); opacity:1; } 100% { opacity:.95; } }
+    @keyframes count-ring { 0% { transform:scale(.8); opacity:.9; } 100% { transform:scale(1.45); opacity:0; } }
+    .guide-count-text { font-size:16px; font-weight:700; color:rgba(255,255,255,.9); }
+    .guide-count-sub { font-size:13px; color:rgba(255,255,255,.62); }
+    #autoStopCountdown { display:none; font-size:12px; color:#F3C06B; text-align:center; font-weight:700; letter-spacing:.05em; margin-top:8px; padding:6px 12px; background:rgba(243,192,107,.12); border:1px solid rgba(141,139,242,.3); border-radius:var(--r-sm); }
 
-    /* Lip section — compact side-by-side layout */
-    .lip-section { margin-bottom:14px; }
-    .lip-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
-    .lip-card-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px 8px; border-bottom:1px solid var(--border-light); }
-    .lip-card-title { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
-    .lip-ref-tag { display:none; align-items:center; gap:4px; font-size:10px; font-weight:700; color:#2D6A4F; background:var(--green-bg); padding:3px 9px; border-radius:100px; }
-    .lip-ref-tag.show { display:inline-flex; }
-    .lip-layout { display:grid; grid-template-columns:160px 1fr; }
-    .lip-preview-container { position:relative; width:160px; height:120px; overflow:hidden; background:#111; border-right:1px solid var(--border-light); flex-shrink:0; }
+    /* カメラ（録音前は「顔が映っているか」の確認だけ） */
+    .lip-preview-container { position:relative; width:96px; height:72px; overflow:hidden; border-radius:10px; background:#111; flex-shrink:0; }
     #lipPreview { width:100%; height:100%; object-fit:cover; display:block; }
     #lipOverlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
     #faceStatus { position:absolute; bottom:0; left:0; right:0; padding:1px 0 3px; font-size:7px; font-weight:700; letter-spacing:.04em; color:#fff; text-align:center; text-shadow:0 1px 2px rgba(0,0,0,.9); background:linear-gradient(transparent,rgba(0,0,0,.5)); pointer-events:none; }
-    .lip-side { padding:12px 14px; display:flex; flex-direction:column; gap:8px; justify-content:center; }
-    .lip-auto-info { font-size:11px; color:var(--text-3); line-height:1.6; }
-    .lip-auto-info strong { color:var(--text-2); }
-    .lip-status { font-size:11px; color:var(--text-3); min-height:14px; }
 
     /* Post-recording */
-    .post-actions { display:flex; flex-direction:column; gap:12px; }
-    .replay-section { width:100%; }
-    .replay-label { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; display:block; }
     #audio { width:100%; height:32px; border-radius:var(--r-sm); }
+    .user-lip-replay { width:100%; max-height:180px; border-radius:var(--r); background:#000; object-fit:contain; display:none; }
+    .user-lip-replay.ready { display:block; }
+    .replay-audio-fold { margin-top:8px; }
+    .replay-audio-fold > summary { list-style:none; cursor:pointer; font-size:12.5px; color:var(--text-3); }
+    .replay-audio-fold > summary::-webkit-details-marker { display:none; }
+    .replay-audio-fold > summary::before { content:'▸ '; }
+    .replay-audio-fold[open] > summary::before { content:'▾ '; }
     .graph-form { width:100%; }
-    #buttongraph { display:none; width:100%; height:52px; border-radius:var(--r); font-family:var(--font); font-size:14px; font-weight:700; letter-spacing:.04em; color:#fff; background:var(--green); border:none; cursor:pointer; transition:background var(--dur),box-shadow var(--dur),transform var(--dur); }
-    #buttongraph:hover { background:#245a42; box-shadow:0 4px 16px rgba(45,106,79,.3); }
+    #buttongraph { display:none; width:100%; height:62px; border-radius:20px; font-family:var(--font); font-size:17px; font-weight:700; letter-spacing:.04em; color:#fff; background:var(--grad-brand); box-shadow:var(--shadow-brand); border:none; cursor:pointer; transition:filter var(--dur),box-shadow var(--dur),transform .15s var(--ease); }
+    #buttongraph:hover { filter:brightness(1.08); }
     #buttongraph:active { transform:scale(.98); }
 
-    /* Loading overlay */
-    .loading-overlay { display:none; position:fixed; inset:0; background:rgba(14,30,69,.92); z-index:999; flex-direction:column; align-items:center; justify-content:center; gap:20px; }
-    .loading-overlay.show { display:flex; }
-    .loading-spinner { width:40px; height:40px; border:3px solid rgba(255,255,255,.15); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
+    /* ── 解析中の画面 ──────────────────────────────────────────
+       解析には数秒〜十数秒かかる。以前は暗い幕とくるくる回る印だけで、
+       「止まっているのか、進んでいるのか」が分からなかった。
+       いま何をしているかを段階で見せ、待つあいだに読めるヒントを置く。 */
+    .loading-overlay { display:none; position:fixed; inset:0; z-index:1100; background:var(--bg);
+                       flex-direction:column; align-items:center; justify-content:center; gap:18px;
+                       padding:24px 24px calc(24px + env(safe-area-inset-bottom)); text-align:center; }
+    .loading-overlay.show { display:flex; animation:an-in .2s var(--ease); }
+    @keyframes an-in { from { opacity:0; } to { opacity:1; } }
+    .an-orb { position:relative; width:96px; height:96px; border-radius:50%; background:var(--grad-hero); color:#fff;
+              display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-brand); animation:an-float 3s ease-in-out infinite; }
+    .an-orb::before { content:''; position:absolute; inset:-9px; border-radius:50%; padding:3px;
+                      background:conic-gradient(from 0deg, transparent 0 55%, var(--brand-400) 85%, transparent 100%);
+                      -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor;
+                              mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+                      animation:spin 1.4s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    .loading-text { font-size:13px; color:rgba(255,255,255,.6); font-weight:500; letter-spacing:.04em; }
-    .loading-word { font-size:26px; font-weight:700; color:#fff; }
+    @keyframes an-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+    .an-word { font-size:36px; font-weight:700; color:var(--text); line-height:1.2; margin-top:6px; }
+    .an-title { font-size:15px; color:var(--text-2); margin-top:-10px; }
+    .an-bar { width:min(320px, 84vw); height:8px; border-radius:100px; background:var(--bg-muted); overflow:hidden; }
+    .an-bar i { display:block; height:100%; width:4%; border-radius:100px; background:var(--grad-brand); transition:width .6s var(--ease); }
+    .an-steps { list-style:none; display:flex; flex-direction:column; gap:6px; width:min(320px, 84vw); margin:0; padding:0; }
+    .an-step { display:flex; align-items:center; gap:10px; min-height:44px; padding:6px 12px; border-radius:14px;
+               font-size:15px; color:var(--text-3); text-align:left; transition:background .25s, color .25s, transform .25s var(--ease); }
+    .an-step .an-ic { flex:none; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                      background:var(--bg-muted); color:var(--text-3); }
+    .an-step.is-active { background:var(--bg-card); color:var(--text); font-weight:700; box-shadow:var(--elev-1); transform:scale(1.02); }
+    .an-step.is-active .an-ic { background:var(--grad-brand); color:#fff; }
+    .an-step.is-done { color:var(--text-2); }
+    .an-step.is-done .an-ic { background:var(--good-bg); color:var(--good); }
+    .an-tip { width:min(340px, 88vw); margin:4px 0 0; padding:12px 14px; border-radius:16px; background:var(--bg-card); box-shadow:var(--elev-1);
+              font-size:13.5px; line-height:1.7; color:var(--text-2); text-align:left; }
+    .an-tip b { display:block; font-size:12px; color:var(--navy); margin-bottom:2px; }
+    @media (prefers-reduced-motion: reduce) { .an-orb, .an-orb::before, .rp-btn-rec svg { animation:none !important; } }
 
-    #micError { display:none; background:var(--accent-bg); color:var(--accent); border:1px solid #F0C0B0; border-radius:var(--r-sm); padding:12px 16px; font-size:13px; }
+    /* ── はじめの画面：マイクとカメラの準備 ──
+       以前は「カメラ：顔を枠内に合わせてください」のように、この画面に無いカメラの話が出ていた。
+       ここで知りたいのは「録音できる状態か」だけなので、2つの印で見せる。 */
+    .rp-ready { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; }
+    .rp-dev { display:inline-flex; align-items:center; gap:6px; min-height:38px; padding:6px 12px; border-radius:100px;
+              background:var(--bg-card); box-shadow:var(--elev-1); color:var(--text-3); font-size:13.5px; font-weight:500; }
+    .rp-dev-mark { width:18px; height:18px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center;
+                   font-style:normal; font-size:11px; font-weight:700; line-height:1; }
+    .rp-dev[data-state="wait"] .rp-dev-mark { border:2px solid var(--border); border-top-color:var(--text-3); animation:spin 1s linear infinite; }
+    .rp-dev[data-state="ok"]   { background:var(--good-bg); color:var(--good-text); }
+    .rp-dev[data-state="ok"] .rp-dev-mark { background:var(--good); color:#fff; }
+    .rp-dev[data-state="ok"] .rp-dev-mark::before { content:'✓'; }
+    .rp-dev[data-state="warn"] { background:var(--mid-bg); color:var(--mid-text); }
+    .rp-dev[data-state="warn"] .rp-dev-mark { background:var(--mid); color:#fff; }
+    .rp-dev[data-state="warn"] .rp-dev-mark::before { content:'!'; }
+    .rp-dev[data-state="err"]  { background:var(--danger-bg); color:var(--danger); }
+    .rp-dev[data-state="err"] .rp-dev-mark { background:var(--danger); color:#fff; }
+    .rp-dev[data-state="err"] .rp-dev-mark::before { content:'×'; }
+    .rp-ready-note { margin:-10px 0 0; font-size:13.5px; line-height:1.6; color:var(--text-2); max-width:340px; }
+    .rp-help-btn { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:8px 16px; border-radius:100px;
+                   border:1.5px solid var(--danger); background:var(--bg-card); color:var(--danger);
+                   font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer; margin-top:-8px; }
+
+    /* ── 許可の直し方シート ── */
+    .perm-os { display:grid; grid-template-columns:repeat(3, 1fr); margin-bottom:12px; }
+    .perm-steps { list-style:none; counter-reset:perm; display:flex; flex-direction:column; gap:10px; margin:0; padding:0; }
+    .perm-steps li { counter-increment:perm; display:flex; gap:10px; align-items:flex-start; font-size:15px; line-height:1.6; color:var(--text); }
+    .perm-steps li::before { content:counter(perm); flex:none; width:26px; height:26px; border-radius:50%; background:var(--navy-soft);
+                             color:var(--navy); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+    .perm-steps b { font-weight:700; }
+    .perm-note { margin-top:12px; font-size:13px; line-height:1.7; color:var(--text-3); }
+    .perm-retry { width:100%; min-height:54px; margin-top:14px; border:none; border-radius:16px; background:var(--grad-brand); box-shadow:var(--shadow-brand); color:#fff;
+                  font-family:var(--font); font-size:16px; font-weight:700; cursor:pointer; }
+
+    /* ── 音の高さ（高・低の2段で並べる図） ──
+       以前は「L H H H」の文字だった。中高生にとって L/H は読み取りにくいので、
+       高い音は上の段・低い音は下の段に置き、線でつないで「形」で見せる（辞書のアクセント表記と同じ考え方）。 */
+    .pitch-steps { position:relative; display:grid; grid-template-columns:22px repeat(var(--n), minmax(0,1fr));
+                   grid-template-rows:40px 40px; column-gap:4px; row-gap:6px; align-items:center; }
+    .pitch-row-label { grid-column:1; font-size:11px; color:rgba(255,255,255,.45); text-align:left; }
+    .pitch-row-label.hi { grid-row:1; } .pitch-row-label.lo { grid-row:2; }
+    .pitch-line { position:absolute; left:26px; right:0; top:0; height:86px; width:calc(100% - 26px); overflow:visible; pointer-events:none; }
+    .pitch-line polyline { fill:none; stroke:rgba(197,196,250,.75); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
+    .ps-mora { position:relative; z-index:1; justify-self:center; min-width:38px; padding:7px 6px; border-radius:10px; text-align:center;
+               font-size:16px; font-weight:700; line-height:1.2; white-space:nowrap; }
+    .ps-mora.H { grid-row:1; background:linear-gradient(135deg,#7465FF,#5B4BEA); color:#fff; box-shadow:0 6px 14px -6px rgba(116,101,255,.8); }
+    .ps-mora.L { grid-row:2; background:rgba(255,255,255,.08); color:rgba(255,255,255,.82); box-shadow:inset 0 0 0 1px rgba(255,255,255,.14); }
+
+    /* ── 録音のあと：お手本とならべて見る ── */
+    .rp-compare { width:100%; display:flex; flex-direction:column; gap:8px; text-align:left; }
+    .rp-compare-title { font-size:14px; font-weight:700; color:var(--text-2); }
+    .rp-compare-empty { font-size:13px; color:var(--text-3); padding:10px 0; }
+
 
     /* お手本カラオケピッチグラフ（ヒーローの外に置く独立カード） */
-    .ref-preview-wrap { margin-bottom:16px; }
-    .ref-preview-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:14px 16px 12px; box-shadow:var(--shadow-xs); }
-    .ref-preview-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-    .ref-preview-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); }
-    .ref-play-btn { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 12px; border-radius:100px; background:var(--navy); color:#fff; font-family:var(--font); font-size:11px; font-weight:700; border:none; cursor:pointer; transition:background var(--dur); letter-spacing:.04em; -webkit-tap-highlight-color:transparent; }
+
+    .mora-bar-label { font-size:11.5px; color:var(--text-3); margin:12px 0 4px; }
+    .ref-play-btn { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 12px; border-radius:100px; background:var(--navy-fill); color:#fff; font-family:var(--font); font-size:11px; font-weight:700; border:none; cursor:pointer; transition:background var(--dur); letter-spacing:.04em; -webkit-tap-highlight-color:transparent; }
     .ref-play-btn:hover { background:var(--navy-mid); }
-    .pitch-graph-wrap { position:relative; width:100%; height:68px; border-radius:var(--r-sm); overflow:hidden; margin-bottom:6px; background:rgba(14,30,69,.04); }
-    #pitchCanvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
-    #pitchCursor { position:absolute; top:0; bottom:0; width:2px; background:#C03D20; left:0; pointer-events:none; will-change:left; }
-    .mora-bar { display:flex; width:100%; overflow:hidden; border-radius:var(--r-xs); background:var(--bg-muted); }
-    .mora-item { text-align:center; font-size:11px; font-weight:500; padding:3px 0; color:var(--text-3); border-radius:3px; transition:background .08s, color .08s; overflow:hidden; white-space:nowrap; flex-shrink:0; }
-    .mora-item.active { background:var(--navy); color:#fff; }
+    .mora-bar { display:flex; width:100%; gap:3px; overflow:hidden; }
+    .mora-item { text-align:center; font-size:14px; font-weight:700; padding:8px 0; color:var(--text-2); background:var(--bg-muted); border-radius:10px; transition:background .08s, color .08s; overflow:hidden; white-space:nowrap; flex-shrink:0; }
+    .mora-item.active { background:var(--navy-fill); color:#fff; }
     .mora-item.mora-sil { background:transparent !important; }
 
     /* H/L アクセントパターンバー */
-    .hl-bar-wrap { display:flex; justify-content:center; gap:4px; margin:6px 0 2px; flex-wrap:wrap; }
+    .hl-bar-wrap { display:flex; gap:5px; margin:2px 0 2px; flex-wrap:wrap; }
     .hl-mora-box { display:flex; flex-direction:column; align-items:center; gap:2px; }
-    .hl-badge-box { min-width:26px; height:18px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; letter-spacing:.04em; padding:0 4px; }
-    .hl-badge-box.H { background:var(--accent-bg,#FDECEA); color:var(--accent,#C03D20); }
+    .hl-badge-box { min-width:30px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; letter-spacing:.04em; padding:0 6px; }
+    .hl-badge-box.H { background:var(--brand-100); color:var(--brand-700); }
     .hl-badge-box.L { background:var(--bg-muted,#F4F4F6); color:var(--text-3,#9398A2); }
-    .hl-mora-label { font-size:13px; color:var(--text-2,#4A5568); font-family:var(--font); }
+    .hl-mora-label { font-size:12px; color:var(--text-3); font-family:var(--font); text-align:center; }
 
     /* ピッチグラフ凡例 */
-    .pitch-legend { display:flex; gap:14px; justify-content:flex-end; padding:2px 2px 4px; }
-    .pitch-legend-item { display:flex; align-items:center; gap:4px; font-size:9px; font-weight:700; letter-spacing:.04em; color:var(--text-3); }
-    .pitch-legend-line { width:16px; height:2.5px; border-radius:2px; }
-    .pitch-legend-line.ref  { background:rgba(14,30,69,0.55); }
-    .pitch-legend-line.user { background:#C03D20; }
 
     /* 母音練習リンク（.word-section の外＝ページ背景の上に置かれるためテーマ対応色を使う） */
-    .vowel-link-btn { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--text-3); text-decoration:none; padding:5px 12px; border-radius:100px; border:1px solid var(--border); transition:color .15s,border-color .15s; }
-    .vowel-link-btn:hover { color:var(--navy); border-color:var(--navy); }
 
     /* 先生のお手本実写映像（録音ページ） */
     .ref-video-toggle { display:block; width:100%; margin-top:8px; padding:8px; border-radius:var(--r-sm); border:1px dashed var(--border); background:transparent; color:var(--text-3); font-family:var(--font); font-size:11.5px; font-weight:700; cursor:pointer; transition:all .15s; }
@@ -178,77 +273,118 @@
     .ref-video-player { width:100%; max-height:220px; margin-top:8px; border-radius:var(--r-sm); background:#000; object-fit:contain; }
 
     @media (max-width:480px) {
-      .word-display{font-size:52px;}
-      .word-section{margin:0 -16px 18px;border-radius:0 0 24px 24px;padding:22px 0 20px;}
       .top-nav{padding:0 16px;}
-      .shortcut-hint{display:none;}
-      .lip-preview-container{width:110px;height:83px;}
-      .lip-layout{grid-template-columns:110px 1fr;}
-      #buttonStart, #buttonStop { height:58px; font-size:14px; border-radius:var(--r-lg); }
 
       /* 録音ボタンは、スクロールしなくても押せる位置に置きたい。
          スマホでは単語カードと動画を控えめにして、その分を確保する。 */
-      .word-section { padding:18px 16px; }
-      .ref-video-main { max-height:118px; }
-      .ref-preview-card { padding:10px 12px 8px; }
-      .vowel-link-row { margin:2px 0 6px; }
-      .step-guide { padding:8px 12px; font-size:12px; }
       .record-page { padding:0 16px 36px; }
-      .word-section { padding:16px 0 14px; }
     }
+
+    /* ── お手本ステージ（見る → 言う を1本につなぐ全画面表示） ────── */
+    .ref-stage {
+      display:none; position:fixed; inset:0; z-index:998;
+      background:var(--stage-bg);
+      flex-direction:column; align-items:center; justify-content:flex-start;
+      gap:16px; padding:calc(env(safe-area-inset-top) + 5vh) 20px 20px; text-align:center;
+      overflow-y:auto;
+    }
+    .ref-stage.show { display:flex; }
+    .ref-stage-step { display:inline-flex; align-items:center; gap:6px; min-height:30px; padding:4px 14px; border-radius:100px; background:rgba(255,255,255,.1);
+                      font-size:13px; font-weight:700; letter-spacing:.06em; color:rgba(255,255,255,.85); }
+    /* 先生の口は、このあと自分の口が出るのと同じ大きさ・同じ位置に置く */
+    #refStageVideoSlot { display:flex; align-items:center; justify-content:center; overflow:hidden;
+                         border-radius:24px; background:#000; border:2px solid rgba(255,255,255,.22); box-shadow:0 20px 50px -20px rgba(0,0,0,.8); }
+    #refStageVideoSlot video { width:100%; height:100%; object-fit:cover; display:block; border-radius:0; max-height:none; }
+    .ref-stage-moras { width:min(420px,88vw); }
+    .ref-stage-moras .mora-bar { width:100%; }
+    .ref-stage-moras .mora-item { background:rgba(255,255,255,.09); color:rgba(255,255,255,.6); font-size:15px; padding:10px 0; }
+    .ref-stage-moras .mora-item.active { background:#fff; color:#2A2378; }
+    .ref-stage-next { font-size:14px; font-weight:700; color:rgba(255,255,255,.8); }
+    /* お手本の情報（音の高さ・長さ）はこの画面にだけ置く */
+    .ref-stage-parts { display:flex; flex-direction:column; gap:10px; width:min(420px,88vw); }
+    .ref-part-label { font-size:11.5px; color:rgba(255,255,255,.45); margin-bottom:4px; text-align:left; }
+    .ref-stage-parts .mora-item { background:rgba(255,255,255,.09); color:rgba(255,255,255,.62); }
+    .ref-stage-parts .mora-item.active { background:#fff; color:#2A2378; }
+    .ref-stage-parts .hl-badge-box.H { background:rgba(141,139,242,.3); color:#C5C4FA; }
+    .ref-stage-parts .hl-badge-box.L { background:rgba(255,255,255,.12); color:rgba(255,255,255,.6); }
+    .ref-stage-parts .hl-mora-label { color:rgba(255,255,255,.5); }
+
+    .ref-stage-actions { display:flex; flex-direction:column; gap:10px; width:min(360px,86vw); }
+    .ref-stage-rec {
+      min-height:62px; border-radius:20px; border:none; cursor:pointer;
+      background:var(--grad-rec); color:#fff; box-shadow:0 14px 30px -12px rgba(214,60,67,.8);
+      font-family:var(--font); font-size:18px; font-weight:700;
+    }
+    .ref-stage-rec:active { transform:scale(.97); }
+    .ref-stage-replay, .ref-stage-cancel {
+      min-height:48px; border-radius:16px; font-family:var(--font); font-size:14px; font-weight:700;
+      cursor:pointer; border:none; background:rgba(255,255,255,.1); color:rgba(255,255,255,.9);
+      display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    }
+    .ref-stage-cancel { background:transparent; color:rgba(255,255,255,.62); }
 
     /* ── 録音ステージ（録音中の全画面表示）────────────────────── */
     .rec-stage {
       display:none; position:fixed; inset:0; z-index:999;
-      background:linear-gradient(165deg,#141636 0%,#0a0b1e 100%);
-      flex-direction:column; align-items:center; justify-content:center;
-      gap:26px; padding:24px; text-align:center;
+      background:var(--stage-bg);
+      flex-direction:column; align-items:center; justify-content:flex-start;
+      gap:16px; padding:calc(env(safe-area-inset-top) + 5vh) 20px 20px; text-align:center;
+      overflow-y:auto;
     }
     .rec-stage.show { display:flex; }
 
-    .rec-stage-word { display:flex; flex-direction:column; gap:4px; }
-    .rec-stage-reading { font-size:14px; letter-spacing:.16em; color:rgba(255,255,255,.5); }
-    .rec-stage-display { font-size:clamp(28px,7vw,44px); font-weight:800; color:#fff; letter-spacing:.04em; }
+    /* 録音中は「自分の口」が主役。いちばん上・いちばん大きく置く */
+    .rec-stage-cam { width:min(70vw, 280px); aspect-ratio:4/3; }
+    .rec-stage-cam .lip-preview-container {
+      width:100% !important; height:100% !important;
+      border-radius:24px; border:2px solid rgba(255,255,255,.22);
+      box-shadow:0 0 0 6px rgba(214,60,67,.2), 0 20px 50px -20px rgba(0,0,0,.8);
+    }
+    .rec-stage-cam #faceStatus { font-size:10px; padding:2px 0 4px; }
 
-    /* 光る文字。録音中はここだけを見ればよいので、最も大きく置く */
-    .rec-stage-chips { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+    .rec-stage-word { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .rec-stage-display { font-size:clamp(26px,7vw,40px); font-weight:700; color:#fff; letter-spacing:.04em; }
+    .rec-stage-reading { font-size:13px; letter-spacing:.16em; color:rgba(255,255,255,.5); }
+
+    /* 「合わせなくていい」ことを言葉でも置く */
+    .rec-stage-pace { font-size:15px; font-weight:700; color:#fff; }
+    .rec-stage.finished .rec-stage-pace { color:#C5C4FA; }
+
+    /* お手本の長さ。動かない帯として置くだけで、合図としては使わない */
+    .rec-stage-ref { display:flex; flex-direction:column; align-items:center; gap:6px; width:min(420px,88vw); }
+    .rec-stage-ref-label { font-size:11.5px; color:rgba(255,255,255,.45); }
+    .rec-stage-chips { display:flex; width:100%; gap:4px; }
     .rec-stage-chip {
-      min-width:clamp(56px,15vw,84px); padding:16px 14px; border-radius:16px;
-      font-size:clamp(28px,8vw,42px); font-weight:800; line-height:1;
-      background:rgba(255,255,255,.07); color:rgba(255,255,255,.34);
-      transition:transform .12s, background .12s, color .12s, box-shadow .12s;
+      flex:1 1 0; min-width:0; padding:10px 2px; border-radius:12px;
+      font-size:clamp(15px,4.4vw,20px); font-weight:700; line-height:1.2; text-align:center;
+      background:rgba(255,255,255,.09); color:rgba(255,255,255,.62);
+      overflow:hidden; white-space:nowrap; text-overflow:clip;
     }
-    .rec-stage-chip.now {
-      background:#e84a2a; color:#fff; transform:scale(1.14);
-      box-shadow:0 0 34px rgba(232,74,42,.6);
-    }
-    .rec-stage-chip.done { background:rgba(45,106,79,.42); color:rgba(255,255,255,.85); }
-
-    .rec-stage-hint { font-size:13px; font-weight:600; color:rgba(255,255,255,.62); }
-    .rec-stage.finished .rec-stage-hint { color:#7ee2a8; }
 
     /* 声が届いているかの確認。小さくてよいが、無いと不安になるので残す */
     .rec-stage-meter { display:flex; align-items:center; gap:10px; width:min(360px,86vw); }
     .rec-stage-dot {
-      width:9px; height:9px; border-radius:50%; background:#e84a2a; flex:none;
+      width:9px; height:9px; border-radius:50%; background:#EE5A5F; flex:none;
       animation:pulse-ready 1.4s ease infinite;
     }
     .rec-stage-time { font-size:12px; color:rgba(255,255,255,.6); font-variant-numeric:tabular-nums; }
     .rec-stage-vol { flex:1; height:6px; border-radius:100px; background:rgba(255,255,255,.12); overflow:hidden; }
-    #stageVolFill { height:100%; width:0%; border-radius:100px; background:#4ade80; transition:width .08s linear; }
+    #stageVolFill { height:100%; width:0%; border-radius:100px; background:linear-gradient(90deg,#4CC596,#8BE3BF); transition:width .08s linear; }
 
     .rec-stage-stop {
-      width:min(360px,86vw); height:64px; border:none; border-radius:var(--r-lg);
-      background:#fff; color:#141636; font-family:var(--font);
-      font-size:16px; font-weight:800; letter-spacing:.06em; cursor:pointer;
-      display:flex; align-items:center; justify-content:center; gap:10px;
-      box-shadow:0 8px 30px rgba(0,0,0,.4);
+      width:min(360px,86vw); height:66px; border:none; border-radius:22px;
+      background:#fff; color:#1A1633; font-family:var(--font);
+      font-size:17px; font-weight:700; letter-spacing:.06em; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:12px;
+      box-shadow:0 16px 40px -14px rgba(0,0,0,.7);
     }
+    .rec-stage-stop svg { width:12px; height:12px; padding:7px; border-radius:8px; background:var(--rec); color:#fff; box-sizing:content-box; }
     .rec-stage-stop:active { transform:scale(.97); }
 
     @media (prefers-reduced-motion: reduce) {
       .rec-stage-chip, .rec-stage-dot { transition:none; animation:none; }
     }
+
 
     /* ── 段階に応じた表示制御 ──────────────────────────────────
        録音画面は「お手本を聴く → 録音する → 結果を見る」の3段階で使う。
@@ -257,7 +393,6 @@
 
     /* 準備中：まだ録音していないので、停止ボタンと再生プレイヤーは出さない */
     body[data-phase="ready"] #buttonStop,
-    body[data-phase="ready"] .replay-section { display:none; }
 
     /* 録音中：操作するのは停止ボタンだけ。他は引っ込める */
     body[data-phase="recording"] #buttonStart,
@@ -265,7 +400,6 @@
     body[data-phase="recording"] .shortcut-hint,
     body[data-phase="recording"] .guide-toggle,
     body[data-phase="recording"] .post-actions,
-    body[data-phase="recording"] .lip-side { display:none; }
 
     /* 録音中はお手本カードを薄くして、視線が録音側へ向くようにする */
     body[data-phase="recording"] .ref-preview-card {
@@ -274,16 +408,15 @@
 
     /* 録音中は波形とカラオケ表示を主役にする */
     body[data-phase="recording"] .viz-card {
-      box-shadow:0 8px 30px rgba(192,61,32,.28);
-      outline:2px solid rgba(232,74,42,.55);
+      box-shadow:0 8px 30px rgba(91,75,234,.28);
+      outline:2px solid rgba(91,75,234,.55);
     }
-    body[data-phase="recording"] #visualizer { height:96px; }
 
     /* 録音後：録り直しと解析。停止ボタンは役目を終えたので隠す */
-    body[data-phase="done"] #buttonStop { display:none; }
-    body[data-phase="done"] #buttonStart { animation:none; background:var(--navy); }
+    /* 2択が並ぶ画面では、録音後も「枠線＝お手本を見ない方」の見た目を保つ
+       （塗りのボタンが2つ並ぶと、どちらが何なのか色で読めなくなるため） */
     body[data-phase="done"] .post-actions {
-      box-shadow:0 6px 24px rgba(45,106,79,.18);
+      box-shadow:var(--elev-2);
       border-radius:var(--r-lg);
       padding:14px;
       background:var(--bg-card);
@@ -293,22 +426,16 @@
        録音中と同じ大きさで置くと画面を占領し、視線が録音ボタンから逸れるため、
        細い1行に圧縮する。 */
     body[data-phase="ready"] .viz-card,
-    body[data-phase="done"]  .viz-card { padding:10px 14px; }
     body[data-phase="ready"] #visualizer,
-    body[data-phase="done"]  #visualizer { height:22px; opacity:.55; }
     body[data-phase="ready"] .rec-status,
-    body[data-phase="done"]  .rec-status { margin-top:6px; height:16px; font-size:11px; }
     body[data-phase="ready"] .volume-wrap,
-    body[data-phase="done"]  .volume-wrap { margin-top:5px; }
-    body[data-phase="ready"] .karaoke-strip,
-    body[data-phase="done"]  .karaoke-strip { display:none; }
 
     /* 1つだけ見せるので、ボタンは横幅いっぱいに */
     body[data-phase="ready"] #buttonStart,
     body[data-phase="recording"] #buttonStop,
-    body[data-phase="done"] #buttonStart { flex:1 1 100%; }
 
-    .vowel-link-row { text-align:center; margin:4px 0 8px; }
+    .prep-guide-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .prep-note { font-size:11.5px; color:var(--text-3); }
 
     /* お手本の主役＝先生の口の動画 */
     .ref-video-main {
@@ -325,21 +452,9 @@
     .ref-video-play:hover { background:var(--bg-card); }
 
     /* ピッチグラフは必要な人だけが開く */
-    .ref-pitch-fold { margin-top:10px; border-top:1px solid var(--border-light); padding-top:8px; }
     .ref-pitch-fold > summary {
       list-style:none; cursor:pointer; font-size:12px; font-weight:600;
       color:var(--text-3); display:flex; align-items:center; gap:6px; padding:4px 0;
-    }
-    .ref-pitch-fold > summary::-webkit-details-marker { display:none; }
-    .ref-pitch-fold > summary::after { content:'▸'; margin-left:auto; transition:transform .2s; }
-    .ref-pitch-fold[open] > summary::after { transform:rotate(90deg); }
-
-    /* リズムガイドの補足。
-       採点は各モーラの長さの「割合」で決まり、ガイドに合わせたかどうかは
-       見ていない。合わせられないと減点されると誤解させないために添える。 */
-    .rec-stage-note {
-      font-size:12px; line-height:1.7; color:rgba(255,255,255,.45);
-      margin-top:-14px;
     }
 
     /* ── スマホで1画面に収める ──────────────────────────────────
@@ -349,66 +464,54 @@
     @media (max-width:600px) {
 
       /* 自明な案内は置かない。録音開始ボタンがあれば分かる */
-      .step-guide { display:none; }
 
       /* ヘッダーに「← 単語選択に戻る」があるので、同じ導線は重ねない */
-      body[data-phase="ready"] .post-actions { display:none; }
 
       /* 母音練習と速度切替は、録音の前に必ず要るものではない。
          下の「準備・設定」を開いたときだけ出す */
-      .vowel-link-row { display:none; }
-      .ref-preview-top .ref-speed-chips { display:none !important; }
-      .prep-fold .vowel-link-row { display:block; }
 
       /* 単語カードを詰める */
-      .word-section { padding:14px 16px; }
-      .word-display { font-size:40px; }
-      .word-reading { font-size:12px; margin-bottom:2px; }
 
-      /* お手本は動画が主役。モーラバーは録音中のリズムガイドと同じ内容なので
-         ここでは出さない */
-      .ref-preview-card { padding:10px 12px 8px; }
-      .ref-video-main { max-height:132px; margin:6px 0 6px; }
+      /* お手本は動画が主役。音の長さバーは「どの音をのばすか」が
+         形で分かる唯一の手がかりなので、スマホでも残す。 */
       .ref-video-play { height:38px; margin-bottom:6px; }
-      .mora-bar { display:none; }
-      .ref-pitch-fold { margin-top:6px; padding-top:6px; }
 
       /* マイクの状態はVOLバー1行で足りる。波形は録音中に大きく出す */
-      body[data-phase="ready"] .viz-card { padding:8px 12px; }
-      body[data-phase="ready"] #visualizer { display:none; }
-      body[data-phase="ready"] .rec-status { margin-top:0; }
       .visualizer-section { margin-bottom:10px; }
 
-      /* カメラは「枠に入っているか」が分かれば十分。
-         見出しは「お手本登録済み」の印だけ残し、説明文は畳む */
+      /* カメラは「顔が映っているか」が分かれば十分 */
       .lip-preview-container { width:84px; height:63px; }
-      .lip-card-header { padding:6px 10px; font-size:11px; }
-      .lip-section { margin-bottom:8px; }
-      .lip-auto-info { font-size:10px; line-height:1.4; }
-      .lip-side { padding:8px 10px; gap:6px; }
 
-      .record-actions { margin-bottom:8px; }
+      /* 録音ボタンは、どこまでスクロールしても画面の下に残す。
+         「録音までスクロールが必要」という状態を作らないための要。 */
+      .record-actions {
+        position:sticky; bottom:0; z-index:60; margin:0 -16px;
+        padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+        background:var(--bg); box-shadow:0 -10px 18px 8px var(--bg);
+      }
+      /* 録音後は「結果を見る」が主役。ボタンだけを下に固定し、
+         見返し用の映像は普通にスクロールさせる（固定部分を厚くしない）。 */
+      body[data-phase="done"] .graph-form {
+        position:sticky; bottom:0; z-index:60; margin:0 -16px;
+        padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+        background:var(--bg); box-shadow:0 -10px 18px 8px var(--bg);
+      }
+      /* 録音後は「別の単語を選ぶ」までは要らない。ヘッダーの「もどる」で足りる */
+      /* 録音後はカメラの生の映像より、撮れた口の動きを見返すほうが役に立つ */
+      body[data-phase="done"] .lip-section,
+      body[data-phase="done"] .visualizer-section { display:none; }
 
       /* お手本カードの見出し行と、マイク状態の行をさらに詰める */
-      .ref-preview-top { margin-bottom:4px; }
-      .ref-video-main { max-height:118px; }
-      .prep-fold > summary { padding:8px 12px; font-size:11px; }
     }
 
     /* 準備・設定（開いた人にだけ見せる） */
-    .prep-fold { margin:0 0 10px; }
     .prep-fold > summary {
       list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px;
       padding:10px 14px; border:1px solid var(--border); border-radius:var(--r-sm);
       background:var(--bg-card); font-size:12px; font-weight:700; color:var(--text-3);
       white-space:nowrap;
     }
-    .prep-fold > summary::-webkit-details-marker { display:none; }
     /* 狭い端末で横へあふれないよう、入りきらない場合は省略する */
-    .prep-fold > summary { overflow:hidden; text-overflow:ellipsis; min-width:0; }
-    .prep-fold > summary::after { content:'▸'; margin-left:auto; transition:transform .2s; }
-    .prep-fold[open] > summary::after { transform:rotate(90deg); }
-    .prep-fold-body { padding:10px 4px 2px; display:flex; flex-direction:column; gap:8px; align-items:center; }
 
     .prep-speed { display:flex; align-items:center; flex-wrap:wrap; gap:4px; justify-content:center; }
     .prep-speed-chip {
@@ -416,34 +519,76 @@
       border:1px solid var(--border); background:transparent; color:var(--text-3);
       font-family:var(--font); transition:background .15s,color .15s;
     }
-    .prep-speed-chip.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+    .prep-speed-chip.active { background:var(--navy-fill); color:#fff; border-color:var(--navy-fill); }
   </style>
 </head>
 <body>
 
 <div class="guide-countdown" id="guideCountdown">
+  {# 3・2・1 のあいだに自分の口を映しておく。お手本の画面・録音中の画面と
+     同じ位置・同じ大きさに出すので、構えたまま録音へ入れる。 #}
+  <div class="ref-stage-step">じゅんび</div>
+  <div class="rec-stage-cam" id="countCamSlot"></div>
+  <div class="guide-count-word">{{ display or test }}</div>
   <div class="guide-count-num" id="guideCountNum">3</div>
   <div class="guide-count-text">まもなく録音がはじまります</div>
-  <div class="guide-count-sub">光る文字は、お手本のリズムの目安です</div>
+  <div class="guide-count-sub">自分のペースで言ってだいじょうぶです</div>
+</div>
+
+{#
+  お手本ステージ（「お手本を見て録音する」を押したときの全画面表示）
+
+  練習の流れは「見る → 言う」。以前は お手本の再生と録音開始が別々の操作で、
+  そのあいだにページの他の要素（マイク・カメラ・設定）が挟まっていた。
+  ここでは 先生の口 → 3・2・1 → 自分の口 を続けて全画面で見せる。
+  先生の口と自分の口を画面の同じ位置に出すので、形の違いに気づきやすい。
+#}
+<div class="ref-stage" id="refStage" aria-hidden="true">
+  <div class="ref-stage-step" id="refStageStep">お手本を見ています</div>
+  <div class="rec-stage-cam" id="refStageVideoSlot"></div>
+
+  <div class="rec-stage-word">
+    <span class="rec-stage-display">{{ display or test }}</span>
+    <span class="rec-stage-reading">{{ test }}</span>
+  </div>
+
+  {# 音の高さ・音の長さは「お手本の情報」。お手本を見るこの画面にだけ置く #}
+  <div class="ref-stage-parts" id="refStagePartsSlot"></div>
+
+  <div class="ref-stage-actions">
+    <button type="button" class="ref-stage-rec"    id="refStageRec">録音する</button>
+    <button type="button" class="ref-stage-replay" id="refStageReplay" hidden>{{ icon('play', size=15) }} もう一度見る</button>
+    <button type="button" class="ref-stage-cancel" id="refStageCancel">とじる</button>
+  </div>
 </div>
 
 {#
   録音ステージ（録音中だけ出る全画面表示）
 
-  録音中は「いま、どの音を言うか」だけに集中してほしい。
-  通常の画面には、お手本・カメラ・波形・各種リンクが並んでいて、
-  録音が始まった瞬間にどこを見ればよいのか分からなくなる。
-  そこで録音中は画面を覆い、光る文字と停止ボタンだけを見せる。
+  録音中に見る場所は「自分の口」ひとつだけにする。
+  以前はお手本のリズムが1音ずつ光っていたため、
+  「この光に合わせて言わないと減点される」と受け取られやすかった。
+  実際の採点は各音の長さの“比率”で、合図に合わせたかどうかは見ていない。
+  そこで光る合図はやめ、お手本の長さは動かない帯として下に置くだけにした。
 #}
 <div class="rec-stage" id="recStage" aria-hidden="true">
+  {# お手本ステージと同じ位置に見出しと口の枠を置く。
+     先生の口が出ていた場所にそのまま自分の口が出るので、
+     直前に見た形と見くらべやすい。 #}
+  <div class="ref-stage-step">録音しています</div>
+  <div class="rec-stage-cam" id="recStageCam"></div>
+
   <div class="rec-stage-word">
-    <span class="rec-stage-reading">{{ test }}</span>
     <span class="rec-stage-display">{{ display or test }}</span>
+    <span class="rec-stage-reading">{{ test }}</span>
   </div>
 
-  <div class="rec-stage-chips" id="stageChips"></div>
-  <div class="rec-stage-hint" id="stageHint">お手本のリズムの目安です</div>
-  <div class="rec-stage-note">ぴったり合わなくても大丈夫。<br>点数は「音の長さのバランス」で決まります</div>
+  <div class="rec-stage-pace" id="stageHint">自分のペースで言ってください</div>
+
+  <div class="rec-stage-ref">
+    <span class="rec-stage-ref-label">お手本の長さ（合わせなくてOK）</span>
+    <div class="rec-stage-chips" id="stageChips"></div>
+  </div>
 
   <div class="rec-stage-meter">
     <span class="rec-stage-dot"></span>
@@ -451,271 +596,259 @@
     <div class="rec-stage-vol"><div id="stageVolFill"></div></div>
   </div>
 
+  <div id="autoStopCountdown"></div>
   <button type="button" class="rec-stage-stop" id="stageStop">
     <svg width="14" height="14" viewBox="0 0 11 11" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/></svg>
     録音停止
   </button>
 </div>
 
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-spinner"></div>
-  <div class="loading-word">{{ display or test }}</div>
-  <div class="loading-text">音声を解析しています...</div>
+{# 解析中の画面（「結果を見る」を押してから結果が出るまで） #}
+<div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite">
+  <div class="an-orb">{{ icon('sparkle', size=34) }}</div>
+  <div class="an-word">{{ display or test }}</div>
+  <div class="an-title">結果をつくっています</div>
+  <div class="an-bar"><i id="anBarFill"></i></div>
+  <ol class="an-steps">
+    <li class="an-step" data-at="0"><span class="an-ic">{{ icon('ear', size=15) }}</span>声を聞き取る</li>
+    <li class="an-step" data-at="1.6"><span class="an-ic">{{ icon('music', size=15) }}</span>高さをくらべる</li>
+    <li class="an-step" data-at="3.4"><span class="an-ic">{{ icon('chart', size=15) }}</span>長さをくらべる</li>
+    <li class="an-step" data-at="5.2"><span class="an-ic">{{ icon('mouth', size=15) }}</span>口の形を見る</li>
+  </ol>
+  <p class="an-tip"><b>{{ icon('bulb', size=13) }} ヒント</b><span id="anTip">結果では、「つぎは、ここだけ」の1つを直せばOKです。</span></p>
 </div>
 
-<nav class="top-nav">
-  <a href="/select" class="nav-link">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    単語選択に戻る
-  </a>
-  <div style="display:flex;align-items:center;gap:12px;">
-    <span style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);">Step 2 — 録音</span>
-    <button class="theme-toggle" id="themeToggle" title="ダーク/ライト切り替え"><svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
-  </div>
-</nav>
-<script>
-  (function() {
-    // テーマ切替アイコン（絵文字はOSごとに見た目が変わるため SVG を使う）
-    const ICON_SUN  = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>';
-    const ICON_MOON = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
-    const root  = document.documentElement;
-    const btn   = document.getElementById('themeToggle');
-    const saved = localStorage.getItem('sp-ps-theme');
-    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.innerHTML=ICON_SUN; }
-    btn.addEventListener('click', () => {
-      const isDark = root.getAttribute('data-theme') === 'dark';
-      if (isDark) { root.removeAttribute('data-theme'); btn.innerHTML=ICON_MOON; localStorage.setItem('sp-ps-theme','light'); }
-      else        { root.setAttribute('data-theme','dark'); btn.innerHTML=ICON_SUN; localStorage.setItem('sp-ps-theme','dark'); }
-    });
-  })();
-</script>
+<header class="app-header">
+  <a href="/select" class="app-header-left icon-btn" aria-label="もどる">{{ icon('back') }}</a>
+  <div class="app-header-title">録音</div>
+  <span class="app-header-right"></span>
+</header>
+{#
+  録音ページ
 
+  1ページに「お手本」「録音」「マイクの状態」「カメラ」「設定」を全部積むと、
+  どれを見ればよいのか分からなくなる。ページ内を段階ごとの画面に分け、
+  その時に使うものだけを出す。
+
+    ① はじめ（この画面）   … 単語と、入口2つだけ
+    ② お手本（全画面）     … 先生の口・音の高さ・音の長さ
+    ③ 3・2・1（全画面）    … 自分の口を映して構える
+    ④ 録音中（全画面）     … 自分の口だけ
+    ⑤ 録音のあと（この画面）… 撮れた口の動きと「結果を見る」
+
+  ②③④ は body 直下のオーバーレイ（refStage / guideCountdown / recStage）。
+  カメラと動画は複製せず、必要な画面へ要素ごと移して使う。
+#}
 <div class="record-page">
 
-  <!-- ① ステップインジケーター -->
-  <div class="steps">
-    <div class="step done">
-      <div class="step-num">
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      単語を選ぶ
+  <!-- ① はじめ ─────────────────────────────────── -->
+  <section class="rp-view" id="viewStart">
+    <div class="rp-word">
+      <span class="rp-reading">{{ test }}</span>
+      <span class="rp-display">{{ display or test }}</span>
     </div>
-    <div class="step-line"></div>
-    <div class="step active"><div class="step-num">2</div>録音する</div>
-    <div class="step-line"></div>
-    <div class="step"><div class="step-num">3</div>結果を見る</div>
-  </div>
 
-  <!-- ② 単語表示 + お手本音声 -->
-  <div class="word-section">
-    <div class="word-reading">{{ test }}</div>
-    <div class="word-display">{{ display or test }}</div>
-    {% if accent_hl is defined and accent_hl %}
-    <div class="hl-bar-wrap" title="アクセントパターン（H=高 / L=低）">
-      {% for item in accent_hl %}
-      <div class="hl-mora-box">
-        <div class="hl-badge-box {{ item.hl }}">{{ item.hl }}</div>
-        <div class="hl-mora-label">{{ item.label }}</div>
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-    {% if not (ref_preview is defined and ref_preview and ref_preview.has_data) %}
-    <div class="sample-wrap" style="flex-direction:column;gap:8px;">
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
-        <span class="sample-label">お手本音声</span>
-        <audio class="sample-audio" id="sampleAudioEl" controls preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
-      </div>
-      <div style="display:flex;justify-content:center;gap:6px;">
-        <span style="font-size:10px;color:rgba(255,255,255,.4);align-self:center;">速度</span>
-        <button class="speed-chip active" data-speed="1" style="padding:2px 9px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.7);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(1,this)">1×</button>
-        <button class="speed-chip" data-speed="0.75" style="padding:2px 9px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.7);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.75,this)">0.75×</button>
-        <button class="speed-chip" data-speed="0.5" style="padding:2px 9px;border-radius:100px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:rgba(255,255,255,.7);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.5,this)">0.5×</button>
-      </div>
-    </div>
-    {% endif %}
-  </div>
-
-  {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
-  <!-- お手本を確認カード（ヒーローの外＝ページ背景に置く独立カード） -->
-  <div class="ref-preview-wrap">
-    <div class="ref-preview-card">
-      <div class="ref-preview-top">
-        <span class="ref-preview-label">お手本を確認</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <div class="ref-speed-chips" style="display:flex;gap:4px;">
-            <button class="speed-chip active" data-speed="1" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(1,this)">1×</button>
-            <button class="speed-chip" data-speed="0.75" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.75,this)">0.75×</button>
-            <button class="speed-chip" data-speed="0.5" style="padding:2px 8px;border-radius:100px;font-size:9px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-3);font-family:var(--font);transition:background .15s,color .15s;" onclick="setSampleSpeed(0.5,this)">0.5×</button>
-          </div>
-          <button id="refPlayBtn" type="button" class="ref-play-btn">
-            <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg>
-            再生
-          </button>
-        </div>
-      </div>
-      <audio id="refAudio" preload="auto" src="/sample_audio/{{ word_id or '' }}"></audio>
-
-      {#
-        聴覚障害のある生徒にとって、音の高さの折れ線より
-        「先生の口がどう動くか」のほうが直接まねできる手がかりになる。
-        そのため口の動画を常時表示の主役にし、ピッチグラフは
-        必要な人だけが開く折りたたみに移した。
-      #}
-      {% if has_ref_video %}
-      <video class="ref-video-main" id="refVideoPlayer" src="/sample_video/{{ word_id }}"
-             muted loop playsinline preload="metadata"></video>
-      <button class="ref-video-play" id="refVideoToggleBtn" type="button" onclick="toggleRefVideo()">
-        {{ icon('video') }} <span id="refVideoBtnLabel">先生の口の動きを再生</span>
+    <div class="rp-actions">
+      {% if word_id %}
+      <button type="button" id="refWatchBtn" class="rp-btn rp-btn-ref">
+        {{ icon('play', size=20) }} お手本を{% if has_ref_video %}見る{% else %}聞く{% endif %}
       </button>
       {% endif %}
+      <button type="button" id="buttonStart" class="rp-btn rp-btn-rec">
+        <svg width="14" height="14" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
+        <span class="rec-btn-label">録音する</span>
+      </button>
+    </div>
 
+    {# 録音できる状態か（マイク・カメラ）。困っているときだけ、理由と直し方を出す #}
+    <div class="rp-ready" id="rpReady" role="status" aria-live="polite">
+      <span class="rp-dev" id="devMic" data-state="wait">{{ icon('mic', size=16) }}<span>マイク</span><i class="rp-dev-mark"></i></span>
+      <span class="rp-dev" id="devCam" data-state="wait">{{ icon('camera', size=16) }}<span>カメラ</span><i class="rp-dev-mark"></i></span>
+    </div>
+    <p class="rp-ready-note" id="rpReadyNote" hidden></p>
+    <button type="button" class="rp-help-btn" id="btnPermHelp" hidden>{{ icon('alert', size=16) }} 直し方を見る</button>
+
+    <div class="rp-links">
+      <a href="/select">べつの単語をえらぶ</a>
+      {% if word_id %}<span class="rp-links-sep">・</span><a href="/vowel_trainer/{{ word_id }}">口の形を練習する</a>{% endif %}
+      <span class="rp-links-sep">・</span><button type="button" id="btnOpenPrep">練習の設定</button>
+    </div>
+  </section>
+
+  <!-- ⑤ 録音のあと ───────────────────────────────── -->
+  <section class="rp-view" id="viewDone" hidden>
+    <div class="rp-word rp-word-sm">
+      <span class="rp-display">{{ display or test }}</span>
+    </div>
+
+    {#
+      録音したものの見返し
+
+      音だけ聞き返しても、聞こえ方によっては確かめようがない。
+      録音と同時に撮った自分の口の動きをその場で見返せるようにする
+      （この映像は端末の中だけで再生され、解析用の送信とは別）。
+    #}
+    <div class="rp-compare">
+      <div class="rp-compare-title">{% if has_ref_video %}お手本とあなたの口をならべて見る{% else %}じぶんの口の動き{% endif %}</div>
+      <div id="doneCompare"><p class="rp-compare-empty">口の動きを準備しています…</p></div>
+      <video id="userLipReplay" class="user-lip-replay" playsinline muted hidden></video>
+      <details class="replay-audio-fold">
+        <summary>録音した音を聞く</summary>
+        <audio controls id="audio"></audio>
+      </details>
+    </div>
+
+    <form action="/graph" method="post" enctype="multipart/form-data" class="graph-form"
+          id="graphForm" onsubmit="document.getElementById('loadingOverlay').classList.add('show')">
+      <button type="submit" id="buttongraph">結果を見る &rarr;</button>
+    </form>
+
+    <div class="rp-again">
+      {% if word_id %}<button type="button" class="rp-again-btn" id="btnAgainWatch">{{ icon('play', size=16) }} お手本を見て録り直す</button>{% endif %}
+      <button type="button" class="rp-again-btn" id="btnAgainRec">{{ icon('mic', size=16) }} すぐ録り直す</button>
+    </div>
+    <div class="rp-links"><a href="/select">べつの単語をえらぶ</a></div>
+  </section>
+
+  {#
+    画面には出さないが、録音・解析に必要な部品。
+    ・お手本の映像／音声、音の高さ・長さ … ②お手本の画面へ移して使う
+    ・カメラ … ③3・2・1 と ④録音中の画面へ移して使う
+    ・波形とマイク音量 … 状態表示の計算に使う（見せるのは1行だけ）
+  #}
+  <div class="rp-parts" aria-hidden="true">
+    {% if word_id %}<audio id="refAudio" preload="auto" src="/sample_audio/{{ word_id }}"></audio>{% endif %}
+    {% if has_ref_video %}
+    <video class="ref-video-main" id="refVideoPlayer" src="/sample_video/{{ word_id }}"
+           playsinline preload="metadata" muted></video>
+    {% endif %}
+
+    {% if accent_hl is defined and accent_hl %}
+    {% set n_hl = accent_hl | length %}
+    <div class="ref-hl" id="refHlBar">
+      <div class="ref-part-label">音の高さ（上の段が高い音）</div>
+      <div class="pitch-steps" style="--n:{{ n_hl }}" role="img"
+           aria-label="{% for item in accent_hl %}{{ item.label }}{{ '（高）' if item.hl == 'H' else '（低）' }}{% endfor %}">
+        <span class="pitch-row-label hi">高</span>
+        <span class="pitch-row-label lo">低</span>
+        <svg class="pitch-line" viewBox="0 0 {{ n_hl * 100 }} 86" preserveAspectRatio="none" aria-hidden="true">
+          <polyline points="{% for item in accent_hl %}{{ loop.index0 * 100 + 50 }},{{ 20 if item.hl == 'H' else 66 }} {% endfor %}"/>
+        </svg>
+        {% for item in accent_hl %}
+        <span class="ps-mora {{ item.hl }}" style="grid-column:{{ loop.index + 1 }}">{{ item.label }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
+    <div class="ref-len" id="refLenBar">
+      <div class="ref-part-label">音の長さ</div>
       <div class="mora-bar" id="moraBar">
         {% for m in ref_preview.moras %}
           <span class="mora-item {% if m.is_sil %}mora-sil{% endif %}"
                 data-start="{{ m.start }}"
                 data-end="{{ m.end }}"
-                style="width:{{ ((m.end - m.start) / ref_preview.duration_sec * 100)|round(2) }}%">{% if not m.is_sil %}{{ m.label }}{% endif %}</span>
+                style="flex:{{ ((m.end - m.start) * 1000)|round|int }} 1 0">{% if not m.is_sil %}{{ m.label }}{% endif %}</span>
         {% endfor %}
       </div>
-      <details class="ref-pitch-fold">
-        <summary>{{ icon('trend') }} 音の高さのグラフを見る</summary>
-        <div class="pitch-graph-wrap">
-          <canvas id="pitchCanvas"></canvas>
-          <div id="pitchCursor"></div>
-        </div>
-        <div class="pitch-legend">
-          <div class="pitch-legend-item"><div class="pitch-legend-line ref"></div>お手本</div>
-          <div class="pitch-legend-item"><div class="pitch-legend-line user"></div>あなた（録音中）</div>
-        </div>
-      </details>
     </div>
-  </div>
-  {% endif %}
+    {% endif %}
 
-  <!-- 母音練習リンク -->
-  {% if word_id %}
-  {#
-    準備・設定
-
-    録音の前に必ず要るものではないが、使いたい人はいる操作をここへまとめる。
-    スマホでは本体側から隠しているので、ここが唯一の入口になる。
-  #}
-  <details class="prep-fold">
-    <summary>{{ icon('gear') }} 練習の設定</summary>
-    <div class="prep-fold-body">
-      <div class="prep-speed">
-        <span style="font-size:11px;color:var(--text-3);margin-right:6px;">お手本の再生速度</span>
-        <button class="speed-chip prep-speed-chip active" data-speed="1" onclick="setSampleSpeed(1,this)">1×</button>
-        <button class="speed-chip prep-speed-chip" data-speed="0.75" onclick="setSampleSpeed(0.75,this)">0.75×</button>
-        <button class="speed-chip prep-speed-chip" data-speed="0.5" onclick="setSampleSpeed(0.5,this)">0.5×</button>
-      </div>
-      <div class="vowel-link-row">
-        <a href="/vowel_trainer/{{ word_id }}" class="vowel-link-btn">
-      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1C3 1 1 3 1 5.5S3 10 5.5 10 10 8 10 5.5 8 1 5.5 1z" stroke="currentColor" stroke-width="1.2"/><path d="M3.5 5.5C3.5 4 4.3 3.2 5.5 3.2S7.5 4 7.5 5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-      口の形（母音）を練習する
-        </a>
-      </div>
-      {% if ref_preview is defined and ref_preview and ref_preview.has_data %}
-      <button type="button" id="guideToggle" class="guide-toggle"
-              title="お手本のリズム（どの音を長く言うか）を光る文字で示します。合わせられなくても点数には影響しません">⏱ リズムガイド：ON</button>
-      {% endif %}
-    </div>
-  </details>
-  {% endif %}
-
-  <!-- マイク品質バナー -->
-  <div class="mic-quality-warn" id="micQualityBanner"></div>
-
-  <!-- ③ 操作ガイド（状態に応じて変化） -->
-  <div class="step-guide" id="stepGuide">
-    <div class="step-guide-num" id="stepGuideNum">1</div>
-    <span id="stepGuideText">お手本音声を聴いてから、準備ができたら録音開始を押してください</span>
-  </div>
-
-  <!-- ④ 録音ボタン — 最重要UI、スクロールなしで見える位置 -->
-  <div class="record-actions">
-    <div class="record-btn-row">
-      <button type="button" id="buttonStart">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
-        <span class="rec-btn-label">録音開始</span>
-      </button>
-      <button type="button" id="buttonStop" disabled>
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/></svg>
-        録音停止
-      </button>
-    </div>
-    <div class="shortcut-hint">
-      <span class="key-badge">Space</span><span>で開始/停止</span>
-      <span style="margin-left:10px;"><span class="key-badge">Enter</span></span><span>で解析</span>
+    <div class="lip-preview-container">
+      <video id="lipPreview" autoplay muted playsinline></video>
+      <canvas id="lipOverlay"></canvas>
+      <div id="faceStatus">顔を枠内に合わせてください</div>
     </div>
 
-  </div>
-
-  <!-- ⑤ 波形ビジュアライザー（録音中フィードバック） -->
-  <div class="visualizer-section">
-    <div class="viz-card">
-      <div class="karaoke-strip" id="karaokeStrip"></div>
-      <canvas id="visualizer" width="480" height="64"></canvas>
-      <div class="rec-status">
-        <div class="rec-dot" id="recDot"></div>
-        <span class="rec-label" id="recLabel">待機中</span>
-        <span class="rec-time" id="recTime">0:00</span>
-      </div>
-      <div class="volume-wrap">
-        <span class="volume-label">VOL</span>
-        <div class="volume-track"><div id="volumeFill"></div></div>
-      </div>
-      <div id="autoStopCountdown"></div>
+    <canvas id="visualizer" width="480" height="64"></canvas>
+    <div class="volume-track"><div id="volumeFill"></div></div>
+    <div class="rec-status">
+      <div class="rec-dot" id="recDot"></div>
+      <span class="rec-label" id="recLabel">待機中</span>
+      <span class="rec-time" id="recTime">0:00</span>
     </div>
+    <div class="mic-quality-warn" id="micQualityBanner"></div>
     <div id="micError"></div>
+    <div class="lip-status" id="lipStatus"></div>
+    <span id="lipRefTag" class="lip-ref-tag">お手本登録済み</span>
+    <button type="button" id="buttonStop" disabled>録音停止</button>
+    <button type="button" id="buttonLipRef" class="btn btn-secondary btn-sm teacher-only-btn">お手本を録画（3秒）</button>
   </div>
 
-  <!-- ⑥ 唇カメラ — コンパクト横並びレイアウト、録音と同時に自動録画 -->
-  <div class="lip-section">
-    <div class="lip-card">
-      <div class="lip-card-header">
-        <span class="lip-card-title">口の動き（録音と同時に自動録画）</span>
-        <span id="lipRefTag" class="lip-ref-tag">
-          <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2L7.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          お手本登録済み
-        </span>
-      </div>
-      <div class="lip-layout">
-        <div class="lip-preview-container">
-          <video id="lipPreview" autoplay muted playsinline></video>
-          <canvas id="lipOverlay"></canvas>
-          <div id="faceStatus">顔を枠内に合わせてください</div>
-        </div>
-        <div class="lip-side">
-          <div class="lip-auto-info">
-            録音開始と同時に<br><strong>自動撮影されます</strong>
-          </div>
-          <button type="button" id="buttonLipRef" class="btn btn-secondary btn-sm">お手本を録画（3秒）</button>
-          <div class="lip-status" id="lipStatus"></div>
+  {#
+    練習の設定（ふだんは出さない小さな画面）
+    録音の前に必ず要るものではないが、使いたい人はいる操作をここへまとめる。
+  #}
+  <div class="sheet" id="prepSheet" hidden>
+    <div class="sheet-panel" role="dialog" aria-label="練習の設定">
+      <div class="sheet-grip"></div>
+      <div class="sheet-title">練習の設定</div>
+      {% if word_id %}
+      <div class="sheet-group">
+        <div class="sheet-label">お手本の速さ</div>
+        <div class="seg" id="prepSpeedSeg">
+          <button type="button" data-speed="1" class="active">ふつう</button>
+          <button type="button" data-speed="0.75">ゆっくり</button>
+          <button type="button" data-speed="0.5">とてもゆっくり</button>
         </div>
       </div>
+      {% endif %}
+      <div class="sheet-group">
+        <div class="sheet-row">
+          <span><span class="sheet-row-text">録音前の 3・2・1</span><br><span class="sheet-row-sub">自分の口を映して構えてから録音します</span></span>
+          <label class="switch"><input type="checkbox" id="guideToggle"><span></span></label>
+        </div>
+        <div class="sheet-row" id="hapticsRow">
+          <span><span class="sheet-row-text">振動で知らせる</span><br><span class="sheet-row-sub">録音の開始・終わりをスマホの振動で伝えます</span></span>
+          <label class="switch"><input type="checkbox" id="hapticsToggle"><span></span></label>
+        </div>
+      </div>
+      <button type="button" class="sheet-close" data-close-sheet>とじる</button>
     </div>
   </div>
 
-  <!-- ⑦ 録音後のアクション -->
-  <div class="post-actions">
-    <div class="replay-section">
-      <span class="replay-label">録音再生</span>
-      <audio controls id="audio"></audio>
+  {# マイク・カメラが使えないときの直し方 #}
+  <div class="sheet" id="permSheet" hidden>
+    <div class="sheet-panel" role="dialog" aria-label="マイクとカメラの直し方">
+      <div class="sheet-grip"></div>
+      <div class="sheet-title">マイクとカメラを使えるようにする</div>
+      <div class="seg perm-os" id="permOs">
+        <button type="button" data-os="ios">iPhone</button>
+        <button type="button" data-os="android">Android</button>
+        <button type="button" data-os="pc">パソコン</button>
+      </div>
+      <ol class="perm-steps" data-os="ios">
+        <li><span>画面の上（または下）にある <b>「ぁあ」</b> を押す</span></li>
+        <li><span><b>「Webサイトの設定」</b> を押す</span></li>
+        <li><span><b>「マイク」</b> と <b>「カメラ」</b> を <b>「許可」</b> にする</span></li>
+        <li><span>下の <b>「もう一度ためす」</b> を押す</span></li>
+      </ol>
+      <ol class="perm-steps" data-os="android" hidden>
+        <li><span>アドレスバーの左にある <b>鍵のマーク</b> を押す</span></li>
+        <li><span><b>「権限」</b>（または「サイトの設定」）を押す</span></li>
+        <li><span><b>「マイク」</b> と <b>「カメラ」</b> を <b>「許可」</b> にする</span></li>
+        <li><span>下の <b>「もう一度ためす」</b> を押す</span></li>
+      </ol>
+      <ol class="perm-steps" data-os="pc" hidden>
+        <li><span>アドレスバーの右にある <b>カメラのマーク</b>（または左の鍵のマーク）を押す</span></li>
+        <li><span><b>「マイク」</b> と <b>「カメラ」</b> を <b>「許可」</b> にする</span></li>
+        <li><span>下の <b>「もう一度ためす」</b> を押す</span></li>
+      </ol>
+      <p class="perm-note">それでも使えないときは、ほかのアプリがマイクを使っていないか確かめてください。<br>先生に「https で開いているか」を聞いてみてください。</p>
+      <button type="button" class="perm-retry" onclick="location.reload()">もう一度ためす</button>
+      <button type="button" class="sheet-close" data-close-sheet>とじる</button>
     </div>
-    <form action="/graph" method="post" enctype="multipart/form-data" class="graph-form"
-          id="graphForm" onsubmit="document.getElementById('loadingOverlay').classList.add('show')">
-      <button type="submit" id="buttongraph">解析結果を見る &rarr;</button>
-    </form>
-    <a href="/select" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;">別の単語を選ぶ</a>
   </div>
 
 </div>
 
 <script>
+  // ── 先生モード ─────────────────────────────────────────────────
+  // 「お手本を録画」は指導者の操作。先生モード（先生用パスワードで ON）のときだけ
+  // サーバーが <html class="teacher-mode"> を付け、theme.js が body にも同じ印を付ける。
+  // 生徒が録画ボタンを押せたとしても、サーバーが先生モードでない送信を受け付けない。
+
   // ── 録音状態の視覚フィードバック ─────────────────────────────────────
   let recTimer = null, recSeconds = 0;
   const dot       = document.getElementById('recDot');
@@ -731,16 +864,106 @@
     if (guide)     guide.className = 'step-guide' + (state ? ' ' + state : '');
   }
 
-  // ── 画面の段階 ───────────────────────────────────────────────────
-  // ready（お手本を聴く）→ recording（録音中）→ done（結果を見る）。
-  // CSS 側の body[data-phase] と対になっていて、その段階で使わない要素を
-  // 隠す。要素が多すぎてどこを見ればよいか分からない状態を防ぐため。
-  const recBtnLabel = document.querySelector('.rec-btn-label');
+  // ── 段階ごとに画面を入れ替える ───────────────────────────────────
+  // ready（はじめ）→ recording（全画面）→ done（録音のあと）。
+  // 1ページに全部を積むと「どれを見ればいいか」が分からなくなるので、
+  // その段階で使う画面だけを出す。
   function setPhase(phase) {
     document.body.dataset.phase = phase;
-    if (recBtnLabel) recBtnLabel.textContent = (phase === 'done') ? 'もう一度録音' : '録音開始';
+    const start = document.getElementById('viewStart');
+    const done  = document.getElementById('viewDone');
+    if (start) start.hidden = (phase === 'done');
+    if (done)  done.hidden  = (phase !== 'done');
+    if (phase !== 'recording') window.scrollTo({ top: 0 });
   }
   setPhase('ready');
+
+  // ⑤ 録音のあとの画面から、もう一度
+  document.getElementById('btnAgainWatch')?.addEventListener('click', () => {
+    if (typeof window.openRefStage === 'function') window.openRefStage();
+  });
+  document.getElementById('btnAgainRec')?.addEventListener('click', () => {
+    const start = document.getElementById('buttonStart');
+    if (start && !start.disabled) start.click();
+  });
+
+  // ── シート（練習の設定・許可の直し方）の開け閉め ──
+  function openSheet(id) { const el = document.getElementById(id); if (el) el.hidden = false; }
+  function closeSheets() { document.querySelectorAll('.sheet').forEach(el => { el.hidden = true; }); }
+  document.getElementById('btnOpenPrep')?.addEventListener('click', () => openSheet('prepSheet'));
+  document.getElementById('btnPermHelp')?.addEventListener('click', () => openSheet('permSheet'));
+  document.querySelectorAll('[data-close-sheet]').forEach(b => b.addEventListener('click', closeSheets));
+  document.querySelectorAll('.sheet').forEach(el => el.addEventListener('click', e => { if (e.target === el) closeSheets(); }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
+
+  // 許可の直し方：使っている端末の説明を最初に開く
+  (function () {
+    const seg = document.getElementById('permOs');
+    if (!seg) return;
+    const ua = navigator.userAgent;
+    const os = /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : 'pc';
+    function show(name) {
+      seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.os === name));
+      document.querySelectorAll('.perm-steps').forEach(l => { l.hidden = l.dataset.os !== name; });
+    }
+    seg.addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.os); });
+    show(os);
+  })();
+
+  // 振動の切り替え（振動できない端末では項目ごと出さない）
+  (function () {
+    const cb = document.getElementById('hapticsToggle');
+    const row = document.getElementById('hapticsRow');
+    if (!cb || !window.SPHaptics) return;
+    if (!SPHaptics.supported()) { if (row) row.hidden = true; return; }
+    cb.checked = SPHaptics.enabled();
+    cb.addEventListener('change', () => { SPHaptics.set(cb.checked); if (cb.checked) SPHaptics.tick(); });
+  })();
+
+  // ── マイクとカメラの準備（はじめの画面） ─────────────────────────
+  // 「録音できる状態か」だけを2つの印で見せる。困っているときだけ理由と直し方を出す。
+  (function () {
+    const mic = document.getElementById('devMic');
+    const cam = document.getElementById('devCam');
+    const note = document.getElementById('rpReadyNote');
+    const help = document.getElementById('btnPermHelp');
+    const start = document.getElementById('buttonStart');
+    if (!mic || !cam) return;
+    const micErr  = document.getElementById('micError');
+    const micWarn = document.getElementById('micQualityBanner');
+    const video   = document.getElementById('lipPreview');
+    const t0 = Date.now();
+
+    function update() {
+      let micState = 'wait', camState = 'wait', msg = '', needHelp = false;
+      const failed = micErr && micErr.style.display === 'block';
+      if (failed) {
+        micState = 'err';
+        camState = video && video.srcObject ? 'ok' : 'err';
+        msg = micErr.textContent.indexOf('解析') >= 0
+          ? '録音を送れませんでした。もう一度録音してください'
+          : 'マイクとカメラが使えません。ブラウザで「許可」にすると録音できます';
+        needHelp = micErr.textContent.indexOf('解析') < 0;
+      } else {
+        if (window._spAnalyser) micState = 'ok';
+        if (micWarn && micWarn.style.display !== 'none' && micWarn.textContent.trim()) {
+          micState = 'warn';
+          msg = micWarn.textContent.replace(/^[^ぁ-んァ-ヶ一-龠]*/, '').trim();
+        }
+        if (video && video.srcObject && video.readyState >= 2) camState = 'ok';
+        else if (Date.now() - t0 > 8000 && window._spAnalyser) {
+          camState = 'warn'; msg = msg || 'カメラが映っていません。口の形の結果は出ませんが、録音はできます';
+        }
+      }
+      mic.dataset.state = micState;
+      cam.dataset.state = camState;
+      if (note) { note.textContent = msg; note.hidden = !msg; }
+      if (help) help.hidden = !needHelp;
+      if (start && failed && micState === 'err' && needHelp) start.disabled = true;
+    }
+    update();
+    setInterval(update, 600);
+  })();
 
   // ── 録音ステージの停止ボタン・経過時間・音量 ─────────────────────
   // ステージは録音中だけ前面に出る全画面表示。ページ側の停止ボタンと
@@ -798,7 +1021,7 @@
       time.textContent = `${m}:${s.toString().padStart(2,'0')}`;
     }, 1000);
     setPhase('recording');
-    setGuide(2, '発音したら録音停止を押してください', 'recording');
+    setGuide(2, '言い終わったら「録音停止」を押してください', 'recording');
   });
 
   document.getElementById('buttonStop').addEventListener('click', () => {
@@ -808,7 +1031,7 @@
     time.classList.remove('active');
     clearInterval(recTimer);
     setPhase('done');
-    setGuide(3, '解析結果を見るを押してフィードバックを確認しましょう', 'done');
+    setGuide(3, '「結果を見る」を押すと、できばえが分かります', 'done');
   });
 
   // ── キーボードショートカット ──────────────────────────────────────────
@@ -820,9 +1043,9 @@
     const graphBtn = document.getElementById('buttongraph');
     if (e.code === 'Space') {
       e.preventDefault();
-      // お手本音声が再生中は Space を録音トリガーに使わない
-      const refAudio = document.getElementById('refAudio');
-      if (refAudio && !refAudio.paused) { refAudio.pause(); return; }
+      // お手本の再生中は Space を録音トリガーに使わない（まず再生を止める）
+      const refMedia = document.getElementById('refVideoPlayer') || document.getElementById('refAudio');
+      if (refMedia && !refMedia.paused) { refMedia.pause(); return; }
       if (!startBtn.disabled) startBtn.click();
       else if (!stopBtn.disabled) stopBtn.click();
     }
@@ -837,289 +1060,70 @@
 </script>
 
 <script>
-function setSampleSpeed(speed, btn) {
-  document.querySelectorAll('.speed-chip').forEach(b => {
-    b.classList.remove('active');
-    b.style.background = 'transparent';
-    b.style.color = b.dataset.context === 'dark' ? 'rgba(255,255,255,.7)' : 'var(--text-3)';
-  });
-  if (btn) {
-    btn.classList.add('active');
-    btn.style.background = 'rgba(255,255,255,.25)';
-    btn.style.color = '#fff';
-  }
-  ['refAudio','sampleAudioEl'].forEach(id => {
+// お手本の速さ。ホームの「設定」と同じ保存値（sp-ps-play-speed）を使い、どちらで変えても揃う
+function setSampleSpeed(speed) {
+  document.querySelectorAll('#prepSpeedSeg button').forEach(b => b.classList.toggle('active', parseFloat(b.dataset.speed) === speed));
+  ['refAudio','sampleAudioEl','refVideoPlayer'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.playbackRate = speed;
+    if (el) { el.playbackRate = speed; el.defaultPlaybackRate = speed; }
   });
+  try { localStorage.setItem('sp-ps-play-speed', String(speed)); } catch (e) {}
 }
+(function () {
+  let saved = 1;
+  try { saved = parseFloat(localStorage.getItem('sp-ps-play-speed')) || 1; } catch (e) {}
+  if (![1, 0.75, 0.5].includes(saved)) saved = 1;
+  setSampleSpeed(saved);
+  document.getElementById('prepSpeedSeg')?.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (b) setSampleSpeed(parseFloat(b.dataset.speed));
+  });
+})();
 
-// 動画は常に見えている。ボタンは表示の切り替えではなく再生・一時停止を行う。
-function toggleRefVideo() {
-  const video = document.getElementById('refVideoPlayer');
-  const label = document.getElementById('refVideoBtnLabel');
-  if (!video) return;
-  if (video.paused) {
-    video.play().catch(() => {});
-    if (label) label.textContent = '一時停止';
-  } else {
-    video.pause();
-    if (label) label.textContent = '先生の口の動きを再生';
-  }
-}
-
-// 繰り返し再生が終わったときにボタンの文言を戻す
-document.addEventListener('DOMContentLoaded', () => {
-  const v = document.getElementById('refVideoPlayer');
-  const label = document.getElementById('refVideoBtnLabel');
-  if (!v || !label) return;
-  v.addEventListener('pause', () => { label.textContent = '先生の口の動きを再生'; });
-  v.addEventListener('play',  () => { label.textContent = '一時停止'; });
-});
+// お手本の再生はボタン1つ。映像があれば映像（音つき）、無ければ音声を鳴らす。
+// 見る場所を1か所にするため、速度・表示の切り替えはここに置かない。
 </script>
 <script>window.CURRENT_WORD_ID = {{ word_id|tojson|safe }};</script>
 <!-- audio_recorder.js は AudioWorklet 専用（main.js が addModule で読み込む）。
      通常の script として読むと AudioWorkletProcessor 未定義エラーになるため含めない -->
+<script src="/static/js/mouth_compare.js"></script>
 <script src="/static/js/main.js"></script>
 
 <script>
-// ── お手本カラオケピッチグラフ ─────────────────────────────────────
+// ── お手本の再生位置に合わせて「音の長さ」の帯を光らせる ──────────
+// （以前はここでピッチ曲線も描いていたが、同じ内容は結果画面の
+//   「お手本とくらべる」で見られるので、録音画面からは外した）
 (function() {
   const REF = {{ ref_preview|default(none)|tojson|safe }};
   if (!REF || !REF.has_data) return;
 
-  const canvas   = document.getElementById('pitchCanvas');
-  const cursor   = document.getElementById('pitchCursor');
-  const playBtn  = document.getElementById('refPlayBtn');
   const refAudio = document.getElementById('refAudio');
-  if (!canvas || !refAudio) return;
+  const refVideo = document.getElementById('refVideoPlayer');
+  const media    = refVideo || refAudio;          // 映像があれば映像（音つき）
+  if (!media) return;
 
-  const moraItems  = Array.from(document.querySelectorAll('.mora-item'));
-  const pitch      = REF.pitch;
-  const n          = pitch.length;
-  const pitchMinHz = REF.pitch_min_hz || 80;
-  const pitchMaxHz = REF.pitch_max_hz || 400;
+  const moraItems = Array.from(document.querySelectorAll('.mora-item'));
+  if (!moraItems.length) return;
 
-  // ── リアルタイムピッチ検出 ─────────────────────────────────────
-  // 正規化自己相関法（ACF）: ゼロラグ自己相関で割ることで振幅依存をなくす
-  function detectPitchHz(analyser, sampleRate) {
-    const buf = new Float32Array(analyser.fftSize);
-    analyser.getFloatTimeDomainData(buf);
-    const N = buf.length;
-    let r0 = 0;
-    for (let i = 0; i < N; i++) r0 += buf[i] * buf[i];
-    if (Math.sqrt(r0 / N) < 0.01) return null;  // 無音
-
-    const minLag = Math.floor(sampleRate / Math.min(pitchMaxHz, 500));
-    const maxLag = Math.floor(sampleRate / Math.max(pitchMinHz, 60));
-    let bestCorr = -Infinity, bestLag = -1;
-    for (let lag = minLag; lag <= maxLag && lag < N; lag++) {
-      let corr = 0;
-      for (let i = 0; i < N - lag; i++) corr += buf[i] * buf[i + lag];
-      corr /= r0;  // 正規化
-      if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
-    }
-    if (bestCorr < 0.3 || bestLag < 1) return null;  // 有声区間でなければスキップ
-    return sampleRate / bestLag;
-  }
-
-  function normHz(hz) {
-    if (hz === null) return null;
-    return Math.max(0, Math.min(1, (hz - pitchMinHz) / (pitchMaxHz - pitchMinHz)));
-  }
-
-  // ── ユーザーピッチ履歴（録音開始からの経過時間 + 正規化ピッチ） ──
-  let recordStartTime  = null;  // 録音開始の Date.now()/1000
-  let userPitchHistory = [];    // [{t:秒, norm:0-1}]
-  let pitchFrame = 0;
-
-  // 録音の実開始・停止イベントに同期して開始時刻を記録
-  // （カウントダウンガイド使用時もピッチ軌跡の時間軸がずれないように）
-  document.addEventListener('sp:recordstart', () => {
-    recordStartTime  = Date.now() / 1000;
-    userPitchHistory = [];
-    drawCanvas();
-  });
-  document.addEventListener('sp:recordstop', () => {
-    recordStartTime = null;  // 進捗カーソルを止める（軌跡は残す）
-    drawCanvas();
-  });
-
-  // ── メインループ（rAF 60fps、ピッチ検出は20fps） ─────────────
-  function pitchLoop() {
-    requestAnimationFrame(pitchLoop);
-    pitchFrame++;
-
-    // ピッチ検出は3フレームに1回（≈20fps）
-    if (window._spRecording && recordStartTime !== null && pitchFrame % 3 === 0) {
-      const an = window._spAnalyser;
-      const sr = window._spSampleRate || 16000;
-      if (an) {
-        const hz   = detectPitchHz(an, sr);
-        const norm = normHz(hz);
-        const t    = Date.now() / 1000 - recordStartTime;
-        if (norm !== null && t >= 0 && t <= REF.duration_sec * 1.5) {
-          userPitchHistory.push({t, norm});
-        }
-      }
-    }
-
-    // キャンバス再描画は毎フレーム（進捗カーソルを滑らかに）
-    drawCanvas();
-  }
-
-  // ── キャンバス描画 ────────────────────────────────────────────
-  function drawCanvas() {
-    const W = canvas.offsetWidth  || 460;
-    const H = canvas.offsetHeight || 68;
-    if (canvas.width !== W) canvas.width  = W;
-    if (canvas.height !== H) canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, W, H);
-
-    // モーラ境界線
-    ctx.strokeStyle = 'rgba(14,30,69,0.1)';
-    ctx.lineWidth = 1;
-    for (const item of moraItems) {
-      if (item.classList.contains('mora-sil')) continue;
-      const s = parseFloat(item.dataset.start);
-      const x = Math.round((s / REF.duration_sec) * W) + 0.5;
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-    }
-
-    // お手本ピッチ塗り
-    const fillGrad = ctx.createLinearGradient(0, 0, 0, H);
-    fillGrad.addColorStop(0, 'rgba(14,30,69,0.15)');
-    fillGrad.addColorStop(1, 'rgba(14,30,69,0.02)');
-    ctx.beginPath();
-    for (let i = 0; i < n; i++) {
-      const x = (i / Math.max(n - 1, 1)) * W;
-      const y = H - 4 - (pitch[i] || 0) * (H - 8);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-    ctx.fillStyle = fillGrad;
-    ctx.fill();
-
-    // お手本ピッチ線（紺）
-    ctx.beginPath();
-    ctx.strokeStyle = 'rgba(14,30,69,0.55)';
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'round';
-    for (let i = 0; i < n; i++) {
-      const x = (i / Math.max(n - 1, 1)) * W;
-      const y = H - 4 - (pitch[i] || 0) * (H - 8);
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-
-    // ── ユーザーピッチ軌跡（録音時間軸に整合） ──────────────────
-    const validPts = userPitchHistory
-      .filter(p => p.t >= 0 && p.t <= REF.duration_sec)
-      .map(p => ({
-        x: (p.t / REF.duration_sec) * W,
-        y: H - 4 - p.norm * (H - 8),
-      }));
-
-    if (validPts.length >= 2) {
-      // 軌跡の線
-      ctx.save();
-      ctx.beginPath();
-      ctx.strokeStyle = 'rgba(192,61,32,0.85)';
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = 'round';
-      ctx.lineCap  = 'round';
-      validPts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    if (validPts.length > 0) {
-      // 先端の強調ドット（録音中のみ）
-      if (window._spRecording) {
-        const last = validPts[validPts.length - 1];
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(last.x, last.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = '#C03D20';
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
-
-    // ── 録音進捗カーソル（録音中：現在位置の点線） ───────────────
-    if (window._spRecording && recordStartTime !== null) {
-      const elapsed = Date.now() / 1000 - recordStartTime;
-      const progX   = Math.min(elapsed / REF.duration_sec, 1.0) * W;
-      ctx.save();
-      ctx.strokeStyle = 'rgba(192,61,32,0.45)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(progX, 0);
-      ctx.lineTo(progX, H);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-
-      // 「● REC」ラベル
-      ctx.save();
-      ctx.font = 'bold 9px sans-serif';
-      ctx.fillStyle = '#C03D20';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'top';
-      ctx.fillText('● REC', W - 5, 4);
-      ctx.restore();
-    }
-  }
-
-  requestAnimationFrame(drawCanvas);
-  window.addEventListener('resize', () => { canvas.width = 0; drawCanvas(); });
-  pitchLoop();
-
-  // ── refAudio カーソル ─────────────────────────────────────────
   let rafId = null;
-
   function tick() {
-    const t   = refAudio.currentTime;
-    const pct = Math.min(t / REF.duration_sec, 1.0);
-    cursor.style.left = (pct * 100) + '%';
+    const t = media.currentTime;
     for (const item of moraItems) {
       const s = parseFloat(item.dataset.start);
       const e = parseFloat(item.dataset.end);
       item.classList.toggle('active', !item.classList.contains('mora-sil') && t >= s && t < e);
     }
-    if (!refAudio.paused && !refAudio.ended) rafId = requestAnimationFrame(tick);
+    if (!media.paused && !media.ended) rafId = requestAnimationFrame(tick);
   }
-
-  const ICON_PLAY  = '<svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor"><path d="M1 1l7 4-7 4V1z"/></svg> 再生';
-  const ICON_PAUSE = '<svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor"><rect x="1" y="0.5" width="2.5" height="8"/><rect x="5.5" y="0.5" width="2.5" height="8"/></svg> 一時停止';
-
-  refAudio.addEventListener('play', () => {
-    playBtn.innerHTML = ICON_PAUSE;
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(tick);
-  });
-  refAudio.addEventListener('pause', () => {
-    playBtn.innerHTML = ICON_PLAY;
-    if (rafId) cancelAnimationFrame(rafId);
-  });
-  refAudio.addEventListener('ended', () => {
-    playBtn.innerHTML = ICON_PLAY;
-    cursor.style.left = '0%';
+  function stop() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     moraItems.forEach(i => i.classList.remove('active'));
-    if (rafId) cancelAnimationFrame(rafId);
-  });
-
-  playBtn.addEventListener('click', () => {
-    if (refAudio.paused || refAudio.ended) refAudio.play().catch(() => {});
-    else refAudio.pause();
-  });
+  }
+  media.addEventListener('play',  () => { if (rafId) cancelAnimationFrame(rafId); rafId = requestAnimationFrame(tick); });
+  media.addEventListener('pause', stop);
+  media.addEventListener('ended', stop);
 })();
 </script>
+
 
 <script>
 // ── カメラ距離・顔位置ガイド ──────────────────────────────────────
@@ -1216,7 +1220,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.stroke();
     ctx.setLineDash([]);
     // 口位置ヒント（赤）
-    ctx.strokeStyle = 'rgba(215,70,40,0.65)';
+    ctx.strokeStyle = 'rgba(181,173,255,0.9)';
     ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.ellipse(cx, cy + ry * 0.38, rx * 0.52, ry * 0.16, 0, 0, Math.PI * 2);
@@ -1236,13 +1240,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let bColor, statusTxt;
     if (ratio > 0.82) {
-      bColor    = 'rgba(251,191,36,0.85)';
+      bColor    = 'rgba(233,176,79,0.9)';
       statusTxt = '近すぎます — 少し離れてください';
     } else if (ratio < 0.38) {
-      bColor    = 'rgba(251,191,36,0.85)';
+      bColor    = 'rgba(233,176,79,0.9)';
       statusTxt = '遠すぎます — 近づいてください';
     } else {
-      bColor    = 'rgba(52,211,153,0.75)';
+      bColor    = 'rgba(76,197,150,0.9)';
       statusTxt = '✓ 位置OK';
     }
 
@@ -1256,8 +1260,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 輪郭・鼻・唇をうっすら描画
     drawConn(OVAL,      'rgba(255,255,255,0.32)', 1.0);
     drawConn(NOSE,      'rgba(255,255,255,0.32)', 1.0);
-    drawConn(LIP_OUTER, 'rgba(215,70,40,0.65)',   1.8);
-    drawConn(LIP_INNER, 'rgba(215,70,40,0.45)',   1.2);
+    drawConn(LIP_OUTER, 'rgba(181,173,255,0.9)',   1.8);
+    drawConn(LIP_INNER, 'rgba(181,173,255,0.55)',   1.2);
 
     if (statusEl) statusEl.textContent = statusTxt;
   }
@@ -1337,73 +1341,197 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <script>
-// ── タイミングガイド ─────────────────────────────────────────────
-// 聴覚障碍ユーザーは発音中に自分の声でテンポを確認できないため、
-// お手本のモーラ時刻を使って「今この音を言う」を画面で合図する。
-// 録音開始前に 3・2・1 の視覚カウントダウン → 録音の実開始と同時に
-// カラオケ式にモーラを光らせる（お手本の実テンポ）。
-(function() {
-  const STORAGE_KEY = 'sp-ps-timing-guide';
-  const toggle  = document.getElementById('guideToggle');
-  const overlay = document.getElementById('guideCountdown');
-  const numEl   = document.getElementById('guideCountNum');
-  const strip   = document.getElementById('karaokeStrip');
-  const bar     = document.getElementById('moraBar');
-  if (!toggle || !overlay || !strip || !bar) return;
+// ── お手本 → 録音 の流れ ───────────────────────────────────────────
+//
+// 練習の形は「見る → 言う」。以前は お手本の再生ボタンと録音ボタンが
+// 離れていて、そのあいだにマイク・カメラ・設定が挟まっていた。
+// ここでは1回押すだけで
+//     先生の口（全画面）→ 3・2・1 → 自分の口（全画面）
+// まで続けて進む。先生の口と自分の口を画面の同じ位置・同じ大きさで出すので、
+// 直前に見た形と自分の形を比べやすい。
+//
+// 動画とモーラ帯は複製せず、既存の要素をステージへ移して使う。
+// 複製すると再生位置の同期コードを二重に持つことになり、ずれるため。
+(function () {
+  const stage    = document.getElementById('refStage');
+  const watchBtn = document.getElementById('refWatchBtn');
+  if (!stage) return;
 
-  const moras = Array.from(bar.querySelectorAll('.mora-item'))
-    .filter(el => !el.classList.contains('mora-sil'))
-    .map(el => ({
-      el,
-      start: parseFloat(el.dataset.start),
-      end:   parseFloat(el.dataset.end),
-      label: el.textContent.trim(),
-    }))
-    .filter(m => isFinite(m.start) && isFinite(m.end) && m.label);
-  if (!moras.length) { toggle.style.display = 'none'; return; }
+  const video   = document.getElementById('refVideoPlayer');
+  const audio   = document.getElementById('refAudio');
+  const media   = video || audio;                 // 映像があれば映像（音つき）
+  const slotV   = document.getElementById('refStageVideoSlot');
+  const slotP   = document.getElementById('refStagePartsSlot');
+  const stepEl  = document.getElementById('refStageStep');
+  const btnRec  = document.getElementById('refStageRec');
+  const btnRep  = document.getElementById('refStageReplay');
+  const btnOut  = document.getElementById('refStageCancel');
+  // お手本の情報（音の高さ・長さ）は、お手本を見るこの画面にだけ出す
+  const parts   = [document.getElementById('refHlBar'), document.getElementById('refLenBar')].filter(Boolean);
+  if (!media) { if (watchBtn) watchBtn.style.display = 'none'; return; }
+  // お手本の音源・映像が無い（404 など）ときは、押しても何も起きないボタンを置かない
+  media.addEventListener('error', () => { if (watchBtn) watchBtn.style.display = 'none'; });
+  if (!video && slotV) slotV.style.display = 'none';   // 音声だけのお手本では枠を出さない
 
-  let enabled = localStorage.getItem(STORAGE_KEY) !== 'off';
-  function renderToggle() {
-    toggle.textContent = '⏱ リズムガイド：' + (enabled ? 'ON' : 'OFF');
-    toggle.classList.toggle('off', !enabled);
+  const homes = new Map();
+  function remember(el) { if (el && !homes.has(el)) homes.set(el, [el.parentElement, el.nextSibling]); }
+  function restore(el) { const h = homes.get(el); if (h && h[0]) h[0].insertBefore(el, h[1]); }
+
+  let open = false;
+
+  function openStage() {
+    if (video) { remember(video); slotV.appendChild(video); video.muted = false; }
+    parts.forEach(el => { remember(el); slotP.appendChild(el); });
+    stage.classList.add('show');
+    stage.setAttribute('aria-hidden', 'false');
+    open = true;
   }
-  toggle.addEventListener('click', () => {
-    enabled = !enabled;
-    localStorage.setItem(STORAGE_KEY, enabled ? 'on' : 'off');
-    renderToggle();
-  });
-  renderToggle();
 
-  // カラオケストリップのチップ生成（＋終了メッセージ）
-  const chips = moras.map(m => {
-    const c = document.createElement('span');
-    c.className = 'karaoke-chip';
-    c.textContent = m.label;
-    strip.appendChild(c);
-    return c;
-  });
-  const finishMsg = document.createElement('span');
-  finishMsg.className = 'karaoke-finish';
-  finishMsg.textContent = '✓ 言い終わったら「録音停止」';
-  strip.appendChild(finishMsg);
+  function closeStage() {
+    stage.classList.remove('show');
+    stage.setAttribute('aria-hidden', 'true');
+    if (video) { restore(video); video.muted = true; }
+    parts.forEach(restore);
+    open = false;
+  }
 
-  // 録音ステージ（全画面）側にも同じモーラを並べる。
-  // 録音中はこちらが主役で、ページ内の小さいストリップは隠れる。
+  function setWatching() {
+    if (stepEl) stepEl.textContent = video ? 'お手本を見ています' : 'お手本を聞いています';
+    if (btnRec) btnRec.textContent = 'このまま録音する';
+    if (btnRep) btnRep.hidden = true;
+    stage.classList.remove('ended');
+  }
+
+  function setEnded() {
+    if (stepEl) stepEl.textContent = 'つぎは、あなたの番です';
+    if (btnRec) btnRec.textContent = '録音する';
+    if (btnRep) btnRep.hidden = false;
+    stage.classList.add('ended');
+  }
+
+  function play() {
+    media.currentTime = 0;
+    setWatching();
+    media.play().catch(setEnded);   // 再生できない端末でも、録音へは進める
+  }
+
+  media.addEventListener('ended', () => { if (open) setEnded(); });
+
+  function leave(startRecording) {
+    if (!open) return;
+    try { media.pause(); } catch (e) {}
+    media.currentTime = 0;
+    closeStage();
+    if (!startRecording) return;
+    // 録り直しの確認は入る前に済ませてあるので、ここでは出さない
+    const start = document.getElementById('buttonStart');
+    if (start && !start.disabled) {
+      window._spSkipRerecordConfirm = true;
+      start.click();
+    }
+  }
+
+  // 外から呼ぶ入口（① はじめの画面・⑤ 録音のあとの画面）
+  window.openRefStage = function () {
+    if (open) return;
+    openStage();
+    play();
+  };
+
+  if (watchBtn) watchBtn.addEventListener('click', () => window.openRefStage());
+  if (btnRep)   btnRep.addEventListener('click', play);
+  if (btnRec)   btnRec.addEventListener('click', () => {
+    if (window._spHasRecording && !confirm('前の録音を消して、もう一度やりますか？')) return;
+    leave(true);
+  });
+  if (btnOut)   btnOut.addEventListener('click', () => leave(false));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && open) { e.preventDefault(); leave(false); }
+  });
+})();
+
+// ── 録音中の画面と、録音前のカウントダウン ───────────────────────────
+//
+// 以前はここで「お手本の今この音」を1音ずつ光らせていた。
+// 聴覚に障害のある生徒はテンポを耳で確かめられないための表示だったが、
+// 動く合図は「この通りに言わないと減点される」と受け取られやすい。
+// 実際の採点は各音の長さの“比率”（相対的なバランス）で、
+// 合図に合わせたかどうかは一切見ていない。
+//
+// そこで
+//   - お手本の再生中 … 音の長さバーが光る（＝これがお手本のリズム）
+//   - 録音中        … 光らせない。長さの目安を動かない帯で置くだけ
+// とし、録音中に見る場所は「自分の口」ひとつにした。
+(function() {
+  // 自分の口（カメラ）は、3・2・1 と録音中の画面へ順に移して使う。
+  // 複製すると映像が二重に走るので、要素そのものを動かす。
+  const cam     = document.querySelector('.lip-preview-container');
+  const camHome = cam ? cam.parentElement : null;
+
+  const overlay    = document.getElementById('guideCountdown');
+  const numEl      = document.getElementById('guideCountNum');
+  const bar        = document.getElementById('moraBar');
   const stage      = document.getElementById('recStage');
   const stageChips = document.getElementById('stageChips');
   const stageHint  = document.getElementById('stageHint');
-  const sChips = moras.map(m => {
-    const c = document.createElement('span');
-    c.className = 'rec-stage-chip';
-    c.textContent = m.label;
-    if (stageChips) stageChips.appendChild(c);
-    return c;
-  });
+  const stageCam   = document.getElementById('recStageCam');
+  const toggle     = document.getElementById('guideToggle');
+
+  // ── お手本の音の長さ（録音中は動かさず、幅だけを目安として見せる） ──
+  const moras = bar
+    ? Array.from(bar.querySelectorAll('.mora-item'))
+        .filter(el => !el.classList.contains('mora-sil'))
+        .map(el => ({
+          start: parseFloat(el.dataset.start),
+          end:   parseFloat(el.dataset.end),
+          label: el.textContent.trim(),
+        }))
+        .filter(m => isFinite(m.start) && isFinite(m.end) && m.label)
+    : [];
+
+  if (stageChips && moras.length) {
+    moras.forEach(m => {
+      const c = document.createElement('span');
+      c.className = 'rec-stage-chip';
+      c.textContent = m.label;
+      // 幅＝その音の長さ。「のばす音は長い」ことが形で分かる
+      c.style.flexGrow = Math.max(0.4, m.end - m.start);
+      stageChips.appendChild(c);
+    });
+  } else if (stageChips) {
+    stageChips.closest('.rec-stage-ref')?.remove();
+  }
+
+  // ── 録音前のカウントダウン（ON/OFF） ──
+  // 旧キー sp-ps-timing-guide の設定を引き継ぐ
+  const KEY     = 'sp-ps-countdown';
+  const OLD_KEY = 'sp-ps-timing-guide';
+  let enabled = (localStorage.getItem(KEY) ?? localStorage.getItem(OLD_KEY)) !== 'off';
+
+  function renderToggle() {
+    if (toggle) toggle.checked = enabled;
+  }
+  if (toggle) {
+    toggle.addEventListener('change', () => {
+      enabled = toggle.checked;
+      localStorage.setItem(KEY, enabled ? 'on' : 'off');
+    });
+  }
+  renderToggle();
 
   // main.js が録音開始前に呼ぶフック
+  const countCam = document.getElementById('countCamSlot');
+
   window._spTimingGuide = {
-    shouldRun: () => enabled,
+    shouldRun: () => enabled && !!overlay,
     countdown: () => new Promise(resolve => {
+      // 3・2・1 のあいだに自分の口を映して構えられるようにする
+      if (cam && countCam) {
+        countCam.appendChild(cam);
+        const v = cam.querySelector('video');
+        if (v) v.play().catch(() => {});
+        window.dispatchEvent(new Event('resize'));
+      }
       overlay.classList.add('show');
       let n = 3;
       const show = v => {
@@ -1411,9 +1539,10 @@ document.addEventListener('DOMContentLoaded', () => {
         numEl.style.animation = 'none';
         void numEl.offsetWidth;           // アニメーション再スタート
         numEl.style.animation = '';
+        window.SPHaptics?.tick();         // 画面を見ていなくても、数えているのが伝わる
       };
       show(n);
-      if (typeof setGuide === 'function') setGuide(2, 'まもなく録音開始 — 光る文字はリズムの目安です', 'recording');
+      if (typeof setGuide === 'function') setGuide(2, 'まもなく録音がはじまります', 'recording');
       const iv = setInterval(() => {
         n--;
         if (n >= 1) { show(n); }
@@ -1426,57 +1555,109 @@ document.addEventListener('DOMContentLoaded', () => {
     }),
   };
 
-  // 録音の実開始に同期してカラオケ表示（お手本の実テンポ）
-  let rafId = null, t0 = null;
-  const lastEnd = moras[moras.length - 1].end;
-
-  function loop() {
-    const t = (performance.now() - t0) / 1000;
-    moras.forEach((m, i) => {
-      const now = t >= m.start && t < m.end;
-      m.el.classList.toggle('active', now);
-      chips[i].classList.toggle('now',  now);
-      chips[i].classList.toggle('done', t >= m.end);
-      sChips[i].classList.toggle('now',  now);
-      sChips[i].classList.toggle('done', t >= m.end);
-    });
-    if (t > lastEnd + 0.2) {
-      strip.classList.add('finished');
-      if (stage) stage.classList.add('finished');
-      if (stageHint) stageHint.textContent = '言い終わったら「録音停止」を押してください';
-      rafId = null;
-      return;
-    }
-    rafId = requestAnimationFrame(loop);
-  }
+  let hintTimer = null;
 
   document.addEventListener('sp:recordstart', () => {
-    if (!enabled) return;
-    t0 = performance.now();
-    chips.forEach(c => c.classList.remove('now', 'done'));
-    sChips.forEach(c => c.classList.remove('now', 'done'));
-    strip.classList.remove('finished');
-    strip.classList.add('show');
+    window.SPHaptics?.start();
+    if (cam && stageCam) {
+      stageCam.appendChild(cam);
+      const v = cam.querySelector('video');
+      if (v) v.play().catch(() => {});
+      window.dispatchEvent(new Event('resize'));   // 口の輪郭キャンバスを再計測
+    }
+    if (stageHint) stageHint.textContent = '自分のペースで言ってください';
     if (stage) {
-      stage.classList.remove('finished');
       stage.classList.add('show');
       stage.setAttribute('aria-hidden', 'false');
     }
-    if (stageHint) stageHint.textContent = 'お手本のリズムの目安です';
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(loop);
+    // お手本の長さぶんの時間が過ぎたら、止め方だけ案内する
+    if (hintTimer) clearTimeout(hintTimer);
+    if (moras.length) {
+      const lastEnd = moras[moras.length - 1].end;
+      hintTimer = setTimeout(() => {
+        if (stageHint) stageHint.textContent = '言い終わったら「録音停止」を押してください';
+      }, (lastEnd + 1.2) * 1000);
+    }
   });
 
   document.addEventListener('sp:recordstop', () => {
-    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    strip.classList.remove('show', 'finished');
-    moras.forEach(m => m.el.classList.remove('active'));
+    window.SPHaptics?.stop();
+    if (hintTimer) { clearTimeout(hintTimer); hintTimer = null; }
+    if (cam && camHome) {
+      camHome.insertBefore(cam, camHome.firstChild);
+      const v = cam.querySelector('video');
+      if (v) v.play().catch(() => {});
+      window.dispatchEvent(new Event('resize'));
+    }
     if (stage) {
-      stage.classList.remove('show', 'finished');
+      stage.classList.remove('show');
       stage.setAttribute('aria-hidden', 'true');
     }
   });
 })();
+</script>
+
+<script>
+// ── 解析中の画面：段階・進み具合・ヒント ─────────────────────────────
+(function () {
+  const ov = document.getElementById('loadingOverlay');
+  if (!ov) return;
+  const steps = Array.from(ov.querySelectorAll('.an-step'));
+  const fill  = document.getElementById('anBarFill');
+  const tip   = document.getElementById('anTip');
+  const TIPS = [
+    '結果では、「つぎは、ここだけ」の1つを直せばOKです。',
+    '「くらべる」の口の形で、お手本とあなたの口をならべて見られます。',
+    '同じ単語を何回か練習すると、「分析」でのび方が分かります。',
+    'お手本に合わせなくてだいじょうぶ。自分のペースで言えていれば採点できます。',
+  ];
+  let timer = null, t0 = 0;
+  function run() {
+    t0 = Date.now();
+    let tipIndex = 0;
+    const tick = () => {
+      const sec = (Date.now() - t0) / 1000;
+      steps.forEach((el, i) => {
+        const at = parseFloat(el.dataset.at);
+        const next = steps[i + 1] ? parseFloat(steps[i + 1].dataset.at) : Infinity;
+        el.classList.toggle('is-done', sec >= next);
+        el.classList.toggle('is-active', sec >= at && sec < next);
+      });
+      // 終わりの時間は分からないので、95% に向かってゆっくり近づける
+      if (fill) fill.style.width = (4 + 91 * (1 - Math.exp(-sec / 6))) + '%';
+      const ti = Math.floor(sec / 5) % TIPS.length;
+      if (tip && ti !== tipIndex) { tipIndex = ti; tip.textContent = TIPS[ti]; }
+    };
+    tick();
+    timer = setInterval(tick, 250);
+  }
+  new MutationObserver(() => {
+    if (ov.classList.contains('show')) { if (!timer) run(); }
+    else if (timer) { clearInterval(timer); timer = null; }
+  }).observe(ov, { attributes: true, attributeFilter: ['class'] });
+  // 結果画面から「もどる」で戻ったとき、解析中の画面が残らないようにする
+  window.addEventListener('pageshow', e => { if (e.persisted) ov.classList.remove('show'); });
+})();
+
+// ── 録音のあと：お手本とあなたの口をならべる ─────────────────────────
+document.addEventListener('sp:recordstart', () => {
+  const el = document.getElementById('doneCompare');
+  if (el) el.innerHTML = '<p class="rp-compare-empty">口の動きを準備しています…</p>';
+});
+document.addEventListener('sp:lipnone', () => {
+  const el = document.getElementById('doneCompare');
+  if (el) el.innerHTML = '<p class="rp-compare-empty">この単語は、口の動きの記録がありません（先生のお手本の口が未登録です）。</p>';
+});
+document.addEventListener('sp:lipready', (e) => {
+  const el = document.getElementById('doneCompare');
+  if (!el || !window.SPMouthCompare || !e.detail || !e.detail.url) return;
+  const ctl = SPMouthCompare.mount(el, {
+    refSrc: {{ ('/sample_video/' ~ word_id) | tojson if has_ref_video else 'null' }},
+    userSrc: e.detail.url,
+  });
+  // 撮れた口の動きは、1回だけ自動で再生して見せる（音は出ない）
+  if (ctl) setTimeout(() => ctl.play(), 350);
+});
 </script>
 </body>
 </html>

@@ -1,17 +1,19 @@
 {% from "_icons.html" import icon %}<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>学習曲線分析 — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
+  <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    .page-header { background:var(--navy); padding:24px 32px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+    .page-header { position:relative; overflow:hidden; background:var(--grad-hero); color:#fff; margin:16px auto 0; width:calc(100% - 32px); max-width:1036px; border-radius:28px; padding:24px 32px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
     .page-header-title { font-size:22px; font-weight:700; color:#fff; }
-    .page-header-sub   { font-size:12px; color:rgba(255,255,255,.4); margin-top:3px; }
+    .page-header-sub   { font-size:12px; color:rgba(255,255,255,.82); margin-top:3px; }
 
     .main  { max-width:1100px; margin:0 auto; padding:28px 32px; }
     .sec   { margin-bottom:36px; }
@@ -36,7 +38,7 @@
 
     /* テーブル */
     .data-table { width:100%; border-collapse:collapse; font-size:12px; }
-    .data-table th { background:var(--navy); color:#fff; padding:8px 12px; text-align:left; font-weight:600; font-size:11px; letter-spacing:.04em; }
+    .data-table th { background:var(--navy-fill); color:#fff; padding:8px 12px; text-align:left; font-weight:600; font-size:11px; letter-spacing:.04em; }
     .data-table th:first-child { border-radius:var(--r-sm) 0 0 0; }
     .data-table th:last-child  { border-radius:0 var(--r-sm) 0 0; }
     .data-table td { padding:9px 12px; border-bottom:1px solid var(--border-light); color:var(--text); }
@@ -88,12 +90,12 @@
     const ICON_MOON = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>';
     const root  = document.documentElement;
     const btn   = document.getElementById('themeToggle');
-    const saved = localStorage.getItem('sp-ps-theme');
-    if (saved !== 'light') { root.setAttribute('data-theme','dark'); if(btn) btn.innerHTML=ICON_SUN; }
+    // テーマの適用は共通の theme.js が行う。ここではボタンの絵柄だけ合わせる
+    if (root.getAttribute('data-theme') === 'dark') btn.innerHTML = ICON_SUN;
     btn.addEventListener('click', () => {
       const isDark = root.getAttribute('data-theme') === 'dark';
-      if (isDark) { root.removeAttribute('data-theme'); btn.innerHTML=ICON_MOON; localStorage.setItem('sp-ps-theme','light'); }
-      else        { root.setAttribute('data-theme','dark'); btn.innerHTML=ICON_SUN; localStorage.setItem('sp-ps-theme','dark'); }
+      if (window.SPTheme) SPTheme.set(isDark ? 'light' : 'dark');
+      btn.innerHTML = isDark ? ICON_MOON : ICON_SUN;
     });
   })();
 </script>

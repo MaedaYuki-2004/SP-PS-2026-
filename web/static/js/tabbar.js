@@ -1,42 +1,72 @@
-/* SP-PS 共通ボトムタブバー（モバイル用・base.css の .app-tabbar と対）
-   使い方: <script src="/static/js/tabbar.js" defer></script> を1行入れるだけ */
+/* SP-PS 共通ボトムタブバー（base.css の .app-tabbar と対）
+   使い方: <script src="/static/js/tabbar.js" defer></script> を1行入れるだけ
+
+   「記録」と「分析」は同じ /history の中の2つの面だが、生徒がいちばん見たい
+   「自分がどうなっているか」への入口なので、どちらもタブに直接置いて1タップで開けるようにする。
+   /history#log と /history#analysis はページを読み込み直さずに切り替わる（history.html が hashchange を見る）。 */
 (function () {
   'use strict';
 
+  var SVG = function (paths) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
+  };
   var ICONS = {
-    practice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>',
-    vowel:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 13.5c1 1.6 2.4 2.5 4 2.5s3-.9 4-2.5"/><circle cx="9" cy="9.5" r=".8" fill="currentColor" stroke="none"/><circle cx="15" cy="9.5" r=".8" fill="currentColor" stroke="none"/></svg>',
-    history:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>',
-    admin:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>'
+    home:     SVG('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>'),
+    log:      SVG('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+    insight:  SVG('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
+    admin:    SVG('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')
   };
 
-  var TABS = [
-    { href: '/select',  label: '練習',  icon: ICONS.practice, match: [/^\/$/, /^\/select/, /^\/practice/] },
-    { href: '/history', label: '記録',  icon: ICONS.history,  match: [/^\/history/, /^\/analysis/] },
-    { href: '/admin',   label: '単語',  icon: ICONS.admin,    match: [/^\/admin/] }
-  ];
+  // 「先生」は単語の追加・削除・お手本録画を行う指導者用の画面。
+  // 生徒のタブに置くと、押してはいけないボタンへの入口になるため、
+  // 先生モード（先生用パスワードで ON にしたセッション）のときだけ出す。
+  // 判定はサーバーが <html class="teacher-mode"> で渡す。
+  var isTeacher = document.documentElement.classList.contains('teacher-mode');
 
-  function isActive(tab, path) {
-    return tab.match.some(function (re) { return re.test(path); });
+  var onHistory = function (p) { return /^\/history/.test(p); };
+  var TABS = [
+    { href: '/select', label: 'ホーム', icon: ICONS.home,
+      active: function (p) { return /^\/$/.test(p) || /^\/select/.test(p) || /^\/practice/.test(p); } },
+    { href: '/history#log', label: '記録', icon: ICONS.log,
+      active: function (p, h) { return onHistory(p) && h !== '#analysis'; } },
+    { href: '/history#analysis', label: '分析', icon: ICONS.insight,
+      active: function (p, h) { return (onHistory(p) && h === '#analysis') || /^\/analysis/.test(p); } }
+  ];
+  if (isTeacher) {
+    TABS.push({ href: '/admin', label: '先生', icon: ICONS.admin,
+      active: function (p) { return /^\/admin/.test(p); } });
+  }
+
+  var nav = null;
+
+  function refresh() {
+    if (!nav) return;
+    var p = location.pathname, h = location.hash;
+    Array.prototype.forEach.call(nav.children, function (a, i) {
+      var on = TABS[i].active(p, h);
+      a.classList.toggle('active', on);
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
   }
 
   function build() {
-    var path = location.pathname;
-    var nav = document.createElement('nav');
+    nav = document.createElement('nav');
     nav.className = 'app-tabbar';
     nav.setAttribute('aria-label', 'メインナビゲーション');
-
     TABS.forEach(function (tab) {
       var a = document.createElement('a');
-      a.className = 'app-tab-item' + (isActive(tab, path) ? ' active' : '');
+      a.className = 'app-tab-item';
       a.href = tab.href;
       a.innerHTML = tab.icon + '<span>' + tab.label + '</span>';
       nav.appendChild(a);
     });
-
     document.body.appendChild(nav);
     document.body.classList.add('has-tabbar');
+    refresh();
   }
+
+  window.addEventListener('hashchange', refresh);
+  window.SPTabbar = { refresh: refresh };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', build);

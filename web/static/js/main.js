@@ -180,6 +180,7 @@ async function main() {
     let lipTestUploaded   = false;
     let hasSavedRef       = false;
     let lipUploadPromise  = Promise.resolve();
+    let lipStoreCleared   = Promise.resolve();
     const currentWordId   = window.CURRENT_WORD_ID || '';
 
     function updateLipButtons() {
@@ -238,6 +239,25 @@ async function main() {
       lipRecorder.addEventListener('stop', () => {
         const blob = new Blob(lipChunks, { type: 'video/webm' });
         lipUploadPromise = sendLipVideo(mode, blob);
+
+        // 自分の口の動きをその場で見返せるようにする。
+        // 聞こえ方によっては音の録り直し判断ができないため、
+        // 「口が動いていたか」を目で確かめられることが手がかりになる。
+        if (mode === 'test') {
+          const replay = document.getElementById('userLipReplay');
+          if (replay) {
+            if (replay.dataset.url) URL.revokeObjectURL(replay.dataset.url);
+            const url = URL.createObjectURL(blob);
+            replay.dataset.url = url;
+            replay.src = url;
+            replay.classList.add('ready');
+            // 録音のあとの画面で「お手本とならべて見る」に使う
+            document.dispatchEvent(new CustomEvent('sp:lipready', { detail: { url, blob } }));
+          }
+          // 結果画面の「くらべる → 口の形」でも見返せるよう、この端末にだけ置いておく
+          // （録音開始時の clear が終わってから保存する。順番が逆になると今回の動画が消えるため）
+          if (window.SPLipStore) lipStoreCleared.then(() => window.SPLipStore.save(currentWordId, blob));
+        }
         lipRecorder = null;
         lipMode = null;
         updateLipButtons();
@@ -259,6 +279,8 @@ async function main() {
       try {
         const formData = new FormData();
         formData.append('mode', mode);
+        // お手本（ref）をどの単語に保存するかは、この画面の単語で決める（サーバーの共有ファイルに頼らない）
+        if (currentWordId) formData.append('word_id', currentWordId);
         formData.append('file', blob, `${mode}.webm`);
         const response = await fetch('/upload_lip_video', {
           method: 'POST',
@@ -304,9 +326,14 @@ async function main() {
       isRecording  = true;
       window._spRecording = true;
       hasRecording = false;
+      window._spHasRecording = false;
       speechStart  = null;
       silenceStart = null;
       buffers.splice(0, buffers.length);
+
+      // 前の録音の口の動画を端末から消す。この録音で撮れなかったときに、
+      // 結果画面へ前の動画（共有の端末ならほかの生徒の動画）が出ないようにするため
+      if (window.SPLipStore) lipStoreCleared = window.SPLipStore.clear();
 
       // 録音開始と同時に唇のテスト動画を自動録画（保存済みお手本がある場合）
       try {
@@ -324,10 +351,13 @@ async function main() {
 
     btnStart.addEventListener('click', () => {
       // ③ 録音済みの場合は確認ダイアログを表示
-      if (hasRecording) {
+      // 「お手本を見て録音する」の流れでは開始前に確認済みなので、
+      // そのときだけ二重に聞かない（_spSkipRerecordConfirm は一度きりの印）。
+      if (hasRecording && !window._spSkipRerecordConfirm) {
         const ok = confirm('前の録音を破棄して録音し直しますか？');
-        if (!ok) return;
+        if (!ok) { window._spSkipRerecordConfirm = false; return; }
       }
+      window._spSkipRerecordConfirm = false;
 
       // 聴覚障碍ユーザー向けタイミングガイド：カウントダウンを挟んでから開始
       const guide = window._spTimingGuide;
@@ -346,6 +376,7 @@ async function main() {
       isRecording  = false;
       window._spRecording = false;
       hasRecording = true;   // ③ 録音完了フラグ
+      window._spHasRecording = true;
       speechStart  = null;
       silenceStart = null;
 
@@ -354,8 +385,12 @@ async function main() {
       param.setValueAtTime(0, audioContext.currentTime);
 
       // 音声停止と同時に唇テスト録画も停止（音素タイムスタンプとの同期を保つため）
-      if (lipRecorder && lipRecorder.state === 'recording') {
+      const hadLip = !!(lipRecorder && lipRecorder.state === 'recording');
+      if (hadLip) {
         lipRecorder.stop();
+      } else {
+        // お手本の口が未登録の単語などで、口の動きを撮っていない
+        document.dispatchEvent(new CustomEvent('sp:lipnone'));
       }
 
       document.dispatchEvent(new CustomEvent('sp:recordstop'));
