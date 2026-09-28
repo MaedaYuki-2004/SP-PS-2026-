@@ -182,7 +182,7 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 ### ステップ 1 ― リポジトリをクローン
 
 ```bash
-git clone https://github.com/MaedaYuki-2004/SP-PS-2026-.git
+git clone https://github.com/Smart-Agent-and-Intelligence-Labs/SP-PS-2026.git
 cd SP-PS-2026-
 ```
 
