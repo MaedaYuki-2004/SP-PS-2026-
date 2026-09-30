@@ -44,14 +44,21 @@ for rel in required_paths:
 
 
 # ── 2. Julius 実行ファイルの確認 ─────────────────────────────────
-sep("2. Julius 実行ファイルの確認（Windows）")
+sep("2. Julius 実行ファイルの確認")
 
-julius_candidates = list((BASE_DIR / "engine/bin").glob("julius*.exe"))
-if julius_candidates:
-    ok(f"{julius_candidates[0].name} が見つかりました: {julius_candidates[0]}")
+sys.path.insert(0, str(BASE_DIR))
+from config import JULIUS_BIN_PATH  # noqa: E402
+
+if JULIUS_BIN_PATH and Path(JULIUS_BIN_PATH).is_file():
+    ok(f"Julius が見つかりました: {JULIUS_BIN_PATH}")
+elif JULIUS_BIN_PATH:
+    ng(f"自動検出されたパスにファイルがありません: {JULIUS_BIN_PATH}")
 else:
-    ng("engine/bin/ に julius*.exe が見つかりません")
-    info("Julius を https://julius.osdn.jp/ からダウンロードして engine/bin/ に配置してください")
+    ng("Julius 実行ファイルが見つかりません")
+    info("Windows: engine/bin/ に julius*.exe を配置してください")
+    info("macOS: brew install julius （Homebrew。Apple Silicon なら /opt/homebrew/bin/julius）")
+    info("Ubuntu/Debian: sudo apt-get install julius")
+    info("別の場所にある場合は環境変数 JULIUS_BIN でパスを直接指定できます")
 
 
 # ── 3. Perl の確認 ───────────────────────────────────────────────
@@ -70,6 +77,8 @@ try:
 except FileNotFoundError:
     ng("Perl が見つかりません")
     info("Windows: https://strawberryperl.com/ からインストールしてください")
+    info("macOS: 標準で入っています。見つからない場合は brew install perl")
+    info("Ubuntu/Debian: sudo apt-get install perl")
 except Exception as e:
     ng(f"Perl の確認中にエラー: {e}")
 

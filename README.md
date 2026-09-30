@@ -106,7 +106,7 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 
 | 項目 | 要件 |
 |------|------|
-| OS | Windows 10/11（推奨）・Ubuntu 22.04 LTS |
+| OS | Windows 10/11（推奨）・Ubuntu 22.04 LTS・macOS（Apple Silicon / Intel。セットアップは[§3 macOS の場合](#macos-の場合)参照） |
 | Python | **3.10 〜 3.12**（3.13 は不可。理由は下記） |
 | カメラ | お手本の登録と口形分析に必要（内蔵または外付け USB カメラ） |
 | マイク | 内蔵マイクでも動作するが、外付けコンデンサーマイク推奨 |
@@ -116,7 +116,7 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 
 | ソフトウェア | 役割 | 必須/任意 |
 |------------|------|---------|
-| **Julius 4.3.1** | 音素強制アライメント | **必須**（Windows 版は `engine/bin/` に同梱） |
+| **Julius** | 音素強制アライメント | **必須**（Windows 版は `engine/bin/` に同梱。Mac/Linux は各自インストール） |
 | **Perl** | Julius を呼び出すセグメンテーションスクリプト（`scripts/segment_julius.pl`）の実行 | **必須** |
 | **FFmpeg** | お手本録画（WebM）から音声を取り出す（pydub が内部で使う） | **必須**（単語登録にお手本録画が必要なため） |
 | MeCab + UniDic | 単語登録時のアクセント型自動取得 | 任意（取得できなくても登録・採点は可能） |
@@ -146,6 +146,8 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 > ```bash
 > python -c "from unidic.download import download_version; download_version('latest')"
 > ```
+>
+> macOS では `fork` が使えるため `python -m unidic download` がそのまま通ります（上記の回避策は不要）。
 
 ### Python パッケージ
 
@@ -226,6 +228,19 @@ Julius は以下の順に自動検出されます（`config.py` の `_detect_jul
 4. `/usr/local/bin/julius`（Mac Intel / Linux）
 5. PATH 検索
 
+**macOS の場合**
+
+Homebrew で公式パッケージが配布されています。engine/bin/ の同梱バイナリは使いません
+（Windows 用の `.exe` のため）。
+
+```bash
+brew install julius
+```
+
+Apple Silicon では `/opt/homebrew/bin/julius`、Intel Mac では `/usr/local/bin/julius` に
+インストールされ、上記の自動検出順（3・4番目）でそのまま見つかります。
+`which julius` でインストール先を確認できます。
+
 **Ubuntu / Debian の場合**
 
 ```bash
@@ -240,6 +255,9 @@ Julius のアライメントスクリプトが Perl で書かれているため�
 
 **Windows**：[https://strawberryperl.com/](https://strawberryperl.com/) からインストール（Git for Windows 同梱の perl でも動作します）
 
+**macOS**：標準で `/usr/bin/perl` が入っているため、通常は追加インストール不要です。
+`perl -v` で確認してください。
+
 **Ubuntu / Debian**：
 
 ```bash
@@ -251,6 +269,12 @@ sudo apt-get install -y perl
 ### ステップ 5 ― FFmpeg をインストール
 
 お手本録画（WebM）から音声を取り出すために必要です。**単語登録にはお手本録画が必須なので、FFmpeg も必須です。**
+
+**macOS**：
+
+```bash
+brew install ffmpeg
+```
 
 **Windows**：
 
@@ -2494,11 +2518,20 @@ export JULIUS_BIN="/usr/local/bin/julius"    # Linux/Mac
 |--------------|-----------|
 | `perl stderr` に `'C:' は、内部コマンドまたは...` | Windows のネイティブ perl（Strawberry Perl 等）と msys perl でパス形式の要求が逆。最新版では自動判別するため、**`git pull` で最新化**すれば解消する |
 | ログに `WARNING: input too short (0 samples)` | 録音が実質無音。マイクの接続・入力デバイスの選択・ミュート設定を確認する（録画画面の `MIC` バーが反応するか） |
-| `Julius 実行ファイルが存在しません` | `engine/bin/julius-4.3.1.exe` がアンチウイルスに隔離・削除された可能性。`git checkout -- engine/bin/julius-4.3.1.exe` で復元する |
+| `Julius 実行ファイルが存在しません` | Windows: `engine/bin/julius-4.3.1.exe` がアンチウイルスに隔離・削除された可能性。`git checkout -- engine/bin/julius-4.3.1.exe` で復元する。macOS/Linux: `brew install julius` / `sudo apt-get install julius` でインストールし直す |
 | `（ログが空＝julius が起動していない可能性）` | 上記いずれか。`perl実行パス` と `perl stdout/stderr` の行が手がかりになる |
 
 一過性の失敗（アンチウイルスの一瞬のロック等）に備え、結果が空だった場合は
 自動的に最大3回まで再試行します。3回とも失敗した場合のみエラーになります。
+
+---
+
+### macOS でカメラ・マイクの録画ボタンが反応しない
+
+ブラウザ自体の許可（[§3 ステップ6](#ステップ-6--カメラマイクを準備する)）に加えて、
+**システム設定 → プライバシーとセキュリティ → カメラ／マイク** で、使用しているブラウザ
+（Chrome・Safari 等）にチェックが入っているか確認してください。ここが OFF だと、
+ブラウザ側の許可ダイアログを「許可」しても録音・録画が始まりません。
 
 ---
 

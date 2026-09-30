@@ -69,17 +69,31 @@ def _run_alignment_process(target_dir: str) -> tuple[str, str]:
     # 実行ファイル自体が壊れている典型例: 署名なしの古いexeを
     # アンチウイルスが誤検知して隔離・削除するケース。
     if not JULIUS_BIN_PATH:
+        if os.name == "nt":
+            hint = "engine/bin/ に julius-4.3.1.exe があるか確認してください。"
+        else:
+            hint = (
+                "macOS: `brew install julius` でインストールしてください"
+                "（Apple Silicon なら /opt/homebrew/bin/julius、Intel なら "
+                "/usr/local/bin/julius に入ります）。"
+                "Ubuntu/Debian: `sudo apt-get install julius`。"
+                "別の場所にある場合は環境変数 JULIUS_BIN で直接パスを指定できます。"
+            )
         raise RuntimeError(
-            "Julius 実行ファイルが見つかりません（自動検出に失敗）。"
-            "engine/bin/ に julius-4.3.1.exe があるか確認してください。"
+            f"Julius 実行ファイルが見つかりません（自動検出に失敗）。{hint}"
         )
     julius_path = Path(JULIUS_BIN_PATH)
     if not julius_path.is_file():
+        if os.name == "nt":
+            hint = (
+                "アンチウイルスに隔離・削除されていないか確認してください"
+                "（署名なしの古いexeのため誤検知されることがあります）。"
+                "engine/bin/julius-4.3.1.exe を復元するか git checkout し直してください。"
+            )
+        else:
+            hint = "`brew install julius` でインストールし直すか、環境変数 JULIUS_BIN を確認してください。"
         raise RuntimeError(
-            f"Julius 実行ファイルが存在しません: {julius_path}\n"
-            "アンチウイルスに隔離・削除されていないか確認してください"
-            "（署名なしの古いexeのため誤検知されることがあります）。"
-            "engine/bin/julius-4.3.1.exe を復元するか git checkout し直してください。"
+            f"Julius 実行ファイルが存在しません: {julius_path}\n{hint}"
         )
     if julius_path.stat().st_size < 100_000:  # 正常なexeは約570KB
         raise RuntimeError(
