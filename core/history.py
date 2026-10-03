@@ -366,6 +366,9 @@ def save_record(
         "accent_score": score_result.get("accent_score"),
         "length_score": score_result.get("length_score"),
         "vowel_score":  score_result.get("vowel_score"),
+        # 口と声のタイミング（2026-09-29 から合計点に反映）。減点は点数に入れなかった回は None
+        "sync_penalty":   score_result.get("sync_penalty"),
+        "sync_spread_ms": score_result.get("sync_spread_ms"),
         "grade":        score_result.get("grade"),
         "accent_label": score_result.get("accent_label"),
     }

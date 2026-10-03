@@ -10,6 +10,9 @@ core/evaluate.py
       - モーラ内安定度     (10%)
   ・長さスコア（30点）
   ・母音品質スコア（20点）
+  ・口と声のタイミングの減点（0〜5点、core/sync.calc_sync_penalty）
+      口と声のずれが人の気づく範囲（声が先 45ms・口が先 200ms、文献による）を超えた音が
+      あるときだけ引く（加点はしない）。唇の録画が無い回などは引かない。
 
   ピッチ相関は、お手本と録音の「両方が有声（NaN でない）」フレームだけで計算する。
   無声区間（子音・無音）を補間した値は実際のピッチではないため。
@@ -47,6 +50,7 @@ import numpy as np
 from scipy.stats import pearsonr
 
 from core.formant import vowel_distance
+from core.sync import SYNC_PENALTY_MAX, calc_sync_penalty
 from core.utils import long_vowel_groups, mora_group_kana, romaji_mora_to_kana
 
 
@@ -808,9 +812,10 @@ def calc_total_score(
     pitch_native_raw: np.ndarray | None = None,
     vowel_score: float | None = None,
     vowel_feedback: str | None = None,
+    av_sync: dict | None = None,
 ) -> dict:
     """
-    アクセント・長さ・母音品質スコアを合算して総合スコアを返す。
+    アクセント・長さ・母音品質スコアを合算し、口と声のタイミングの減点を引いて総合スコアを返す。
 
     Parameters
     ----------
@@ -820,6 +825,7 @@ def calc_total_score(
     pitch_native_raw  : NaN保持のネイティブ半音ピッチ（同上）
     vowel_score       : core/formant.py の calc_vowel_score() 結果
     vowel_feedback    : 母音品質フィードバック
+    av_sync           : core/sync.py の compute_av_sync() 結果（無ければ減点なし）
     """
     accent_raw, accent_feedback, pattern, detected_nucleus = calc_accent_score(
         pitch_fin2=pitch_fin2, mora_values=mora_values,
@@ -845,8 +851,9 @@ def calc_total_score(
     accent_score = round(min(50.0, accent_raw * 50 / 60 + 3.0), 1)
     length_score = round(length_raw * 30 / 40, 1)
     v_score      = round(vowel_score, 1) if vowel_score is not None else 10.0
+    sync         = calc_sync_penalty(av_sync)
 
-    total = round(min(100.0, max(0.0, accent_score + length_score + v_score)), 1)
+    total = round(min(100.0, max(0.0, accent_score + length_score + v_score - (sync["penalty"] or 0.0))), 1)
 
     if total >= 90:   grade = "S"
     elif total >= 75: grade = "A"
@@ -859,6 +866,11 @@ def calc_total_score(
         "accent_score":       accent_score,
         "length_score":       length_score,
         "vowel_score":        v_score,
+        "sync_penalty":       sync["penalty"],     # 点数に入れなかったときは None
+        "sync_spread_ms":     sync["spread_ms"],
+        "sync_note":          sync["note"],
+        "sync_over":          sync["over"],        # 範囲を超えた音（結果画面で名指しする）
+        "sync_penalty_max":   SYNC_PENALTY_MAX,
         "accent_feedback":    accent_feedback,
         "length_feedback":    length_feedback,
         "vowel_feedback":     vowel_feedback or "母音の評価データがありませんでした。",

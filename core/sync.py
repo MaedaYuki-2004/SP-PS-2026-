@@ -41,6 +41,17 @@ DTW対応」という2本の独立した対応線が同じ場所を指してい�
    タイミングが揃っていれば ok になり得る（校正テスト6で確認）。
    口の形の正しさは唇スコア・母音スコアが担当するため、
    必ずそれらと並べて表示すること。
+
+【合計点への反映（2026-09-29 追加、2026-10-03 文献にもとづいて決め直した）】
+音ごとのずれ d（そのモーラの offset − 発話全体の中央値。正＝声が口より先）を、
+人が気づく範囲・口の情報が聞き取りに使われる範囲と比べ、範囲を超えた音だけ
+合計点から引く（calc_sync_penalty）。加点はしない（そろっていても正しい単語を
+言えた証拠にはならない。限界2）。範囲と式の出典は下の定数のコメントと README §7.3。
+最初の版（2026-09-29）は spread が 70〜210ms の間で直線的に引いていたが、
+向き（声が先か口が先か）を見ておらず、70・210 に文献の根拠が無かった。
+あわせて、唇のデータが無い時刻のモーラは比べないようにした。唇のデータは録画の
+先頭から最大 50 フレームしか取っていないので、それより後ろのモーラを最後の
+フレームに寄せると、発音と関係なくズレが大きく出ていた。
 """
 from __future__ import annotations
 
@@ -54,6 +65,25 @@ from core.utils import romaji_mora_to_kana
 SYNC_OK_MS   = 70.0
 SYNC_WARN_MS = 140.0
 
+# ── 合計点からの減点（文献にもとづく範囲） ───────────────────────────
+# 口と声のずれは向きで許される幅が大きく違う（声が先には敏感、口が先には寛容）。
+# 次の範囲までは、人が気づかず、口が見えることによる聞き取りの上乗せも失われない:
+#   声が先 45ms … Grant, van Wassenhove & Poeppel (2003) の弁別閾（約 −45ms）、
+#                 ITU-R BT.1359-1 (1998) の検知限（+45ms）
+#   口が先 200ms … Grant ほか (2003)（約 +200ms）、Grant & Greenberg (2001)（了解度は 160〜200ms まで下がらない）
+#   （van Wassenhove ほか (2007) の統合の範囲 −30〜+170ms も同じ形）
+SYNC_TOL_VOICE_FIRST_MS = 45.0
+SYNC_TOL_MOUTH_FIRST_MS = 200.0
+# ずれが 400ms になると、口が見えることによる上乗せがほぼ全部失われる:
+#   Grant & Greenberg (2001) 表1 の平均: 声が先 400ms で音声だけと同じ（上乗せ 0%）、口が先 400ms で上乗せの 10%
+# 範囲の端からここまでを直線でつなぐ（声が先の側は実測の下がり方より緩い。厳しくしすぎないため）。
+SYNC_FULL_LOSS_MS = 400.0
+# 上限（すべての音で上乗せが失われたときに引く点数）。文献からは決まらない値で、
+# 「あまり厳しくしない」という方針で選んだ（README §7.3）。
+SYNC_PENALTY_MAX = 5.0
+# これより少ないモーラでは、ずれの基準にする中央値が安定しないので点数に入れない
+SYNC_MIN_MORAS = 3
+
 _SIL_LABELS = {"silB", "silE", "sp"}
 
 
@@ -65,6 +95,20 @@ def _nearest_time(times: list[float], t: float) -> int:
     """時刻リストから t に最も近いインデックスを返す。"""
     arr = np.asarray(times, dtype=float)
     return int(np.argmin(np.abs(arr - t)))
+
+
+def _frame_interval(times: list[float]) -> float:
+    """唇のデータのコマの間隔（秒）。"""
+    diffs = np.diff(np.asarray(times, dtype=float))
+    pos   = diffs[diffs > 0]
+    return float(np.median(pos)) if len(pos) else 1 / 30.0
+
+
+def _mora_loss(rel_ms: float, margin_ms: float) -> float:
+    """音ごとのずれ（正＝声が先）から、口が見えることによる上乗せが失われた割合（0〜1）。"""
+    tol = SYNC_TOL_VOICE_FIRST_MS if rel_ms > 0 else SYNC_TOL_MOUTH_FIRST_MS
+    over = abs(rel_ms) - tol - margin_ms
+    return float(min(1.0, max(0.0, over / (SYNC_FULL_LOSS_MS - tol))))
 
 
 def compute_av_sync(
@@ -86,11 +130,16 @@ def compute_av_sync(
     Returns
     -------
     dict | None:
-        per_mora    : [{label, offset_ms}]
+        per_mora    : [{label, offset_ms, rel_ms, loss}]
+                      rel_ms … offset_ms − median（正＝声が口より先）
+                      loss   … 口が見えることによる上乗せが失われた割合（0〜1、_mora_loss）
         median_offset_ms : 系統的ズレ（録画開始差を含みうる）
         spread_ms   : ズレのばらつき（MAD）— 発話内不同期の主指標
         verdict     : "ok" / "warn" / "ng"
         n_moras     : 分析できたモーラ数
+        n_outside   : 唇のデータが無い時刻にあったため比べなかったモーラ数
+        times_assumed : どちらかの時刻が無く 30fps と仮定したか（点数には入れない）
+        margin_ms   : 測定の誤差として範囲に足した幅（お手本と録画のコマの間隔の半分の和）
     データ不足時は None。
     """
     if not ref_vectors or not test_vectors or not ref_moras or not test_moras:
@@ -98,10 +147,20 @@ def compute_av_sync(
     if len(ref_vectors) < 5 or len(test_vectors) < 5:
         return None
 
+    times_assumed = False
     if ref_times is None or len(ref_times) != len(ref_vectors):
         ref_times = [i / 30.0 for i in range(len(ref_vectors))]
+        times_assumed = True
     if test_times is None or len(test_times) != len(test_vectors):
         test_times = [i / 30.0 for i in range(len(test_vectors))]
+        times_assumed = True
+    # 唇のデータがある時間の範囲（前後に1コマ分の余裕を付ける）
+    ref_dt,  test_dt = _frame_interval(ref_times), _frame_interval(test_times)
+    ref_lo,  ref_hi  = ref_times[0]  - ref_dt,  ref_times[-1]  + ref_dt
+    test_lo, test_hi = test_times[0] - test_dt, test_times[-1] + test_dt
+    # 口の動きの時刻はコマ単位でしか分からないので、お手本・録画それぞれ半コマずつ
+    # ずれうる（ITU-R BT.1359-1 付録1が引く BR.265 の「±半コマ」と同じ考え方）
+    margin_ms = (ref_dt + test_dt) / 2 * 1000.0
 
     # ── 映像同士の対応線（DTW経路） ──────────────────────────────
     _, path = fastdtw(
@@ -125,8 +184,10 @@ def compute_av_sync(
         return js[len(js) // 2]
 
     # ── モーラごとのクロスチェック ────────────────────────────────
-    per_mora: list[dict] = []
-    offsets:  list[float] = []
+    per_mora:    list[dict] = []
+    offsets:     list[float] = []
+    mora_points: list[dict] = []   # グラフ用のクロス点（映像線が指す位置 vs 音声線が指す位置）
+    n_outside = 0
     n = min(len(ref_moras), len(test_moras))
 
     for k in range(n):
@@ -135,18 +196,30 @@ def compute_av_sync(
         if label in _SIL_LABELS:
             continue
 
+        rc      = _mora_center(r)   # お手本のモーラ中心
+        t_audio = _mora_center(u)   # 音声アライメントが指すユーザーのモーラ中心
+
+        # 唇のデータが無い時刻のモーラは比べない。いちばん近い（端の）フレームに
+        # 寄せると、発音と関係なくズレが大きく出てしまう。
+        if not (ref_lo <= rc <= ref_hi and test_lo <= t_audio <= test_hi):
+            n_outside += 1
+            continue
+
         # お手本のモーラ中心 → お手本映像フレーム → (DTW) → ユーザー映像時刻
-        rc = _mora_center(r)
         fi = _nearest_time(ref_times, rc)
         fj = map_ref_frame(fi)
         t_video = test_times[fj] if fj < len(test_times) else test_times[-1]
 
-        # 音声アライメントが指すユーザーのモーラ中心
-        t_audio = _mora_center(u)
-
         off_ms = (t_video - t_audio) * 1000.0
+        kana   = romaji_mora_to_kana(label)
         offsets.append(off_ms)
-        per_mora.append({"label": romaji_mora_to_kana(label), "offset_ms": round(off_ms)})
+        per_mora.append({"label": kana, "offset_ms": round(off_ms)})
+        mora_points.append({
+            "label":   kana,
+            "r":       round(rc, 3),
+            "u_audio": round(t_audio, 3),
+            "u_video": round(t_video, 3),
+        })
 
     if len(offsets) < 2:
         return None
@@ -154,6 +227,12 @@ def compute_av_sync(
     arr    = np.asarray(offsets, dtype=float)
     median = float(np.median(arr))
     spread = float(np.median(np.abs(arr - median)))  # MAD
+
+    # 音ごとのずれは中央値からの差で見る（全体が一律にずれた分は録画開始の機材差と区別できない）
+    for m, off in zip(per_mora, offsets):
+        rel = off - median
+        m["rel_ms"] = round(rel)
+        m["loss"]   = round(_mora_loss(rel, margin_ms), 3)
 
     if spread < SYNC_OK_MS:
         verdict = "ok"
@@ -195,33 +274,58 @@ def compute_av_sync(
         audio_line.append([round(float(u[0]), 3), round(float(r[0]), 3)])
         audio_line.append([round(float(u[1]), 3), round(float(r[1]), 3)])
 
-    # モーラごとのクロス点（映像線が指す位置 vs 音声線が指す位置）
-    mora_points: list[dict] = []
-    for k in range(n):
-        r, u = ref_moras[k], test_moras[k]
-        label = str(r[2])
-        if label in _SIL_LABELS:
-            continue
-        rc = _mora_center(r)
-        fi = _nearest_time(ref_times, rc)
-        fj = map_ref_frame(fi)
-        t_video = test_times[fj] if fj < len(test_times) else test_times[-1]
-        mora_points.append({
-            "label":   romaji_mora_to_kana(label),
-            "r":       round(rc, 3),
-            "u_audio": round(_mora_center(u), 3),
-            "u_video": round(t_video, 3),
-        })
-
     return {
         "per_mora":         per_mora,
         "median_offset_ms": round(median),
         "spread_ms":        round(spread),
         "verdict":          verdict,
         "n_moras":          len(offsets),
+        "n_outside":        n_outside,
+        "times_assumed":    times_assumed,
+        "margin_ms":        round(margin_ms),
         "plot": {
             "video_line":  video_line,
             "audio_line":  audio_line,
             "mora_points": mora_points,
         },
     }
+
+
+def calc_sync_penalty(av_sync: dict | None) -> dict:
+    """合計点から引く点数（口と声のタイミング）を返す。
+
+    減点 = SYNC_PENALTY_MAX × （音ごとの loss の平均）
+    loss は、その音のずれが人の気づく範囲（声が先 45ms・口が先 200ms ＋ 測定の誤差）を
+    超えた分を、400ms で 1 になるよう直線で表したもの（_mora_loss）。範囲内の音は 0。
+    次のときは点数に入れない（penalty = None）:
+      - 録画が無いなどで分析できなかった
+      - 時刻の無い古い唇データで、30fps と仮定した（時間がたつほどズレが大きく出る）
+      - 比べられたモーラが SYNC_MIN_MORAS 未満
+
+    Returns
+    -------
+    dict:
+        penalty   : 引く点数（0〜SYNC_PENALTY_MAX、0.1 点刻み）。点数に入れないときは None
+        spread_ms : 分析できたときの spread_ms（点数に入れないときも入れる）
+        note      : 点数に入れなかった理由（入れたときは None）
+        over      : 範囲を超えた音 [{label, voice_first}]（voice_first＝声が口より先）
+    """
+    if not av_sync:
+        return {"penalty": None, "spread_ms": None, "over": [],
+                "note": "口と声のタイミングを調べられなかったので、点数には入れていません。"}
+
+    spread = av_sync.get("spread_ms")
+    if av_sync.get("times_assumed"):
+        note = "お手本の口の動きのデータが古い形式なので、点数には入れていません。"
+    elif int(av_sync.get("n_moras") or 0) < SYNC_MIN_MORAS:
+        note = "くらべられる音が少ないので、点数には入れていません。"
+    else:
+        note = None
+    per_mora = av_sync.get("per_mora") or []
+    if note or not per_mora or any("loss" not in m for m in per_mora):
+        return {"penalty": None, "spread_ms": spread, "over": [],
+                "note": note or "口と声のタイミングを調べられなかったので、点数には入れていません。"}
+
+    penalty = round(SYNC_PENALTY_MAX * float(np.mean([m["loss"] for m in per_mora])), 1)
+    over    = [{"label": m["label"], "voice_first": m["rel_ms"] > 0} for m in per_mora if m["loss"] > 0]
+    return {"penalty": penalty, "spread_ms": spread, "note": None, "over": over}
