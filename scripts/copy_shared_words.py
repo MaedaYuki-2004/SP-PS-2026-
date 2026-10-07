@@ -23,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from config import STATIC_DIR  # noqa: E402
 from core import accounts, usercontext, userdata  # noqa: E402
 from core.vocab import _update_audio_scp, _update_words_txt, load_db, save_db  # noqa: E402
 
@@ -58,6 +59,13 @@ def copy_to(user_id: str) -> bool:
             src = shared_sound / word_id
             if src.exists():
                 shutil.copytree(src, userdata.sound_dir(word_id), dirs_exist_ok=True)
+            # 初期データセットの単語は、お手本の音声が web/static/sample/ にしか無いことがある。
+            # 生徒ごとの単語は static/sample を見ないので、再生できるよう生徒のフォルダへ写す
+            wav = userdata.sound_dir(word_id) / f"{word_id}.wav"
+            sample = STATIC_DIR / "sample" / f"{word_id}.wav"
+            if not wav.exists() and sample.exists():
+                wav.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(sample, wav)
             bin_src = shared_mfcc / f"{word_id}.bin"
             if bin_src.exists():
                 userdata.mfcc_path(word_id).parent.mkdir(parents=True, exist_ok=True)
@@ -67,7 +75,7 @@ def copy_to(user_id: str) -> bool:
             path = userdata.lip_refs_path()
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(refs, ensure_ascii=False), encoding="utf-8")
-        save_db(shared_db)
+        save_db(shared_db)  # 単語が無い生徒にだけ来るので、上書きではない
         _update_audio_scp(shared_db)
         _update_words_txt(shared_db)
     finally:

@@ -40,11 +40,13 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from datetime import datetime
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from config import DATA_DIR
+from core import userdata
 
 ACCOUNTS_PATH = DATA_DIR / "config" / "accounts.json"
 
@@ -271,13 +273,26 @@ def verify_family_password(user_id: str, password: str) -> bool:
 
 
 def delete_account(user_id: str) -> dict:
-    """アカウントを削除する（参加者の撤回時など）。"""
+    """アカウントと、その参加者のデータ（data/users/<ID>/）を削除する（参加者の撤回時など）。
+
+    倫理審査資料 §7.1：中止を申し出た参加者のデータは速やかに削除する。
+    フォルダには練習記録のほか、保護者が録ったお手本の録画・音声も入っている。
+    残すと、同じ ID を別の参加者に割り当てたときに前の参加者の記録とお手本が見えてしまう。
+    """
     accounts = load_accounts()
     uid = (user_id or "").strip()
     if uid not in accounts:
         raise ValueError(f"利用者ID {uid} は登録されていません")
     del accounts[uid]
     save_accounts(accounts)
+    folder = userdata.user_dir(uid)
+    if folder.exists():
+        try:
+            shutil.rmtree(folder)
+        except OSError as exc:
+            # Windows で他のプログラムがファイルを開いているときなど。消し残しを黙って残さない
+            raise ValueError(f"{uid} のアカウントは削除しましたが、データのフォルダを消しきれませんでした"
+                             f"（{folder}）。ほかのプログラムを閉じてから、このフォルダを手で削除してください。") from exc
     return {"message": f"{uid} を削除しました"}
 
 

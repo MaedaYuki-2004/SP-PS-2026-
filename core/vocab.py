@@ -21,6 +21,7 @@ from pathlib import Path
 from config import STATIC_DIR
 from core import userdata
 from core.accent import get_accent
+from core.history import load_history
 from core.alignment import run_alignment_on_file
 from core.timbre import audio_mfcc
 
@@ -55,12 +56,33 @@ def get_next_word_id(db: dict) -> str:
     web/static/sample/word1.wav（VOICEVOXの「おんど」等）が
     新しく登録した別の単語のサンプル音声として誤って再生される
     （sample_audio() は static/sample を優先するため）。
+
+    練習履歴とお手本の口形データ（lip_refs.json）に残る ID も見る。単語を削除すると
+    録音済みディレクトリは消えるので、最後に足した単語を消してから新しい単語を足すと
+    同じ ID が振られ、前の単語の点数の記録（前回の点数・この単語の記録・信頼区間）と
+    口形データが新しい単語のものとして使われてしまうため。生徒ごとの単語は ID が
+    word1 から振られ、static/sample の痕跡も無いので、とくに起こりやすい。
     """
+    def _num(key: str) -> int | None:
+        m = re.search(r"\d+", str(key))
+        return int(m.group()) if m else None
+
     nums = [0]
     for key in db:
-        m = re.search(r"\d+", key)
-        if m:
-            nums.append(int(m.group()))
+        n = _num(key)
+        if n is not None:
+            nums.append(n)
+
+    for record in load_history():
+        n = _num(record.get("word_id") or "")
+        if n is not None:
+            nums.append(n)
+
+    try:
+        refs = json.loads(userdata.lip_refs_path().read_text(encoding="utf-8"))
+        nums.extend(n for n in map(_num, refs) if n is not None)
+    except (OSError, ValueError, TypeError):
+        pass
 
     # static/sample は生徒に分ける前の共有データにだけ対応する（生徒ごとの単語とは無関係）
     sample_dir = STATIC_DIR / "sample"

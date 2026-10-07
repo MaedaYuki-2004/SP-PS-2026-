@@ -418,8 +418,8 @@ async function submitEdit() {
 function hideAll(){['statusLoading','statusSuccess','statusError'].forEach(id=>document.getElementById(id).classList.remove('show'));}
 function showError(msg){document.getElementById('statusError').textContent=msg;document.getElementById('statusError').classList.add('show');}
 
-// ページ読み込み時にカメラを起動
-initAdminCamera();
+// ページ読み込み時にカメラを起動（生徒が選ばれていないときは追加の欄が無いので起動しない）
+if (document.getElementById('adminPreview')) initAdminCamera();
 </script>
 
 <script>

@@ -169,7 +169,7 @@
                 </form>
                 {% endif %}
                 <form method="post" action="/admin/accounts/delete"
-                      onsubmit="return confirm('{{ a.user_id }} を完全に削除します。取り消せません。よろしいですか？');">
+                      onsubmit="return confirm('{{ a.user_id }} を完全に削除します。練習記録・単語・お手本の録画もすべて消え、取り消せません。よろしいですか？');">
                   <input type="hidden" name="user_id" value="{{ a.user_id }}">
                   <button type="submit" class="btn btn-danger">削除</button>
                 </form>

@@ -777,7 +777,7 @@ def _teacher_denied(researcher_only: bool = False):
         message = "この操作は研究者用の先生パスワードが必要です（保護者用パスワードではできません）。"
         if _wants_html():
             return render_template("error.html", code=403, title="研究者だけの操作です",
-                                   message=message), 403
+                                   notice=message), 403
         return jsonify({"error": message, "teacher_required": True}), 403
     if _wants_html():
         # 画面を開こうとしたときはそのページへ、フォーム送信のときは送信元のページへ戻す
@@ -2253,9 +2253,12 @@ def admin_accounts_clear_password():
 
 @app.route("/admin/accounts/set_family_password", methods=["POST"])
 def admin_accounts_set_family_password():
+    password = request.form.get("family_password", "")
+    # 先生用パスワードと同じだと、入力したときに研究者の先生モード（全生徒・アカウント管理）になってしまう
+    if teacher.verify_password(password):
+        return _render_admin_accounts(error="先生用パスワードと同じものは保護者用パスワードにできません。", status=400)
     try:
-        acc.set_family_password(request.form.get("user_id", ""),
-                                request.form.get("family_password", ""))
+        acc.set_family_password(request.form.get("user_id", ""), password)
     except ValueError as exc:
         return _render_admin_accounts(error=str(exc), status=400)
     return redirect("/admin/accounts")
