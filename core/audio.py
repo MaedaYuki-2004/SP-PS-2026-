@@ -14,13 +14,11 @@ from pydub import AudioSegment
 from scipy.io import wavfile
 
 from config import (
-    AUDIO_SCP_PATH,
-    RAW_AUDIO_DIR,
-    TEST_SEGMENT_WAV_PATH,
     TEST_TXT_PATH,
     WORD_ID_MEMO_PATH,
     WORDS,
 )
+from core import userdata
 
 
 def word_select(word_id: str) -> str:
@@ -38,29 +36,16 @@ def word_select(word_id: str) -> str:
 
 def read_sample(word_id: str) -> str:
     """
-    audio.scp から word_id に対応する基準音声の絶対パスを返す。
-    行の形式は "<tab区切り行番号><tab>path" または "path" の両方に対応。
-    word_id をパス中の文字列として検索し、見つからない場合は IndexError。
+    word_id に対応するお手本音声（sound/<word_id>/<word_id>.wav）の絶対パスを返す。
+    生徒ごとに分けたフォルダ（core/userdata.py）から探す。見つからなければ FileNotFoundError。
+
+    以前は audio.scp の各行に word_id が「含まれるか」で探していたため、
+    word1 を探すと sound/word10/word10.wav が先に当たることがあった。
     """
-    if not AUDIO_SCP_PATH.exists():
-        raise FileNotFoundError(f"audio.scp が見つかりません: {AUDIO_SCP_PATH}")
-
-    lines = AUDIO_SCP_PATH.read_text(encoding="utf-8").splitlines()
-
-    for line in lines:
-        # "1\tsound/word51/word51.wav" または "sound/word51/word51.wav" 両対応
-        parts = line.split("\t")
-        raw_path = parts[-1].strip()
-        if not raw_path:
-            continue
-        # パス中に word_id が含まれているか確認
-        if word_id in raw_path.replace("\\", "/"):
-            sample_path_str = raw_path.replace("\\", "/")
-            if sample_path_str.startswith("audio/"):
-                sample_path_str = sample_path_str[6:]
-            return str((RAW_AUDIO_DIR / sample_path_str).resolve())
-
-    raise IndexError(f"audio.scp に {word_id} が見つかりません")
+    wav = userdata.sound_dir(word_id) / f"{word_id}.wav"
+    if not wav.exists():
+        raise FileNotFoundError(f"{word_id} のお手本音声がありません。お手本を録画し直してください。")
+    return str(wav.resolve())
 
 
 def convert_to_16kHz(input_path: str | Path, output_path: str | Path) -> bool:
@@ -117,9 +102,9 @@ def reduce_noise_wav(wav_path: str | Path, noise_duration: float = 0.5) -> None:
 def segment_audio(sound_file: str | Path, start: float, end: float) -> None:
     """
     音声ファイルを発話区間（start〜end 秒）で切り出し、
-    TEST_SEGMENT_WAV_PATH に保存する（前後 100ms のマージン付き）。
+    userdata.segment_wav_path()（生徒ごとの test2.wav）に保存する（前後 100ms のマージン付き）。
     """
     sound     = AudioSegment.from_wav(str(sound_file))
     cut_start = max(0, int(start * 1000) - 100)
     cut_end   = max(cut_start, int(end * 1000) + 100)
-    sound[cut_start:cut_end].export(str(TEST_SEGMENT_WAV_PATH), format="wav")
+    sound[cut_start:cut_end].export(str(userdata.segment_wav_path()), format="wav")

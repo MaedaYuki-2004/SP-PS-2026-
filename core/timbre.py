@@ -20,7 +20,7 @@ import numpy as np
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
 
-from config import AUDIO_MFCC_DIR
+from core import userdata
 
 # ── MFCC 次元数 ──────────────────────────────────────────────────────
 # 静的MFCC(12) + Δ(12) + ΔΔ(12) = 36 次元
@@ -72,10 +72,9 @@ def _load_all_words() -> list[dict]:
     words_db.json から全単語を読み込む。
     .bin ファイルが存在する単語のみ返す。
     """
-    from config import DATA_DIR
     import json
 
-    db_path = DATA_DIR / "config" / "words_db.json"
+    db_path = userdata.words_db_path()
     if not db_path.exists():
         return []
 
@@ -84,7 +83,7 @@ def _load_all_words() -> list[dict]:
 
     words = []
     for word_id, entry in db.items():
-        bin_path = AUDIO_MFCC_DIR / f"{word_id}.bin"
+        bin_path = userdata.mfcc_path(word_id)
         if bin_path.exists() and bin_path.stat().st_size > 0:
             words.append({
                 "word_id": word_id,

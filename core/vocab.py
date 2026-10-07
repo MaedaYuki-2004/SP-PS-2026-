@@ -6,6 +6,7 @@ words_db.json の読み書きと単語登録フローを担当するモジュー
   1. display（表示テキスト）と reading（ひらがな読み）、wav_path（参照音声）を受け取る
   2. MeCab でアクセント型を自動取得
   3. wav_path を sound/{word_id}/{word_id}.wav にコピー
+     （単語とお手本は生徒ごとのフォルダに置く。パスは core/userdata.py が決める）
   4. Julius でアライメントを自動実行
   5. MFCC を自動計算・保存
   6. words_db.json に追記（source: "manual"）
@@ -17,37 +18,32 @@ import re
 import shutil
 from pathlib import Path
 
-from config import (
-    AUDIO_MFCC_DIR,
-    AUDIO_SCP_PATH,
-    RAW_AUDIO_DIR,
-    STATIC_DIR,
-    WORDS_TXT_PATH,
-)
+from config import STATIC_DIR
+from core import userdata
 from core.accent import get_accent
+from core.history import load_history
 from core.alignment import run_alignment_on_file
 from core.timbre import audio_mfcc
-
-# ── パス定数 ─────────────────────────────────────────────────────────
-from config import DATA_DIR
-WORDS_DB_PATH = DATA_DIR / "config" / "words_db.json"
-
 
 # ── DB 読み書き ───────────────────────────────────────────────────────
 
 def load_db() -> dict:
-    """words_db.json を読み込む。存在しなければ空辞書を返す。"""
-    if not WORDS_DB_PATH.exists():
+    """いまの生徒の words_db.json を読み込む。存在しなければ空辞書を返す。"""
+    path = userdata.words_db_path()
+    if not path.exists():
         return {}
-    with WORDS_DB_PATH.open("r", encoding="utf-8") as f:
+    with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_db(db: dict) -> None:
-    """words_db.json に書き込む。"""
-    WORDS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with WORDS_DB_PATH.open("w", encoding="utf-8") as f:
+    """いまの生徒の words_db.json に書き込む（tmp へ書いて置換）。"""
+    path = userdata.words_db_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    with tmp.open("w", encoding="utf-8") as f:
         json.dump(db, f, ensure_ascii=False, indent=2)
+    tmp.replace(path)
 
 
 def get_next_word_id(db: dict) -> str:
@@ -60,21 +56,43 @@ def get_next_word_id(db: dict) -> str:
     web/static/sample/word1.wav（VOICEVOXの「おんど」等）が
     新しく登録した別の単語のサンプル音声として誤って再生される
     （sample_audio() は static/sample を優先するため）。
+
+    練習履歴とお手本の口形データ（lip_refs.json）に残る ID も見る。単語を削除すると
+    録音済みディレクトリは消えるので、最後に足した単語を消してから新しい単語を足すと
+    同じ ID が振られ、前の単語の点数の記録（前回の点数・この単語の記録・信頼区間）と
+    口形データが新しい単語のものとして使われてしまうため。生徒ごとの単語は ID が
+    word1 から振られ、static/sample の痕跡も無いので、とくに起こりやすい。
     """
+    def _num(key: str) -> int | None:
+        m = re.search(r"\d+", str(key))
+        return int(m.group()) if m else None
+
     nums = [0]
     for key in db:
-        m = re.search(r"\d+", key)
-        if m:
-            nums.append(int(m.group()))
+        n = _num(key)
+        if n is not None:
+            nums.append(n)
 
+    for record in load_history():
+        n = _num(record.get("word_id") or "")
+        if n is not None:
+            nums.append(n)
+
+    try:
+        refs = json.loads(userdata.lip_refs_path().read_text(encoding="utf-8"))
+        nums.extend(n for n in map(_num, refs) if n is not None)
+    except (OSError, ValueError, TypeError):
+        pass
+
+    # static/sample は生徒に分ける前の共有データにだけ対応する（生徒ごとの単語とは無関係）
     sample_dir = STATIC_DIR / "sample"
-    if sample_dir.exists():
+    if userdata.is_shared() and sample_dir.exists():
         for p in sample_dir.glob("word*.wav"):
             m = re.search(r"\d+", p.stem)
             if m:
                 nums.append(int(m.group()))
 
-    sound_dir = RAW_AUDIO_DIR / "sound"
+    sound_dir = userdata.sound_root()
     if sound_dir.exists():
         for p in sound_dir.iterdir():
             if p.is_dir():
@@ -120,7 +138,7 @@ def register_word(display: str, reading: str, wav_path: Path | None = None) -> d
     # ── 1. アクセント型の取得 ─────────────────────────────────────
     accent, accent_source = get_accent(display)
 
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    sound_dir = userdata.sound_dir(word_id)
     sound_dir.mkdir(parents=True, exist_ok=True)
 
     # ── 2. ひらがな読みを txt ファイルに書き込む（Julius用） ─────
@@ -149,7 +167,8 @@ def register_word(display: str, reading: str, wav_path: Path | None = None) -> d
         # ── 5. MFCC 計算・保存 ────────────────────────────────────
         try:
             mfcc = audio_mfcc(native_wav)
-            bin_path = AUDIO_MFCC_DIR / f"{word_id}.bin"
+            bin_path = userdata.mfcc_path(word_id)
+            bin_path.parent.mkdir(parents=True, exist_ok=True)
             mfcc.tofile(str(bin_path))
         except Exception:
             pass
@@ -183,13 +202,17 @@ def _update_audio_scp(db: dict) -> None:
         f"sound/{wid}/{wid}.wav"
         for wid in db
     ]
-    AUDIO_SCP_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path = userdata.audio_scp_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _update_words_txt(db: dict) -> None:
     """words.txt（DTW表示用）を words_db の内容で再生成する。"""
     lines = [entry["display"] for entry in db.values()]
-    WORDS_TXT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path = userdata.words_txt_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def get_reading_for_julius(word_id: str) -> str:
@@ -220,7 +243,7 @@ def delete_word(word_id: str) -> dict:
 
     # ファイル削除（Windows でブラウザがファイルを掴んでいる場合も無視して続行）
     import shutil as _shutil
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    sound_dir = userdata.sound_dir(word_id)
     try:
         if sound_dir.exists():
             _shutil.rmtree(str(sound_dir))
@@ -228,15 +251,15 @@ def delete_word(word_id: str) -> dict:
         pass
 
     try:
-        (AUDIO_MFCC_DIR / f"{word_id}.bin").unlink(missing_ok=True)
+        userdata.mfcc_path(word_id).unlink(missing_ok=True)
     except OSError:
         pass
 
-    try:
-        from config import STATIC_DIR
-        (STATIC_DIR / "tts" / f"{word_id}.wav").unlink(missing_ok=True)
-    except OSError:
-        pass
+    if userdata.is_shared():
+        try:
+            (STATIC_DIR / "tts" / f"{word_id}.wav").unlink(missing_ok=True)
+        except OSError:
+            pass
 
     return {"message": f"{entry['display']} を削除しました"}
 

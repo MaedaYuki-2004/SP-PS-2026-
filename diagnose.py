@@ -192,6 +192,30 @@ except Exception:
     info("既存の音声ファイルは使えるため、通常の練習には影響しません")
 
 
+# ── 9. 生徒ごとの単語 ───────────────────────────────────────────
+# 4〜7 は生徒に分ける前の共有データ（data/config/・data/raw_audio/sound/・data/mfcc/）を見ている。
+# ログインして使う単語とお手本は生徒ごとに data/users/<ID>/ にある（README §10）。
+sep("9. 生徒ごとの単語（data/users/<ID>/）")
+
+users_dir = BASE_DIR / "data/users"
+user_dbs = sorted(users_dir.glob("*/words_db.json")) if users_dir.exists() else []
+if not user_dbs:
+    info("生徒ごとの単語はまだありません（保護者・先生が単語を追加すると作られます）")
+for db_path in user_dbs:
+    uid = db_path.parent.name
+    try:
+        db = json.loads(db_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        warn(f"{uid}: words_db.json の読み込みに失敗: {e}")
+        continue
+    no_wav = [w for w in db if not (db_path.parent / "sound" / w / f"{w}.wav").exists()]
+    no_lab = [w for w in db if not (db_path.parent / "sound" / w / f"{w}.lab").exists()]
+    if no_wav or no_lab:
+        warn(f"{uid}: {len(db)} 語（お手本の音声なし {len(no_wav)} 語・アライメント結果なし {len(no_lab)} 語）")
+    else:
+        ok(f"{uid}: {len(db)} 語（すべてお手本の音声とアライメント結果あり）")
+
+
 # ── まとめ ────────────────────────────────────────────────────────
 sep("診断まとめ")
 print("  [NG] が出た項目が起動失敗の原因の可能性が高いです。")

@@ -40,11 +40,17 @@
 #}
 <div class="error-page">
   <div class="error-icon">{{ icon('search' if code == 404 else 'alert', size=40) }}</div>
+  {% if notice %}
+  {# 故障ではなく、できない理由をそのまま伝えたいとき（研究者だけの画面を保護者が開いたときなど） #}
+  <div class="error-title">{{ title }}</div>
+  <div class="error-msg">{{ notice }}</div>
+  {% else %}
   <div class="error-title">{% if code == 404 %}ページが見つかりませんでした{% else %}うまく処理できませんでした{% endif %}</div>
   <div class="error-msg">
     あなたのせいではありません。<br>
     下のボタンからもう一度ためしてみてください。
   </div>
+  {% endif %}
   <div class="error-actions">
     <button onclick="history.back()" class="btn btn-primary btn-lg">前のページにもどる</button>
     <a href="/select" class="btn btn-ghost btn-lg">ホームへ</a>

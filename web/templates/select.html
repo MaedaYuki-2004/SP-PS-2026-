@@ -661,7 +661,7 @@
 
     <div class="sheet-group">
       <div class="sheet-row">
-        <span><span class="sheet-row-text">先生モード</span><br><span class="sheet-row-sub">単語の追加・お手本の録り直し・削除（先生用パスワードが必要）</span></span>
+        <span><span class="sheet-row-text">先生モード</span><br><span class="sheet-row-sub">単語の追加・お手本の録り直し・削除（先生用または保護者用パスワードが必要。保護者用ではこの生徒の単語だけ変わります）</span></span>
         <label class="switch"><input type="checkbox" id="teacherModeToggle"{% if is_teacher %} checked{% endif %} aria-label="先生モード"><span></span></label>
       </div>
       {#
@@ -670,7 +670,7 @@
       #}
       <form class="teacher-unlock" id="teacherUnlock" hidden autocomplete="off">
         {% if teacher_configured %}
-        <label class="sheet-label" for="teacherPassword">先生用パスワード</label>
+        <label class="sheet-label" for="teacherPassword">先生用・保護者用パスワード</label>
         <div class="teacher-unlock-row">
           <input type="password" class="teacher-pw" id="teacherPassword" autocomplete="off" required>
           <button type="submit" class="teacher-pw-go">ONにする</button>

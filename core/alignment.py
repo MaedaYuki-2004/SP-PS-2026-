@@ -16,17 +16,14 @@ from pathlib import Path
 import numpy as np
 
 from config import (
-    AUDIO_WAV_DIR,
     CONSONANTS,
     DATA_DIR,
     ENGINE_DIR,
     JULIUS_BIN_PATH,
     PERL_SCRIPT_PATH,
-    TEST_LAB_PATH,
-    TEST_LOG_PATH,
-    TEST_WAV_PATH,
     VOWELS,
 )
+from core import userdata
 from core.utils import phone_list, phoneme_frame
 
 # アライメント外部プロセスの制限時間（秒）。
@@ -241,8 +238,10 @@ def _run_alignment_with_retry(target_dir: str) -> None:
 def run_alignment() -> None:
     """
     Julius で強制アライメントを実行する。
-    data/raw_audio/wav/test.wav → test.lab / test.log を生成する。
+    生徒ごとの作業フォルダ（core/userdata.work_wav_dir()）の
+    test.wav → test.lab / test.log を生成する。
     """
+    work_dir = userdata.work_wav_dir()
     if not PERL_SCRIPT_PATH.exists():
         raise FileNotFoundError(f"Perl スクリプトが見つかりません: {PERL_SCRIPT_PATH}")
     if not ENGINE_DIR.exists():
@@ -251,13 +250,13 @@ def run_alignment() -> None:
     # 前回の結果を必ず消す。残っていると julius の実行に失敗しても
     # perl スクリプトが古い test.log から .lab を再生成してしまい、
     # 「前回の録音の結果」が今回の結果として返る静かな失敗になる。
-    for stale in (AUDIO_WAV_DIR / "test.log", AUDIO_WAV_DIR / "test.lab"):
+    for stale in (work_dir / "test.log", work_dir / "test.lab"):
         try:
             stale.unlink(missing_ok=True)
         except OSError:
             pass
 
-    _run_alignment_with_retry(str(AUDIO_WAV_DIR))
+    _run_alignment_with_retry(str(work_dir))
 
 
 def run_alignment_on_file(

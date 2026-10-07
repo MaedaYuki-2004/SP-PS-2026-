@@ -33,13 +33,11 @@ except ImportError:
 from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, session
 
 from config import (
-    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DATA_DIR, DISTANCE_RESULT_DIR,
-    FLASK_SECRET_KEY, RAW_AUDIO_DIR, STATIC_DIR, TEMPLATES_DIR,
-    TEST_LAB_PATH, TEST_LOG_PATH, TEST_SEGMENT_WAV_PATH,
-    TEST_WAV_PATH, WORD_ID_MEMO_PATH,
+    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DISTANCE_RESULT_DIR,
+    FLASK_SECRET_KEY, STATIC_DIR, TEMPLATES_DIR, WORD_ID_MEMO_PATH,
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
-from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags, update_word_note
+from core.vocab     import load_db, list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags, update_word_note
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
@@ -52,6 +50,7 @@ from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
 from core import teacher
 from core import usercontext
+from core import userdata
 
 # Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
 # 以前は -3000 だったが、extract_julius_score() が返すのは 1フレームあたりの値（正常で -25〜-30 程度）
@@ -520,7 +519,7 @@ def _persist_ref_video(word_id: str, video_path: str) -> None:
     失敗しても登録処理自体は継続してよいので例外は握りつぶす。
     """
     try:
-        sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+        sound_dir = userdata.sound_dir(word_id)
         sound_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(video_path, sound_dir / f"{word_id}.webm")
     except Exception:
@@ -528,7 +527,8 @@ def _persist_ref_video(word_id: str, video_path: str) -> None:
 
 
 def _lip_refs_path() -> Path:
-    return DATA_DIR / "config" / "lip_refs.json"
+    # お手本の口形データも生徒ごとに分ける（core/userdata.py）
+    return userdata.lip_refs_path()
 
 
 def load_lip_refs() -> dict:
@@ -563,7 +563,8 @@ def _score_delta(current, prev) -> str | None:
 
 _SILENCE_LABELS = {'silb', 'sile', 'sp', 'sil', 'sp2'}
 
-# お手本ピッチデータのインメモリキャッシュ: {word_id: (mtime, data)}
+# お手本ピッチデータのインメモリキャッシュ: {お手本 wav のパス: (mtime, data)}
+# 単語 ID は生徒ごとに word1 から振られるので、ID ではなくファイルの場所で見分ける
 _REF_PITCH_CACHE: dict[str, tuple[float, dict]] = {}
 
 
@@ -573,13 +574,13 @@ def _get_reference_pitch_data(word_id: str) -> dict:
     WAV ファイルの mtime が変わっていなければキャッシュを返す。
     変わっていれば再計算してキャッシュを更新する。
     """
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    sound_dir = userdata.sound_dir(word_id)
     wav_path  = sound_dir / f"{word_id}.wav"
     lab_path  = sound_dir / f"{word_id}.lab"
 
     if not wav_path.exists():
         static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
-        if static_path.exists():
+        if userdata.is_shared() and static_path.exists():
             wav_path = static_path
         else:
             return {"has_data": False}
@@ -588,7 +589,8 @@ def _get_reference_pitch_data(word_id: str) -> dict:
         return {"has_data": False}
 
     mtime = wav_path.stat().st_mtime
-    cached = _REF_PITCH_CACHE.get(word_id)
+    cache_key = str(wav_path)
+    cached = _REF_PITCH_CACHE.get(cache_key)
     if cached and cached[0] == mtime:
         return cached[1]
 
@@ -641,7 +643,7 @@ def _get_reference_pitch_data(word_id: str) -> dict:
             "pitch_min_hz": pitch_min_hz,
             "pitch_max_hz": pitch_max_hz,
         }
-        _REF_PITCH_CACHE[word_id] = (mtime, result)
+        _REF_PITCH_CACHE[cache_key] = (mtime, result)
         return result
     except Exception:
         traceback.print_exc()
@@ -750,6 +752,11 @@ def server_error(e):
 # 書き換えられないよう、先生用パスワードで ON にした「先生モード」のセッションでだけ受け付ける
 # （core/teacher.py）。管理画面（/admin*）は参加者ログインではなく先生モードで守る。
 # 最初の参加者アカウントを作る前にも開けるようにするため。
+#
+# 先生モードには2つの範囲がある。
+#   研究者 … 先生用パスワードで ON。全生徒の単語・お手本と参加者アカウントを管理できる。
+#   保護者 … 生徒の ID でログインした端末で、その生徒の保護者用パスワードで ON。
+#            その生徒の単語・お手本だけを変えられる（各家庭の変更が他の家庭に届かない）。
 
 _AUTH_EXEMPT_ENDPOINTS = {"login", "first_login", "logout", "static",
                           "teacher_page", "teacher_unlock_api", "teacher_lock"}
@@ -759,8 +766,19 @@ def _wants_html() -> bool:
     return "text/html" in (request.headers.get("Accept") or "")
 
 
-def _teacher_denied():
-    """先生モードでないときの返し方。画面の移動なら先生用パスワードの画面へ、通信なら 403。"""
+def _teacher_denied(researcher_only: bool = False):
+    """先生モードでないときの返し方。画面の移動なら先生用パスワードの画面へ、通信なら 403。
+
+    researcher_only: 研究者だけの操作（参加者アカウントの管理など）を保護者の先生モードで
+    開こうとしたとき。パスワードの画面へ送ると、先生モードは ON なのですぐ戻されて
+    行ったり来たりになるので、理由を書いた画面を返す。
+    """
+    if researcher_only and teacher.is_active(session):
+        message = "この操作は研究者用の先生パスワードが必要です（保護者用パスワードではできません）。"
+        if _wants_html():
+            return render_template("error.html", code=403, title="研究者だけの操作です",
+                                   notice=message), 403
+        return jsonify({"error": message, "teacher_required": True}), 403
     if _wants_html():
         # 画面を開こうとしたときはそのページへ、フォーム送信のときは送信元のページへ戻す
         target = request.full_path if request.method == "GET" else (urlparse(request.referrer or "").path or "/admin")
@@ -773,15 +791,48 @@ def _teacher_denied():
     }), 403
 
 
+def _can_edit_current_user() -> bool:
+    """いまログインしている生徒の単語・お手本を変えてよい先生モードか。"""
+    return teacher.can_edit_user(session, usercontext.current_user())
+
+
 def teacher_required(fn):
-    """先生モードのセッションでだけ実行するルートに付ける。"""
+    """先生モード（研究者、またはログイン中の生徒の保護者）でだけ実行するルートに付ける。"""
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        if not teacher.is_active(session):
+        if not _can_edit_current_user():
             return _teacher_denied()
         teacher.activate(session)   # 先生の操作をしている間は期限を延ばす
         return fn(*args, **kwargs)
     return wrapper
+
+
+# 研究者だけが使える管理画面（参加者アカウントの管理・編集する生徒の切り替え）
+_RESEARCHER_ONLY_PREFIXES = ("/admin/accounts", "/admin/target")
+ADMIN_TARGET_KEY = "admin_target"
+
+
+def _researcher_only_path(path: str) -> bool:
+    return path.startswith(_RESEARCHER_ONLY_PREFIXES)
+
+
+def _logged_in_user() -> str | None:
+    user_id = session.get(acc.SESSION_KEY)
+    return user_id if user_id and acc.account_exists(user_id) else None
+
+
+def _admin_owner() -> str | None:
+    """単語管理（/admin）でどの生徒の単語を扱うか。
+
+    保護者 … ログイン中の生徒（先生モードの範囲と一致するときだけ。before_request で確かめる）。
+    研究者 … ログイン中の生徒がいればその生徒。いなければ単語管理の画面で選んだ生徒
+             （生徒の端末で研究者が操作したときに、別の生徒の単語を変えてしまわないように）。
+    """
+    logged = _logged_in_user()
+    if logged or not teacher.is_researcher(session):
+        return logged
+    target = session.get(ADMIN_TARGET_KEY)
+    return target if target and acc.account_exists(target) else None
 
 
 @app.before_request
@@ -795,6 +846,21 @@ def _require_login():
     if request.path.startswith("/admin"):
         if not teacher.is_active(session):
             return _teacher_denied()
+        if _researcher_only_path(request.path):
+            if not teacher.is_researcher(session):
+                return _teacher_denied(researcher_only=True)
+        else:
+            owner = _admin_owner()
+            if owner is None:
+                if not teacher.is_researcher(session):
+                    return _teacher_denied()
+                # 研究者がまだ生徒を選んでいない。画面は選ぶ欄を出し、単語の変更は受け付けない
+                if request.method != "GET":
+                    return jsonify({"error": "単語を変える生徒を、単語管理の画面で選んでください。"}), 400
+            elif not teacher.can_edit_user(session, owner):
+                return _teacher_denied()
+            # 以降このリクエストの単語・お手本・記録は、その生徒のフォルダを読み書きする
+            usercontext.set_current_user(owner)
         teacher.activate(session)
         return
     user_id = session.get(acc.SESSION_KEY)
@@ -821,9 +887,16 @@ def _clear_user_context(exc=None):
 def _inject_current_account():
     # is_teacher は画面の出し分け（<html class="teacher-mode">）にだけ使う。
     # 操作を許すかどうかは、各ルートで teacher.is_active() を見て決める。
-    return {"current_user_id": session.get(acc.SESSION_KEY),
-            "is_teacher": teacher.is_active(session),
-            "teacher_configured": teacher.is_configured()}
+    user_id = session.get(acc.SESSION_KEY)
+    return {"current_user_id": user_id,
+            "is_teacher": teacher.can_edit_user(session, user_id),
+            "is_researcher": teacher.is_researcher(session),
+            "teacher_configured": teacher.is_configured() or _has_family_password(user_id)}
+
+
+def _has_family_password(user_id: str | None) -> bool:
+    account = acc.get_account(user_id) if user_id else None
+    return bool(account and account.get("family_password_hash"))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -922,20 +995,36 @@ def _client_key() -> str:
 
 
 def _teacher_try_unlock(password: str) -> tuple[bool, str | None, int]:
-    """先生用パスワードを確かめる。(成功したか, エラー文, HTTP ステータス)"""
-    if not teacher.is_configured():
+    """先生用（研究者）または保護者用のパスワードを確かめる。(成功したか, エラー文, HTTP ステータス)
+
+    研究者のパスワードなら全体の先生モード、ログイン中の生徒の保護者用パスワードなら
+    その生徒だけの先生モードにする。どちらも同じ入力欄から受け付ける。
+    """
+    user_id = _logged_in_user()
+    family_ready = _has_family_password(user_id)
+    if not teacher.is_configured() and not family_ready:
+        if user_id:
+            return False, "この生徒の保護者用パスワードがまだ決まっていません。研究者に問い合わせてください。", 503
         return False, ("先生用パスワードがまだ設定されていません。サーバーのPCで "
                        "python scripts/set_teacher_password.py を実行してください。"), 503
     key = _client_key()
     wait = teacher.seconds_locked(key)
     if wait:
         return False, f"続けて間違えたため、{wait}秒待ってからもう一度入力してください。", 429
-    if not teacher.verify_password(password):
+    if teacher.verify_password(password):
+        scope = teacher.SCOPE_ALL
+    elif family_ready and acc.verify_family_password(user_id, password):
+        scope = user_id
+    else:
         teacher.record_failure(key)
-        return False, "先生用パスワードが正しくありません。", 401
+        return False, "パスワードが正しくありません。", 401
     teacher.clear_failures(key)
-    teacher.activate(session)
+    teacher.activate(session, scope=scope)
     return True, None, 200
+
+
+def _can_edit_logged_in() -> bool:
+    return teacher.can_edit_user(session, _logged_in_user())
 
 
 @app.route("/teacher", methods=["GET", "POST"])
@@ -943,7 +1032,9 @@ def teacher_page():
     """先生用パスワードの入力画面（管理画面を直接開いたときなど）。"""
     next_url = _safe_next(request.values.get("next"))
     if request.method == "GET":
-        if teacher.is_active(session):
+        # 保護者の先生モードでは研究者だけの画面へ戻さない（戻すとまたここへ送られて行ったり来たりになる）
+        if teacher.is_researcher(session) or (
+                _can_edit_logged_in() and not _researcher_only_path(urlparse(next_url).path)):
             return redirect(next_url)
         return render_template("teacher_login.html", next_url=next_url)
     ok, error, status = _teacher_try_unlock(request.form.get("password") or "")
@@ -986,8 +1077,8 @@ def select():
             return redirect("/select")
         word_entry = get_word(word_id)
         display    = word_entry.get("display", reading) if word_entry else reading
-        WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
-        (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
+        userdata.word_id_memo_path().write_text(word_id, encoding="utf-8")
+        userdata.test_txt_path().write_text(reading, encoding="utf-8")
         accent_val = word_entry.get("accent") if word_entry else None
         hl_list = _accent_pattern_for_word(accent_val, reading)
         mora_labels_list = _split_moras(reading)
@@ -1134,8 +1225,7 @@ def history_page():
 
     # ── 分析タブ用データ ─────────────────────────────────────────────
     import json as _json
-    _words_db_path = DATA_DIR / "config" / "words_db.json"
-    _words_db = _json.loads(_words_db_path.read_text(encoding="utf-8")) if _words_db_path.exists() else {}
+    _words_db = load_db()
     analysis_stats = compute_learning_stats(history, _words_db)
 
     return render_template("history.html",
@@ -1147,10 +1237,8 @@ def history_page():
 
 @app.route("/analysis")
 def analysis_page():
-    import json
     history    = load_history()
-    words_db_path = DATA_DIR / "config" / "words_db.json"
-    words_db   = json.loads(words_db_path.read_text(encoding="utf-8")) if words_db_path.exists() else {}
+    words_db   = load_db()
     stats      = compute_learning_stats(history, words_db)
     return render_template("analysis.html", stats=stats)
 
@@ -1219,10 +1307,10 @@ def upload_file():
         file    = request.files["file"]
         word_id = request.form.get("fileword", "").strip()
         reading = get_reading_for_julius(word_id)
-        WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
-        (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
-        file.save(str(TEST_WAV_PATH))
-        convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
+        userdata.word_id_memo_path().write_text(word_id, encoding="utf-8")
+        userdata.test_txt_path().write_text(reading, encoding="utf-8")
+        file.save(str(userdata.test_wav_path()))
+        convert_to_16kHz(userdata.test_wav_path(), userdata.test_wav_path())
         sleep_second()
         run_alignment()
         return render_template("upload.html", words=words, message="アップロード完了")
@@ -1239,8 +1327,8 @@ def record_audio():
         return redirect("/select")
     try:
         file = request.files["file"]
-        file.save(str(TEST_WAV_PATH))
-        convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
+        file.save(str(userdata.test_wav_path()))
+        convert_to_16kHz(userdata.test_wav_path(), userdata.test_wav_path())
         run_alignment()
         return "OK!"
     except Exception as exc:
@@ -1254,9 +1342,10 @@ def upload_lip_video():
         mode = request.form.get("mode", "").strip()
         if mode not in ("ref", "test"):
             return jsonify({"error": "mode は ref または test を指定してください。"}), 400
-        # ref（お手本）は単語のお手本音声・口形データを上書きするので先生だけ。test は生徒自身の録画
+        # ref（お手本）は単語のお手本音声・口形データを上書きするので先生だけ
+        # （研究者か、ログイン中の生徒の保護者）。test は生徒自身の録画
         if mode == "ref":
-            if not teacher.is_active(session):
+            if not _can_edit_current_user():
                 return _teacher_denied()
             teacher.activate(session)
         file = request.files.get("file")
@@ -1271,7 +1360,7 @@ def upload_lip_video():
             current_word_id = (request.form.get("word_id") or "").strip()
             if not current_word_id:
                 try:
-                    current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
+                    current_word_id = userdata.word_id_memo_path().read_text(encoding="utf-8").strip()
                 except OSError:
                     current_word_id = ""
             if not current_word_id or get_word(current_word_id) is None:
@@ -1306,7 +1395,7 @@ def upload_lip_video():
                         if not reading:
                             reading = get_reading_for_julius(current_word_id)
                         if reading:
-                            sound_dir  = RAW_AUDIO_DIR / "sound" / current_word_id
+                            sound_dir  = userdata.sound_dir(current_word_id)
                             sound_dir.mkdir(parents=True, exist_ok=True)
                             native_wav = sound_dir / f"{current_word_id}.wav"
                             native_lab = sound_dir / f"{current_word_id}.lab"
@@ -1318,8 +1407,8 @@ def upload_lip_video():
                                 print(f"[lip_ref] サンプル音声を更新: {native_wav}")
                                 try:
                                     mfcc = audio_mfcc(native_wav)
-                                    (AUDIO_MFCC_DIR / f"{current_word_id}.bin").parent.mkdir(parents=True, exist_ok=True)
-                                    mfcc.tofile(str(AUDIO_MFCC_DIR / f"{current_word_id}.bin"))
+                                    userdata.mfcc_path(current_word_id).parent.mkdir(parents=True, exist_ok=True)
+                                    mfcc.tofile(str(userdata.mfcc_path(current_word_id)))
                                 except Exception:
                                     pass
                                 ref_mora_list = _align_lip_ref(
@@ -1375,8 +1464,8 @@ def upload_lip_video():
 @app.route("/recorded_audio")
 def recorded_audio():
     """直前の録音（test.wav）を返す。結果ページの比較再生ボタンで使用。"""
-    if TEST_WAV_PATH.exists():
-        return send_file(str(TEST_WAV_PATH), mimetype="audio/wav")
+    if userdata.test_wav_path().exists():
+        return send_file(str(userdata.test_wav_path()), mimetype="audio/wav")
     return "録音データが見つかりません", 404
 
 
@@ -1549,7 +1638,7 @@ def api_lip_refs_overwrite():
                 if not reading:
                     reading = get_reading_for_julius(word_id)
                 if reading:
-                    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
+                    sound_dir  = userdata.sound_dir(word_id)
                     sound_dir.mkdir(parents=True, exist_ok=True)
                     native_wav = sound_dir / f"{word_id}.wav"
                     native_lab = sound_dir / f"{word_id}.lab"
@@ -1560,8 +1649,8 @@ def api_lip_refs_overwrite():
                         shutil.copy2(ref_wav, native_wav)
                         try:
                             mfcc = audio_mfcc(native_wav)
-                            (AUDIO_MFCC_DIR / f"{word_id}.bin").parent.mkdir(parents=True, exist_ok=True)
-                            mfcc.tofile(str(AUDIO_MFCC_DIR / f"{word_id}.bin"))
+                            userdata.mfcc_path(word_id).parent.mkdir(parents=True, exist_ok=True)
+                            mfcc.tofile(str(userdata.mfcc_path(word_id)))
                         except Exception:
                             pass
                         ref_mora_list = _align_lip_ref(
@@ -1605,7 +1694,7 @@ def audio_analysis():
         # 結果画面でリロードした場合など。エラーではなくホームに戻す
         return redirect("/select")
     try:
-        word_id   = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
+        word_id   = userdata.word_id_memo_path().read_text(encoding="utf-8").strip()
 
         lip_compare = None
         lip_ref_ratios = []
@@ -1643,12 +1732,12 @@ def audio_analysis():
                 lip_compare = None
 
         audio_sample     = read_sample(word_id)
-        audio_learn      = str(TEST_WAV_PATH)
-        audio_learn_edit = str(TEST_SEGMENT_WAV_PATH)
+        audio_learn      = str(userdata.test_wav_path())
+        audio_learn_edit = str(userdata.segment_wav_path())
         lab_sample = str(Path(audio_sample).with_suffix(".lab"))
-        lab_learn  = str(TEST_LAB_PATH)
+        lab_learn  = str(userdata.test_lab_path())
         log_sample = str(Path(audio_sample).with_suffix(".log"))
-        log_learn  = str(TEST_LOG_PATH)
+        log_learn  = str(userdata.test_log_path())
 
         prev_score = get_last_score(word_id)
 
@@ -1960,23 +2049,30 @@ def sample_audio(word_id: str):
     # 別の単語のIDと衝突して残っていると、新しく登録した単語の再生時に
     # 無関係な古いサンプル音声が流れてしまう。static/sample はそのIDに
     # 実録音が存在しない場合（初期データセットの単語）にのみ使うフォールバック。
-    tts_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.wav"
+    # 生徒ごとの単語は ID が word1 から振られ、初期データセットとは関係ないので使わない。
+    try:
+        tts_path = userdata.sound_dir(word_id) / f"{word_id}.wav"
+    except ValueError:
+        return "not found", 404
     if tts_path.exists(): return send_file(str(tts_path), mimetype="audio/wav")
     static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
-    if static_path.exists(): return send_file(str(static_path), mimetype="audio/wav")
+    if userdata.is_shared() and static_path.exists(): return send_file(str(static_path), mimetype="audio/wav")
     return "not found", 404
 
 
 @app.route("/sample_video/<word_id>")
 def sample_video(word_id: str):
     """先生のお手本録画（webm）を配信する。母音トレーナー等での実映像再生用。"""
-    video_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.webm"
+    try:
+        video_path = userdata.sound_dir(word_id) / f"{word_id}.webm"
+    except ValueError:
+        return "not found", 404
     if video_path.exists(): return send_file(str(video_path), mimetype="video/webm")
     return "not found", 404
 
 
 def has_sample_video(word_id: str) -> bool:
-    return (RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.webm").exists()
+    return (userdata.sound_dir(word_id) / f"{word_id}.webm").exists()
 
 
 @app.route("/admin/delete_word", methods=["POST"])
@@ -2027,8 +2123,8 @@ def practice_word(word_id: str):
         return redirect("/select")
     reading    = word_entry.get("reading", "")
     display    = word_entry.get("display", reading)
-    WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
-    (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
+    userdata.word_id_memo_path().write_text(word_id, encoding="utf-8")
+    userdata.test_txt_path().write_text(reading, encoding="utf-8")
     accent_val = word_entry.get("accent")
     hl_list          = _accent_pattern_for_word(accent_val, reading)
     mora_labels_list = _split_moras(reading)
@@ -2078,7 +2174,26 @@ def api_history_calendar():
 
 @app.route("/admin")
 def admin():
-    return render_template("admin.html", words=list_words(), stats=get_stats(), all_tags=get_all_tags())
+    owner = usercontext.current_user()   # before_request が _admin_owner() を入れている
+    # 研究者が生徒の端末以外から開いたときだけ、どの生徒の単語を扱うかを選べる
+    can_choose = teacher.is_researcher(session) and not _logged_in_user()
+    common = dict(owner=owner, can_choose_owner=can_choose,
+                  accounts=acc.list_accounts() if can_choose else [])
+    if owner is None:
+        return render_template("admin.html", words=[], stats=None, all_tags=[], **common)
+    return render_template("admin.html", words=list_words(), stats=get_stats(),
+                           all_tags=get_all_tags(), **common)
+
+
+@app.route("/admin/target", methods=["POST"])
+def admin_set_target():
+    """研究者が単語管理で扱う生徒を選ぶ（研究者だけ。before_request で確かめる）。"""
+    target = (request.form.get("user_id") or "").strip()
+    if target and acc.account_exists(target):
+        session[ADMIN_TARGET_KEY] = target
+    else:
+        session.pop(ADMIN_TARGET_KEY, None)
+    return redirect("/admin")
 
 
 # ── 研究参加者アカウント管理（研究者用・ローカル運用前提） ───────────
@@ -2131,6 +2246,28 @@ def admin_accounts_update_profile():
 def admin_accounts_clear_password():
     try:
         acc.clear_password(request.form.get("user_id", ""))
+    except ValueError as exc:
+        return _render_admin_accounts(error=str(exc), status=400)
+    return redirect("/admin/accounts")
+
+
+@app.route("/admin/accounts/set_family_password", methods=["POST"])
+def admin_accounts_set_family_password():
+    password = request.form.get("family_password", "")
+    # 先生用パスワードと同じだと、入力したときに研究者の先生モード（全生徒・アカウント管理）になってしまう
+    if teacher.verify_password(password):
+        return _render_admin_accounts(error="先生用パスワードと同じものは保護者用パスワードにできません。", status=400)
+    try:
+        acc.set_family_password(request.form.get("user_id", ""), password)
+    except ValueError as exc:
+        return _render_admin_accounts(error=str(exc), status=400)
+    return redirect("/admin/accounts")
+
+
+@app.route("/admin/accounts/clear_family_password", methods=["POST"])
+def admin_accounts_clear_family_password():
+    try:
+        acc.clear_family_password(request.form.get("user_id", ""))
     except ValueError as exc:
         return _render_admin_accounts(error=str(exc), status=400)
     return redirect("/admin/accounts")
@@ -2199,7 +2336,7 @@ def add_word():
 
             if MEDIA_PIPE_AVAILABLE:
                 try:
-                    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
+                    sound_dir  = userdata.sound_dir(word_id)
                     native_lab = sound_dir / f"{word_id}.lab"
                     mora_data: list[dict] = []
                     if native_lab.exists():

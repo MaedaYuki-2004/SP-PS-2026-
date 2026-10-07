@@ -5,8 +5,9 @@ scripts/repair_alignment.py
 使い方：
   python scripts/repair_alignment.py word35
   python scripts/repair_alignment.py word35 word36 word37
+  python scripts/repair_alignment.py --user A01 word3   # 生徒 A01 の単語（data/users/A01/）
 
-data/raw_audio/sound/<word_id>/ の <word_id>.wav と <word_id>.txt（ひらがな読み）から
+data/raw_audio/sound/<word_id>/（--user のときは data/users/<ID>/sound/<word_id>/）の <word_id>.wav と <word_id>.txt（ひらがな読み）から
 <word_id>.lab / <word_id>.log を作り直す。失敗したときは既存の .lab / .log を残す。
 
 【2026-09-14 修正】
@@ -26,12 +27,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from config import RAW_AUDIO_DIR
+from core import usercontext, userdata
 from core.alignment import lab_load, run_alignment_on_file
 
 
 def repair(word_id: str) -> bool:
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    sound_dir = userdata.sound_dir(word_id)
     wav_path  = sound_dir / f"{word_id}.wav"
     txt_path  = sound_dir / f"{word_id}.txt"
     lab_path  = sound_dir / f"{word_id}.lab"
@@ -74,6 +75,9 @@ def repair(word_id: str) -> bool:
 
 if __name__ == "__main__":
     targets = sys.argv[1:]
+    if targets[:1] == ["--user"] and len(targets) >= 2:
+        usercontext.set_current_user(targets[1])
+        targets = targets[2:]
     if not targets:
         print("使い方: python scripts/repair_alignment.py word35")
         sys.exit(1)
