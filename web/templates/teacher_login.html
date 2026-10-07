@@ -64,7 +64,7 @@
       <span class="auth-tag">SP-PS の単語・お手本・アカウントの管理</span>
     </div>
     <div class="auth-card">
-      <p class="auth-sub">単語の追加・削除、お手本の録画、参加者アカウントの管理は、先生だけが行えます。先生用パスワードを入力してください。</p>
+      <p class="auth-sub">単語の追加・削除、お手本の録画、参加者アカウントの管理は、先生だけが行えます。先生用パスワードを入力してください。ご家庭では、生徒のIDでログインしたうえで保護者用パスワードを入力すると、その生徒の単語とお手本だけを変えられます。</p>
 
       {% if error %}<div class="auth-error">{{ icon('alert') }}<span>{{ error }}</span></div>{% endif %}
 
@@ -72,7 +72,7 @@
       <form method="post" action="/teacher" autocomplete="off">
         <input type="hidden" name="next" value="{{ next_url }}">
         <div class="field">
-          <label for="password">先生用パスワード</label>
+          <label for="password">先生用・保護者用パスワード</label>
           <div class="pw-wrap"><input type="password" id="password" name="password" required autofocus><button type="button" class="pw-toggle" data-for="password">表示</button></div>
         </div>
         <button type="submit" class="btn-primary">先生モードにする</button>

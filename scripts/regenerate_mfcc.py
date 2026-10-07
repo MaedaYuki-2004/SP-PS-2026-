@@ -5,7 +5,8 @@ MFCCを計算し直して data/mfcc/wordX.bin を上書きするスクリプト�
 
 【実行方法】
   プロジェクトのルート階層（app.py と同じ場所）で実行してください。
-  python scripts/regenerate_mfcc.py
+  python scripts/regenerate_mfcc.py              # 生徒に分ける前の共有データ
+  python scripts/regenerate_mfcc.py --user A01   # 生徒 A01 の単語（data/users/A01/）
 
 【変更点】
   静的 MFCC（12次元）から Delta MFCC（Δ・ΔΔ追加 / 計36次元）に変更。
@@ -31,7 +32,7 @@ sys.path.insert(0, str(ROOT))
 import librosa
 import numpy as np
 
-from config import AUDIO_MFCC_DIR, RAW_AUDIO_DIR, DATA_DIR
+from core import usercontext, userdata
 
 # ── パラメータ（core/timbre.py の audio_mfcc() と完全に一致させること） ─
 N_MFCC     = 13
@@ -65,7 +66,7 @@ def compute_mfcc(wav_path: Path) -> np.ndarray:
 def get_all_word_ids() -> list[str]:
     """words_db.json から全単語IDを取得する。"""
     import json
-    db_path = DATA_DIR / "config" / "words_db.json"
+    db_path = userdata.words_db_path()
     if not db_path.exists():
         return []
     with db_path.open("r", encoding="utf-8") as f:
@@ -74,20 +75,24 @@ def get_all_word_ids() -> list[str]:
 
 
 def main() -> None:
+    args = sys.argv[1:]
+    if args[:1] == ["--user"] and len(args) >= 2:
+        usercontext.set_current_user(args[1])
+    mfcc_dir = userdata.mfcc_dir()
     print("=" * 60)
     print("  MFCC バイナリ再生成スクリプト（Delta MFCC 対応版）")
     print("=" * 60)
     print(f"  パラメータ: n_mfcc={N_MFCC}, n_fft={N_FFT}, hop_length={HOP_LENGTH}")
     print(f"  次元数: {MFCC_STATIC_DIMS}(静的) + {MFCC_STATIC_DIMS}(Δ) + {MFCC_STATIC_DIMS}(ΔΔ) = {MFCC_TOTAL_DIMS}次元")
-    print(f"  出力先: {AUDIO_MFCC_DIR}")
+    print(f"  出力先: {mfcc_dir}")
     print()
 
-    AUDIO_MFCC_DIR.mkdir(parents=True, exist_ok=True)
+    mfcc_dir.mkdir(parents=True, exist_ok=True)
 
     word_ids = get_all_word_ids()
     if not word_ids:
         print("  [!!] words_db.json が見つからないか空です。")
-        print("       data/config/words_db.json を確認してください。")
+        print(f"       {userdata.words_db_path()} を確認してください。")
         return
 
     print(f"  対象単語数: {len(word_ids)} 語")
@@ -97,8 +102,8 @@ def main() -> None:
     errors  = []
 
     for word_id in word_ids:
-        wav_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.wav"
-        bin_path = AUDIO_MFCC_DIR / f"{word_id}.bin"
+        wav_path = userdata.sound_dir(word_id) / f"{word_id}.wav"
+        bin_path = userdata.mfcc_path(word_id)
 
         if not wav_path.exists():
             msg = f"[NG] {word_id}: WAVファイルが見つかりません → {wav_path}"

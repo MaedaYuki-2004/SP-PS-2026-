@@ -74,7 +74,8 @@
       <div class="card-title">新しい参加者を登録</div>
       <p class="ethics-note">
         利用者IDは研究者が割り当てます（例：A01, A02）。氏名・あだ名は入れないでください。<br>
-        学年と聴覚障害の程度は調査票の内容をここで入力します。パスワードと表示名は参加者本人が初回ログイン時に設定します。
+        学年と聴覚障害の程度は調査票の内容をここで入力します。パスワードと表示名は参加者本人が初回ログイン時に設定します。<br>
+        <strong>保護者用パスワード</strong>は研究者が決めて保護者に渡します。生徒のIDでログインした端末の設定で入れると、その生徒の単語の追加・お手本の録画だけができる先生モードになります（他の生徒のデータとこの画面には届きません）。
       </p>
       <form class="row-form" method="post" action="/admin/accounts/create" autocomplete="off">
         <div class="fld">
@@ -113,7 +114,7 @@
         <thead>
           <tr>
             <th>利用者ID</th><th>学年</th><th>聴覚障害の程度</th>
-            <th>パスワード</th><th>操作</th>
+            <th>パスワード</th><th>保護者用パスワード</th><th>操作</th>
           </tr>
         </thead>
         <tbody>
@@ -139,6 +140,24 @@
             <td>
               {% if a.password_set %}<span class="pw-set">設定済み</span>
               {% else %}<span class="pw-unset">未設定</span>{% endif %}
+            </td>
+            <td>
+              {% if a.family_password_set %}<span class="pw-set">設定済み</span>
+              {% else %}<span class="pw-unset">未設定</span>{% endif %}
+              <form class="inline-form" method="post" action="/admin/accounts/set_family_password" autocomplete="off" style="margin-top:6px;">
+                <input type="hidden" name="user_id" value="{{ a.user_id }}">
+                <input type="password" name="family_password" required minlength="8" autocomplete="new-password"
+                       placeholder="8文字以上" aria-label="{{ a.user_id }} の保護者用パスワード"
+                       style="width:9em; padding:7px 10px; font-size:13px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); color:var(--text);">
+                <button type="submit" class="btn btn-ghost">{{ '変更' if a.family_password_set else '設定' }}</button>
+              </form>
+              {% if a.family_password_set %}
+              <form method="post" action="/admin/accounts/clear_family_password" style="margin-top:4px;"
+                    onsubmit="return confirm('{{ a.user_id }} の保護者用パスワードを消します。この家庭は先生モードにできなくなります。よろしいですか？');">
+                <input type="hidden" name="user_id" value="{{ a.user_id }}">
+                <button type="submit" class="btn btn-ghost">消す</button>
+              </form>
+              {% endif %}
             </td>
             <td>
               <div class="cell-actions">

@@ -310,6 +310,17 @@ sudo apt-get install -y ffmpeg
 > 聴覚障害の程度は**要配慮個人情報**にあたるため、dB 値などの詳細は持たず区分で保持します。
 
 パスワードを忘れた場合は、管理画面の「パスワードをリセット」で未設定状態に戻せます。
+
+5. 家で保護者が単語の追加・お手本の録画をする場合は、同じ画面の「保護者用パスワード」に
+   8文字以上のパスワードを入れて設定し、保護者に渡す（生徒ごとに別のものにする）。
+   保護者は生徒の ID でログインした端末の設定で、先生モードをこのパスワードで ON にします。
+   変えられるのはその生徒の単語とお手本だけです（[§10](#10-参加者アカウントとデータの分離)）。
+6. 単語とお手本は**生徒ごとに完全に別**です。生徒に分ける前の共有の単語（`data/config/words_db.json`）は
+   ログインした生徒には見えません。最初の単語セットとして配りたいときは、生徒ごとに複製します。
+
+   ```bash
+   python scripts/copy_shared_words.py A01 A02
+   ```
 参加者が撤回した場合は「削除」でアカウントごと削除できます。
 
 ---
@@ -358,18 +369,14 @@ python app.py
 別の PC に引き継ぐ場合は、以下のフォルダ・ファイルをコピーしてください。
 
 ```
-data/config/words_db.json       ← 単語データベース
-data/config/words.txt           ← 単語の表示テキスト一覧
-data/config/audio.scp           ← お手本音声ファイルのパス一覧
-data/config/accounts.json       ← 参加者アカウント（利用者ID・パスワードハッシュ・学年・聴覚障害の程度）
+data/config/accounts.json       ← 参加者アカウント（利用者ID・パスワードハッシュ・保護者用パスワードハッシュ・学年・聴覚障害の程度）
 data/config/teacher.json        ← 先生用パスワードのハッシュ
-data/config/lip_refs.json       ← 口形お手本データ
-data/users/<利用者ID>/          ← 参加者ごとの練習履歴（history.json）・今日のレッスン進捗
-data/raw_audio/sound/           ← お手本音声・お手本録画・アライメント結果
-data/mfcc/                      ← MFCC バイナリ
+data/users/<利用者ID>/          ← 参加者ごとの単語・お手本・練習履歴・今日のレッスン進捗（§10）
+data/config/words_db.json など  ← 生徒に分ける前の共有の単語（未ログイン時と CLI だけで使う）
+data/raw_audio/sound/  data/mfcc/ ← 同上（共有の単語のお手本）
 ```
 
-> **参加者の練習記録は `data/users/<利用者ID>/` にログインユーザー単位で分離**されます
+> **参加者の練習記録・単語・お手本は `data/users/<利用者ID>/` にログインユーザー単位で分離**されます
 > （倫理審査資料 §6.1）。`data/config/accounts.json` は要配慮個人情報（聴覚障害の程度）
 > とパスワードハッシュを含むため、取り扱いに注意してください。いずれも `data/` 配下なので
 > `.gitignore` により GitHub には上がりません。
@@ -1888,7 +1895,8 @@ app.py の teardown_request
 
 | 対象 | 先生モードでないとき |
 |------|------------------|
-| `/admin` 配下（単語の追加・編集・削除、単語管理画面、参加者アカウント管理） | ページは `/teacher`（先生用パスワードの画面）へ転送、それ以外は `403` |
+| `/admin` 配下（単語の追加・編集・削除、単語管理画面） | ページは `/teacher`（先生用パスワードの画面）へ転送、それ以外は `403` |
+| `/admin/accounts` 配下（参加者アカウント管理）・`/admin/target`（研究者が扱う生徒の切り替え） | 上と同じ。保護者の先生モードでは `403`（研究者だけ） |
 | `POST /api/lip_refs/overwrite`・`POST /api/lip_refs/delete`（お手本の録り直し・削除） | `403` |
 | `POST /upload_lip_video` の `mode=ref`（録音画面からのお手本録画） | `403`（生徒自身の録画 `mode=test` はそのまま） |
 
@@ -1897,6 +1905,40 @@ app.py の teardown_request
 - 同じ接続元から5回続けて間違えると、60秒は受け付けません（総当たり対策）。ngrok のように同じ PC 上の中継を通ると全員の接続元が 127.0.0.1 に見えるため、そのときだけ中継が付ける `X-Forwarded-For` の末尾の値で端末を区別します（`app.py` の `_client_key()`）。PC に直接つないだ端末のこのヘッダーは信用しません。Railway など別のマシンの中継を通る場合は区別できず、全員が1つの接続元として数えられます
 - 画面の出し分けは、サーバーが `<html class="teacher-mode">` を付けて行います（以前は端末の保存値で決めていたため、生徒が設定から ON にできました）
 - 最初の参加者アカウントを作る前にも使えるよう、`/admin` 配下は参加者ログインを求めません
+
+#### 研究者と保護者（先生モードの範囲）
+
+ろう学校の調査では、生徒が各自の家で使い、**保護者が家でお手本を録ったり単語を追加したり**します。
+全家庭が同じサーバーにつなぐため、先生モードに2つの範囲を持たせています（`core/teacher.py` の `scope()`）。
+
+| | 研究者 | 保護者 |
+|---|---|---|
+| ON にするパスワード | 先生用パスワード（全体で1つ） | 生徒ごとの保護者用パスワード（研究者が `/admin/accounts` で設定して渡す。ハッシュだけを `accounts.json` の `family_password_hash` に保存） |
+| ON にできる端末 | どこでも | その生徒の ID でログインした端末だけ |
+| 変えられる単語・お手本 | 全生徒（生徒の端末ではログイン中の生徒、それ以外では単語管理の画面で選んだ生徒） | その生徒の分だけ |
+| 参加者アカウント管理 | できる | できない |
+
+- パスワードの入力欄は1つで、サーバーが先生用 → ログイン中の生徒の保護者用の順に照らし合わせます
+- 範囲は `session["teacher_scope"]`（研究者は `"*"`、保護者は生徒の ID）。ログイン・ログアウトで消えるので、保護者の先生モードのまま別の生徒に切り替わることはありません。念のため、操作のたびにログイン中の生徒と範囲が一致するかも確かめます
+- 保護者用パスワードも先生用と同じ総当たり対策（5回で60秒）を受けます
+
+#### 単語とお手本の生徒ごとの分離
+
+単語・お手本・録音の作業ファイルは、`core/userdata.py` がログイン中の生徒のフォルダ（`data/users/<ID>/`）に切り替えます。
+**家庭ごとに完全に別**で、共通の単語は持ちません。単語 ID も生徒ごとに `word1` から振られます。
+
+| もの | ログイン中 | 未ログイン・CLI（従来の共有データ） |
+|------|-----------|-------------------------------|
+| 単語（words_db.json・words.txt・audio.scp） | `data/users/<ID>/` | `data/config/` |
+| お手本の口形データ（lip_refs.json） | `data/users/<ID>/lip_refs.json` | `data/config/lip_refs.json` |
+| お手本の音声・録画・アライメント | `data/users/<ID>/sound/<word_id>/` | `data/raw_audio/sound/<word_id>/` |
+| お手本の MFCC | `data/users/<ID>/mfcc/` | `data/mfcc/` |
+| 録音の作業ファイル（test.wav ほか・word_id.txt） | `data/users/<ID>/work/` | `data/raw_audio/` と `data/config/word_id.txt` |
+
+- 録音の作業ファイルも分けたので、2つの家庭が同時に録音しても互いの録音を上書きしません（同じ生徒が2台で同時に録音した場合は、従来どおり後の録音が勝ちます）
+- 初期データセットの VOICEVOX 音声（`web/static/sample/`）は共有データにだけ対応し、生徒ごとの単語では使いません（ID が同じでも別の単語のため）
+- 共有の単語を生徒の最初の単語セットにするときは `python scripts/copy_shared_words.py <ID> ...` で複製します（単語がまだ無い生徒にだけ）。`regenerate_mfcc.py`・`repair_alignment.py` は `--user <ID>` でその生徒の単語を対象にします
+- 音色評価（§7.4）で比べる単語も、その生徒の単語だけになります
 
 > **セッションの署名鍵：** ログイン状態と先生モードは、署名つきのセッション Cookie に入っています。
 > 環境変数 `FLASK_SECRET_KEY` が無いときは、ランダムな鍵を作って `data/config/flask_secret_key.txt` に保存します
@@ -2100,12 +2142,12 @@ app.py の teardown_request
 
 | ファイル | 形式の説明 |
 |---------|----------|
-| `data/config/words_db.json` | 単語データベース（§9.1） |
+| `data/users/<利用者ID>/words_db.json` | 単語データベース（§9.1。生徒ごと。共有分は `data/config/`） |
 | `data/config/accounts.json` | 参加者アカウント（§10） |
-| `data/config/lip_refs.json` | お手本の口形データ（§7.2） |
-| `data/raw_audio/sound/<word_id>/<word_id>.lab` | 1行1音素：`開始秒 終了秒 音素`（silB / silE を含む。§5.3） |
-| `data/raw_audio/sound/<word_id>/<word_id>.log` | Julius のログ。強制アライメント部に `[開始フレーム 終了フレーム] 1フレームあたり平均対数尤度 音素` |
-| `data/mfcc/<word_id>.bin` | float32 のベクトル列（36次元 × フレーム数、ヘッダなし） |
+| `data/users/<利用者ID>/lip_refs.json` | お手本の口形データ（§7.2） |
+| `data/users/<利用者ID>/sound/<word_id>/<word_id>.lab` | 1行1音素：`開始秒 終了秒 音素`（silB / silE を含む。§5.3） |
+| `data/users/<利用者ID>/sound/<word_id>/<word_id>.log` | Julius のログ。強制アライメント部に `[開始フレーム 終了フレーム] 1フレームあたり平均対数尤度 音素` |
+| `data/users/<利用者ID>/mfcc/<word_id>.bin` | float32 のベクトル列（36次元 × フレーム数、ヘッダなし） |
 | `data/users/<利用者ID>/daily_lesson.json` | その日のレッスン（`date`・`steps`・`mouth_done`） |
 
 ---
@@ -2206,6 +2248,7 @@ sp-ps/
 │   ├── teacher.py              # 先生用パスワードと先生モード（セッション期限・総当たり対策）★
 │   ├── timbre.py               # MFCC + Δ + ΔΔ（36次元）・DTW 音色評価
 │   ├── usercontext.py          # ログイン中の参加者IDをリクエスト単位で保持★
+│   ├── userdata.py             # 単語・お手本・録音の作業ファイルの場所を生徒ごとに切り替える★
 │   ├── utils.py                # ローマ字モーラ→かな変換・長音のまとまり判定など
 │   ├── vocab.py                # words_db.json 管理・単語登録フロー・ID 採番
 │   └── weakness.py             # モーラ別スコアからの苦手音分析
@@ -2220,19 +2263,23 @@ sp-ps/
 │   │   ├── formant_cache.json  # お手本音声フォルマントのキャッシュ（※ DATA_DIR ではなく常にリポジトリ内の data/）
 │   │   ├── history.json        # 練習履歴（未ログイン運用時の共有分・最大500件）
 │   │   ├── lip_refs.json       # お手本の口形データ（schema_version: 2）
-│   │   ├── word_id.txt         # 直前に選択した単語 ID（全利用者で共有の一時ファイル）
+│   │   ├── word_id.txt         # 直前に選択した単語 ID（未ログイン時だけ。ログイン中は users/<ID>/work/）
 │   │   ├── words.txt           # 表示テキスト一覧
 │   │   └── words_db.json       # 単語データベース（display/reading/accent 等）
 │   ├── users/
-│   │   └── {利用者ID}/         # ログイン参加者ごとの練習データ★
+│   │   └── {利用者ID}/         # ログイン参加者ごとのデータ★（単語・お手本も生徒ごと。§10）
 │   │       ├── history.json    # その参加者の練習履歴（最大500件）
-│   │       └── daily_lesson.json  # その参加者の「今日のレッスン」進捗
+│   │       ├── daily_lesson.json  # その参加者の「今日のレッスン」進捗
+│   │       ├── words_db.json / words.txt / audio.scp / lip_refs.json  # その生徒の単語とお手本の口形
+│   │       ├── sound/{word_id}/   # その生徒のお手本音声・録画・アライメント（下の raw_audio/sound と同じ形）
+│   │       ├── mfcc/{word_id}.bin # その生徒のお手本の MFCC
+│   │       └── work/           # 録音の作業ファイル（wav/test.wav・test.lab・test.log・test.txt、test2.wav、word_id.txt）
 │   ├── mfcc/
 │   │   └── {word_id}.bin       # お手本の MFCC（36次元 float32）
 │   └── raw_audio/
 │       ├── test2.wav           # 録音の発話区間（前後100ms付き。音色評価用）
 │       ├── wav/
-│       │   ├── test.wav        # 録音音声（全利用者で共有・上書き保存）
+│       │   ├── test.wav        # 録音音声（未ログイン時だけ。ログイン中は users/<ID>/work/wav/）
 │       │   ├── test.lab        # Julius アライメント結果（秒）
 │       │   ├── test.log        # Julius ログ（フレーム・対数尤度）
 │       │   └── test.txt        # 録音単語のひらがな読み

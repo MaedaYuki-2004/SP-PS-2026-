@@ -87,6 +87,11 @@
     .tag-pill-x { background:none; border:none; color:rgba(255,255,255,.7); cursor:pointer; padding:0; font-size:13px; line-height:1; }
     .tag-pill-x:hover { color:#fff; }
     .tag-text-input { border:none; outline:none; background:transparent; font-family:var(--font); font-size:13px; color:var(--text); min-width:80px; flex:1; padding:2px 4px; }
+    .owner-bar { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:flex-end; justify-content:space-between; margin-bottom:16px; }
+    .owner-form { display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .owner-form select { min-width:12em; }
+    .owner-note { font-size:13px; color:var(--text-2); line-height:1.7; }
+    .owner-empty { margin:0; font-size:14px; color:var(--text-2); line-height:1.7; }
     @media (max-width:700px) { .add-form-grid{grid-template-columns:1fr;} .stats-row{grid-template-columns:1fr 1fr;} .main{padding:16px;} }
   </style>
 </head>
@@ -116,6 +121,31 @@
   <div><div class="page-header-title">単語管理</div><div class="page-header-sub">単語の追加・編集・削除（追加時は参照動画が必要）</div></div>
 </div>
 <div class="main">
+  {#
+    単語とお手本は生徒ごとに分けて保存する（core/userdata.py）。ここで扱うのは owner の生徒の単語だけ。
+    保護者・生徒の端末ではログイン中の生徒に決まる。研究者が生徒の端末以外から開いたときだけ選べる。
+  #}
+  <div class="owner-bar">
+    {% if can_choose_owner %}
+    <form method="post" action="/admin/target" class="owner-form">
+      <label class="form-label" for="ownerSelect">単語を管理する生徒</label>
+      <select id="ownerSelect" name="user_id" class="form-input" onchange="this.form.submit()">
+        <option value="" {{ '' if owner else 'selected' }}>— 選んでください —</option>
+        {% for a in accounts %}
+        <option value="{{ a.user_id }}" {{ 'selected' if a.user_id == owner else '' }}>{{ a.user_id }}</option>
+        {% endfor %}
+      </select>
+      <noscript><button type="submit" class="btn btn-ghost">切り替え</button></noscript>
+    </form>
+    {% elif owner %}
+    <div class="owner-note"><span class="form-label">単語を管理する生徒</span> <strong>{{ owner }}</strong>（ここで変えた単語とお手本は、この生徒にだけ反映されます）</div>
+    {% endif %}
+    {% if is_researcher %}<a href="/admin/accounts" class="nav-link owner-accounts">参加者アカウント管理</a>{% endif %}
+  </div>
+
+  {% if not owner %}
+  <div class="add-section"><p class="owner-empty">{% if can_choose_owner and accounts %}上で生徒を選ぶと、その生徒の単語とお手本を管理できます。{% elif can_choose_owner %}まだ参加者アカウントがありません。先に「参加者アカウント管理」で登録してください。{% else %}単語を管理する生徒が決まっていません。{% endif %}</p></div>
+  {% else %}
   <div class="stats-row">
     <div class="stat-card"><div class="stat-card-label">登録単語数</div><div class="stat-card-value">{{ words|length }}</div></div>
     <div class="stat-card"><div class="stat-card-label">録画登録</div><div class="stat-card-value">{{ words|selectattr("source","in",["recorded","manual"])|list|length }}</div></div>
@@ -175,6 +205,7 @@
       </tbody>
     </table>
   </div>
+  {% endif %}
 </div>
 
 <div class="modal-overlay" id="editModal">

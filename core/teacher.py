@@ -16,6 +16,13 @@ core/teacher.py
     どちらも無いときは誰も先生モードにできない（安全側に倒す）。
   - 総当たりを防ぐため、MAX_FAILS 回続けて間違えると LOCK_SECONDS 秒は受け付けない。
 
+先生モードの範囲（SCOPE_KEY）:
+  - SCOPE_ALL（研究者）… 先生用パスワードで ON にしたとき。全生徒の単語・お手本と
+    参加者アカウントの管理ができる。
+  - 生徒の ID（保護者）… 生徒の ID でログインした端末で、その生徒の保護者用パスワード
+    （core/accounts.py）で ON にしたとき。その生徒の単語・お手本だけを変えられる。
+    各家庭で保護者がお手本を録っても、他の家庭の生徒には影響しない。
+
 teacher.json の構造:
 {
   "password_hash": "scrypt:...",
@@ -41,6 +48,9 @@ ENV_PASSWORD = "SP_PS_TEACHER_PASSWORD"
 # Flask セッションに「先生モードの期限（UNIX 秒）」を入れるキー
 SESSION_KEY = "teacher_until"
 SESSION_MINUTES = 60
+# 先生モードの範囲（"*" なら研究者、生徒の ID なら保護者）
+SCOPE_KEY = "teacher_scope"
+SCOPE_ALL = "*"
 
 MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 128
@@ -115,13 +125,40 @@ def is_active(sess) -> bool:
     return False
 
 
-def activate(sess) -> None:
-    """先生モードを ON にする（すでに ON なら期限を延ばす）。"""
+def activate(sess, scope: str | None = None) -> None:
+    """先生モードを ON にする（すでに ON なら期限を延ばす）。
+
+    scope を渡したときだけ範囲を決め直す。渡さないとき（期限の延長）は範囲を変えない。
+    """
+    if scope is not None:
+        sess[SCOPE_KEY] = scope
     sess[SESSION_KEY] = time.time() + SESSION_MINUTES * 60
 
 
 def deactivate(sess) -> None:
     sess.pop(SESSION_KEY, None)
+    sess.pop(SCOPE_KEY, None)
+
+
+def scope(sess) -> str | None:
+    """先生モードの範囲。OFF なら None、研究者なら SCOPE_ALL、保護者なら生徒の ID。"""
+    if not is_active(sess):
+        return None
+    # 範囲を持たない古いセッションは、先生用パスワードで ON にしたもの（研究者）
+    return sess.get(SCOPE_KEY) or SCOPE_ALL
+
+
+def is_researcher(sess) -> bool:
+    """先生用パスワード（研究者）で ON にした先生モードか。"""
+    return scope(sess) == SCOPE_ALL
+
+
+def can_edit_user(sess, user_id: str | None) -> bool:
+    """この生徒の単語・お手本を変えてよい先生モードか。"""
+    sc = scope(sess)
+    if sc is None:
+        return False
+    return sc == SCOPE_ALL or (bool(user_id) and sc == user_id)
 
 
 # ── 総当たり対策 ─────────────────────────────────────────────────────

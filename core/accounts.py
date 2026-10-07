@@ -13,12 +13,20 @@ core/accounts.py
 grade / hearing_level は調査票由来のため、研究者のみが管理画面から入力・変更する。
 参加者が初回ログインで設定するのはパスワードのみ。
 
+保護者用パスワード（family_password_hash）:
+  生徒は各自の家で使い、保護者が家でお手本を録ったり単語を追加したりする。
+  研究者が生徒ごとに保護者用パスワードを決めて保護者に渡す。その生徒の ID で
+  ログインした端末でこのパスワードを入れると、その生徒の単語・お手本だけを
+  変えられる先生モードになる（core/teacher.py）。他の生徒のデータと
+  参加者アカウントの管理には届かない。平文は保持しない。
+
 accounts.json の構造:
 {
   "A01": {
     "user_id":       "A01",
     "password_hash": "scrypt:...",           # 未設定時は null
     "password_set":  true,
+    "family_password_hash": "scrypt:...",    # 保護者用。未設定時は無いか null
     "profile": {
       "grade":         "junior",
       "hearing_level": "moderate"
@@ -47,6 +55,8 @@ SESSION_KEY = "user_id"
 USER_ID_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 
 MIN_PASSWORD_LENGTH = 6
+# 保護者用パスワードは、生徒が当てて先生モードにできないよう長めにする（先生用と同じ）
+MIN_FAMILY_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 128
 
 # 学年は学部単位（中学部・高等部）に丸めて保持する（再識別リスク低減、資料 §5.3）。
@@ -96,9 +106,11 @@ def _now_iso() -> str:
 
 
 def _sanitize(account: dict) -> dict:
-    """password_hash を除いた表示用のコピーを返す。"""
-    safe = {k: v for k, v in account.items() if k != "password_hash"}
+    """パスワードのハッシュを除いた表示用のコピーを返す。"""
+    safe = {k: v for k, v in account.items()
+            if k not in ("password_hash", "family_password_hash")}
     safe["profile"] = dict(account.get("profile", {}))
+    safe["family_password_set"] = bool(account.get("family_password_hash"))
     return safe
 
 
@@ -220,6 +232,42 @@ def clear_password(user_id: str) -> dict:
     acc["updated_at"] = _now_iso()
     save_accounts(accounts)
     return _sanitize(acc)
+
+
+def set_family_password(user_id: str, password: str) -> dict:
+    """保護者用パスワードを研究者が設定（変更）する。"""
+    accounts = load_accounts()
+    acc = accounts.get((user_id or "").strip())
+    if not acc:
+        raise ValueError(f"利用者ID {user_id} は登録されていません")
+    pw = password or ""
+    if not (MIN_FAMILY_PASSWORD_LENGTH <= len(pw) <= MAX_PASSWORD_LENGTH):
+        raise ValueError(f"保護者用パスワードは{MIN_FAMILY_PASSWORD_LENGTH}〜{MAX_PASSWORD_LENGTH}文字にしてください")
+    acc["family_password_hash"] = generate_password_hash(pw)
+    acc["updated_at"] = _now_iso()
+    save_accounts(accounts)
+    return _sanitize(acc)
+
+
+def clear_family_password(user_id: str) -> dict:
+    """保護者用パスワードを消す（その家庭は先生モードにできなくなる）。"""
+    accounts = load_accounts()
+    acc = accounts.get((user_id or "").strip())
+    if not acc:
+        raise ValueError(f"利用者ID {user_id} は登録されていません")
+    acc["family_password_hash"] = None
+    acc["updated_at"] = _now_iso()
+    save_accounts(accounts)
+    return _sanitize(acc)
+
+
+def verify_family_password(user_id: str, password: str) -> bool:
+    """その生徒の保護者用パスワードか。未設定なら常に False。"""
+    acc = get_account(user_id)
+    stored = (acc or {}).get("family_password_hash")
+    if not stored or not isinstance(password, str) or not password:
+        return False
+    return check_password_hash(stored, password)
 
 
 def delete_account(user_id: str) -> dict:
