@@ -1194,13 +1194,16 @@ def export_history_csv():
     history = load_history()
     output  = io.StringIO()
     writer  = csv.writer(output)
-    writer.writerow(["日時","単語ID","単語","読み","合計点","アクセント","長さ","母音","グレード"])
+    # 口と声の列は 2026-09-29 に追加。既存の列の位置を変えないよう末尾に置く（空欄＝点数に入れていない回）
+    writer.writerow(["日時","単語ID","単語","読み","合計点","アクセント","長さ","母音","グレード",
+                     "口と声の減点","口と声のばらつき(ms)"])
     for r in history:
         writer.writerow([
             (r.get("timestamp") or "")[:19].replace("T"," "),
             r.get("word_id",""), r.get("display",""), r.get("reading",""),
             r.get("total",""), r.get("accent_score",""), r.get("length_score",""),
             r.get("vowel_score",""), r.get("grade",""),
+            r.get("sync_penalty",""), r.get("sync_spread_ms",""),
         ])
     return Response("\ufeff" + output.getvalue(),
                     mimetype="text/csv; charset=utf-8",
@@ -1700,7 +1703,7 @@ def audio_analysis():
         display    = word_entry.get("display", word_id) if word_entry else word_id
         reading    = word_entry.get("reading", word_id) if word_entry else word_id
 
-        # ── 音映像クロスチェック（口と声の同期分析・表示のみ採点に非影響） ──
+        # ── 音映像クロスチェック（口と声の同期分析。人が気づく範囲を超えてずれた音があれば合計点から少し引く） ──
         av_sync = None
         if (reference_vectors and 'test_vectors' in locals()
                 and mora_list1 and mora_list2):
@@ -1839,6 +1842,7 @@ def audio_analysis():
             mora_labels=mora1, pitch_fin=pitch_fin_score.tolist(),
             pitch_user_raw=pitch_user_raw, pitch_native_raw=pitch_native_raw,
             vowel_score=vowel_score, vowel_feedback=vowel_feedback,
+            av_sync=av_sync,
         )
         score_result["alignment_failed"] = False
         score_result["julius_score"]     = julius_score

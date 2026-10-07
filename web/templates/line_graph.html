@@ -212,6 +212,10 @@
     .rc-axis.mid .ax-bar i { background:linear-gradient(90deg, color-mix(in srgb, var(--mid) 60%, #fff), var(--mid)); }
     .rc-axis.ng  .ax-bar i { background:linear-gradient(90deg, color-mix(in srgb, var(--todo-bar) 60%, #fff), var(--todo-bar)); }
     .rc-axes-legend { margin-top:14px; padding-top:12px; border-top:1px solid var(--border-light); font-size:12px; color:var(--text-3); }
+    .rc-sync { display:flex; align-items:center; gap:8px; width:100%; margin-top:14px; padding:10px 12px; border:none; border-radius:14px;
+               background:var(--mid-bg); color:var(--mid-text); font-family:var(--font); font-size:13px; line-height:1.5; text-align:left; cursor:pointer; }
+    .rc-sync .ic { flex:none; }
+    .rc-sync-go { margin-left:auto; display:flex; align-items:center; gap:2px; font-size:12px; font-weight:700; white-space:nowrap; }
 
     /* ── つぎの行動（画面下に固定） ── */
     .result-actions { display:flex; gap:10px; max-width:1080px; margin:0 auto; padding-left:16px; padding-right:16px; }
@@ -238,6 +242,7 @@
     .compare-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; }
     .compare-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
     .compare-item { text-align:center; }
+    .compare-note { margin:10px 0 0; font-size:12px; color:var(--text-2); line-height:1.6; }
     .compare-label { font-size:9px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-2); margin-bottom:3px; }
     .compare-now  { font-family:var(--mono); font-size:16px; font-weight:500; color:var(--text); }
     .compare-prev { font-family:var(--mono); font-size:10px; color:var(--text-2); }
@@ -750,6 +755,18 @@
       {{ axis_row('長さ', l_pct, 'のばし方・リズム') }}
       {{ axis_row('口の形', v_pct, '母音の形') }}
     </div>
+    {#
+      口と声のタイミングの減点（core/sync.calc_sync_penalty、最大5点）
+      引いたときだけ出す。3軸のバーの合計と点数が合わない理由がここで分かるようにし、
+      どこがずれたかは「口と声」タブで確かめられるようにする。
+    #}
+    {% if score.sync_penalty %}
+    <button type="button" class="rc-sync" onclick="showResultPanel('sync')">
+      {{ icon('alert', size=16) }}
+      <span>口と声のタイミングがずれていたので <b>{{ score.sync_penalty }}点</b> 引いています</span>
+      <span class="rc-sync-go">見る{{ icon('arrow-right', size=14) }}</span>
+    </button>
+    {% endif %}
     <div class="rc-axes-legend">◎ できている　○ もう少し　△ ここを直す</div>
   </div>
 
@@ -978,7 +995,9 @@
     「口を動かしているのに声が遅れる」「声だけ先に出る」を見つけられる。
     ミリ秒の数値そのものは生徒には意味が取れないので、
     中央＝声と同時、右＝口が遅い、左＝口が先、の帯で見せる。
-    採点には入らないので、その旨も添える（減点されたと誤解させない）。
+    2026-09-29 から、人が気づく範囲を超えてずれた音があるときだけ合計点から少し（最大5点）引く
+    （範囲は文献による。core/sync.py）。何点引いたか・どの音か・引かなかった理由を、
+    このカードの下に必ず添える。
   #}
   {% if av_sync %}
   {% set rel = [] %}
@@ -1109,7 +1128,16 @@
         {% endif %}
       {% endif %}
     </div>
-    <div class="av-note">口と声がそろっていると、相手に伝わりやすくなります。ここは点数には入りません（ためし運用中）。</div>
+    <div class="av-note">
+      口と声がそろっていると、相手に伝わりやすくなります。
+      {% if score and score.sync_penalty %}
+        {% set vf = (score.sync_over or []) | selectattr('voice_first') | map(attribute='label') | list %}
+        {% set mf = (score.sync_over or []) | rejectattr('voice_first') | map(attribute='label') | list %}
+        {% if vf %}「{{ vf | join('」「') }}」で声が口より先に出ていて、{% endif %}{% if mf %}「{{ mf | join('」「') }}」で口が声よりかなり先に動いていて、{% endif %}人が気づくずれの大きさを超えていたので、合計点から <b>{{ score.sync_penalty }}点</b> 引いています（いちばん多くて{{ score.sync_penalty_max|int }}点）。
+      {% elif score and score.sync_penalty is not none %}今回は点数を引いていません。
+      {% elif score and score.sync_note %}{{ score.sync_note }}
+      {% endif %}
+    </div>
 
     <details class="av-sync-details" id="avSyncDetails">
       <summary>くわしい数値</summary>
@@ -1119,6 +1147,9 @@
         {% endfor %}
       </div>
       <p class="av-sync-note">値は発話全体の平均的なずれ（{{ av_sync.median_offset_ms }}ms・録画開始タイミングの機材差を含む）を基準にした相対値です。プラス＝口が声より遅い、マイナス＝口が先行。</p>
+      {% if av_sync.margin_ms is defined %}
+      <p class="av-sync-note">点数に使う範囲：口が遅い（声が先）は 45ms まで、口が先は 200ms まで（人が気づかず、聞き取りも下がらない範囲。Grant ほか 2003 など）。これに測定の誤差として、動画のコマの間隔から {{ av_sync.margin_ms }}ms を足しています。範囲を超えた分は 400ms で最大になるよう直線で数えます。</p>
+      {% endif %}
     </details>
   </div>
 
@@ -1321,6 +1352,12 @@
       </div>
       {% endfor %}
     </div>
+    {# 口と声の減点がある回は、3項目を足しても合計に合わない。その理由をここで示す #}
+    {% set sp_now  = score.sync_penalty or 0 %}
+    {% set sp_prev = prev_score.sync_penalty or 0 %}
+    {% if sp_now or sp_prev %}
+    <p class="compare-note">合計は、3項目の和から口と声のタイミングの減点を引いた点数です（今回 {% if sp_now %}−{{ sp_now }}点{% else %}なし{% endif %}・前回 {% if sp_prev %}−{{ sp_prev }}点{% else %}なし{% endif %}）。</p>
+    {% endif %}
   </div>
   {% endif %}
 
