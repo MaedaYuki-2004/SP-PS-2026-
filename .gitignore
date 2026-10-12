@@ -66,6 +66,7 @@ MANIFEST
 
 # 仮想環境
 .env
+.tmp/
 .venv
 env/
 venv/

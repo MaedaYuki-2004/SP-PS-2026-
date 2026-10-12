@@ -413,6 +413,89 @@ python app.py
 
 ---
 
+### スマートフォンで使う（Cloudflare Tunnel）
+
+アプリの解析・保存はMacで行い、Cloudflare Tunnelは通信を中継します。
+まず独自ドメイン不要のQuick Tunnelで試験し、継続運用では独自ドメインを
+Cloudflareに登録して固定URLのTunnelを用意してください。
+
+**Macでの接続テスト**（プロジェクトのフォルダ・仮想環境で実行）:
+
+```bash
+# 初回のみ。Homebrewが必要
+brew install cloudflared
+python -m pip install "qrcode[pil]"
+
+# 1つ目のターミナル
+HOST=127.0.0.1 TRUSTED_PROXY=cloudflare FLASK_ENV=production python app.py
+
+# 2つ目のターミナル
+cloudflared tunnel --url http://127.0.0.1:5000
+```
+
+表示された `https://….trycloudflare.com` をスマホのSafari/Chromeで開き、
+ログイン、マイク・カメラの許可、録音・録画の送信、解析結果を確認します。
+Macと両方のプロセスは起動したままにします。Macのスリープ中は利用できません。
+Quick TunnelのURLは起動ごとに変わります。固定URLではCloudflare側の公開先を
+`http://127.0.0.1:5000` に設定します。
+
+**Windows / VS CodeのPowerShellで試す場合**:
+
+```powershell
+# 初回のみ（インストール後は新しいターミナルを開く）
+winget install --id Cloudflare.cloudflared --exact
+python -m pip install "qrcode[pil]"
+
+# 1つ目のターミナル
+$env:HOST = "127.0.0.1"
+$env:TRUSTED_PROXY = "cloudflare"
+$env:FLASK_ENV = "production"
+python app.py
+
+# 2つ目のターミナル
+cloudflared tunnel --url http://127.0.0.1:5000
+```
+
+`cloudflared` が見つからない場合、標準のインストール先なら
+`& 'C:\Program Files (x86)\cloudflared\cloudflared.exe' tunnel --url http://127.0.0.1:5000`
+で起動できます。Windowsで起動した場合は、解析と保存もWindows上で行われます。
+
+**QR画像の生成**（3つ目のターミナル。URLを実際の公開URLに置き換える）:
+
+```bash
+export PUBLIC_BASE_URL="https://実際の公開先"
+python scripts/make_access_qr.py
+```
+
+`data/access_qr.png` が生成されます。外部のQR生成サービスへURLを送らず、
+ローカルで作成します。既存画像を上書きしないため、再生成は
+`python scripts/make_access_qr.py --output data/access_qr_new.png` としてください。
+WindowsのPowerShellでは `$env:PUBLIC_BASE_URL="https://実際の公開先"` と設定します。
+環境変数は各ターミナルで設定します。`.env` の自動読み込みはありません。
+
+QRを読むと公開URLが表示され、そのURLを開くと既存のログイン画面に進みます。
+`PUBLIC_BASE_URL` はQR生成用の設定で、ドメイン登録やアクセス制限を行うものではありません。
+ランダムなパスを付けただけではアクセス制限にはなりません。期限付き招待URLは未実装です。
+URLを知っている人はアクセスできるため、参加者ログイン・先生用パスワードは引き続き必要です。
+
+**接続元と公開設定**:
+
+- `TRUSTED_PROXY=cloudflare` のときだけ、ループバックからの接続の
+  `CF-Connecting-IP` を検証して試行制限に使います。不正・未設定のIPは接続元に戻します。
+- `TRUSTED_PROXY` 未設定では転送ヘッダーを信用しません。ngrokは明示的に `ngrok` を設定します。
+- Mac内のプロセスはヘッダーを偽装できるため、信頼できるMacで中継を動かすことが前提です。
+- 同じWi-Fiの利用者は公開IPを共有し、先生パスワードの試行制限を共有する場合があります。
+- デバッグは既定で無効です。開発時だけ `FLASK_ENV=development` を指定してください。
+- 継続公開ではFlask開発サーバーではなく、例えばMacで
+  `TRUSTED_PROXY=cloudflare gunicorn --workers 1 --threads 1 --timeout 300 --bind 127.0.0.1:5000 app:app`
+  を使います。解析中は他の要求が待つため、実データで応答時間を確認してください。
+  試行制限と解析状態がプロセス内にあるため、複数ワーカーでの運用は別途設計が必要です。
+
+通信はCloudflareを経由し、通常のHTTPS中継ではCloudflareで一度復号されます。
+Cloudflareにも内容を読ませない暗号化とは異なります。
+[公式手順](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)・
+[接続元ヘッダー](https://developers.cloudflare.com/fundamentals/reference/http-headers/)
+
 ### スマートフォンで使う（ngrok）
 
 本アプリはスマートフォンでの利用を主に想定していますが、**PC の IP アドレスに
@@ -458,6 +541,9 @@ python app.py
 ```
 
 `app.py` は `host="0.0.0.0"` で待ち受けるため、追加の設定は不要です。
+ngrok経由の接続元を試行制限に使う場合は、起動時に明示的に設定します。
+Macでは `TRUSTED_PROXY=ngrok python app.py`、PowerShellでは
+`$env:TRUSTED_PROXY="ngrok"` を設定してから `python app.py` を実行してください。
 
 **3. ngrok を起動する**（2つ目のターミナル。アプリは起動したままにする）
 
@@ -1918,7 +2004,7 @@ app.py の teardown_request
 
 - 先生用パスワードは `python scripts/set_teacher_password.py` で設定し、ハッシュだけを `data/config/teacher.json` に保存します。環境変数 `SP_PS_TEACHER_PASSWORD` があればそちらを優先します。どちらも無いときは誰も先生モードにできません
 - 先生モードの期限（`session["teacher_until"]`）は、最後に先生の操作をしてから60分。ログアウト・ログインでも消えます
-- 同じ接続元から5回続けて間違えると、60秒は受け付けません（総当たり対策）。ngrok のように同じ PC 上の中継を通ると全員の接続元が 127.0.0.1 に見えるため、そのときだけ中継が付ける `X-Forwarded-For` の末尾の値で端末を区別します（`app.py` の `_client_key()`）。PC に直接つないだ端末のこのヘッダーは信用しません。Railway など別のマシンの中継を通る場合は区別できず、全員が1つの接続元として数えられます
+- 同じ接続元から5回続けて間違えると、60秒は受け付けません（総当たり対策）。`TRUSTED_PROXY=cloudflare` では `CF-Connecting-IP`、`TRUSTED_PROXY=ngrok` では `X-Forwarded-For` の末尾のIPを使います。どちらも同じPCからのループバック接続に限り、正しいIPだけを受け付けます。未設定では転送ヘッダーを信用しません（`app.py` の `_client_key()`）。同じWi-Fiなどで公開IPを共有する利用者は制限も共有します。別マシンの中継を信頼する構成は未対応です。
 - 画面の出し分けは、サーバーが `<html class="teacher-mode">` を付けて行います（以前は端末の保存値で決めていたため、生徒が設定から ON にできました）
 - 最初の参加者アカウントを作る前にも使えるよう、`/admin` 配下は参加者ログインを求めません
 

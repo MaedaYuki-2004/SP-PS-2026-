@@ -1,6 +1,7 @@
 # Web フレームワーク
 Flask
 gunicorn
+qrcode[pil]
 
 # 音声処理
 librosa

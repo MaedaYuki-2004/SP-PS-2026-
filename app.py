@@ -52,6 +52,7 @@ from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
 from core import teacher
 from core import usercontext
+from core.public_access import client_key
 
 # Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
 # 以前は -3000 だったが、extract_julius_score() が返すのは 1フレームあたりの値（正常で -25〜-30 程度）
@@ -902,23 +903,10 @@ def _safe_next(target: str | None, default: str = "/admin") -> str:
     return default
 
 
-_LOOPBACK_ADDRS = {"127.0.0.1", "::1"}
-
-
 def _client_key() -> str:
-    """先生用パスワードの総当たり対策で、続けて間違えた回数を数える接続元。
-
-    ngrok のように同じ PC で動く中継を通ると、どの端末からの接続も 127.0.0.1 に見える。
-    そのまま数えると、生徒が5回間違えるだけで先生もしばらく入れなくなってしまう。
-    接続元が同じ PC（ループバック）のときだけ、中継が X-Forwarded-For の末尾に付けた
-    接続元を使う。PC に直接つないだ端末はこのヘッダーを自由に書けるので、それ以外では信用しない。
-    """
-    remote = request.remote_addr or "unknown"
-    if remote in _LOOPBACK_ADDRS:
-        forwarded = (request.headers.get("X-Forwarded-For") or "").split(",")[-1].strip()
-        if forwarded:
-            return forwarded
-    return remote
+    """信頼する中継を明示した場合だけ、ループバック経由の接続元IPを読む。"""
+    return client_key(request.remote_addr, request.headers,
+                      os.environ.get("TRUSTED_PROXY", "none").strip().lower())
 
 
 def _teacher_try_unlock(password: str) -> tuple[bool, str | None, int]:
@@ -2243,5 +2231,5 @@ ensure_directories()
 
 if __name__ == "__main__":
     _port  = int(os.environ.get("PORT", 5000))
-    _debug = os.environ.get("FLASK_ENV", "development") == "development"
-    app.run(host="0.0.0.0", port=_port, debug=_debug)
+    _debug = os.environ.get("FLASK_ENV", "production") == "development"
+    app.run(host=os.environ.get("HOST", "0.0.0.0"), port=_port, debug=_debug)
