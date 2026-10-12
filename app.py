@@ -19,6 +19,10 @@ from functools import wraps
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
+# librosa/NumbaがPythonのインストール先へキャッシュを書こうとして
+# 権限制限下で止まることを防ぐ。明示された設定は優先する。
+os.environ.setdefault("NUMBA_CACHE_DIR", str(Path(__file__).resolve().parent / ".tmp" / "numba-cache"))
+
 try:
     import cv2
     import mediapipe as mp
