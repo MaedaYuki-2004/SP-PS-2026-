@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SP-PS 保護者用手順書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800&family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+<style>
+/* Layout: 1列の手順書。左にスマホの画面、右に説明。印刷すると A4 縦の冊子になる。
+   色はアプリ本体（デザインシステム v5）の青紫と、◎○△ の3色をそのまま使う。 */
+:root {
+  --paper: #F5F4FA;
+  --sheet: #FFFFFF;
+  --ink: #16152A;
+  --ink-2: #47465E;
+  --ink-3: #66657E;
+  --line: #E1DFEE;
+  --brand: #5B4BEA;
+  --brand-ink: #3F31C2;
+  --brand-soft: #EEEBFF;
+  --on-brand: #FFFFFF;
+  --rec: #D63C43;
+  --rec-soft: #FCE9EA;
+  --good: #1B7F5B;
+  --good-bg: #E4F5EC;
+  --mid: #8A5A0A;
+  --mid-bg: #FCF1DD;
+  --todo: #B8481F;
+  --todo-bg: #FDEDE6;
+  --bezel: #1C1B2B;
+  --shot-bg: #F4F4F9;
+  --mk-bg: #16152A;
+  --mk-ring: #FFFFFF;
+  --shadow: rgba(22, 21, 42, .28);
+  --f-head: "M PLUS Rounded 1c", "Noto Sans JP", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  --f-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --f-num: "Plus Jakarta Sans", "Noto Sans JP", system-ui, sans-serif;
+}
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12111F; --sheet: #1B1A2D; --ink: #EDECF8; --ink-2: #C0BED6; --ink-3: #9C9AB5;
+    --line: #302E48; --brand: #9C92FF; --brand-ink: #B9B2FF; --brand-soft: #27234A; --on-brand: #14122A;
+    --rec: #F0727A; --rec-soft: #3A1D22; --good: #6BD0A3; --good-bg: #16352A; --mid: #F2C46B; --mid-bg: #3A2D12;
+    --todo: #F49A78; --todo-bg: #3D2219; --bezel: #050510; --shot-bg: #F4F4F9; --shadow: rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+}
+@media screen {
+  :root[data-theme="dark"] {
+    --paper: #12111F; --sheet: #1B1A2D; --ink: #EDECF8; --ink-2: #C0BED6; --ink-3: #9C9AB5;
+    --line: #302E48; --brand: #9C92FF; --brand-ink: #B9B2FF; --brand-soft: #27234A; --on-brand: #14122A;
+    --rec: #F0727A; --rec-soft: #3A1D22; --good: #6BD0A3; --good-bg: #16352A; --mid: #F2C46B; --mid-bg: #3A2D12;
+    --todo: #F49A78; --todo-bg: #3D2219; --bezel: #050510; --shot-bg: #F4F4F9; --shadow: rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.85; }
+.doc { max-width: 900px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 72px; }
+h1, h2, h3 { font-family: var(--f-head); font-weight: 800; text-wrap: balance; margin: 0; letter-spacing: .01em; }
+p { margin: 0; }
+b, strong { font-weight: 700; }
+a { color: var(--brand-ink); }
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+
+/* ── 表紙 ── */
+.cover { background: var(--sheet); border: 1px solid var(--line); border-radius: 26px; padding: 30px clamp(20px, 4vw, 40px) 32px; display: grid; gap: 22px; }
+.brandline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mark { width: 46px; height: 46px; border-radius: 14px; background: var(--brand-soft); display: grid; place-items: center; flex: none; }
+.mark svg { width: 34px; height: 34px; }
+.mark ellipse { fill: var(--brand-ink); }
+.brandname { font-family: var(--f-num); font-weight: 800; font-size: 22px; letter-spacing: .02em; }
+.aud { font-weight: 700; font-size: 14px; color: var(--on-brand); background: var(--brand); padding: 3px 14px; border-radius: 999px; }
+.edition { margin-left: auto; font-size: 13px; color: var(--ink-3); }
+.cover h1 { font-size: clamp(32px, 6vw, 48px); line-height: 1.2; }
+.lead { font-size: 17px; color: var(--ink-2); max-width: 38em; }
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; counter-reset: flow; }
+.flow li { counter-increment: flow; background: var(--brand-soft); border-radius: 18px; padding: 14px 16px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.flow li::before { content: counter(flow); font-family: var(--f-num); font-weight: 800; font-size: 26px; line-height: 1; color: var(--brand-ink); }
+.flow b { font-family: var(--f-head); font-size: 17px; }
+.flow span { font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+.need { display: grid; gap: 8px; }
+.need h2 { font-size: 16px; color: var(--ink-2); }
+.need ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.need li { border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 15px; background: var(--paper); }
+
+/* 記入欄（印刷して使うとき、先生・学校が書きこむ） */
+.fill { border: 2px dashed var(--line); border-radius: 18px; padding: 16px 18px; display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 18px; align-items: stretch; }
+.fill.noqr { grid-template-columns: minmax(0, 1fr); }
+.fill-qr { border: 1.5px solid var(--line); border-radius: 12px; display: grid; place-items: center; text-align: center; font-size: 13px; color: var(--ink-3); aspect-ratio: 1; max-width: 100%; line-height: 1.5; }
+.fill-body { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.fill-title { font-weight: 700; font-size: 15px; }
+.fill-title small { font-weight: 400; color: var(--ink-3); font-size: 13px; margin-left: 6px; }
+.fill-line { border-bottom: 1.5px solid var(--line); padding-bottom: 6px; font-size: 14px; color: var(--ink-3); min-height: 34px; display: flex; align-items: flex-end; }
+
+/* ── もくじ ── */
+.toc { margin-top: 28px; }
+.toc h2 { font-size: 18px; margin-bottom: 10px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 18px; }
+.toc a { display: flex; gap: 12px; align-items: baseline; padding: 6px 4px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink); }
+.toc a span { font-family: var(--f-num); font-weight: 800; color: var(--brand-ink); min-width: 1.6em; font-variant-numeric: tabular-nums; }
+.toc a:hover { color: var(--brand-ink); }
+
+/* ── 章 ── */
+.chap { margin-top: 64px; scroll-margin-top: 16px; }
+.chap-head { display: flex; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+.chap-no { font-family: var(--f-num); font-weight: 800; font-size: 44px; line-height: 1; color: var(--brand); font-variant-numeric: tabular-nums; min-width: 1.1em; }
+.chap-head h2 { font-size: clamp(24px, 4vw, 30px); line-height: 1.3; }
+.chap-lead { margin-top: 14px; color: var(--ink-2); max-width: 40em; }
+
+/* ── 手順（左に画面、右に説明） ── */
+.step { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 30px; align-items: start; padding-block: 28px; border-bottom: 1px dashed var(--line); }
+.step:last-child { border-bottom: 0; }
+.step.wide { grid-template-columns: minmax(0, 1fr); }
+.step-text { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.step h3 { font-size: 21px; line-height: 1.4; display: flex; align-items: center; gap: 12px; }
+.sn { font-family: var(--f-num); font-weight: 800; font-size: 15px; color: var(--brand-ink); background: var(--brand-soft); border-radius: 10px; min-width: 34px; height: 30px; display: inline-grid; place-items: center; padding-inline: 8px; flex: none; font-variant-numeric: tabular-nums; }
+.step-text p { max-width: 34em; }
+.shots { display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+/* スマホの画面（枠つき） */
+.phone { position: relative; margin: 0; padding: 7px; border-radius: 34px; background: var(--bezel); box-shadow: 0 14px 30px -16px var(--shadow); max-width: 100%; }
+.screen { position: relative; }
+.screen img { display: block; width: 100%; height: auto; border-radius: 27px; background: var(--shot-bg); }
+/* 画面の一部（カードの切り抜き） */
+.crop { margin: 0; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: var(--shot-bg); box-shadow: 0 10px 24px -18px var(--shadow); max-width: 100%; }
+.crop img { display: block; width: 100%; height: auto; }
+.step-text .crop { max-width: 340px; }
+.nw { white-space: nowrap; }
+figcaption { font-size: 13px; color: var(--ink-3); line-height: 1.6; margin-top: 8px; }
+.phone figcaption { color: #C9C7DA; text-align: center; margin: 8px 4px 4px; }
+
+/* 画面の上の番号の印と、その説明 */
+.mk { position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; background: var(--mk-bg); color: var(--mk-ring); font: 800 14px/26px var(--f-num); text-align: center; box-shadow: 0 0 0 2.5px var(--mk-ring), 0 3px 8px rgba(0, 0, 0, .35); font-style: normal; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.legend li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; align-items: start; }
+.legend .mk, .mk.inline { position: static; transform: none; margin-top: 2px; box-shadow: 0 0 0 2px var(--mk-ring); }
+.mk.inline { display: inline-block; vertical-align: -6px; margin: 0 2px; }
+.legend b { display: block; }
+.legend span { color: var(--ink-2); font-size: 15px; line-height: 1.7; }
+
+/* ボタンの名前（画面に出ている文字） */
+.ui { display: inline-block; font-weight: 700; font-size: .92em; line-height: 1.5; padding: 0 9px; margin-inline: 2px; border-radius: 8px; border: 1.5px solid var(--brand); color: var(--brand-ink); background: var(--sheet); white-space: nowrap; }
+.ui.rec { border-color: var(--rec); color: var(--rec); }
+
+/* ポイント・注意 */
+.note { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; padding: 12px 16px; border-radius: 14px; background: var(--brand-soft); font-size: 15px; line-height: 1.75; }
+.note svg { width: 20px; height: 20px; margin-top: 3px; stroke: var(--brand-ink); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.note .lab { font-weight: 700; color: var(--brand-ink); margin-right: 6px; }
+.note.warn { background: var(--mid-bg); }
+.note.warn svg { stroke: var(--mid); }
+.note.warn .lab { color: var(--mid); }
+
+/* ◎○△ とランク */
+.evs { display: flex; flex-wrap: wrap; gap: 8px; }
+.ev { display: inline-flex; align-items: center; gap: 6px; padding: 2px 12px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+.ev-good { background: var(--good-bg); color: var(--good); }
+.ev-mid { background: var(--mid-bg); color: var(--mid); }
+.ev-todo { background: var(--todo-bg); color: var(--todo); }
+.rank { display: grid; gap: 6px; }
+.rank-bar { display: flex; height: 44px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.rank-bar span { display: grid; place-items: center; font-family: var(--f-num); font-weight: 800; font-size: 17px; border-bottom: 5px solid currentColor; min-width: 0; }
+.r-d { flex: 40; background: var(--todo-bg); color: var(--todo); }
+.r-c { flex: 20; background: var(--todo-bg); color: var(--todo); border-left: 1px solid var(--sheet); }
+.r-b { flex: 15; background: var(--mid-bg); color: var(--mid); }
+.r-a { flex: 15; background: var(--good-bg); color: var(--good); }
+.r-s { flex: 10; background: var(--brand-soft); color: var(--brand-ink); }
+.rank-ticks { position: relative; height: 20px; font-family: var(--f-num); font-weight: 700; font-size: 12.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rank-ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.rank-ticks span:first-child { transform: none; }
+.rank-ticks span:last-child { transform: translateX(-100%); }
+.rank-cap { font-size: 14px; color: var(--ink-2); }
+
+/* 画面を2つ・3つならべる */
+.duo, .trio { display: grid; gap: 22px; align-items: start; }
+.duo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.trio { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.duo > figure, .trio > figure { margin: 0; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.cap { font-size: 14.5px; line-height: 1.7; color: var(--ink-2); }
+.cap b { display: block; color: var(--ink); font-family: var(--f-head); font-size: 17px; margin-bottom: 2px; }
+.narrow-phone { max-width: 260px; }
+
+/* よくあるこまりごと */
+.qa { display: grid; gap: 14px; padding-block: 24px; border-bottom: 1px dashed var(--line); }
+.qa:last-child { border-bottom: 0; }
+.qa h3 { font-size: 19px; display: flex; gap: 10px; align-items: baseline; }
+.qa h3::before { content: "Q"; font-family: var(--f-num); font-weight: 800; color: var(--brand); font-size: 22px; }
+.qa ol, .qa ul { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; }
+.plain { list-style: none; padding: 0 !important; }
+.tiles-list { display: grid; gap: 12px; }
+.tiles-list div { display: grid; gap: 2px; }
+.tiles-list b { font-family: var(--f-head); font-size: 17px; }
+.tiles-list span { color: var(--ink-2); font-size: 15px; }
+
+.colophon { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-3); display: grid; gap: 4px; }
+
+@media (max-width: 700px) {
+  .step { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .step > .shots, .step > figure { width: min(270px, 100%); justify-self: center; }
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .trio { grid-template-columns: minmax(0, 1fr); }
+  .trio > figure { width: min(270px, 100%); justify-self: center; }
+}
+@media (max-width: 520px) {
+  .duo { grid-template-columns: minmax(0, 1fr); }
+  .duo > figure { width: min(270px, 100%); justify-self: center; }
+  .fill { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; }
+  .edition { margin-left: 0; width: 100%; }
+}
+
+@page { size: A4; margin: 13mm 13mm 15mm; }
+@media print {
+  body { background: #FFFFFF; font-size: 10.5pt; line-height: 1.75; }
+  .doc { max-width: none; padding: 0; }
+  .cover { border-color: #DDDBEA; gap: 16px; padding: 22px 26px; }
+  .toc { break-inside: avoid; margin-top: 18px; }
+  .toc ol { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .chap { margin-top: 26px; }
+  .chap-head, .chap-lead { break-after: avoid; break-inside: avoid; }
+  .step { grid-template-columns: 50mm minmax(0, 1fr); gap: 7mm; padding-block: 12px; break-inside: avoid; }
+  .step.wide { grid-template-columns: minmax(0, 1fr); }
+  .narrow-phone { max-width: 50mm; }
+  .trio > figure, .duo > figure, .qa, .note, .fill, .cover, .rank { break-inside: avoid; }
+  .phone, .crop { box-shadow: none; }
+  .toc a { border-bottom-color: #E6E4F0; }
+  .step-text p { max-width: none; }
+}
+/* ── 保護者用：見出しは角ゴシック、テーマカラーは一段濃い藍色にして生徒用と見分ける ── */
+:root {
+  --brand: #3A2EA6;
+  --brand-ink: #30258F;
+  --brand-soft: #ECEAFA;
+  --f-head: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+}
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --brand: #ADA5FF; --brand-ink: #C4BEFF; --brand-soft: #25214A; }
+}
+@media screen {
+  :root[data-theme="dark"] { --brand: #ADA5FF; --brand-ink: #C4BEFF; --brand-soft: #25214A; }
+}
+h1, h2, h3 { font-weight: 700; letter-spacing: 0; }
+.cover h1 { font-size: clamp(30px, 5.4vw, 44px); }
+
+/* お子さんの練習の流れ（5枚の画面を横にならべる） */
+.strip-wrap { overflow-x: auto; padding-bottom: 6px; }
+.strip { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; counter-reset: strip; }
+.strip li { counter-increment: strip; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.strip .phone { padding: 4px; border-radius: 22px; }
+.strip .screen img { border-radius: 18px; }
+.strip p { font-size: 13.5px; line-height: 1.6; color: var(--ink-2); }
+.strip p::before { content: counter(strip); display: block; font-family: var(--f-num); font-weight: 800; font-size: 18px; color: var(--brand); }
+.strip b { color: var(--ink); display: block; }
+@media (max-width: 700px) {
+  .strip { grid-template-columns: repeat(5, 150px); }
+}
+
+/* 点数の内訳 */
+.mix { display: grid; gap: 8px; }
+.mix-bar { display: flex; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); min-height: 62px; }
+.mix-bar span { display: grid; align-content: center; gap: 0; padding: 8px 12px; min-width: 0; font-size: 13.5px; line-height: 1.4; color: var(--ink-2); }
+.mix-bar span b { font-family: var(--f-num); font-size: 20px; color: var(--ink); }
+.mx-a { flex: 50; background: var(--brand-soft); }
+.mx-l { flex: 30; background: var(--paper); border-left: 1px solid var(--line); }
+.mx-v { flex: 20; background: var(--brand-soft); border-left: 1px solid var(--line); }
+.mix-minus { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.mix-minus b { font-family: var(--f-num); color: var(--todo); background: var(--todo-bg); border-radius: 8px; padding: 0 8px; }
+
+/* 保存されるデータ */
+.data { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.data section { background: var(--sheet); border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.data h3 { font-size: 18px; display: flex; gap: 10px; align-items: center; }
+.data h3 i { font-style: normal; font-family: var(--f-num); font-weight: 800; font-size: 13px; padding: 1px 10px; border-radius: 999px; }
+.data .kept h3 i { background: var(--brand-soft); color: var(--brand-ink); }
+.data .gone h3 i { background: var(--good-bg); color: var(--good); }
+.data ul { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; font-size: 15px; line-height: 1.7; }
+.data li b { display: block; }
+.tips { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+.contact { margin-top: 40px; }
+@media (max-width: 640px) { .data { grid-template-columns: minmax(0, 1fr); } }
+@media print {
+  .strip { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .data section, .mix, .strip-wrap { break-inside: avoid; }
+}
+</style>
+
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/></symbol>
+</svg>
+
+<main class="doc">
+
+<header class="cover">
+  <div class="brandline">
+    <span class="mark" aria-hidden="true"><svg viewBox="0 0 96 96"><ellipse cx="24" cy="48" rx="8.5" ry="3.5"/><ellipse cx="48" cy="48" rx="8.5" ry="8"/><ellipse cx="72" cy="48" rx="8.5" ry="15"/></svg></span>
+    <span class="brandname">SP-PS</span>
+    <span class="aud">保護者用</span>
+    <span class="edition">手順書　2026年10月版</span>
+  </div>
+  <h1>ご家庭で <span class="nw">SP-PS</span> を使うために</h1>
+  <p class="lead">SP-PS（エスピー・ピーエス）は、聞こえにくさのある生徒が、声と口の形を目で見て確かめながら、日本語の発音を練習するためのWebアプリです。この手順書では、ご家庭でお子さんの練習を支えていただくための操作を説明します。</p>
+  <ol class="flow" aria-label="ご家庭でお願いしたいこと">
+    <li><b>はじめのログインを一緒に</b><span>お子さんが自分のパスワードを決めるのを見守ってください（3章）。</span></li>
+    <li><b>お手本を登録する</b><span>ご家族がお手本になる場合は、練習する単語を、口の動きと声で録画します（4章）。</span></li>
+    <li><b>練習を見守る</b><span>結果と記録を一緒に見て、「つぎは、ここだけ」を応援してください（7・8章）。</span></li>
+  </ol>
+  <div class="note"><svg aria-hidden="true"><use href="#i-bulb"/></svg><p>この手順書は操作の説明です。研究への参加や同意については、別にお渡しする説明文書をご確認ください。</p></div>
+  <div class="fill">
+    <div class="fill-qr">QRコードを<br>はる</div>
+    <div class="fill-body">
+      <div class="fill-title">学校からのお知らせ<small>学校で記入</small></div>
+      <div class="fill-line">URL：</div>
+      <div class="fill-line">使える時間：</div>
+      <div class="fill-line">お問い合わせ先：</div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc" aria-labelledby="toc-title">
+  <h2 id="toc-title">もくじ</h2>
+  <ol>
+    <li><a href="#about"><span>1</span>SP-PS でできること</a></li>
+    <li><a href="#prepare"><span>2</span>ご用意いただくもの</a></li>
+    <li><a href="#first"><span>3</span>はじめてのログイン</a></li>
+    <li><a href="#register"><span>4</span>単語とお手本を登録する</a></li>
+    <li><a href="#manage"><span>5</span>お手本の録り直し・単語の削除</a></li>
+    <li><a href="#flow"><span>6</span>お子さんの練習の流れ</a></li>
+    <li><a href="#result"><span>7</span>結果の見かたと声かけ</a></li>
+    <li><a href="#history"><span>8</span>記録で成長を見守る</a></li>
+    <li><a href="#data"><span>9</span>保存されるデータ</a></li>
+    <li><a href="#help"><span>10</span>こまったとき</a></li>
+  </ol>
+</nav>
+
+<!-- 1 -->
+<section class="chap" id="about">
+  <div class="chap-head"><span class="chap-no">1</span><h2>SP-PS でできること</h2></div>
+  <article class="step wide">
+    <div class="step-text">
+      <p>お子さんは、お手本の口の動きと声を見てから自分の発音を録音・録画し、お手本とのちがいを点数とグラフで確かめます。耳で聞き比べるのが難しくても、目で見て直すところが分かるように作られています。</p>
+      <ul class="tips">
+        <li><b>お手本を見る</b>：合成音声ではなく、ご家族や先生が録画した、実際の口の動きと声をお手本にします。</li>
+        <li><b>3つの観点でくらべる</b>：声の高さ（アクセント）、音の長さ、口の形（母音）を、お手本とくらべて点数にします。</li>
+        <li><b>口と声のタイミングを見る</b>：口の動きと声がそろっているかを調べます。</li>
+        <li><b>次の練習を提案する</b>：練習の記録から、苦手な音や、次に練習するとよい単語を示します。</li>
+      </ul>
+      <p>アプリのインストールは不要です。スマートフォンのブラウザで使います。1回の練習は1〜2分ほどです。</p>
+    </div>
+  </article>
+</section>
+
+<!-- 2 -->
+<section class="chap" id="prepare">
+  <div class="chap-head"><span class="chap-no">2</span><h2>ご用意いただくもの</h2></div>
+  <article class="step wide">
+    <div class="step-text">
+      <ul class="tips">
+        <li>カメラとマイクのついたスマートフォン（タブレットやパソコンでも使えます）</li>
+        <li>ブラウザ：iPhone は Safari、Android は Chrome</li>
+        <li>インターネットへの接続</li>
+        <li>お子さんの<b>利用者ID</b>（学校から配られます）</li>
+        <li>SP-PS の<b>QRコード</b>または<b>URL</b>（表紙の記入欄）</li>
+      </ul>
+      <div class="note"><svg aria-hidden="true"><use href="#i-bulb"/></svg><p><span class="lab">開き方</span>QRコードをスマートフォンのカメラで読み取り、表示されたURLを開きます。必ず <b>https://</b> で始まるURLから開いてください。https 以外で開くと、ブラウザの決まりにより、マイクとカメラが使えません。</p></div>
+      <div class="note warn"><svg aria-hidden="true"><use href="#i-alert"/></svg><p><span class="lab">使える時間</span>SP-PS は、担当者が管理するパソコンをサーバーにして動いています。そのパソコンが止まっているあいだは、ページが開きません。使える時間は、学校からのお知らせをご確認ください。</p></div>
+    </div>
+  </article>
+</section>
+
+<!-- 3 -->
+<section class="chap" id="first">
+  <div class="chap-head"><span class="chap-no">3</span><h2>はじめてのログイン</h2></div>
+  <p class="chap-lead">はじめての日は、お子さんと一緒に操作してください。</p>
+  <article class="step">
+    <figure class="phone"><div class="screen"><img src="img/s_login_first.jpg" width="640" height="1385" alt="ログイン画面。利用者IDの欄に sample02 と入力し、パスワードの欄は空欄。"></div></figure>
+    <div class="step-text">
+      <h3><span class="sn">1</span>利用者IDだけを入力する</h3>
+      <p>ログイン画面で、学校から配られた利用者IDを入力し、パスワードの欄は空欄のまま<span class="ui">ログイン</span>を押します。大文字と小文字は区別されます。</p>
+      <p>利用者IDは、お名前の代わりの番号です。SP-PS には、氏名や連絡先を入力する欄はありません。</p>
+    </div>
+  </article>
+  <article class="step">
+    <figure class="phone"><div class="screen"><img src="img/s_first_login_filled.jpg" width="640" height="1385" alt="はじめの設定の画面。パスワードと確認用のパスワードを入力したところ。"></div></figure>
+    <div class="step-text">
+      <h3><span class="sn">2</span>お子さんがパスワードを決める</h3>
+      <p>「はじめの設定」画面で、お子さんがパスワードを決めて、同じものを2回入力します（6文字以上）。<span class="ui">設定してはじめる</span>を押すと、使い方の説明（3枚）のあとにホーム画面が開きます。</p>
+      <p>2回目からは、利用者IDとパスワードでログインします。</p>
+      <div class="note"><svg aria-hidden="true"><use href="#i-bulb"/></svg><p><span class="lab">パスワード</span>パスワードは元に戻せない形（ハッシュ）に変換して保存されるため、学校や研究の担当者も見ることはできません。忘れたときは、担当の先生にご連絡ください。先生がパスワードを初期化すると、もう一度「はじめの設定」から決め直せます。練習の記録は消えません。</p></div>
+    </div>
+  </article>
+</section>
+
+<!-- 4 -->
+<section class="chap" id="register">
+  <div class="chap-head"><span class="chap-no">4</span><h2>練習する単語とお手本を登録する</h2></div>
+  <p class="chap-lead">ご家族がお手本になる場合は、<b>お子さんのアカウントでログインしたまま</b>、次の手順で単語を登録します。登録した単語とお手本はお子さんごとに保存され、ほかの生徒には見えません。学校の先生がお手本を登録する場合は、この章は読みとばしてかまいません。</p>
+
+  <article class="step wide">
+    <div class="step-text">
+      <h3>お手本を録画するときのコツ</h3>
+      <ul class="tips">
+        <li>明るい場所で、顔（とくに口元）がカメラにはっきり映るようにします。マスクは外してください。</li>
+        <li>まわりが静かな場所で録画します。テレビなどの音は消してください。</li>
+        <li>スマートフォンを顔の正面に置き、画面の点線の枠に顔を合わせます。</li>
+        <li>録画は<b>3秒</b>です。「録画開始」を押してから、ふだんの話し方で、はっきり<b>1回</b>言います。</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="step">
+    <figure class="phone"><div class="screen">
+      <img src="img/p_settings_addword.jpg" width="640" height="1385" alt="設定のシート。単語を追加（お手本録画つき）と、単語の管理の項目。">
+      <i class="mk" style="--x:4%;--y:58.5%">1</i>
+    </div></figure>
+    <div class="step-text">
+      <h3><span class="sn">1</span>設定から「単語を追加」を開く</h3>
+      <p>ホーム画面の右上の歯車（設定）を押し、<i class="mk inline">1</i> の<span class="ui">単語を追加（お手本録画つき）</span>を押します。</p>
+      <p>単語がまだ1つもないときは、ホーム画面の単語一覧にある<span class="ui">単語を追加</span>からも始められます。</p>
+    </div>
+  </article>
+
+  <article class="step">
+    <figure class="phone"><div class="screen"><img src="img/p_aw_step1.jpg" width="640" height="1385" alt="新しい単語を追加の画面。表示テキストに 電話、ひらがな読みに でんわ を入力したところ。"></div></figure>
+    <div class="step-text">
+      <h3><span class="sn">2</span>単語と読みを入力する</h3>
+      <p><b>表示テキスト</b>には画面に出る書き方（漢字でもかまいません）、<b>ひらがな読み</b>には読み方をひらがなで入力し、<span class="ui">次へ（お手本録画） →</span>を押します。</p>
+      <p>のばす音は「がっこう」のように書いても、「がっこー」のように「ー」で書いてもかまいません。</p>
+      <p>声の高さの型（アクセント）は、登録するときに自動で調べます。調べられない単語もありますが、登録と練習はできます。</p>
+    </div>
+  </article>
+
+  <article class="step">
+    <figure class="phone"><div class="screen"><img src="img/p_aw_step2.jpg" width="640" height="1385" alt="お手本を録画の画面。カメラの映像に点線の枠、MIC のバー、準備完了のメッセージ、録画開始（3秒）のボタン。"></div></figure>
+    <div class="step-text">
+      <h3><span class="sn">3</span>カメラとマイクを確かめる</h3>
+      <p>カメラが起動します。顔を点線の枠に合わせ、「準備完了。『録画開始』を押してください。」と表示されたら準備ができています。</p>
+      <p>声を出したときに、<b>MIC</b> のバーが動くことも確かめてください。動かないときは、マイクが音を拾えていません。</p>
+    </div>
+  </article>
+
+  <article class="step">
+    <figure class="phone"><div class="screen"><img src="img/p_aw_recording.jpg" width="640" height="1385" alt="録画中の画面。録画中… 2秒 の表示。"></div></figure>
+    <div class="step-text">
+      <h3><span class="sn">4</span>3秒間、録画する</h3>
+      <p><span class="ui">録画開始（3秒）</span>を押し、単語をはっきり1回言います。3秒たつと自動で止まり、登録が始まります。</p>
+    </div>
+  </article>
+
+  <article class="step">
+    <figure class="phone"><div class="screen"><img src="img/p_aw_done.jpg" width="640" height="1385" alt="「電話」を追加しました（お手本つき）の画面。続けて単語を追加、完了して一覧に戻る のボタン。"></div></figure>
+    <div class="step-text">
+      <h3><span class="sn">5</span>登録の完了</h3>
+      <p>「追加しました（お手本つき）」と表示されたら完了です。続けて登録するときは<span class="ui">＋ 続けて単語を追加</span>、終わるときは<span class="ui">完了して一覧に戻る</span>を押します。</p>
+      <figure class="crop"><img src="img/p_wordcard_new.jpg" width="716" height="468" alt="ホームの単語カード「電話」。まだ練習していません の表示。"></figure>
+      <p>ホームの単語一覧に追加され、お子さんが練習を始められます。</p>
+    </div>
+  </article>
+
+  <article class="step wide">
+    <div class="step-text">
+      <div class="note warn"><svg aria-hidden="true"><use href="#i-alert"/></svg><p><span class="lab">登録できなかったとき</span>「発音が認識できませんでした」と表示されたときは、声を聞き取れなかったため登録していません。静かな場所で、マイクがミュートになっていないか確かめて、もう一度はっきり発音して録画してください。「マイクの音が検出できなかったため、登録していません。」と表示されたときは、MIC のバーが動くことを確かめてから録画し直してください。</p></div>
+    </div>
+  </article>
+</section>
+
+<!-- 5 -->
+<section class="chap" id="manage">
+  <div class="chap-head"><span class="chap-no">5</span><h2>お手本の録り直し・単語の削除</h2></div>
+  <p class="chap-lead">ホームの単語カードの上にある2つのボタンを使います。</p>
+  <article class="step">
+    <figure class="phone"><div class="screen"><img src="img/p_ref_rerecord.jpg" width="640" height="1385" alt="「電話」のお手本を登録の画面。カメラで3秒間録画して保存します。録画開始（3秒）と閉じる。"></div></figure>
+    <div class="step-text">
+      <h3><span class="sn">1</span>お手本を録り直す</h3>
+      <p>単語カードの<span class="ui">お手本を録り直す</span>を押すと、録画の画面が開きます。<span class="ui">録画開始（3秒）</span>で録画すると、その単語のお手本が新しいものに置きかわります。</p>
+      <p>お手本の口元が見えにくい、声が小さいなど、録り直したいときに使います。</p>
+    </div>
+  </article>
+  <article class="step">
+    <div class="shots"><figure class="crop"><img src="img/p_delete_pending.jpg" width="720" height="532" alt="単語カード「電話」。削除を1回押したところで、もう一度押すと削除 と表示されている。"></figure></div>
+    <div class="step-text">
+      <h3><span class="sn">2</span>単語を削除する</h3>
+      <p><span class="ui">削除</span>を押すと「もう一度押すと削除」と表示されます。もう一度押すと、その単語とお手本の録画が削除されます。<b>元に戻すことはできません。</b></p>
+      <p>単語の一覧をまとめて確かめたいときは、設定の「単語の管理」も使えます。</p>
+      <div class="note warn"><svg aria-hidden="true"><use href="#i-alert"/></svg><p><span class="lab">お願い</span>この2つのボタンはお子さんの画面にも表示されます。誤って押さないよう、ボタンの意味をお子さんと一緒に確認してください。</p></div>
+    </div>
+  </article>
+</section>
+
+<!-- 6 -->
+<section class="chap" id="flow">
+  <div class="chap-head"><span class="chap-no">6</span><h2>お子さんの練習の流れ</h2></div>
+  <p class="chap-lead">お子さんは、1回の練習を次の順番で進めます。くわしい操作は「生徒用手順書」に載っています。</p>
+  <article class="step wide">
+    <div class="strip-wrap">
+      <ol class="strip">
+        <li><figure class="phone" style="margin:0"><div class="screen"><img src="img/s_rec_start.jpg" width="640" height="1385" alt="録音の画面。"></div></figure><p><b>単語をえらぶ</b>マイクとカメラに ✓ がついたら準備完了。</p></li>
+        <li><figure class="phone" style="margin:0"><div class="screen"><img src="img/s_rec_ref.jpg" width="640" height="1385" alt="お手本を見る画面。"></div></figure><p><b>お手本を見る</b>口の動き・音の高さ・音の長さを見ます。</p></li>
+        <li><figure class="phone" style="margin:0"><div class="screen"><img src="img/s_rec_recording.jpg" width="640" height="1385" alt="録音中の画面。"></div></figure><p><b>自分のペースで録音</b>3・2・1 のあと、単語を1回言います。</p></li>
+        <li><figure class="phone" style="margin:0"><div class="screen"><img src="img/s_rec_done.jpg" width="640" height="1385" alt="録音のあとの画面。"></div></figure><p><b>口をならべて見る</b>お手本と自分の口を見くらべます。</p></li>
+        <li><figure class="phone" style="margin:0"><div class="screen"><img src="img/s_res_summary.jpg" width="640" height="1385" alt="結果のまとめの画面。"></div></figure><p><b>結果を見る</b>点数と、直すところを確かめます。</p></li>
+      </ol>
+    </div>
+    <div class="note"><svg aria-hidden="true"><use href="#i-bulb"/></svg><p><span class="lab">ポイント</span>録音中、画面にはお子さん自身の口だけが映ります。音の長さは各音の長さの割合でくらべるので、お手本の速さに合わせる必要はありません。</p></div>
+  </article>
+</section>
+
+<!-- 7 -->
+<section class="chap" id="result">
+  <div class="chap-head"><span class="chap-no">7</span><h2>結果の見かたと声かけ</h2></div>
+
+  <article class="step wide">
+    <div class="step-text">
+      <h3><span class="sn">1</span>点数（100点満点）の内訳</h3>
+      <div class="mix" role="img" aria-label="点数の内訳。声の高さ50点、音の長さ30点、口の形20点。口と声のタイミングのずれで最大5点を引く。">
+        <div class="mix-bar">
+          <span class="mx-a"><b>50</b>声の高さ（アクセント）</span>
+          <span class="mx-l"><b>30</b>音の長さ</span>
+          <span class="mx-v"><b>20</b>口の形（母音）</span>
+        </div>
+        <p class="mix-minus"><b>−5</b>口と声のタイミングが大きくずれた音があるときだけ、最大5点を差し引きます。</p>
+      </div>
+      <div class="rank" role="img" aria-label="ランクの目安。0〜39点がD、40〜59点がC、60〜74点がB、75〜89点がA、90〜100点がS。">
+        <div class="rank-bar"><span class="r-d">D</span><span class="r-c">C</span><span class="r-b">B</span><span class="r-a">A</span><span class="r-s">S</span></div>
+        <div class="rank-ticks"><span style="left:0">0</span><span style="left:40%">40</span><span style="left:60%">60</span><span style="left:75%">75</span><span style="left:90%">90</span><span style="left:100%">100点</span></div>
+        <p class="rank-cap">90点以上になった単語は「マスター」と表示されます。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <figure class="phone"><div class="screen">
+      <img src="img/s_res_summary.jpg" width="640" height="1385" alt="結果のまとめ。77点、Aランク、前回より -8点。高さ・長さ・口の形の3つのバー。口と声のタイミングで1.2点引いている表示。">
+      <i class="mk" style="--x:8.5%;--y:21%">1</i>
+      <i class="mk" style="--x:8%;--y:45.6%">2</i>
+      <i class="mk" style="--x:8%;--y:65%">3</i>
+    </div></figure>
+    <div class="step-text">
+      <h3><span class="sn">2</span>結果の「まとめ」</h3>
+      <ol class="legend">
+        <li><i class="mk">1</i><span><b>点数とランク</b>右には、前回この単語を練習したときとの差が出ます。</span></li>
+        <li><i class="mk">2</i><span><b>高さ・長さ・口の形</b>それぞれのできばえを、◎（できている）○（もう少し）△（ここを直す）で示します。</span></li>
+        <li><i class="mk">3</i><span><b>口と声による減点</b>差し引いたときだけ表示されます。</span></li>
+      </ol>
+      <figure class="crop"><img src="img/s_res_next.jpg" width="700" height="580" alt="つぎは、ここだけ のカード。「ん」。長さ（リズム）がお手本とちがいます。"></figure>
+      <p>その下の「<b>つぎは、ここだけ</b>」に、次に直すところが1つだけ表示されます。一度に多くを直そうとせず、ここだけに集中できるようにしています。</p>
+    </div>
+  </article>
+
+  <article class="step wide">
+    <div class="step-text">
+      <h3><span class="sn">3</span>声かけのヒント</h3>
+      <ul class="tips">
+        <li>点数よりも、「つぎは、ここだけ」の1つに注目して、一緒に確かめてください。</li>
+        <li>「前回より」の上がり幅や、自己ベストの更新を一緒に喜んでください。</li>
+        <li>点数は、お手本とのちがいを機械で測った目安です。まわりの音や明るさ、その日の調子でも上下します。</li>
+        <li>連続記録は、1日休んでも途切れません。短い時間で、無理なく続けることを大切にしてください。</li>
+      </ul>
+    </div>
+  </article>
+</section>
+
+<!-- 8 -->
+<section class="chap" id="history">
+  <div class="chap-head"><span class="chap-no">8</span><h2>記録で成長を見守る</h2></div>
+  <p class="chap-lead">画面下のタブの「記録」と「分析」で、これまでの練習をふりかえることができます。</p>
+  <article class="step wide">
+    <div class="duo">
+      <figure><div class="phone narrow-phone"><div class="screen"><img src="img/s_hist_log.jpg" width="640" height="1385" alt="わたしの記録。最近の点数88点、はじめのころより+22点、16日連続、34回、点数のうつりかわりのグラフ。"></div></div><p class="cap"><b>記録</b>最近5回の平均点と、練習を始めたころからの伸び、連続日数、練習回数、点数の移り変わり、練習した日のカレンダー、最近の練習の一覧。</p></figure>
+      <figure><div class="phone narrow-phone"><div class="screen"><img src="img/s_hist_analysis.jpg" width="640" height="1385" alt="わたしの分析。1回練習するごとに平均+6.1点ずつのびています。単語ごとの成長。"></div></div><p class="cap"><b>分析</b>1回練習するごとに平均で何点伸びているか、単語ごとの状態（のびている・足ぶみ中・マスター）、アクセントの型ごとの点数。練習が5回以上になると表示されます。</p></figure>
+    </div>
+  </article>
+</section>
+
+<!-- 9 -->
+<section class="chap" id="data">
+  <div class="chap-head"><span class="chap-no">9</span><h2>保存されるデータ</h2></div>
+  <p class="chap-lead">SP-PS が保存するもの・保存しないものは次のとおりです。保存先は、SP-PS を動かしているサーバーのパソコンです。</p>
+  <article class="step wide">
+    <div class="data">
+      <section class="kept">
+        <h3><i>保存</i>保存されるもの</h3>
+        <ul>
+          <li><b>利用者ID とパスワード</b>パスワードは元に戻せない形に変換して保存します。</li>
+          <li><b>練習した日時と単語</b></li>
+          <li><b>点数</b>合計点、高さ・長さ・口の形の点数、音ごとの点数、口と声のずれの大きさ（数値）。</li>
+          <li><b>登録したお手本</b>ご家族や先生が録画したお手本の動画と声、そこから作った口の形のデータ。練習のたびに再生するため保存します。</li>
+        </ul>
+      </section>
+      <section class="gone">
+        <h3><i>残さない</i>残さないもの</h3>
+        <ul>
+          <li><b>お子さんが録音した声</b>採点に使う最新の1回分だけが一時的に残り、次の録音で上書きされます。</li>
+          <li><b>お子さんの口の動画</b>採点に使ったあと、自動で削除されます。</li>
+          <li><b>「ならべて見る」の再生</b>録音のあとの見くらべは、お子さんの端末の中だけで再生します。</li>
+          <li><b>氏名・住所・連絡先</b>入力する欄がありません。</li>
+        </ul>
+      </section>
+    </div>
+    <div class="note"><svg aria-hidden="true"><use href="#i-bulb"/></svg><p><span class="lab">通信</span>スマートフォンとサーバーのあいだの通信は https で暗号化され、Cloudflare（クラウドフレア）社の中継サービスを経由します。研究で使うデータの扱いについては、別にお渡しする説明文書をご確認ください。</p></div>
+  </article>
+</section>
+
+<!-- 10 -->
+<section class="chap" id="help">
+  <div class="chap-head"><span class="chap-no">10</span><h2>こまったとき</h2></div>
+
+  <div class="qa">
+    <h3>ページが開かない</h3>
+    <p>サーバーのパソコンが止まっているか、URLが変わった可能性があります。学校からのお知らせを確かめるか、お問い合わせ先にご連絡ください。</p>
+  </div>
+
+  <div class="qa">
+    <h3>マイクやカメラが使えない</h3>
+    <p>録音画面に<span class="ui">直し方を見る</span>が表示されたら、押して手順を確かめてください。https:// で始まるURLから開いていることも確認してください。</p>
+    <div class="duo">
+      <figure><div class="phone narrow-phone"><div class="screen"><img src="img/s_perm_ios.jpg" width="640" height="1385" alt="マイクとカメラを使えるようにする（iPhone）の説明。"></div></div>
+        <div class="cap"><b>iPhone（Safari）</b><ol><li>画面の上（または下）の「ぁあ」を押す</li><li>「Webサイトの設定」を押す</li><li>「マイク」と「カメラ」を「許可」にする</li><li>「もう一度ためす」を押す</li></ol></div></figure>
+      <figure><div class="phone narrow-phone"><div class="screen"><img src="img/s_perm_android.jpg" width="640" height="1385" alt="マイクとカメラを使えるようにする（Android）の説明。"></div></div>
+        <div class="cap"><b>Android（Chrome）</b><ol><li>アドレスバーの左の鍵のマークを押す</li><li>「権限」（または「サイトの設定」）を押す</li><li>「マイク」と「カメラ」を「許可」にする</li><li>「もう一度ためす」を押す</li></ol></div></figure>
+    </div>
+    <p>それでも使えないときは、ほかのアプリがマイクを使っていないか確かめてください。</p>
+  </div>
+
+  <div class="qa">
+    <h3>「うまく録音できませんでした」と表示される</h3>
+    <ul>
+      <li>スマートフォンを口から 10cm くらいまで近づける</li>
+      <li>ゆっくり、はっきり言う</li>
+      <li>まわりが静かな場所で録る</li>
+      <li>単語をとちゅうで切らずに言う</li>
+    </ul>
+  </div>
+
+  <div class="qa">
+    <h3>パスワードを忘れた</h3>
+    <p>担当の先生にご連絡ください。初期化したあと、もう一度「はじめの設定」から決め直せます。練習の記録は消えません。</p>
+  </div>
+
+  <div class="qa">
+    <h3>設定に「先生モード」がある</h3>
+    <p>先生用の機能で、使うには先生用パスワードが必要です。保護者の方が操作する必要はありません。</p>
+  </div>
+
+  <div class="fill noqr contact">
+    <div class="fill-body">
+      <div class="fill-title">お問い合わせ先<small>学校で記入</small></div>
+      <div class="fill-line">学校名・担当：</div>
+      <div class="fill-line">連絡方法：</div>
+    </div>
+  </div>
+</section>
+
+<footer class="colophon">
+  <p>この手順書の画面は、見本用のアカウント（sample01・sample02）で撮影しました。単語・点数・日付は見本です。</p>
+  <p>お手本の動画とカメラの映像は、イラストに置きかえています。実際の画面では、お手本を録画した方とお子さんの口が映ります。</p>
+</footer>
+
+</main>
+</body>
+</html>
