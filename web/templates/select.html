@@ -1095,7 +1095,8 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
     setTimeout(function () { displayInp.focus(); }, 50);
   }
 
-  document.getElementById('btnAddWord').addEventListener('click', function () { openStep1(true); });
+  // 設定シート（z-index:500）が開いたままだと、単語追加の画面（300）がその裏に隠れるので先に閉じる
+  document.getElementById('btnAddWord').addEventListener('click', function () { closeSheets(); openStep1(true); });
   const addWordEmptyBtn = document.getElementById('btnAddWordEmpty');
   if (addWordEmptyBtn) addWordEmptyBtn.addEventListener('click', function () { openStep1(true); });
   addAnotherBtn.addEventListener('click', function () { openStep1(false); });
