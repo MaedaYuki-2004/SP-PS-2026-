@@ -114,12 +114,15 @@ def reduce_noise_wav(wav_path: str | Path, noise_duration: float = 0.5) -> None:
     wavfile.write(str(wav_path), sr, reduced_int16)
 
 
-def segment_audio(sound_file: str | Path, start: float, end: float) -> None:
+def segment_audio(
+    sound_file: str | Path, start: float, end: float,
+    out_path: str | Path = TEST_SEGMENT_WAV_PATH,
+) -> None:
     """
     音声ファイルを発話区間（start〜end 秒）で切り出し、
-    TEST_SEGMENT_WAV_PATH に保存する（前後 100ms のマージン付き）。
+    out_path に保存する（前後 100ms のマージン付き）。
     """
     sound     = AudioSegment.from_wav(str(sound_file))
     cut_start = max(0, int(start * 1000) - 100)
     cut_end   = max(cut_start, int(end * 1000) + 100)
-    sound[cut_start:cut_end].export(str(TEST_SEGMENT_WAV_PATH), format="wav")
+    sound[cut_start:cut_end].export(str(out_path), format="wav")

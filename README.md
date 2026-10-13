@@ -839,7 +839,7 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
 
 | 順 | 処理 | 詳細 |
 |----|------|------|
-| 1 | 単語を選ぶ | `POST /`（または `GET /practice/word/<word_id>`）が `data/config/word_id.txt` に単語 ID を、`data/raw_audio/wav/test.txt` にひらがな読みを書き、録音ページを返す |
+| 1 | 単語を選ぶ | `POST /`（または `GET /practice/word/<word_id>`）が、ログイン中の参加者の作業フォルダ `data/users/<利用者ID>/work/` の `word_id.txt` に単語 ID を、`align/test.txt` にひらがな読みを書き、録音ページを返す |
 | 2 | カメラ・マイクを開く | `getUserMedia({video, audio})`。音声は `AudioContext({sampleRate: 16000})` と AudioWorklet で 32bit 浮動小数のまま集める |
 | 3 | 録音開始 | お手本の口形データがある単語（`/api/lip_refs/<word_id>/ratios` が空でない）では、同時に映像だけの `MediaRecorder`（WebM / VP8）で口の動画も撮る |
 | 4 | 無音自動停止 | 0.5 秒以上の発話を検出したあと、音量（RMS）が 0.03 未満の状態が 1.5 秒続くと自動で停止する |
@@ -850,9 +850,11 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
 
 #### サーバー側
 
-**`POST /audio`**：`test.wav` として保存 → `convert_to_16kHz()`（16kHz・モノラル・16bit でなければ変換）→ `run_alignment()`（[§5.3](#53-julius-強制アライメント)）で `test.lab` / `test.log` を作ります。
+以下のファイルはすべて、その参加者の作業フォルダ（`core/workspace.py` の `current_workspace()`）に置きます。
 
-**`POST /upload_lip_video`（test）**：動画を一時ファイルに保存し、そのパスをセッションに入れます（解析後に削除）。
+**`POST /audio`**：`align/test.wav` として保存 → `convert_to_16kHz()`（16kHz・モノラル・16bit でなければ変換）→ `run_alignment()`（[§5.3](#53-julius-強制アライメント)）で `test.lab` / `test.log` を作ります。
+
+**`POST /upload_lip_video`（test）**：動画を作業フォルダの `lip/` に一時ファイルとして保存し、そのパスをセッションに入れます（解析後に削除）。
 
 **`POST /graph`** は次の順に処理します。
 
@@ -873,7 +875,8 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
 14. 次に練習する単語の候補を選び、結果画面を返す                                     … §8.1
 ```
 
-> **同時に1人しか解析できない設計です。** 録音は `data/raw_audio/wav/test.wav`、選んだ単語は `data/config/word_id.txt` という共有ファイルに上書きされるため、複数の端末から同時に録音・解析すると結果が混ざります（[§17](#17-既知の限界と今後の課題)）。Docker / Railway でも gunicorn のワーカーは1つにしています。
+> **録音・単語・口の動画は参加者ごとに分かれています。** 以前は全員で `data/raw_audio/wav/test.wav`・`data/config/word_id.txt` を共有していたため、ある参加者が単語を選んでから結果を見るまでに別の参加者が録音すると、録音と単語が入れ替わって採点されていました。今は `data/users/<利用者ID>/work/` を使うので、複数の参加者が交互に練習しても混ざりません。
+> ただし、**同じ利用者 ID で2台から同時に練習すると混ざります**（作業フォルダが同じため）。また gunicorn はワーカー・スレッドとも1つなので、解析（1回約10秒）は1件ずつ順番に処理され、ほかの人は待ちます（[§17](#17-既知の限界と今後の課題)）。未ログイン（CLI スクリプトなど）のときは従来の共有パスを使います。
 
 ---
 
@@ -2351,19 +2354,24 @@ sp-ps/
 │   │   ├── formant_cache.json  # お手本音声フォルマントのキャッシュ（※ DATA_DIR ではなく常にリポジトリ内の data/）
 │   │   ├── history.json        # 練習履歴（未ログイン運用時の共有分・最大500件）
 │   │   ├── lip_refs.json       # お手本の口形データ（schema_version: 2）
-│   │   ├── word_id.txt         # 直前に選択した単語 ID（全利用者で共有の一時ファイル）
+│   │   ├── word_id.txt         # 直前に選択した単語 ID（未ログイン時の共有分）
 │   │   ├── words.txt           # 表示テキスト一覧
 │   │   └── words_db.json       # 単語データベース（display/reading/accent 等）
 │   ├── users/
 │   │   └── {利用者ID}/         # ログイン参加者ごとの練習データ★
 │   │       ├── history.json    # その参加者の練習履歴（最大500件）
-│   │       └── daily_lesson.json  # その参加者の「今日のレッスン」進捗
+│   │       ├── daily_lesson.json  # その参加者の「今日のレッスン」進捗
+│   │       └── work/           # 直前の練習の作業ファイル（core/workspace.py。次の練習で上書き）
+│   │           ├── word_id.txt # 選んだ単語 ID
+│   │           ├── test2.wav   # 録音の発話区間（前後100ms付き。音色評価用）
+│   │           ├── align/      # test.wav・test.txt・test.lab・test.log（Julius 用。他の wav は置かない）
+│   │           └── lip/        # 口の動画の一時ファイル（解析後に削除）
 │   ├── mfcc/
 │   │   └── {word_id}.bin       # お手本の MFCC（36次元 float32）
 │   └── raw_audio/
-│       ├── test2.wav           # 録音の発話区間（前後100ms付き。音色評価用）
+│       ├── test2.wav           # 録音の発話区間（未ログイン時の共有分）
 │       ├── wav/
-│       │   ├── test.wav        # 録音音声（全利用者で共有・上書き保存）
+│       │   ├── test.wav        # 録音音声（未ログイン時の共有分。参加者の録音は users/{利用者ID}/work/align/）
 │       │   ├── test.lab        # Julius アライメント結果（秒）
 │       │   ├── test.log        # Julius ログ（フレーム・対数尤度）
 │       │   └── test.txt        # 録音単語のひらがな読み
@@ -2556,7 +2564,7 @@ sp-ps/
 | `nixpacks.toml` | Dockerfile を使わず Nixpacks でビルドする場合の設定（apt で MeCab・FFmpeg・**Julius** を入れる） |
 | `.dockerignore` | `data/` の利用者データ、`web/static/sample/`、`engine/bin/`（Windows 用 exe）などをイメージに入れない |
 
-ワーカーを1つにしているのは、録音が共有ファイル（`test.wav`・`word_id.txt`）に上書きされる設計のためです（[§5.2](#52-1回の練習で行われる処理)）。
+ワーカーを1つにしているのは、先生用パスワードの試行回数や解析の状態をプロセス内に持っているためです。録音・単語は参加者ごとのフォルダに分かれています（[§5.2](#52-1回の練習で行われる処理)）。
 
 ### 環境変数
 
@@ -2839,7 +2847,7 @@ python scripts/regenerate_mfcc.py
 
 モーラ別スコアの計算で例外が起きると、結果画面はそのまま表示し、「音ごとのできばえ」だけを出しません。`app.py` の `audio_analysis()` がこの例外を握りつぶしており、**画面にもコンソールにもエラーは出ません**。
 
-1. `data/raw_audio/wav/test.lab` と、お手本の `{word_id}.lab` が空でないか確認する
+1. `data/users/<利用者ID>/work/align/test.lab` と、お手本の `{word_id}.lab` が空でないか確認する
 2. `python diagnose.py` でエラーが出ていないか確認する
 3. 原因を調べるときは、`calc_mora_scores()` を囲む `except Exception:` に一時的に `traceback.print_exc()` を足して、コンソールに出る内容を見る
 
@@ -2906,7 +2914,7 @@ pip install "mediapipe==0.10.21"
 
 | 限界 | 詳細 | 将来の改善案 |
 |------|------|------------|
-| **同時に1人しか解析できない** | `test.wav`・`word_id.txt` を全利用者で共有しており、同時に録音すると結果が混ざる | セッション ID でファイルを分ける |
+| **解析は1件ずつ** | 録音・単語は参加者ごとに分けたが、gunicorn はワーカー・スレッドとも1つなので、同時に「結果を見る」を押すと後の人は前の解析（約10秒）を待つ。同じ利用者 ID を2台で同時に使うと作業フォルダが同じなので混ざる | 利用者が増えたらスレッドを増やせるか確かめる（MediaPipe・Praat のスレッド安全性の確認が必要） |
 | **クラウドで採点まで動くか未確認** | `Dockerfile` に Julius が入っていない。フォルマントのキャッシュが `DATA_DIR` を見ない（[§14](#14-デプロイdocker--railway)） | Linux 用 Julius の導入、キャッシュを `DATA_DIR` へ |
 | **倫理審査資料と実装の区分数** | 資料 §5.3 は聴覚障害の程度を「2〜3区分」とするが、実装は4区分＋未回答（[§10](#10-参加者アカウントとデータの分離)） | 運用前にどちらかに揃える |
 | **依存パッケージのバージョンが固定されていない** | `requirements.txt` は MediaPipe 以外を固定していない | 研究で使った環境の `pip freeze` を残す |

@@ -39,8 +39,7 @@ from flask import Flask, Response, jsonify, redirect, render_template, request, 
 from config import (
     AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DATA_DIR, DISTANCE_RESULT_DIR,
     FLASK_SECRET_KEY, RAW_AUDIO_DIR, STATIC_DIR, TEMPLATES_DIR,
-    TEST_LAB_PATH, TEST_LOG_PATH, TEST_SEGMENT_WAV_PATH,
-    TEST_WAV_PATH, WORD_ID_MEMO_PATH,
+    WORD_ID_MEMO_PATH,
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
 from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags, update_word_note
@@ -56,6 +55,7 @@ from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
 from core import teacher
 from core import usercontext
+from core.workspace import current_workspace
 from core.public_access import client_key
 
 # Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
@@ -510,8 +510,8 @@ def _align_lip_ref(
                 pass
 
 
-def _save_temp_video(uploaded_file):
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.webm')
+def _save_temp_video(uploaded_file, directory=None):
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.webm', dir=directory)
     uploaded_file.save(tmp.name)
     tmp.close()
     return tmp.name
@@ -978,8 +978,7 @@ def select():
             return redirect("/select")
         word_entry = get_word(word_id)
         display    = word_entry.get("display", reading) if word_entry else reading
-        WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
-        (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
+        current_workspace().select_word(word_id, reading)
         accent_val = word_entry.get("accent") if word_entry else None
         hl_list = _accent_pattern_for_word(accent_val, reading)
         mora_labels_list = _split_moras(reading)
@@ -1211,12 +1210,12 @@ def upload_file():
         file    = request.files["file"]
         word_id = request.form.get("fileword", "").strip()
         reading = get_reading_for_julius(word_id)
-        WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
-        (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
-        file.save(str(TEST_WAV_PATH))
-        convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
+        ws = current_workspace()
+        ws.select_word(word_id, reading)
+        file.save(str(ws.wav))
+        convert_to_16kHz(ws.wav, ws.wav)
         sleep_second()
-        run_alignment()
+        run_alignment(ws.align_dir)
         return render_template("upload.html", words=words, message="アップロード完了")
     except Exception as exc:
         traceback.print_exc()
@@ -1230,10 +1229,11 @@ def record_audio():
         # 開くとテンプレートが word_id を JSON にできず 500 になっていたので、ホームへ戻す
         return redirect("/select")
     try:
+        ws = current_workspace()
         file = request.files["file"]
-        file.save(str(TEST_WAV_PATH))
-        convert_to_16kHz(TEST_WAV_PATH, TEST_WAV_PATH)
-        run_alignment()
+        file.save(str(ws.wav))
+        convert_to_16kHz(ws.wav, ws.wav)
+        run_alignment(ws.align_dir)
         return "OK!"
     except Exception as exc:
         traceback.print_exc()
@@ -1262,10 +1262,7 @@ def upload_lip_video():
         if mode == "ref":
             current_word_id = (request.form.get("word_id") or "").strip()
             if not current_word_id:
-                try:
-                    current_word_id = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
-                except OSError:
-                    current_word_id = ""
+                current_word_id = current_workspace().read_word_id()
             if not current_word_id or get_word(current_word_id) is None:
                 return jsonify({"error": "お手本を登録する単語が見つかりません。ホームから単語を選び直してください。"}), 404
 
@@ -1277,7 +1274,7 @@ def upload_lip_video():
             except OSError:
                 pass
 
-        new_path = _save_temp_video(file)
+        new_path = _save_temp_video(file, current_workspace().lip_dir)
         lip_video_paths[mode] = new_path
         session["lip_video_paths"] = lip_video_paths
         session.modified = True
@@ -1367,8 +1364,9 @@ def upload_lip_video():
 @app.route("/recorded_audio")
 def recorded_audio():
     """直前の録音（test.wav）を返す。結果ページの比較再生ボタンで使用。"""
-    if TEST_WAV_PATH.exists():
-        return send_file(str(TEST_WAV_PATH), mimetype="audio/wav")
+    wav = current_workspace().wav
+    if wav.exists():
+        return send_file(str(wav), mimetype="audio/wav")
     return "録音データが見つかりません", 404
 
 
@@ -1597,7 +1595,8 @@ def audio_analysis():
         # 結果画面でリロードした場合など。エラーではなくホームに戻す
         return redirect("/select")
     try:
-        word_id   = WORD_ID_MEMO_PATH.read_text(encoding="utf-8").strip()
+        ws        = current_workspace()
+        word_id   = ws.read_word_id()
 
         lip_compare = None
         lip_ref_ratios = []
@@ -1635,12 +1634,12 @@ def audio_analysis():
                 lip_compare = None
 
         audio_sample     = read_sample(word_id)
-        audio_learn      = str(TEST_WAV_PATH)
-        audio_learn_edit = str(TEST_SEGMENT_WAV_PATH)
+        audio_learn      = str(ws.wav)
+        audio_learn_edit = str(ws.segment_wav)
         lab_sample = str(Path(audio_sample).with_suffix(".lab"))
-        lab_learn  = str(TEST_LAB_PATH)
+        lab_learn  = str(ws.lab)
         log_sample = str(Path(audio_sample).with_suffix(".log"))
-        log_learn  = str(TEST_LOG_PATH)
+        log_learn  = str(ws.log)
 
         prev_score = get_last_score(word_id)
 
@@ -1680,7 +1679,7 @@ def audio_analysis():
 
         start1, end1 = float(lab_list1[0][0]), float(lab_list1[-1][1])
         start2, end2 = float(lab_list2[0][0]), float(lab_list2[-1][1])
-        segment_audio(audio_learn, start2, end2)
+        segment_audio(audio_learn, start2, end2, ws.segment_wav)
 
         dtw_list, word_list, colors, _ = dtw_ascending_order(audio_learn_edit, word_id)
         julius_score = extract_julius_score(log_learn)
@@ -2019,8 +2018,7 @@ def practice_word(word_id: str):
         return redirect("/select")
     reading    = word_entry.get("reading", "")
     display    = word_entry.get("display", reading)
-    WORD_ID_MEMO_PATH.write_text(word_id, encoding="utf-8")
-    (AUDIO_WAV_DIR / "test.txt").write_text(reading, encoding="utf-8")
+    current_workspace().select_word(word_id, reading)
     accent_val = word_entry.get("accent")
     hl_list          = _accent_pattern_for_word(accent_val, reading)
     mora_labels_list = _split_moras(reading)

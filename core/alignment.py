@@ -252,10 +252,11 @@ def _run_alignment_with_retry(target_dir: str) -> None:
     )
 
 
-def run_alignment() -> None:
+def run_alignment(work_dir: Path = AUDIO_WAV_DIR) -> None:
     """
     Julius で強制アライメントを実行する。
-    data/raw_audio/wav/test.wav → test.lab / test.log を生成する。
+    work_dir の test.wav・test.txt → test.lab / test.log を生成する
+    （既定は共有の data/raw_audio/wav。参加者ごとのフォルダは core/workspace.py）。
     """
     if not PERL_SCRIPT_PATH.exists():
         raise FileNotFoundError(f"Perl スクリプトが見つかりません: {PERL_SCRIPT_PATH}")
@@ -265,13 +266,14 @@ def run_alignment() -> None:
     # 前回の結果を必ず消す。残っていると julius の実行に失敗しても
     # perl スクリプトが古い test.log から .lab を再生成してしまい、
     # 「前回の録音の結果」が今回の結果として返る静かな失敗になる。
-    for stale in (AUDIO_WAV_DIR / "test.log", AUDIO_WAV_DIR / "test.lab"):
+    work_dir = Path(work_dir)
+    for stale in (work_dir / "test.log", work_dir / "test.lab"):
         try:
             stale.unlink(missing_ok=True)
         except OSError:
             pass
 
-    _run_alignment_with_retry(str(AUDIO_WAV_DIR))
+    _run_alignment_with_retry(str(work_dir))
 
 
 def run_alignment_on_file(

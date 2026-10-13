@@ -59,7 +59,7 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-# 採点は録音ファイルを共有するため、ワーカーとスレッドは1つにする（README §5.2）。
+# 先生用パスワードの試行回数などをプロセス内に持つため、ワーカーとスレッドは1つにする（README §14）。
 # 127.0.0.1 で待ち受け、外からは Tunnel 経由でしか届かないようにする。
 TRUSTED_PROXY=cloudflare FLASK_ENV=production \
     "$PY" -m gunicorn app:app --bind "127.0.0.1:$PORT" \
