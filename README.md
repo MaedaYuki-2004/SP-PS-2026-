@@ -439,6 +439,24 @@ Macと両方のプロセスは起動したままにします。Macのスリー�
 Quick TunnelのURLは起動ごとに変わります。固定URLではCloudflare側の公開先を
 `http://127.0.0.1:5000` に設定します。
 
+**Macでまとめて起動する**（`scripts/serve_mac.sh`）:
+
+上の2つのターミナルの作業を1つにまとめたスクリプトです。gunicorn（ワーカー・スレッド各1、
+`127.0.0.1` で待ち受け、`TRUSTED_PROXY=cloudflare`）と cloudflared を起動し、
+動いている間は `caffeinate` で Mac のスリープを止めます。
+
+```bash
+scripts/serve_mac.sh local            # 公開せずに起動（http://127.0.0.1:5000 で確認）
+scripts/serve_mac.sh quick            # Quick Tunnel で公開し、URL と QR 画像を出す
+PUBLIC_BASE_URL=https://sp-ps.example.com scripts/serve_mac.sh named sp-ps   # 独自ドメインの Tunnel
+```
+
+- Ctrl+C で全部止まります。どれか1つが落ちたときも、残りを止めて終了します。
+- `quick` は起動のたびに `data/access_qr_quick_日時.png` を作ります。`named` は `data/access_qr.png` が無いときだけ作ります。
+- ポートは `PORT=5001` のように変えられます。ログは `.tmp/serve/` に残ります。
+- `~/.cloudflared/config.yml` があると Quick Tunnel は起動できません（Cloudflare の仕様）。
+- スリープ防止は電源につないでいるときに効きます。ふたを閉じると止まる機種があります。
+
 **Windows / VS CodeのPowerShellで試す場合**:
 
 ```powershell
@@ -2379,6 +2397,8 @@ sp-ps/
 │   ├── regenerate_mfcc.py      # MFCC バイナリの一括再生成
 │   ├── repair_alignment.py     # 指定した単語のお手本のアライメントを作り直す（§16）
 │   ├── set_teacher_password.py # 先生用パスワードの設定・変更★
+│   ├── serve_mac.sh            # Mac で gunicorn と Cloudflare Tunnel をまとめて起動（§4）
+│   ├── make_access_qr.py       # 公開 URL からスマホ用の QR 画像を作る（§4）
 │   ├── md_to_docx.py           # 倫理審査資料の Markdown → Word 変換（python-docx が必要）
 │   ├── mkdir_test.py           # 初期データセット作成時のフォルダ作成（現在は不要）
 │   ├── move_folder.py          # 初期データセット作成時の音声移動（現在は不要）
