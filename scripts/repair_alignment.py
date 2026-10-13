@@ -3,10 +3,11 @@ scripts/repair_alignment.py
 指定した単語IDのお手本音声に対してJuliusアライメントを再実行するスクリプト。
 
 使い方：
-  python scripts/repair_alignment.py word35
-  python scripts/repair_alignment.py word35 word36 word37
+  python scripts/repair_alignment.py --user A01 word35
+  python scripts/repair_alignment.py --user A01 word35 word36 word37
 
-data/raw_audio/sound/<word_id>/ の <word_id>.wav と <word_id>.txt（ひらがな読み）から
+単語とお手本は参加者ごとなので --user で参加者を指定する（省略すると共有の単語）。
+その参加者のライブラリの sound/<word_id>/ にある <word_id>.wav と <word_id>.txt（ひらがな読み）から
 <word_id>.lab / <word_id>.log を作り直す。失敗したときは既存の .lab / .log を残す。
 
 【2026-09-14 修正】
@@ -18,6 +19,7 @@ data/raw_audio/sound/<word_id>/ の <word_id>.wav と <word_id>.txt（ひらが�
 """
 from __future__ import annotations
 
+import argparse
 import shutil
 import sys
 import tempfile
@@ -26,12 +28,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from config import RAW_AUDIO_DIR
+from core import usercontext
 from core.alignment import lab_load, run_alignment_on_file
+from core.library import current_library
 
 
 def repair(word_id: str) -> bool:
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    sound_dir = current_library().sound_dir(word_id)
     wav_path  = sound_dir / f"{word_id}.wav"
     txt_path  = sound_dir / f"{word_id}.txt"
     lab_path  = sound_dir / f"{word_id}.lab"
@@ -68,15 +71,17 @@ def repair(word_id: str) -> bool:
 
     print(f"  [OK] {len(lab_list)} 音素 / {len(mora_list)} モーラ: {' '.join(str(m[2]) for m in mora_list)}")
     print("  ※ お手本の口形データ（lip_refs.json の mora_data）は作り直していません。"
-          "口形も合わせたい場合は、先生モードでお手本を録り直してください。")
+          "口形も合わせたい場合は、その参加者でログインしてお手本を録り直してください。")
     return True
 
 
 if __name__ == "__main__":
-    targets = sys.argv[1:]
-    if not targets:
-        print("使い方: python scripts/repair_alignment.py word35")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="お手本のアライメントを作り直す")
+    parser.add_argument("--user", help="単語の持ち主の利用者ID（省略すると共有の単語）")
+    parser.add_argument("word_ids", nargs="+", metavar="word_id")
+    args = parser.parse_args()
+    usercontext.set_current_user(args.user)
+    targets = args.word_ids
     results = [repair(word_id) for word_id in targets]
     print(f"\n完了しました（成功 {sum(results)} / {len(results)}）。")
     sys.exit(0 if all(results) else 1)

@@ -15,7 +15,6 @@ import re
 import shutil
 import tempfile
 import traceback
-from functools import wraps
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -38,11 +37,11 @@ from flask import Flask, Response, jsonify, redirect, render_template, request, 
 
 from config import (
     AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DATA_DIR, DISTANCE_RESULT_DIR,
-    FLASK_SECRET_KEY, RAW_AUDIO_DIR, STATIC_DIR, TEMPLATES_DIR,
+    FLASK_SECRET_KEY, STATIC_DIR, TEMPLATES_DIR,
     WORD_ID_MEMO_PATH,
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
-from core.vocab     import list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags, update_word_note
+from core.vocab     import load_db, list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags, update_word_note
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
@@ -56,6 +55,7 @@ from core import accounts as acc
 from core import teacher
 from core import usercontext
 from core.workspace import current_workspace
+from core.library import current_library
 from core.public_access import client_key
 
 # Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
@@ -525,15 +525,15 @@ def _persist_ref_video(word_id: str, video_path: str) -> None:
     失敗しても登録処理自体は継続してよいので例外は握りつぶす。
     """
     try:
-        sound_dir = RAW_AUDIO_DIR / "sound" / word_id
-        sound_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(video_path, sound_dir / f"{word_id}.webm")
+        dest = current_library().sample_video(word_id)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(video_path, dest)
     except Exception:
         traceback.print_exc()
 
 
 def _lip_refs_path() -> Path:
-    return DATA_DIR / "config" / "lip_refs.json"
+    return current_library().lip_refs
 
 
 def load_lip_refs() -> dict:
@@ -578,13 +578,14 @@ def _get_reference_pitch_data(word_id: str) -> dict:
     WAV ファイルの mtime が変わっていなければキャッシュを返す。
     変わっていれば再計算してキャッシュを更新する。
     """
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    lib       = current_library()
+    sound_dir = lib.sound_dir(word_id)
     wav_path  = sound_dir / f"{word_id}.wav"
     lab_path  = sound_dir / f"{word_id}.lab"
 
     if not wav_path.exists():
         static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
-        if static_path.exists():
+        if lib.shared and static_path.exists():
             wav_path = static_path
         else:
             return {"has_data": False}
@@ -592,8 +593,10 @@ def _get_reference_pitch_data(word_id: str) -> dict:
     if not lab_path.exists():
         return {"has_data": False}
 
+    # 単語 ID は参加者ごとに振るので、キャッシュはファイルの場所で引く
+    cache_key = str(wav_path)
     mtime = wav_path.stat().st_mtime
-    cached = _REF_PITCH_CACHE.get(word_id)
+    cached = _REF_PITCH_CACHE.get(cache_key)
     if cached and cached[0] == mtime:
         return cached[1]
 
@@ -646,7 +649,7 @@ def _get_reference_pitch_data(word_id: str) -> dict:
             "pitch_min_hz": pitch_min_hz,
             "pitch_max_hz": pitch_max_hz,
         }
-        _REF_PITCH_CACHE[word_id] = (mtime, result)
+        _REF_PITCH_CACHE[cache_key] = (mtime, result)
         return result
     except Exception:
         traceback.print_exc()
@@ -778,17 +781,6 @@ def _teacher_denied():
     }), 403
 
 
-def teacher_required(fn):
-    """先生モードのセッションでだけ実行するルートに付ける。"""
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not teacher.is_active(session):
-            return _teacher_denied()
-        teacher.activate(session)   # 先生の操作をしている間は期限を延ばす
-        return fn(*args, **kwargs)
-    return wrapper
-
-
 @app.before_request
 def _require_login():
     # 既定は「参加者コンテキストなし」。history/lesson は共有パスにフォールバックする。
@@ -797,10 +789,12 @@ def _require_login():
     endpoint = request.endpoint or ""
     if endpoint in _AUTH_EXEMPT_ENDPOINTS:
         return
-    if request.path.startswith("/admin"):
+    # 参加者アカウントの管理だけは先生モードで行う。単語とお手本の管理（/admin ほか）は
+    # ログイン中の参加者が自分の分を行う（core/library.py）ので、下のログイン確認に進む
+    if request.path.startswith("/admin/accounts"):
         if not teacher.is_active(session):
             return _teacher_denied()
-        teacher.activate(session)
+        teacher.activate(session)   # 先生の操作をしている間は期限を延ばす
         return
     user_id = session.get(acc.SESSION_KEY)
     if user_id and acc.account_exists(user_id):
@@ -1124,10 +1118,7 @@ def history_page():
     accent_stats.sort(key=lambda x: x["avg_total"])
 
     # ── 分析タブ用データ ─────────────────────────────────────────────
-    import json as _json
-    _words_db_path = DATA_DIR / "config" / "words_db.json"
-    _words_db = _json.loads(_words_db_path.read_text(encoding="utf-8")) if _words_db_path.exists() else {}
-    analysis_stats = compute_learning_stats(history, _words_db)
+    analysis_stats = compute_learning_stats(history, load_db())
 
     return render_template("history.html",
                            history=history[:100], stats=stats,
@@ -1138,11 +1129,8 @@ def history_page():
 
 @app.route("/analysis")
 def analysis_page():
-    import json
     history    = load_history()
-    words_db_path = DATA_DIR / "config" / "words_db.json"
-    words_db   = json.loads(words_db_path.read_text(encoding="utf-8")) if words_db_path.exists() else {}
-    stats      = compute_learning_stats(history, words_db)
+    stats      = compute_learning_stats(history, load_db())
     return render_template("analysis.html", stats=stats)
 
 @app.route("/lip_compare")
@@ -1246,11 +1234,7 @@ def upload_lip_video():
         mode = request.form.get("mode", "").strip()
         if mode not in ("ref", "test"):
             return jsonify({"error": "mode は ref または test を指定してください。"}), 400
-        # ref（お手本）は単語のお手本音声・口形データを上書きするので先生だけ。test は生徒自身の録画
-        if mode == "ref":
-            if not teacher.is_active(session):
-                return _teacher_denied()
-            teacher.activate(session)
+        # ref はログイン中の参加者自身のお手本を上書きする（core/library.py）。test は練習の録画
         file = request.files.get("file")
         if not file:
             return jsonify({"error": "動画ファイルが送信されていません。"}), 400
@@ -1295,7 +1279,8 @@ def upload_lip_video():
                         if not reading:
                             reading = get_reading_for_julius(current_word_id)
                         if reading:
-                            sound_dir  = RAW_AUDIO_DIR / "sound" / current_word_id
+                            lib        = current_library()
+                            sound_dir  = lib.sound_dir(current_word_id)
                             sound_dir.mkdir(parents=True, exist_ok=True)
                             native_wav = sound_dir / f"{current_word_id}.wav"
                             native_lab = sound_dir / f"{current_word_id}.lab"
@@ -1307,8 +1292,8 @@ def upload_lip_video():
                                 print(f"[lip_ref] サンプル音声を更新: {native_wav}")
                                 try:
                                     mfcc = audio_mfcc(native_wav)
-                                    (AUDIO_MFCC_DIR / f"{current_word_id}.bin").parent.mkdir(parents=True, exist_ok=True)
-                                    mfcc.tofile(str(AUDIO_MFCC_DIR / f"{current_word_id}.bin"))
+                                    lib.mfcc_bin(current_word_id).parent.mkdir(parents=True, exist_ok=True)
+                                    mfcc.tofile(str(lib.mfcc_bin(current_word_id)))
                                 except Exception:
                                     pass
                                 ref_mora_list = _align_lip_ref(
@@ -1498,7 +1483,6 @@ def api_vowel_trainer_complete():
 
 
 @app.route('/api/lip_refs/delete', methods=['POST'])
-@teacher_required
 def api_lip_refs_delete():
     try:
         data = request.get_json() or {}
@@ -1516,7 +1500,6 @@ def api_lip_refs_delete():
 
 
 @app.route('/api/lip_refs/overwrite', methods=['POST'])
-@teacher_required
 def api_lip_refs_overwrite():
     try:
         word_id = (request.form.get('word_id') or '').strip()
@@ -1539,7 +1522,8 @@ def api_lip_refs_overwrite():
                 if not reading:
                     reading = get_reading_for_julius(word_id)
                 if reading:
-                    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
+                    lib        = current_library()
+                    sound_dir  = lib.sound_dir(word_id)
                     sound_dir.mkdir(parents=True, exist_ok=True)
                     native_wav = sound_dir / f"{word_id}.wav"
                     native_lab = sound_dir / f"{word_id}.lab"
@@ -1550,8 +1534,8 @@ def api_lip_refs_overwrite():
                         shutil.copy2(ref_wav, native_wav)
                         try:
                             mfcc = audio_mfcc(native_wav)
-                            (AUDIO_MFCC_DIR / f"{word_id}.bin").parent.mkdir(parents=True, exist_ok=True)
-                            mfcc.tofile(str(AUDIO_MFCC_DIR / f"{word_id}.bin"))
+                            lib.mfcc_bin(word_id).parent.mkdir(parents=True, exist_ok=True)
+                            mfcc.tofile(str(lib.mfcc_bin(word_id)))
                         except Exception:
                             pass
                         ref_mora_list = _align_lip_ref(
@@ -1951,23 +1935,25 @@ def sample_audio(word_id: str):
     # 別の単語のIDと衝突して残っていると、新しく登録した単語の再生時に
     # 無関係な古いサンプル音声が流れてしまう。static/sample はそのIDに
     # 実録音が存在しない場合（初期データセットの単語）にのみ使うフォールバック。
-    tts_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.wav"
+    # static/sample は共有の単語（未ログイン時）だけ。参加者の単語 ID は参加者ごとに振る
+    lib = current_library()
+    tts_path = lib.sample_wav(word_id)
     if tts_path.exists(): return send_file(str(tts_path), mimetype="audio/wav")
     static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
-    if static_path.exists(): return send_file(str(static_path), mimetype="audio/wav")
+    if lib.shared and static_path.exists(): return send_file(str(static_path), mimetype="audio/wav")
     return "not found", 404
 
 
 @app.route("/sample_video/<word_id>")
 def sample_video(word_id: str):
-    """先生のお手本録画（webm）を配信する。母音トレーナー等での実映像再生用。"""
-    video_path = RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.webm"
+    """お手本録画（webm）を配信する。母音トレーナー等での実映像再生用。"""
+    video_path = current_library().sample_video(word_id)
     if video_path.exists(): return send_file(str(video_path), mimetype="video/webm")
     return "not found", 404
 
 
 def has_sample_video(word_id: str) -> bool:
-    return (RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.webm").exists()
+    return current_library().sample_video(word_id).exists()
 
 
 @app.route("/admin/delete_word", methods=["POST"])
@@ -2189,8 +2175,7 @@ def add_word():
 
             if MEDIA_PIPE_AVAILABLE:
                 try:
-                    sound_dir  = RAW_AUDIO_DIR / "sound" / word_id
-                    native_lab = sound_dir / f"{word_id}.lab"
+                    native_lab = current_library().sound_dir(word_id) / f"{word_id}.lab"
                     mora_data: list[dict] = []
                     if native_lab.exists():
                         (_, ref_mora_list, *_) = lab_load(native_lab)

@@ -773,7 +773,7 @@
     <div class="lip-status" id="lipStatus"></div>
     <span id="lipRefTag" class="lip-ref-tag">お手本登録済み</span>
     <button type="button" id="buttonStop" disabled>録音停止</button>
-    <button type="button" id="buttonLipRef" class="btn btn-secondary btn-sm teacher-only-btn">お手本を録画（3秒）</button>
+    <button type="button" id="buttonLipRef" class="btn btn-secondary btn-sm">お手本を録画（3秒）</button>
   </div>
 
   {#
@@ -845,9 +845,9 @@
 
 <script>
   // ── 先生モード ─────────────────────────────────────────────────
-  // 「お手本を録画」は指導者の操作。先生モード（先生用パスワードで ON）のときだけ
-  // サーバーが <html class="teacher-mode"> を付け、theme.js が body にも同じ印を付ける。
-  // 生徒が録画ボタンを押せたとしても、サーバーが先生モードでない送信を受け付けない。
+  // 「お手本を録画」は、ログイン中の参加者が自分のお手本を登録・録り直す操作（core/library.py）。
+  // 先生モード（先生用パスワードで ON）のときは、サーバーが <html class="teacher-mode"> を付け、
+  // theme.js が body にも同じ印を付ける。
 
   // ── 録音状態の視覚フィードバック ─────────────────────────────────────
   let recTimer = null, recSeconds = 0;

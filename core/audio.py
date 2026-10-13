@@ -21,6 +21,7 @@ from config import (
     WORD_ID_MEMO_PATH,
     WORDS,
 )
+from core.library import current_library
 
 
 def word_select(word_id: str) -> str:
@@ -38,10 +39,18 @@ def word_select(word_id: str) -> str:
 
 def read_sample(word_id: str) -> str:
     """
-    audio.scp から word_id に対応する基準音声の絶対パスを返す。
+    word_id に対応するお手本音声の絶対パスを返す。
+    ログイン中は参加者のライブラリの sound/{word_id}/{word_id}.wav、見つからなければ IndexError。
+    未ログイン（共有の単語）のときは従来どおり audio.scp から探す。
     行の形式は "<tab区切り行番号><tab>path" または "path" の両方に対応。
-    word_id をパス中の文字列として検索し、見つからない場合は IndexError。
     """
+    lib = current_library()
+    if not lib.shared:
+        wav = lib.sample_wav(word_id)
+        if not wav.exists():
+            raise IndexError(f"{word_id} のお手本音声が見つかりません")
+        return str(wav.resolve())
+
     if not AUDIO_SCP_PATH.exists():
         raise FileNotFoundError(f"audio.scp が見つかりません: {AUDIO_SCP_PATH}")
 

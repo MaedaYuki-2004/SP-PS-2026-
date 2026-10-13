@@ -2,6 +2,8 @@
 core/vocab.py
 words_db.json の読み書きと単語登録フローを担当するモジュール。
 
+単語とお手本の置き場所は core/library.py の current_library()（ログイン中の参加者ごと）。
+
 単語登録の流れ：
   1. display（表示テキスト）と reading（ひらがな読み）、wav_path（参照音声）を受け取る
   2. MeCab でアクセント型を自動取得
@@ -17,36 +19,29 @@ import re
 import shutil
 from pathlib import Path
 
-from config import (
-    AUDIO_MFCC_DIR,
-    AUDIO_SCP_PATH,
-    RAW_AUDIO_DIR,
-    STATIC_DIR,
-    WORDS_TXT_PATH,
-)
+from config import STATIC_DIR
 from core.accent import get_accent
 from core.alignment import run_alignment_on_file
+from core.library import current_library
 from core.timbre import audio_mfcc
-
-# ── パス定数 ─────────────────────────────────────────────────────────
-from config import DATA_DIR
-WORDS_DB_PATH = DATA_DIR / "config" / "words_db.json"
 
 
 # ── DB 読み書き ───────────────────────────────────────────────────────
 
 def load_db() -> dict:
     """words_db.json を読み込む。存在しなければ空辞書を返す。"""
-    if not WORDS_DB_PATH.exists():
+    path = current_library().words_db
+    if not path.exists():
         return {}
-    with WORDS_DB_PATH.open("r", encoding="utf-8") as f:
+    with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_db(db: dict) -> None:
     """words_db.json に書き込む。"""
-    WORDS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with WORDS_DB_PATH.open("w", encoding="utf-8") as f:
+    path = current_library().words_db
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
         json.dump(db, f, ensure_ascii=False, indent=2)
 
 
@@ -61,6 +56,7 @@ def get_next_word_id(db: dict) -> str:
     新しく登録した別の単語のサンプル音声として誤って再生される
     （sample_audio() は static/sample を優先するため）。
     """
+    lib  = current_library()
     nums = [0]
     for key in db:
         m = re.search(r"\d+", key)
@@ -68,13 +64,13 @@ def get_next_word_id(db: dict) -> str:
             nums.append(int(m.group()))
 
     sample_dir = STATIC_DIR / "sample"
-    if sample_dir.exists():
+    if lib.shared and sample_dir.exists():
         for p in sample_dir.glob("word*.wav"):
             m = re.search(r"\d+", p.stem)
             if m:
                 nums.append(int(m.group()))
 
-    sound_dir = RAW_AUDIO_DIR / "sound"
+    sound_dir = lib.sound_root
     if sound_dir.exists():
         for p in sound_dir.iterdir():
             if p.is_dir():
@@ -114,13 +110,14 @@ def register_word(display: str, reading: str, wav_path: Path | None = None) -> d
     -------
     dict : 登録結果 {"word_id": ..., "accent": ..., "alignment_ok": ..., "message": ...}
     """
+    lib     = current_library()
     db      = load_db()
     word_id = get_next_word_id(db)
 
     # ── 1. アクセント型の取得 ─────────────────────────────────────
     accent, accent_source = get_accent(display)
 
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    sound_dir = lib.sound_dir(word_id)
     sound_dir.mkdir(parents=True, exist_ok=True)
 
     # ── 2. ひらがな読みを txt ファイルに書き込む（Julius用） ─────
@@ -149,7 +146,8 @@ def register_word(display: str, reading: str, wav_path: Path | None = None) -> d
         # ── 5. MFCC 計算・保存 ────────────────────────────────────
         try:
             mfcc = audio_mfcc(native_wav)
-            bin_path = AUDIO_MFCC_DIR / f"{word_id}.bin"
+            bin_path = lib.mfcc_bin(word_id)
+            bin_path.parent.mkdir(parents=True, exist_ok=True)
             mfcc.tofile(str(bin_path))
         except Exception:
             pass
@@ -183,13 +181,17 @@ def _update_audio_scp(db: dict) -> None:
         f"sound/{wid}/{wid}.wav"
         for wid in db
     ]
-    AUDIO_SCP_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path = current_library().audio_scp
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _update_words_txt(db: dict) -> None:
     """words.txt（DTW表示用）を words_db の内容で再生成する。"""
     lines = [entry["display"] for entry in db.values()]
-    WORDS_TXT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path = current_library().words_txt
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def get_reading_for_julius(word_id: str) -> str:
@@ -220,7 +222,8 @@ def delete_word(word_id: str) -> dict:
 
     # ファイル削除（Windows でブラウザがファイルを掴んでいる場合も無視して続行）
     import shutil as _shutil
-    sound_dir = RAW_AUDIO_DIR / "sound" / word_id
+    lib       = current_library()
+    sound_dir = lib.sound_dir(word_id)
     try:
         if sound_dir.exists():
             _shutil.rmtree(str(sound_dir))
@@ -228,15 +231,15 @@ def delete_word(word_id: str) -> dict:
         pass
 
     try:
-        (AUDIO_MFCC_DIR / f"{word_id}.bin").unlink(missing_ok=True)
+        lib.mfcc_bin(word_id).unlink(missing_ok=True)
     except OSError:
         pass
 
-    try:
-        from config import STATIC_DIR
-        (STATIC_DIR / "tts" / f"{word_id}.wav").unlink(missing_ok=True)
-    except OSError:
-        pass
+    if lib.shared:
+        try:
+            (STATIC_DIR / "tts" / f"{word_id}.wav").unlink(missing_ok=True)
+        except OSError:
+            pass
 
     return {"message": f"{entry['display']} を削除しました"}
 

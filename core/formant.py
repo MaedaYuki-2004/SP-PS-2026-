@@ -50,6 +50,7 @@ import parselmouth
 import parselmouth.praat
 from pathlib import Path
 
+from core.library import current_library
 from core.utils import long_vowel_groups, mora_group_kana
 
 _VOWEL_CHARS = {'a', 'i', 'u', 'e', 'o'}
@@ -63,9 +64,10 @@ _MALE_CEILING_THRESHOLD = 300.0
 
 # ── フォルマントキャッシュ ────────────────────────────────────────
 # ネイティブ音声のフォルマントは毎回同じ計算になるため、
-# 初回だけ計算して data/config/formant_cache.json に保存する。
+# 初回だけ計算して、単語と同じライブラリの formant_cache.json に保存する（core/library.py）。
 # ファイルの更新時刻（mtime）が変わると自動的にキャッシュを無効化する。
-_CACHE_PATH = Path(__file__).parent.parent / "data" / "config" / "formant_cache.json"
+def _cache_path() -> Path:
+    return current_library().formant_cache
 
 
 def _cache_key(sound_file: str, max_formant: float, mora_list: list) -> str:
@@ -82,19 +84,21 @@ def _cache_key(sound_file: str, max_formant: float, mora_list: list) -> str:
 
 
 def _load_formant_cache() -> dict:
-    if _CACHE_PATH.exists():
+    path = _cache_path()
+    if path.exists():
         try:
-            return _json.loads(_CACHE_PATH.read_text(encoding="utf-8"))
+            return _json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             return {}
     return {}
 
 
 def _save_formant_cache(cache: dict) -> None:
-    _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = _CACHE_PATH.with_suffix(".tmp")
+    path = _cache_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
     tmp.write_text(_json.dumps(cache, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(_CACHE_PATH)
+    tmp.replace(path)
 
 
 def _has_vowel(mora_label: str) -> bool:

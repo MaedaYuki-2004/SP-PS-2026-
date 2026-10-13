@@ -205,9 +205,8 @@
     .wc-rec { background:var(--grad-rec); color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.22); }
     @media (max-width:340px) { .wc-btn { font-size:14px; gap:5px; } .wc-btn .ic { width:18px; height:18px; } }
 
-    /* 先生モード：お手本の録画・削除（文字を付けて、カードのいちばん上に1行で置く） */
-    .word-card-actions { display:none; order:-1; justify-content:flex-end; gap:6px; padding:12px 12px 0; }
-    body.teacher-mode .word-card-actions { display:flex; }
+    /* お手本の録画・削除（単語とお手本は参加者ごと。文字を付けて、カードのいちばん上に1行で置く） */
+    .word-card-actions { display:flex; order:-1; justify-content:flex-end; gap:6px; padding:12px 12px 0; }
     .word-ref-btn, .word-del-btn { display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px; background:var(--bg-muted); border:none;
                                    border-radius:100px; cursor:pointer; color:var(--text-2); font-family:var(--font); font-size:12.5px; font-weight:700; white-space:nowrap; }
     .word-ref-btn .ic, .word-del-btn .ic { width:15px; height:15px; }
@@ -575,6 +574,12 @@
       {% endfor %}
     </div>
     <div class="no-results" id="noResults" hidden>見つかりませんでした</div>
+    {% if not words %}
+    <div class="no-results">
+      <p>まだ単語がありません。練習したい単語を、お手本の録画といっしょに登録しましょう。</p>
+      <button type="button" class="ls-btn" id="btnAddWordEmpty">{{ icon('video') }} 単語を追加</button>
+    </div>
+    {% endif %}
   </section>
 </main>
 
@@ -660,8 +665,13 @@
     </div>
 
     <div class="sheet-group">
+      <button type="button" class="sheet-link" id="btnAddWord">{{ icon('video') }} 単語を追加（お手本録画つき）</button>
+      <a class="sheet-link" href="/admin">{{ icon('clipboard') }} 単語の管理</a>
+    </div>
+
+    <div class="sheet-group">
       <div class="sheet-row">
-        <span><span class="sheet-row-text">先生モード</span><br><span class="sheet-row-sub">単語の追加・お手本の録り直し・削除（先生用パスワードが必要）</span></span>
+        <span><span class="sheet-row-text">先生モード</span><br><span class="sheet-row-sub">参加者アカウントの管理・くわしい分析（先生用パスワードが必要）</span></span>
         <label class="switch"><input type="checkbox" id="teacherModeToggle"{% if is_teacher %} checked{% endif %} aria-label="先生モード"><span></span></label>
       </div>
       {#
@@ -683,8 +693,7 @@
       </form>
       <div class="teacher-only-row">
         <p class="teacher-on-note">{{ icon('alert') }}<span>先生の操作をしないまま60分たつと自動で終わります。生徒に端末を渡す前に、スイッチをOFFにしてください。</span></p>
-        <button type="button" class="sheet-link" id="btnAddWord">{{ icon('video') }} 単語を追加（お手本録画つき）</button>
-        <a class="sheet-link" href="/admin">{{ icon('clipboard') }} 単語の管理</a>
+        <a class="sheet-link" href="/admin/accounts">{{ icon('clipboard') }} 参加者アカウントの管理</a>
         <a class="sheet-link" href="/history#analysis">{{ icon('chart') }} くわしい分析</a>
       </div>
     </div>
@@ -1087,6 +1096,8 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
   }
 
   document.getElementById('btnAddWord').addEventListener('click', function () { openStep1(true); });
+  const addWordEmptyBtn = document.getElementById('btnAddWordEmpty');
+  if (addWordEmptyBtn) addWordEmptyBtn.addEventListener('click', function () { openStep1(true); });
   addAnotherBtn.addEventListener('click', function () { openStep1(false); });
   finishBtn.addEventListener('click', function () { closeAwModal(addedCount > 0); });
 

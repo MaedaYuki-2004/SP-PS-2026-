@@ -10,7 +10,8 @@ from __future__ import annotations
 import random
 from pathlib import Path
 
-from config import STATIC_DIR, RAW_AUDIO_DIR
+from config import STATIC_DIR
+from core.library import current_library
 from core.weakness import kana_vowel
 from core.history import load_history
 
@@ -109,16 +110,15 @@ def get_drill_data(kana: str, words: list[dict]) -> dict | None:
 # ── 聞き分けテスト ────────────────────────────────────────────────────
 
 def _has_audio(word_id: str) -> bool:
-    if (STATIC_DIR / "sample" / f"{word_id}.wav").exists():
+    lib = current_library()
+    if lib.sample_wav(word_id).exists():
         return True
-    if (RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.wav").exists():
-        return True
-    return False
+    return lib.shared and (STATIC_DIR / "sample" / f"{word_id}.wav").exists()
 
 
 def _has_video(word_id: str) -> bool:
     """先生のお手本録画（口の動き）があるか。"""
-    return (RAW_AUDIO_DIR / "sound" / word_id / f"{word_id}.webm").exists()
+    return current_library().sample_video(word_id).exists()
 
 
 def _edit_distance(a: str, b: str) -> int:
