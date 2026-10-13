@@ -36,7 +36,7 @@ except ImportError:
 from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, session
 
 from config import (
-    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DATA_DIR, DISTANCE_RESULT_DIR,
+    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DISTANCE_RESULT_DIR,
     FLASK_SECRET_KEY, STATIC_DIR, TEMPLATES_DIR,
     WORD_ID_MEMO_PATH,
 )
@@ -1508,6 +1508,9 @@ def api_lip_refs_overwrite():
             return jsonify({"error": "word_id required"}), 400
         if not file:
             return jsonify({"error": "file required"}), 400
+        # ログイン中の参加者の単語だけ。無い単語 ID でお手本のファイルを作らない
+        if get_word(word_id) is None:
+            return jsonify({"error": "お手本を登録する単語が見つかりません。"}), 404
         # 一時保存して抽出
         tmp = _save_temp_video(file)
         try:
@@ -1963,6 +1966,9 @@ def api_delete_word():
         word_id = data.get("word_id", "").strip()
         if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
         return jsonify(delete_word(word_id))
+    except ValueError as exc:
+        # 自分の単語に無い ID（ほかの参加者の単語 ID を含む）など、入力の誤り
+        return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
@@ -1977,6 +1983,8 @@ def api_update_word():
         accent  = data.get("accent")
         if not word_id or not display or not reading: return jsonify({"error": "必須項目が不足しています"}), 400
         return jsonify(update_word(word_id, display, reading, accent))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
@@ -2024,6 +2032,8 @@ def api_update_word_note():
         if not word_id:
             return jsonify({"error": "word_id が指定されていません"}), 400
         return jsonify(update_word_note(word_id, note))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         traceback.print_exc()
         return jsonify({"error": str(exc)}), 500
@@ -2037,6 +2047,8 @@ def api_update_word_tags():
         tags    = data.get("tags", [])
         if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
         return jsonify(update_word_tags(word_id, tags))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 

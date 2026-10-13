@@ -153,7 +153,7 @@
       {{ mirror_block(1, kana) }}
       <div class="hint-text">{{ icon('bulb', size=15) }} {{ hint }}</div>
       <div class="drill-controls">
-        <button type="button" class="drill-btn" onclick="speak('{{ kana }}')">{{ icon('volume') }} お手本の音</button>
+        <button type="button" class="drill-btn" onclick='speak({{ kana|tojson }})'>{{ icon('volume') }} お手本の音</button>
         <button type="button" class="drill-btn primary" id="recBtn1" onclick="toggleRec(1)">{{ icon('video') }} 録画する</button>
       </div>
       <div class="playback" id="playback1">
@@ -171,8 +171,8 @@
       <div class="drill-card-sub">口の形をたもったまま、長くのばしたり、つづけて言ったりします。</div>
       {{ mirror_block(2, kana ~ 'ー') }}
       <div class="drill-controls three">
-        <button type="button" class="drill-btn" onclick="speak('{{ kana }}ー')">{{ icon('volume') }} のばす音</button>
-        <button type="button" class="drill-btn" onclick="speak('{{ kana }}、{{ kana }}、{{ kana }}')">{{ icon('volume') }} くりかえす音</button>
+        <button type="button" class="drill-btn" onclick='speak({{ (kana ~ "ー")|tojson }})'>{{ icon('volume') }} のばす音</button>
+        <button type="button" class="drill-btn" onclick='speak({{ (kana ~ "、" ~ kana ~ "、" ~ kana)|tojson }})'>{{ icon('volume') }} くりかえす音</button>
         <button type="button" class="drill-btn primary" id="recBtn2" onclick="toggleRec(2)">{{ icon('video') }} 録画する</button>
       </div>
       <div class="playback" id="playback2">

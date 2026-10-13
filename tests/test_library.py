@@ -50,6 +50,12 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(vocab.list_words(), [])
         self.assertEqual(vocab.get_next_word_id(vocab.load_db()), "word1")
 
+    def test_practiced_word_ids_are_not_reused(self):
+        from core import vocab
+        usercontext.set_current_user("u1")
+        with mock.patch("core.vocab.load_history", return_value=[{"word_id": "word5"}]):
+            self.assertEqual(vocab.get_next_word_id({}), "word6")
+
 
 if __name__ == "__main__":
     unittest.main()

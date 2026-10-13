@@ -22,6 +22,7 @@ from pathlib import Path
 from config import STATIC_DIR
 from core.accent import get_accent
 from core.alignment import run_alignment_on_file
+from core.history import load_history
 from core.library import current_library
 from core.timbre import audio_mfcc
 
@@ -55,6 +56,10 @@ def get_next_word_id(db: dict) -> str:
     web/static/sample/word1.wav（VOICEVOXの「おんど」等）が
     新しく登録した別の単語のサンプル音声として誤って再生される
     （sample_audio() は static/sample を優先するため）。
+
+    練習履歴にある ID も見る。単語を消すと sound/ のフォルダも消えるので、
+    履歴を見ないと同じ ID が別の単語に振られ、消した単語の練習記録が
+    新しい単語の記録として苦手音の分析などに混ざってしまう。
     """
     lib  = current_library()
     nums = [0]
@@ -77,6 +82,11 @@ def get_next_word_id(db: dict) -> str:
                 m = re.search(r"\d+", p.name)
                 if m:
                     nums.append(int(m.group()))
+
+    for record in load_history():
+        m = re.search(r"\d+", str(record.get("word_id") or ""))
+        if m:
+            nums.append(int(m.group()))
 
     return f"word{max(nums) + 1}"
 

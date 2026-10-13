@@ -169,7 +169,7 @@
           <td><span style="font-family:var(--mono);font-size:11px;">{{ w.reading }}</span></td>
           <td>{% if w.accent is not none %}<span style="font-family:var(--mono);font-size:11px;">{{ w.accent }}型{% if w.accent==0 %}（平板）{% elif w.accent==1 %}（頭高）{% endif %}</span>{% else %}<span style="color:var(--text-3);">不明</span>{% endif %}</td>
           <td>{% if w.source=="recorded" %}<span class="src-badge src-recorded">初期録音</span>{% elif w.source=="manual" %}<span class="src-badge src-recorded">録画</span>{% else %}<span class="src-badge src-tts">自動</span>{% endif %}</td>
-          <td>{% if w.source!="recorded" %}<div class="action-row"><button class="action-btn action-edit" onclick="openEdit('{{ w.word_id }}','{{ w.display }}','{{ w.reading }}','{{ w.accent }}','{{ (w.tags or [])|join(',') }}','{{ (w.note or '')|replace("'","\\'") }}')">編集</button><button class="action-btn action-del" onclick="deleteWord('{{ w.word_id }}','{{ w.display }}',this)">削除</button></div>{% else %}<span style="font-size:10px;color:var(--text-3);">変更不可</span>{% endif %}</td>
+          <td>{% if w.source!="recorded" %}<div class="action-row"><button class="action-btn action-edit" onclick='openEdit({{ w.word_id|tojson }},{{ w.display|tojson }},{{ w.reading|tojson }},{{ w.accent|string|tojson }},{{ (w.tags or [])|join(",")|tojson }},{{ (w.note or "")|tojson }})'>編集</button><button class="action-btn action-del" onclick='deleteWord({{ w.word_id|tojson }},{{ w.display|tojson }},this)'>削除</button></div>{% else %}<span style="font-size:10px;color:var(--text-3);">変更不可</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

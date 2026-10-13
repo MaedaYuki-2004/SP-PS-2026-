@@ -6,6 +6,7 @@ SP-PS の動作環境を診断するスクリプト。
 結果をそのままコピーして共有できる形式で出力する。
 """
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -30,10 +31,8 @@ required_paths = [
     "engine/models/hmmdefs_monof_mix16_gid.binhmm",
     "scripts/segment_julius.pl",
     "data/raw_audio/wav/",
-    "data/config/audio.scp",
-    "data/config/words.txt",
-    "data/mfcc/",
 ]
+# 単語の audio.scp・words.txt・mfcc/ は参加者ごとのライブラリにあるので 6・7 で調べる
 
 for rel in required_paths:
     p = BASE_DIR / rel
@@ -83,30 +82,46 @@ except Exception as e:
     ng(f"Perl の確認中にエラー: {e}")
 
 
-# ── 4. 基準音声ファイルの確認（word1）────────────────────────────
-sep("4. 基準音声ファイルの確認（word1）")
+# ── 4〜7 で調べる単語とお手本 ─────────────────────────────────────
+# 単語とお手本は参加者ごと（data/users/<利用者ID>/library/、core/library.py）。
+# 共有の単語が無ければ、単語のある最初の参加者のものを調べる。
+data_dir = Path(os.environ["DATA_DIR"]) if os.environ.get("DATA_DIR") else BASE_DIR / "data"
+lib_label, sound_dir, mfcc_dir = "共有", data_dir / "raw_audio/sound", data_dir / "mfcc"
+words_db_path, scp_path, scp_base = data_dir / "config/words_db.json", data_dir / "config/audio.scp", data_dir / "raw_audio"
+if not words_db_path.exists():
+    for root in sorted((data_dir / "users").glob("*/library")):
+        if (root / "words_db.json").exists():
+            lib_label, sound_dir, mfcc_dir = f"参加者 {root.parent.name}", root / "sound", root / "mfcc"
+            words_db_path, scp_path, scp_base = root / "words_db.json", root / "audio.scp", root
+            break
+try:
+    WORD = next(iter(json.loads(words_db_path.read_text(encoding="utf-8"))), "word1")
+except Exception:
+    WORD = "word1"
 
-sound_dir = BASE_DIR / "data/raw_audio/sound"
+# ── 4. 基準音声ファイルの確認 ────────────────────────────────────
+sep(f"4. 基準音声ファイルの確認（{lib_label}の {WORD}）")
+
 if sound_dir.exists():
     ok(f"sound/ ディレクトリ: {sound_dir}")
 else:
     ng(f"sound/ ディレクトリが見つかりません: {sound_dir}")
 
 for ext in ["wav", "lab", "log"]:
-    p = sound_dir / "word1" / f"word1.{ext}"
+    p = sound_dir / WORD / f"{WORD}.{ext}"
     if p.exists():
-        ok(f"word1.{ext}  ({p.stat().st_size:,} bytes)")
+        ok(f"{WORD}.{ext}  ({p.stat().st_size:,} bytes)")
     else:
-        ng(f"word1.{ext} が見つかりません")
+        ng(f"{WORD}.{ext} が見つかりません")
 
 
-# ── 5. .lab ファイルの中身を確認（word1）────────────────────────
-sep("5. .lab ファイルの中身を確認（word1）")
+# ── 5. .lab ファイルの中身を確認 ─────────────────────────────────
+sep(f"5. .lab ファイルの中身を確認（{WORD}）")
 
-lab_path = sound_dir / "word1" / "word1.lab"
+lab_path = sound_dir / WORD / f"{WORD}.lab"
 if lab_path.exists():
     lines = lab_path.read_text(encoding="utf-8").strip().splitlines()
-    ok(f"word1.lab の行数: {len(lines)} 行")
+    ok(f"{WORD}.lab の行数: {len(lines)} 行")
     info("--- 内容 ---")
     for line in lines:
         info(f"  {line}")
@@ -119,16 +134,13 @@ if lab_path.exists():
     else:
         warn("silB または silE が見つかりません → アライメントが失敗している可能性があります")
 else:
-    ng("word1.lab が見つかりません")
+    ng(f"{WORD}.lab が見つかりません")
 
 
 # ── 6. MFCCバイナリファイルの確認 ────────────────────────────────
-sep("6. MFCCバイナリファイルの確認")
-
-mfcc_dir = BASE_DIR / "data/mfcc"
+sep(f"6. MFCCバイナリファイルの確認（{lib_label}）")
 
 # words_db.json から単語数を動的に取得（ハードコード禁止）
-words_db_path = BASE_DIR / "data/config/words_db.json"
 expected_count = None
 if words_db_path.exists():
     try:
@@ -151,19 +163,18 @@ if mfcc_dir.exists():
             ok(f"{actual_count} 個 / {expected_count} 個必要 → 正常")
         elif actual_count < expected_count:
             ng(f"{actual_count} 個しかありません（{expected_count} 個必要）")
-            info("python scripts/regenerate_mfcc.py を実行してください")
+            info("python scripts/regenerate_mfcc.py --user <利用者ID> を実行してください")
         else:
             warn(f"{actual_count} 個あります（{expected_count} 個必要）→ 不要な .bin があります")
     else:
         info(f"{actual_count} 個の .bin ファイルが見つかりました（期待値不明）")
 else:
-    ng("data/mfcc/ が見つかりません")
+    ng(f"{mfcc_dir} が見つかりません")
 
 
 # ── 7. audio.scp の内容確認 ──────────────────────────────────────
-sep("7. audio.scp の内容確認")
+sep(f"7. audio.scp の内容確認（{lib_label}）")
 
-scp_path = BASE_DIR / "data/config/audio.scp"
 if scp_path.exists():
     lines = scp_path.read_text(encoding="utf-8").strip().splitlines()
     info(f"audio.scp の行数: {len(lines)} 行")
@@ -171,7 +182,7 @@ if scp_path.exists():
 
     missing = []
     for line in lines:
-        wav = BASE_DIR / "data/raw_audio" / line.strip()
+        wav = scp_base / line.strip()
         if not wav.exists():
             missing.append(line.strip())
 
