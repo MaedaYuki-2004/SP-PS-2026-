@@ -69,6 +69,25 @@ class Workspace:
         self.txt.write_text(reading, encoding="utf-8")
 
 
+def clear_lip_dir(user_id: str) -> int:
+    """その参加者の口の動画の一時ファイル（work/lip/）を全部消す。消した数を返す。
+
+    口の動画は解析（POST /graph）に使ったあと消すが、「結果を見る」を押さないままセッションが
+    切れると残ってしまう。ログインのときに呼んで、前のセッションの残りを消す。
+    """
+    lip_dir = DATA_DIR / "users" / _safe_seg(user_id) / "work" / "lip"
+    removed = 0
+    if lip_dir.is_dir():
+        for p in lip_dir.iterdir():
+            if p.is_file():
+                try:
+                    p.unlink()
+                    removed += 1
+                except OSError:
+                    pass
+    return removed
+
+
 def current_workspace() -> Workspace:
     """ログイン中の参加者の作業フォルダ。未ログインなら従来の共有パス。"""
     uid = usercontext.current_user()

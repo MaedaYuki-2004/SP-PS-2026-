@@ -57,6 +57,8 @@ from core import usercontext
 from core.workspace import current_workspace
 from core.library import current_library
 from core.public_access import client_key, public_url, url_from_host
+from core.ratelimit import FailureLimiter
+from core.workspace import clear_lip_dir
 
 # Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
 # 以前は -3000 だったが、extract_julius_score() が返すのは 1フレームあたりの値（正常で -25〜-30 程度）
@@ -73,6 +75,14 @@ app = Flask(
     static_folder=str(STATIC_DIR),
 )
 app.secret_key = FLASK_SECRET_KEY
+# ログインと先生モードの Cookie を、別のサイトから送られた POST には付けない（CSRF 対策）。
+# 単語の削除などは JSON で受けるが request.get_json(force=True) なので、Cookie が付くと別サイトのフォームからも届きうる
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+# 受け取るファイルの上限。お手本・口の録画は3秒で数 MB、録音の WAV は 1 MB 未満。大きなファイルでディスクや
+# メモリを使い切られないようにする（超えると 413）
+MAX_UPLOAD_MB = 50
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 
 
 # ── ユーティリティ ────────────────────────────────────────────────────
@@ -517,6 +527,13 @@ def _save_temp_video(uploaded_file, directory=None):
     return tmp.name
 
 
+def _lip_video_error(exc: Exception) -> str:
+    """口の動画を使えなかったときの、利用者向けの説明（サーバーのファイルの場所などは出さない）。"""
+    if "顔" in str(exc):
+        return "顔（口元）が映っていませんでした。明るい場所で、顔を点線の枠に合わせて録り直してください。"
+    return "録画を読み込めませんでした。もう一度録画してください。"
+
+
 def _persist_ref_video(word_id: str, video_path: str) -> None:
     """お手本録画（webm）を sound_dir に永続保存する。
 
@@ -749,15 +766,23 @@ def server_error(e):
     return render_template("error.html", code=500, title="サーバーエラー",
                            message="解析中に問題が発生しました。もう一度試してください。"), 500
 
+@app.errorhandler(413)
+def too_large(e):
+    msg = f"送られたファイルが大きすぎます（{MAX_UPLOAD_MB}MB まで）。録画・録音をし直してください。"
+    if _wants_html():
+        return render_template("error.html", code=413, title="ファイルが大きすぎます", message=msg), 413
+    return jsonify({"error": msg}), 413
+
 
 # ── 認証（研究参加者ログイン） ──────────────────────────────────────
 # 倫理審査資料 SP-PS §6.1：利用者 ID は研究者が割り当て、パスワードは本人が
 # 初回ログイン時に設定する。練習記録を個人ごとに分離するための土台。
 #
-# 先生だけの操作（単語・お手本・参加者アカウントの管理）は、生徒の端末で使われても
+# 先生だけの操作（参加者アカウントの管理と配布用QR。/admin/accounts 配下）は、生徒の端末で使われても
 # 書き換えられないよう、先生用パスワードで ON にした「先生モード」のセッションでだけ受け付ける
-# （core/teacher.py）。管理画面（/admin*）は参加者ログインではなく先生モードで守る。
+# （core/teacher.py）。/admin/accounts 配下は参加者ログインではなく先生モードで守る。
 # 最初の参加者アカウントを作る前にも開けるようにするため。
+# 単語とお手本（/admin・/admin/add_word など）は参加者ごとに本人が管理するので、ログインだけで使える（core/library.py）。
 
 _AUTH_EXEMPT_ENDPOINTS = {"login", "first_login", "logout", "static",
                           "teacher_page", "teacher_unlock_api", "teacher_lock"}
@@ -835,20 +860,31 @@ def login():
     user_id  = (request.form.get("user_id") or "").strip()
     password = request.form.get("password") or ""
 
-    # ID は存在するがパスワード未設定 → 初回ログイン（パスワード・表示名の設定）へ
+    # 総当たり対策：同じ接続元から同じ利用者 ID で続けて間違えたら、しばらく受け付けない
+    limit_key = f"{_client_key()}|{user_id.lower()[:64]}"
+    wait = _login_limiter.seconds_locked(limit_key)
+    if wait:
+        return render_template(
+            "login.html",
+            error=f"続けて間違えたため、{wait}秒待ってからもう一度入力してください。",
+            user_id=user_id,
+        ), 429
+
+    # ID は存在するがパスワード未設定 → 初回ログイン（パスワードの設定）へ
     if acc.needs_password_setup(user_id):
         return redirect(f"/first_login?user_id={quote(user_id)}")
 
     account = acc.verify_login(user_id, password)
     if not account:
+        _login_limiter.record_failure(limit_key)
         return render_template(
             "login.html",
             error="利用者IDまたはパスワードが正しくありません。大文字・小文字もご確認ください。",
             user_id=user_id,
         ), 401
 
-    session.clear()
-    session[acc.SESSION_KEY] = account["user_id"]
+    _login_limiter.clear(limit_key)
+    _start_session(account["user_id"])
     return redirect("/select")
 
 
@@ -881,15 +917,40 @@ def first_login():
             error=str(exc),
         ), 400
 
-    session.clear()
-    session[acc.SESSION_KEY] = account["user_id"]
+    _start_session(account["user_id"])
     return redirect("/select")
 
 
 @app.route("/logout", methods=["GET", "POST"])
 def logout():
+    # 「結果を見る」を押さないままログアウトしたときも、受け取った口の動画を残さない
+    _remove_session_lip_videos()
     session.clear()
     return redirect("/login")
+
+
+# 参加者のログインの総当たり対策。同じ接続元から同じ利用者 ID で5回続けて間違えたら60秒待たせる
+# （先生用パスワードと同じ回数・秒数。core/teacher.py）
+_login_limiter = FailureLimiter(max_fails=5, lock_seconds=60)
+
+
+def _start_session(user_id: str) -> None:
+    """ログインした参加者のセッションを始める。前のセッションの口の動画の一時ファイルは消す。"""
+    _remove_session_lip_videos()
+    session.clear()
+    session[acc.SESSION_KEY] = user_id
+    # 前にログインしたときに、結果を見ないまま残った口の動画（work/lip/）を消す
+    clear_lip_dir(user_id)
+
+
+def _remove_session_lip_videos() -> None:
+    """このセッションで受け取った口の動画の一時ファイルを消す（解析に使わなかったものが残らないように）。"""
+    for path in (session.get("lip_video_paths") or {}).values():
+        try:
+            if path and os.path.exists(path):
+                os.remove(path)
+        except OSError:
+            pass
 
 
 # ── 先生モード ───────────────────────────────────────────────────────
@@ -1216,9 +1277,11 @@ def record_audio():
         # 録音ページは単語の情報（読み・お手本など）が無いと表示できない。以前は単語を選ばずに
         # 開くとテンプレートが word_id を JSON にできず 500 になっていたので、ホームへ戻す
         return redirect("/select")
+    file = request.files.get("file")
+    if not file:
+        return "エラー: 録音が送られていません", 400
     try:
         ws = current_workspace()
-        file = request.files["file"]
         file.save(str(ws.wav))
         convert_to_16kHz(ws.wav, ws.wav)
         run_alignment(ws.align_dir)
@@ -1264,14 +1327,17 @@ def upload_lip_video():
         session.modified = True
         # 参照（ref）をアップロードした場合は抽出データを永続化しておく
         if mode == 'ref' and MEDIA_PIPE_AVAILABLE:
+            mora_data: list[dict] = []
+            # 読めない動画・顔が映っていない動画は、お手本を書きかえずに録り直してもらう
             try:
                 reference_vectors, reference_ratios, reference_times = _extract_lip_data_timed(new_path)
-
+            except ValueError as exc:
+                return jsonify({"error": _lip_video_error(exc)}), 400
+            try:
                 if current_word_id:
                     _persist_ref_video(current_word_id, new_path)
 
                 # ── アライメントによるモーラ別参照データを生成 ────────────
-                mora_data: list[dict] = []
                 if current_word_id:
                     try:
                         word_entry = get_word(current_word_id)
@@ -1514,8 +1580,12 @@ def api_lip_refs_overwrite():
         # 一時保存して抽出
         tmp = _save_temp_video(file)
         try:
+            # 先に中身を確かめる。読めない動画・顔が映っていない動画でお手本を上書きしない
+            try:
+                vectors, ratios, lip_times = _extract_lip_data_timed(tmp)
+            except ValueError as exc:
+                return jsonify({"error": _lip_video_error(exc)}), 400
             _persist_ref_video(word_id, tmp)
-            vectors, ratios, lip_times = _extract_lip_data_timed(tmp)
 
             # モーラ別参照データをアライメントで生成（upload_lip_video と同じパイプライン）
             mora_data: list[dict] = []
@@ -1581,6 +1651,21 @@ def audio_analysis():
     if request.method != "POST":
         # 結果画面でリロードした場合など。エラーではなくホームに戻す
         return redirect("/select")
+    # 単語が消えた・録音が無いまま送られたとき（別のタブで単語を削除した、戻るボタンで送り直した など）は、
+    # 解析エラーの画面ではなく、録音し直せる画面へ戻す
+    ws_check = current_workspace()
+    word_check = ws_check.read_word_id()
+    if not word_check or get_word(word_check) is None:
+        return redirect("/select")
+    if not ws_check.wav.exists() or not ws_check.lab.exists():
+        return redirect(f"/practice/word/{quote(word_check)}")
+    # 単語を選んだ（録音ページを開いた）あとに録音していなければ、前の単語の録音なので採点しない
+    try:
+        if ws_check.wav.stat().st_mtime < ws_check.word_id_path.stat().st_mtime:
+            return redirect(f"/practice/word/{quote(word_check)}")
+    except OSError:
+        pass
+
     try:
         ws        = current_workspace()
         word_id   = ws.read_word_id()
@@ -2046,6 +2131,8 @@ def api_update_word_tags():
         word_id = data.get("word_id", "").strip()
         tags    = data.get("tags", [])
         if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
+        if not isinstance(tags, list) or not all(isinstance(x, str) for x in tags):
+            return jsonify({"error": "tags は文字列のリストで指定してください"}), 400
         return jsonify(update_word_tags(word_id, tags))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -2060,7 +2147,11 @@ def api_get_all_tags():
 
 @app.route("/api/history/calendar")
 def api_history_calendar():
-    days = min(int(request.args.get("days", 84)), 365)
+    try:
+        days = int(request.args.get("days", 84))
+    except ValueError:
+        days = 84
+    days = max(1, min(days, 365))
     return jsonify(get_daily_counts(days))
 
 
@@ -2178,7 +2269,11 @@ def add_word():
         # 音声抽出 → 登録 → 口形データ保存（テキスト+動画をまとめて atomic に登録）
         video_tmp = _save_temp_video(file)
         try:
-            ref_wav = _webm_to_wav(video_tmp)
+            try:
+                ref_wav = _webm_to_wav(video_tmp)
+            except Exception:
+                traceback.print_exc()
+                return jsonify({"error": "お手本の録画を読み込めませんでした。もう一度録画してください。"}), 400
             try:
                 result = register_word(display, reading, Path(ref_wav))
             finally:

@@ -26,12 +26,13 @@ sep("1. フォルダ・ファイルの存在確認")
 
 required_paths = [
     "engine/",
-    "engine/bin/",
     "engine/models/",
     "engine/models/hmmdefs_monof_mix16_gid.binhmm",
     "scripts/segment_julius.pl",
-    "data/raw_audio/wav/",
 ]
+# engine/bin/ は Windows 用の Julius（同梱）。Mac/Linux は各自インストールしたものを使う（2 で調べる）
+if os.name == "nt":
+    required_paths.insert(1, "engine/bin/")
 # 単語の audio.scp・words.txt・mfcc/ は参加者ごとのライブラリにあるので 6・7 で調べる
 
 for rel in required_paths:
@@ -40,6 +41,13 @@ for rel in required_paths:
         ok(rel)
     else:
         ng(f"{rel} が見つかりません")
+
+# データの置き場所（DATA_DIR）。無ければアプリを一度起動すると作られる
+_data_dir = Path(os.environ["DATA_DIR"]) if os.environ.get("DATA_DIR") else BASE_DIR / "data"
+if (_data_dir / "config").is_dir():
+    ok(f"データの置き場所: {_data_dir}")
+else:
+    info(f"データの置き場所 {_data_dir} はまだありません（python app.py で一度起動すると作られます）")
 
 
 # ── 2. Julius 実行ファイルの確認 ─────────────────────────────────
@@ -199,17 +207,17 @@ else:
 
 
 # ── 8. VOICEVOX の確認 ───────────────────────────────────────────
-sep("8. VOICEVOX の確認")
+sep("8. VOICEVOX の確認（参考）")
 
+# VOICEVOX は初期データセットのお手本を作るのに使っただけで、今の単語登録（お手本は録画の音声）と
+# 採点では使わない。起動していなくても問題ないので、警告ではなく情報として出す
 try:
     import urllib.request
     with urllib.request.urlopen("http://127.0.0.1:50021/version", timeout=3) as res:
         version = res.read().decode().strip()
-    ok(f"VOICEVOX が起動しています（バージョン: {version}）")
+    info(f"VOICEVOX が起動しています（バージョン: {version}）。今の単語登録・採点では使いません")
 except Exception:
-    warn("VOICEVOX に接続できません（http://127.0.0.1:50021）")
-    info("単語追加機能を使う場合は VOICEVOX を起動してください")
-    info("既存の音声ファイルは使えるため、通常の練習には影響しません")
+    info("VOICEVOX は起動していません。今の単語登録・採点では使わないので、問題ありません")
 
 
 # ── まとめ ────────────────────────────────────────────────────────

@@ -32,7 +32,9 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from datetime import datetime
+from pathlib import Path
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -172,6 +174,17 @@ def create_account(
     accounts = load_accounts()
     if uid in accounts:
         raise ValueError(f"利用者ID {uid} は既に存在します")
+    # Mac・Windows のファイルシステムは大文字・小文字を区別しないので、A01 と a01 のデータが
+    # 同じフォルダ（data/users/A01）に混ざってしまう
+    same = [k for k in accounts if k.lower() == uid.lower()]
+    if same:
+        raise ValueError(f"大文字・小文字だけが違う利用者IDは使えません（{same[0]} があります）")
+    # 前に同じ ID で使われたデータが残っていると、新しい参加者に前の人の記録やお手本の録画が見えてしまう
+    if user_data_dir(uid).exists():
+        raise ValueError(
+            f"利用者ID {uid} の前のデータが残っています（{user_data_dir(uid)}）。"
+            "別の利用者IDにするか、そのフォルダを片付けてから登録してください。"
+        )
 
     now = _now_iso()
     accounts[uid] = {
@@ -222,14 +235,33 @@ def clear_password(user_id: str) -> dict:
     return _sanitize(acc)
 
 
+def user_data_dir(user_id: str) -> Path:
+    """その参加者のデータ（練習記録・今日のレッスン・単語とお手本・作業ファイル）のフォルダ。"""
+    from core.history import _safe_seg  # core.history は accounts を import しないので循環しない
+    return DATA_DIR / "users" / _safe_seg(user_id)
+
+
 def delete_account(user_id: str) -> dict:
-    """アカウントを削除する（参加者の撤回時など）。"""
+    """アカウントと、その参加者のデータ（data/users/<利用者ID>/）をまとめて削除する（参加の撤回時など）。
+
+    倫理審査資料 §7.1：中止を申し出た参加者のデータは速やかに削除する。
+    以前はアカウントだけを消してデータが残り、同じ ID を作り直すと前の人の記録やお手本の録画が見えていた。
+    """
     accounts = load_accounts()
     uid = (user_id or "").strip()
     if uid not in accounts:
         raise ValueError(f"利用者ID {uid} は登録されていません")
     del accounts[uid]
     save_accounts(accounts)
+    data_dir = user_data_dir(uid)
+    if data_dir.exists():
+        try:
+            shutil.rmtree(data_dir)
+        except OSError as exc:
+            raise ValueError(
+                f"{uid} のアカウントは削除しましたが、データのフォルダ（{data_dir}）を消せませんでした（{exc}）。"
+                "サーバーのパソコンで、このフォルダを手で消してください。"
+            ) from exc
     return {"message": f"{uid} を削除しました"}
 
 

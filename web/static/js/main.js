@@ -331,6 +331,9 @@ async function main() {
       silenceStart = null;
       buffers.splice(0, buffers.length);
 
+      // 前回の送信失敗の表示を消す（録り直しで成功したのに、古い失敗の案内が残らないように）
+      clearUploadError();
+
       // 前の録音の口の動画を端末から消す。この録音で撮れなかったときに、
       // 結果画面へ前の動画（共有の端末ならほかの生徒の動画）が出ないようにするため
       if (window.SPLipStore) lipStoreCleared = window.SPLipStore.clear();
@@ -413,7 +416,14 @@ async function main() {
               const msg = document.getElementById('micError');
               if (msg) {
                 msg.style.display = 'block';
+                msg.dataset.kind = 'upload';
                 msg.textContent = '⚠ 音声の解析準備に失敗しました。もう一度録音してください。';
+              }
+              // 録音のあとの画面（いま見えている画面）にも、理由と次にやることを出す
+              const note = document.getElementById('doneNote');
+              if (note) {
+                note.textContent = '録音をうまく送れませんでした。下の「すぐ録り直す」で、もう一度録音してください。';
+                note.hidden = false;
               }
             }
           });
@@ -465,6 +475,18 @@ async function main() {
     const msg = document.getElementById('micError');
     if (msg) { msg.style.display = 'block'; msg.textContent = 'マイクにアクセスできませんでした。ブラウザの権限を確認してください。'; }
   }
+}
+
+// 録音を送れなかったときの表示を消す
+function clearUploadError() {
+  const msg = document.getElementById('micError');
+  if (msg && msg.dataset.kind === 'upload') {
+    msg.style.display = 'none';
+    msg.textContent = '';
+    delete msg.dataset.kind;
+  }
+  const note = document.getElementById('doneNote');
+  if (note) note.hidden = true;
 }
 
 // ── WAV エンコード ──────────────────────────────────────

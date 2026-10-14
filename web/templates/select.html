@@ -271,7 +271,7 @@
     }
 
 
-    /* ── ここから下は先生用モーダル（単語追加・お手本録画）── */
+    /* ── ここから下は単語追加・お手本録画のモーダル（参加者が自分の単語を管理する）── */
     /* 単語編集モーダル */
     .edit-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:400; align-items:center; justify-content:center; }
     .edit-modal-overlay.open { display:flex; }
@@ -494,11 +494,14 @@
         <span class="tile-title">ことば当てクイズ</span>
         <span class="tile-sub">口の動きや音で当てる</span>
       </a>
+      {# 単語が1つも無いときは押しても何も起きないので出さない #}
+      {% if words %}
       <button type="button" class="tile" id="btnContinuous">
         <span class="tile-ic t-cont">{{ icon('repeat', size=22) }}</span>
         <span class="tile-title">れんぞく練習</span>
         <span class="tile-sub">下の単語を順番に</span>
       </button>
+      {% endif %}
     </div>
   </section>
 
@@ -880,7 +883,7 @@ function kanaNorm(str) {
 })();
 
 /* ── れんぞく練習：いま表示している単語を順番に ── */
-document.getElementById('btnContinuous').addEventListener('click', () => {
+document.getElementById('btnContinuous')?.addEventListener('click', () => {
   const visible = [...document.querySelectorAll('.word-card:not(.hidden)')];
   const ids = visible.map(c => c.dataset.wordId).filter(Boolean);
   if (!ids.length) return;

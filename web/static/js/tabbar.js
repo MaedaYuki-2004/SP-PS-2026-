@@ -17,8 +17,8 @@
     admin:    SVG('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')
   };
 
-  // 「先生」は単語の追加・削除・お手本録画を行う指導者用の画面。
-  // 生徒のタブに置くと、押してはいけないボタンへの入口になるため、
+  // 「先生」は参加者アカウントの管理（登録・パスワードのリセット・削除・配布用QR）を行う画面。
+  // 単語とお手本は参加者ごとに本人が管理するので（core/library.py）、先生のタブはアカウント管理へつなぐ。
   // 先生モード（先生用パスワードで ON にしたセッション）のときだけ出す。
   // 判定はサーバーが <html class="teacher-mode"> で渡す。
   var isTeacher = document.documentElement.classList.contains('teacher-mode');
@@ -33,8 +33,8 @@
       active: function (p, h) { return (onHistory(p) && h === '#analysis') || /^\/analysis/.test(p); } }
   ];
   if (isTeacher) {
-    TABS.push({ href: '/admin', label: '先生', icon: ICONS.admin,
-      active: function (p) { return /^\/admin/.test(p); } });
+    TABS.push({ href: '/admin/accounts', label: '先生', icon: ICONS.admin,
+      active: function (p) { return /^\/admin\/accounts/.test(p); } });
   }
 
   var nav = null;

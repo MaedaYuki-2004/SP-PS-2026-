@@ -132,7 +132,7 @@
   {% if not questions or questions|length < 3 %}
   <div class="quiz-empty">
     <div class="quiz-empty-ic">{{ icon('ear', size=34) }}</div>クイズには、お手本つきの単語が3つ以上必要です。<br>
-    先生にお手本の録画を増やしてもらうと、出題できるようになります。
+    設定の「単語を追加」でお手本つきの単語を増やすと、出題できるようになります（家の人や先生といっしょに）。
     <div style="margin-top:16px;"><a href="/select" class="btn btn-ghost">ホームに戻る</a></div>
   </div>
   {% else %}
@@ -162,7 +162,7 @@
         <span class="qz-mode-check">{{ icon('check', size=14) }}</span>
       </button>
     </div>
-    <p class="qz-result-mode" id="modeNote" hidden style="margin-top:8px;">口の動きのクイズは、先生のお手本録画がある単語が3つ以上になると選べます。</p>
+    <p class="qz-result-mode" id="modeNote" hidden style="margin-top:8px;">口の動きのクイズは、お手本の録画がある単語が3つ以上になると選べます。</p>
     <button type="button" class="qz-start" id="startBtn">{{ icon('play', size=18) }} はじめる</button>
   </section>
 

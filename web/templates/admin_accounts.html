@@ -75,7 +75,7 @@
       <div class="card-title">新しい参加者を登録</div>
       <p class="ethics-note">
         利用者IDは研究者が割り当てます（例：A01, A02）。氏名・あだ名は入れないでください。<br>
-        学年と聴覚障害の程度は調査票の内容をここで入力します。パスワードと表示名は参加者本人が初回ログイン時に設定します。
+        学年と聴覚障害の程度は調査票の内容をここで入力します。パスワードは参加者本人が初回ログイン時に設定します。
       </p>
       <form class="row-form" method="post" action="/admin/accounts/create" autocomplete="off">
         <div class="fld">
@@ -151,7 +151,7 @@
                 </form>
                 {% endif %}
                 <form method="post" action="/admin/accounts/delete"
-                      onsubmit="return confirm('{{ a.user_id }} を完全に削除します。取り消せません。よろしいですか？');">
+                      onsubmit="return confirm('{{ a.user_id }} のアカウントと、練習の記録・単語・お手本の録画をすべて削除します。取り消せません。よろしいですか？');">
                   <input type="hidden" name="user_id" value="{{ a.user_id }}">
                   <button type="submit" class="btn btn-danger">削除</button>
                 </form>

@@ -5,7 +5,7 @@ from unittest import mock
 
 from config import AUDIO_WAV_DIR, WORD_ID_MEMO_PATH
 from core import usercontext
-from core.workspace import current_workspace
+from core.workspace import clear_lip_dir, current_workspace
 
 
 class WorkspaceTests(unittest.TestCase):
@@ -46,6 +46,19 @@ class WorkspaceTests(unittest.TestCase):
         usercontext.set_current_user("..")
         with self.assertRaises(ValueError):
             current_workspace()
+
+    def test_clear_lip_dir_removes_only_that_users_videos(self):
+        # 結果を見ないまま残った口の動画は、ログインのときに消す（ほかの参加者の分は消さない）
+        usercontext.set_current_user("u1")
+        a = current_workspace().lip_dir
+        usercontext.set_current_user("u2")
+        b = current_workspace().lip_dir
+        (a / "left.webm").write_bytes(b"x")
+        (b / "other.webm").write_bytes(b"x")
+        self.assertEqual(clear_lip_dir("u1"), 1)
+        self.assertEqual(list(a.iterdir()), [])
+        self.assertTrue((b / "other.webm").exists())
+        self.assertEqual(clear_lip_dir("nobody"), 0)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,6 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-healthcheckPath = "/select"
+healthcheckPath = "/login"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

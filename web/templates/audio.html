@@ -209,6 +209,9 @@
     .rp-dev[data-state="err"] .rp-dev-mark { background:var(--danger); color:#fff; }
     .rp-dev[data-state="err"] .rp-dev-mark::before { content:'×'; }
     .rp-ready-note { margin:-10px 0 0; font-size:13.5px; line-height:1.6; color:var(--text-2); max-width:340px; }
+    /* 録音を送れなかったとき（録音のあとの画面）。「結果を見る」の代わりに出す */
+    .rp-done-note { width:100%; margin:0; padding:12px 14px; border-radius:14px; background:var(--danger-bg); color:var(--danger);
+                    font-size:14px; font-weight:700; line-height:1.6; text-align:center; }
     .rp-help-btn { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:8px 16px; border-radius:100px;
                    border:1.5px solid var(--danger); background:var(--bg-card); color:var(--danger);
                    font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer; margin-top:-8px; }
@@ -698,6 +701,8 @@
       </details>
     </div>
 
+    <p class="rp-done-note" id="doneNote" role="alert" hidden></p>
+
     <form action="/graph" method="post" enctype="multipart/form-data" class="graph-form"
           id="graphForm" onsubmit="document.getElementById('loadingOverlay').classList.add('show')">
       <button type="submit" id="buttongraph">結果を見る &rarr;</button>
@@ -772,8 +777,9 @@
     <div id="micError"></div>
     <div class="lip-status" id="lipStatus"></div>
     <span id="lipRefTag" class="lip-ref-tag">お手本登録済み</span>
-    <button type="button" id="buttonStop" disabled>録音停止</button>
-    <button type="button" id="buttonLipRef" class="btn btn-secondary btn-sm">お手本を録画（3秒）</button>
+    {# ここ（.rp-parts）は画面に出さない部品置き場。ボタンはスクリプトから押すだけなので、Tab キーでも選べないようにする #}
+    <button type="button" id="buttonStop" disabled tabindex="-1">録音停止</button>
+    <button type="button" id="buttonLipRef" class="btn btn-secondary btn-sm" tabindex="-1">お手本を録画（3秒）</button>
   </div>
 
   {#
@@ -884,6 +890,9 @@
   });
   document.getElementById('btnAgainRec')?.addEventListener('click', () => {
     const start = document.getElementById('buttonStart');
+    // 「すぐ録り直す」を押した時点で録り直すと決めているので、「前の録音を破棄しますか」は聞かない
+    // （「お手本を見て録り直す」と同じ）
+    window._spSkipRerecordConfirm = true;
     if (start && !start.disabled) start.click();
   });
 
@@ -1646,7 +1655,7 @@ document.addEventListener('sp:recordstart', () => {
 });
 document.addEventListener('sp:lipnone', () => {
   const el = document.getElementById('doneCompare');
-  if (el) el.innerHTML = '<p class="rp-compare-empty">この単語は、口の動きの記録がありません（先生のお手本の口が未登録です）。</p>';
+  if (el) el.innerHTML = '<p class="rp-compare-empty">この単語は、口の動きの記録がありません（お手本の口の動きが登録されていません）。</p>';
 });
 document.addEventListener('sp:lipready', (e) => {
   const el = document.getElementById('doneCompare');

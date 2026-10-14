@@ -1,5 +1,5 @@
 // 見た目や共通スクリプトを大きく変えたときは番号を上げる（古い CSS・JS のキャッシュを捨てさせるため）
-const CACHE = 'sp-ps-v4';
+const CACHE = 'sp-ps-v5';
 const PRECACHE = [
   '/static/css/base.css',
   '/static/js/theme.js',
