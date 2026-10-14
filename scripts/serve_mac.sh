@@ -90,7 +90,7 @@ caffeinate -ims -w "$APP_PID" &
 PIDS="$PIDS $!"
 
 make_qr() {
-    PUBLIC_BASE_URL="$1" "$PY" scripts/make_access_qr.py --output "$2" | sed 's/^/  /'
+    PUBLIC_BASE_URL="$1" "$PY" scripts/make_access_qr.py --output "$2" "${@:3}" | sed 's/^/  /'
 }
 
 case "$MODE" in
@@ -115,16 +115,22 @@ case "$MODE" in
         make_qr "$URL" "data/access_qr_quick_$(date +%Y%m%d_%H%M%S).png"
         ;;
     named)
-        cloudflared tunnel --no-autoupdate run "$TUNNEL_NAME" >>"$LOG_DIR/cloudflared-$TUNNEL_NAME.log" 2>&1 &
+        # 設定ファイル（config.yml）を使わずに転送先を渡す。config.yml があると quick が使えなくなるため
+        cloudflared tunnel --no-autoupdate run --url "http://127.0.0.1:$PORT" "$TUNNEL_NAME" >>"$LOG_DIR/cloudflared-$TUNNEL_NAME.log" 2>&1 &
         PIDS="$PIDS $!"
-        echo "Tunnel「$TUNNEL_NAME」を起動しました（ログ: .tmp/serve/cloudflared-$TUNNEL_NAME.log）"
+        echo "Tunnel「${TUNNEL_NAME}」を起動しました（ログ: .tmp/serve/cloudflared-$TUNNEL_NAME.log）"
         if [ -n "${PUBLIC_BASE_URL:-}" ]; then
             echo "公開 URL: $PUBLIC_BASE_URL"
-            [ -e data/access_qr.png ] || make_qr "$PUBLIC_BASE_URL" data/access_qr.png
+            if [ -e data/access_qr.png ]; then
+                make_qr "$PUBLIC_BASE_URL" data/access_qr.png --no-file
+            else
+                make_qr "$PUBLIC_BASE_URL" data/access_qr.png
+            fi
         fi
         ;;
 esac
 
+echo "印刷用のページ（先生モード）: 公開URLの /admin/accounts/access_qr"
 echo "Ctrl+C で停止します。"
 # どれか1つが止まったら全体を止める（bash 3.2 には wait -n が無いので見回る）
 while true; do

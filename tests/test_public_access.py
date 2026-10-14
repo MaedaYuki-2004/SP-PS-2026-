@@ -1,5 +1,5 @@
 import unittest
-from core.public_access import client_key, public_url
+from core.public_access import client_key, public_url, url_from_host
 
 
 class PublicAccessTests(unittest.TestCase):
@@ -24,6 +24,13 @@ class PublicAccessTests(unittest.TestCase):
                       "https://localhost", "https://example.com:bad", "https://exa mple.com"]:
             with self.assertRaises(ValueError):
                 public_url(value)
+
+    def test_url_from_host_only_accepts_tunnel_hostnames(self):
+        self.assertEqual(url_from_host("abc-def.trycloudflare.com"), "https://abc-def.trycloudflare.com/")
+        for value in ["", "127.0.0.1:5000", "localhost", "localhost:5000", "192.168.1.4",
+                      "192.168.1.4:5000", "[::1]:5000", "::1", "sp-ps.example.com:8443"]:
+            with self.assertRaises(ValueError):
+                url_from_host(value)
 
 
 if __name__ == "__main__":

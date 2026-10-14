@@ -56,7 +56,7 @@ from core import teacher
 from core import usercontext
 from core.workspace import current_workspace
 from core.library import current_library
-from core.public_access import client_key
+from core.public_access import client_key, public_url, url_from_host
 
 # Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
 # 以前は -3000 だったが、extract_julius_score() が返すのは 1フレームあたりの値（正常で -25〜-30 程度）
@@ -2087,6 +2087,28 @@ def _render_admin_accounts(error: str | None = None, status: int = 200):
 @app.route("/admin/accounts")
 def admin_accounts():
     return _render_admin_accounts()
+
+
+@app.route("/admin/accounts/access_qr")
+def admin_access_qr():
+    """配布用に、公開URLとQRコードを1枚に印刷するページ（先生モードのみ）。"""
+    # 固定URL（named Tunnel）は PUBLIC_BASE_URL、無ければ今開いているホスト名を使う
+    url, error = None, None
+    base = os.environ.get("PUBLIC_BASE_URL", "").strip()
+    try:
+        url = public_url(base) if base else url_from_host(request.host)
+    except ValueError as exc:
+        error = (f"PUBLIC_BASE_URL の設定が正しくありません（{exc}）" if base else
+                 "公開URLが分かりません。スマホ用の公開URL（https://…）からこのページを開いてください。")
+    qr_svg = None
+    if url:
+        import qrcode
+        import qrcode.image.svg
+        # 外部のQRサービスにURLを送らず、ここでSVGを作る
+        qr_svg = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage,
+                             box_size=10, border=2).to_string(encoding="unicode")
+    return render_template("access_qr.html", url=url, qr_svg=qr_svg, error=error,
+                           changing=".trycloudflare.com" in (url or ""))
 
 
 @app.route("/admin/accounts/create", methods=["POST"])

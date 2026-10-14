@@ -456,6 +456,25 @@ PUBLIC_BASE_URL=https://sp-ps.example.com scripts/serve_mac.sh named sp-ps   # �
 - ポートは `PORT=5001` のように変えられます。ログは `.tmp/serve/` に残ります。
 - `~/.cloudflared/config.yml` があると Quick Tunnel は起動できません（Cloudflare の仕様）。
 - スリープ防止は電源につないでいるときに効きます。ふたを閉じると止まる機種があります。
+- `scripts/server.sh start|status|stop` は同じサーバー（Quick Tunnel）をターミナルから切り離して動かします。
+  ターミナルを閉じても SSH が切れても止まらず、Mac 本体と SSH のどちらからでも操作できます。
+  `status` で今の公開URLとQRを表示します。表示内容は `.tmp/serve/server.out` に残ります。
+  Mac 本体ではデスクトップの「SP-PS 起動／停止／状態の確認.command」をダブルクリックしても同じです。
+- 起動するとターミナルにも文字でQRコードが出ます（SSH接続で画像を開けないとき用）。
+- 配布用の印刷ページ：先生モードで公開URLの `/admin/accounts/access_qr` を開き「印刷する」を押します
+  （参加者アカウント管理の右上「配布用QRコード」からも開けます）。QRはMac内で作ります。
+  Quick TunnelのURLは起動ごとに変わるため、起動し直したら印刷し直して配ります（変えたくない場合は下記の固定URL）。
+
+**固定URL（独自ドメイン）の準備**（初回のみ。ドメインをCloudflareに登録済みであること）:
+
+```bash
+cloudflared tunnel login                              # ブラウザでドメインを選んで許可
+cloudflared tunnel create sp-ps                       # Tunnel を作る
+cloudflared tunnel route dns sp-ps sp-ps.example.com  # 公開するホスト名を割り当てる
+PUBLIC_BASE_URL=https://sp-ps.example.com scripts/serve_mac.sh named sp-ps
+```
+
+転送先は `serve_mac.sh` が `--url` で渡すため、`~/.cloudflared/config.yml` は作りません。
 
 **Windows / VS CodeのPowerShellで試す場合**:
 
@@ -2437,6 +2456,7 @@ sp-ps/
 │   ├── repair_alignment.py     # 指定した単語のお手本のアライメントを作り直す（§16）
 │   ├── set_teacher_password.py # 先生用パスワードの設定・変更★
 │   ├── serve_mac.sh            # Mac で gunicorn と Cloudflare Tunnel をまとめて起動（§4）
+│   ├── server.sh               # serve_mac.sh quick をターミナルから切り離して start/status/stop（§4）
 │   ├── make_access_qr.py       # 公開 URL からスマホ用の QR 画像を作る（§4）
 │   ├── md_to_docx.py           # 倫理審査資料の Markdown → Word 変換（python-docx が必要）
 │   ├── mkdir_test.py           # 初期データセット作成時のフォルダ作成（現在は不要）

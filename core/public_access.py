@@ -35,3 +35,17 @@ def public_url(value: str) -> str:
     if parsed.hostname in {"localhost", "127.0.0.1", "::1"}:
         raise ValueError("スマホ用にはlocalhostではなく、公開されたHTTPS URLを設定してください。")
     return value.rstrip("/") + "/"
+
+
+def url_from_host(host: str) -> str:
+    """今開いているホスト名から公開URLを作る。Tunnel 経由（ポート番号なしのドメイン名）のときだけ使える。"""
+    host = (host or "").strip()
+    try:
+        ip_address(host.strip("[]"))
+        is_ip = True
+    except ValueError:
+        is_ip = False
+    # ポート付き・IPアドレスは Mac や同じ Wi-Fi から直接開いたときで、スマホ用の公開URLではない
+    if not host or ":" in host or is_ip:
+        raise ValueError("Tunnel 経由のURLではありません。")
+    return public_url(f"https://{host}")
