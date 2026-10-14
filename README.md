@@ -12,6 +12,8 @@
 この README は、引き継ぎのための手順書であると同時に、**論文・研究発表で手法を記述するときの参照資料**として書いています。数値や式はすべて現在のソースコードと一致させてあり、どのファイルのどの関数に書かれているかを併記しています。論文で使うときは、まず [§11 研究で参照するときのまとめ](#11-研究で参照するときのまとめ) を見てください。
 
 > **サーバーの起動・停止のしかただけ知りたい人は** → [Mac でサーバーを起動・停止する](#mac-でサーバーを起動停止する)
+>
+> **生徒・保護者に配る手順書は** → [docs/手順書/](docs/手順書/)（生徒用・保護者用。Word・PDF・HTML。画面写真つき）
 
 ---
 
@@ -22,6 +24,8 @@
 3. [セットアップ手順（初めての人へ）](#3-セットアップ手順初めての人へ)
 4. [起動方法と画面の使い方](#4-起動方法と画面の使い方)
    - [Mac でサーバーを起動・停止する（Mac 本体／SSH 接続）](#mac-でサーバーを起動停止する)
+   - [スマートフォンで使う（Cloudflare Tunnel）](#スマートフォンで使うcloudflare-tunnel)
+   - [基本的な使い方の流れ](#基本的な使い方の流れ)
 5. [システム構成と処理の流れ](#5-システム構成と処理の流れ)
    - 5.1 [モジュール構成](#51-モジュール構成)
    - 5.2 [1回の練習で行われる処理](#52-1回の練習で行われる処理)
@@ -78,7 +82,8 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 | **音映像クロスチェック** | 声と口の動きが同じ瞬間を指しているかを照合し、同期のズレをミリ秒で表示。人が気づく範囲（文献による）を超えてずれた音があるときは合計点から少し（最大 5 点）引く | [§7.3](#73-音映像クロスチェック口と声の同期) |
 | **音色評価** | MFCC + DTW で、登録済みの全単語のお手本とのスペクトルの近さを並べる | [§7.4](#74-音色評価mfcc--dtw) |
 | **お手本動画の再生** | 登録時に録画した口の動きを、録音ページ・母音トレーナーで見ながら練習できる | [§4](#4-起動方法と画面の使い方) |
-| **参加者ログイン** | 研究者が割り当てた利用者 ID でログインし、練習記録を参加者ごとに分離して保存 | [§10](#10-参加者アカウントとデータの分離) |
+| **参加者ログイン** | 研究者が割り当てた利用者 ID でログインし、練習記録・単語・お手本・作業ファイルを参加者ごとに分けて保存 | [§10](#10-参加者アカウントとデータの分離) |
+| **スマホから使う** | Mac で動かしたサーバーを Cloudflare Tunnel で公開し、配布用の QR コードを印刷して生徒に配る | [§4](#mac-でサーバーを起動停止する) |
 | **学習分析** | 練習履歴から上達速度・停滞・アクセント型ごとの難しさを統計的に集計 | [§8.4](#84-学習曲線分析) |
 | **今日のレッスン** | 履歴から当日の練習メニュー（復習・苦手音・口の形・挑戦）を自動編成 | [§8.3](#83-今日のレッスン) |
 | **苦手音ドリル・クイズ** | モーラ別スコアから弱点の音を特定し、段階的な集中ドリルとことば当てクイズを出す | [§8.2](#82-苦手な音の分析集中ドリルことば当てクイズ) |
@@ -109,11 +114,11 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 
 | 項目 | 要件 |
 |------|------|
-| OS | Windows 10/11（推奨）・Ubuntu 22.04 LTS・macOS（Apple Silicon / Intel。セットアップは[§3 macOS の場合](#macos-の場合)参照） |
+| OS | Windows 10/11・Ubuntu 22.04 LTS・macOS（Apple Silicon / Intel。セットアップは [§3](#3-セットアップ手順初めての人へ) の各ステップの「macOS の場合」）。調査ではスマホから使うため、Mac をサーバーにしている（[§4](#mac-でサーバーを起動停止する)） |
 | Python | **3.10 〜 3.12**（3.13 は不可。理由は下記） |
-| カメラ | お手本の登録と口形分析に必要（内蔵または外付け USB カメラ） |
+| カメラ | お手本の登録と口形分析に必要（スマホのカメラ、PC の内蔵または外付け USB カメラ） |
 | マイク | 内蔵マイクでも動作するが、外付けコンデンサーマイク推奨 |
-| ブラウザ | カメラ・マイクを使うため HTTPS または `localhost` で開く（[§4](#スマートフォンで使うngrok)） |
+| ブラウザ | カメラ・マイクを使うため HTTPS または `localhost` で開く（スマホからは [Cloudflare Tunnel](#スマートフォンで使うcloudflare-tunnel) か [ngrok](#スマートフォンで使うngrok) の HTTPS の URL） |
 
 ### 外部ソフトウェア
 
@@ -124,6 +129,7 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 | **FFmpeg** | お手本録画（WebM）から音声を取り出す（pydub が内部で使う） | **必須**（単語登録にお手本録画が必要なため） |
 | MeCab + UniDic | 単語登録時のアクセント型自動取得 | 任意（取得できなくても登録・採点は可能） |
 | MediaPipe + OpenCV | 口形分析・音映像クロスチェック | 任意（無ければ該当の表示が出ないだけ） |
+| cloudflared | スマホから使うための公開 URL（Cloudflare Tunnel。[§4](#スマートフォンで使うcloudflare-tunnel)） | 任意（スマホから使うときは必要。Mac は `brew install cloudflared`） |
 
 > **Perl について：** Windows では Strawberry Perl と Git 同梱の msys perl のどちらでも動作します。
 > どちらが使われるかで内部的に必要なパス形式が異なりますが、アプリ側が自動判別して切り替えます
@@ -159,7 +165,8 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 | パッケージ | 役割 | 使っている場所 |
 |-----------|------|--------------|
 | `flask` | Web サーバー | `app.py` |
-| `gunicorn` | 本番用 WSGI サーバー（Docker / Railway） | `Dockerfile`・`Procfile` |
+| `gunicorn` | 本番用 WSGI サーバー（Mac のサーバー起動・Docker / Railway。Windows では動かない） | `scripts/serve_mac.sh`・`Dockerfile`・`Procfile` |
+| `qrcode[pil]` | 配布用の QR コード（印刷ページの SVG・QR 画像・ターミナルへの表示）。外部の QR 生成サービスに URL を送らないため | `app.py` `admin_access_qr()`・`scripts/make_access_qr.py` |
 | `praat-parselmouth` | Praat による F0・フォルマント・ジッター/シマーの測定 | `core/pitch.py`・`core/formant.py` |
 | `librosa` | 音声の読み込みと MFCC 抽出 | `core/timbre.py`・`scripts/regenerate_mfcc.py` |
 | `numpy` / `scipy` | 数値計算、Pearson 相関、線形回帰、WAV 入出力 | `core/` 全般 |
@@ -188,7 +195,7 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 
 ```bash
 git clone https://github.com/Smart-Agent-and-Intelligence-Labs/SP-PS-2026.git
-cd SP-PS-2026-
+cd SP-PS-2026
 ```
 
 ---
@@ -198,6 +205,15 @@ cd SP-PS-2026-
 ```bash
 pip install -r requirements.txt
 ```
+
+> **Mac をサーバーにする場合**は、リポジトリ直下に仮想環境 `.venv` を作ってから入れてください。
+> `scripts/server.sh`・`scripts/serve_mac.sh` は `.venv/bin/python` があればそれを使い、無ければ `python3` を使います（[§4](#mac-でサーバーを起動停止する)）。
+>
+> ```bash
+> python3.12 -m venv .venv          # Python 3.12 で作る（3.13 は不可。§2）
+> source .venv/bin/activate
+> pip install -r requirements.txt
+> ```
 
 MeCab の辞書データを別途ダウンロードします（1〜2分かかります。Windows で失敗する場合は [§2](#2-動作環境と必要ソフトウェア) の方法）。
 
@@ -336,8 +352,10 @@ sudo apt-get install -y ffmpeg
 > 学年・聴覚障害の程度は調査票由来の情報のため、研究者のみが管理画面から入力します。
 > 聴覚障害の程度は**要配慮個人情報**にあたるため、dB 値などの詳細は持たず区分で保持します。
 
-パスワードを忘れた場合は、管理画面の「パスワードをリセット」で未設定状態に戻せます。
+パスワードを忘れた場合は、管理画面の「パスワードをリセット」で未設定状態に戻せます（練習の記録・単語・お手本は消えません。本人が次のログインで決め直します）。
 参加者が撤回した場合は「削除」でアカウントごと削除できます。
+
+スマホから使うときは、同じ画面の右上の「**配布用QRコード**」（`/admin/accounts/access_qr`）から、生徒に配る QR コードを印刷できます（[§4](#mac-でサーバーを起動停止する)）。
 
 ---
 
@@ -359,10 +377,14 @@ python diagnose.py
 
 次の8項目を確認し、結果を共有しやすい形で表示します。
 
-1. フォルダ・ファイルの存在 2. Julius 実行ファイル 3. Perl 4. 基準音声ファイル（`word1`） 5. `.lab` の中身（`word1`） 6. MFCC バイナリ 7. `audio.scp` 8. VOICEVOX
+1. フォルダ・ファイルの存在 2. Julius 実行ファイル 3. Perl 4. お手本の音声ファイル（`.wav` / `.lab` / `.log`） 5. `.lab` の中身 6. MFCC バイナリ 7. `audio.scp` 8. VOICEVOX
+
+4〜7 は、未ログイン時の共有の単語（`data/config/words_db.json`）があればその最初の単語を、無ければ**単語のある最初の参加者のライブラリ**（`data/users/<利用者ID>/library/`）の最初の単語を調べます。見出しに「（共有の word1）」「（参加者 A01の word3）」のように、どれを調べたかが出ます。
+環境変数 `DATA_DIR` を設定していれば、その場所を調べます。
 
 表示は `[OK]`（問題なし）・`[NG]`（エラー）・`[!!]`（警告）・`[--]`（情報）です。
-4・5 は初期データセットの `word1` を、8 は現在使っていない VOICEVOX を調べる古い項目なので、単語を新しく登録した環境では `[NG]` や `[!!]` が出ても採点には影響しません。
+単語がまだ1つも無い環境では 4〜7 が `[NG]` になりますが、単語を登録すれば消えます。
+8 は現在使っていない VOICEVOX を調べる古い項目です。`[!!]` と「単語追加機能を使う場合は VOICEVOX を起動してください」が出ますが、今の単語登録はお手本録画の音声を使うので VOICEVOX は要りません。採点にも影響しません。
 
 ---
 
@@ -374,32 +396,41 @@ python app.py
 
 ブラウザで [http://127.0.0.1:5000](http://127.0.0.1:5000) にアクセスするとログイン画面が表示されます。ステップ 7 で作成した利用者 ID でログインしてください。
 
-`app.py` を直接起動すると `host="0.0.0.0"`、ポートは環境変数 `PORT`（既定 5000）で待ち受けます。
-環境変数 `FLASK_ENV` が `development`（既定）のときはデバッグモードで起動します。
+`app.py` を直接起動すると、環境変数 `HOST`（既定 `0.0.0.0`）と `PORT`（既定 5000）で待ち受けます。
+デバッグモードは既定で**無効**です。開発中だけ `FLASK_ENV=development` を指定してください（PowerShell では `$env:FLASK_ENV="development"`）。
+`python app.py` は開発用のサーバーです。スマホから使う運用では gunicorn で起動します（[§4](#mac-でサーバーを起動停止する)）。
 
 ---
 
 ### 単語データを別の PC に移す場合
 
 単語データ（発音・お手本・履歴）は `.gitignore` で GitHub に上がらない設定になっています。
-別の PC に引き継ぐ場合は、以下のフォルダ・ファイルをコピーしてください。
+別の PC に引き継ぐ場合は、以下のフォルダ・ファイルをコピーしてください（`DATA_DIR` を設定している場合はその中）。
+いちばん簡単なのは `data/` フォルダを丸ごとコピーすることです。
 
 ```
-data/config/words_db.json       ← 単語データベース
-data/config/words.txt           ← 単語の表示テキスト一覧
-data/config/audio.scp           ← お手本音声ファイルのパス一覧
-data/config/accounts.json       ← 参加者アカウント（利用者ID・パスワードハッシュ・学年・聴覚障害の程度）
-data/config/teacher.json        ← 先生用パスワードのハッシュ
-data/config/lip_refs.json       ← 口形お手本データ
-data/users/<利用者ID>/          ← 参加者ごとの練習履歴（history.json）・今日のレッスン進捗
-data/raw_audio/sound/           ← お手本音声・お手本録画・アライメント結果
-data/mfcc/                      ← MFCC バイナリ
+data/config/accounts.json         ← 参加者アカウント（利用者ID・パスワードハッシュ・学年・聴覚障害の程度）
+data/config/teacher.json          ← 先生用パスワードのハッシュ
+data/config/flask_secret_key.txt  ← セッションの署名鍵（移さないと全員ログインし直しになるだけで、データは失われない）
+data/users/<利用者ID>/            ← 参加者ごとのデータ一式
+    history.json                  ←   練習履歴
+    daily_lesson.json             ←   今日のレッスンの進み具合
+    library/                      ←   単語とお手本（words_db.json・lip_refs.json・sound/・mfcc/ など。§9.5）
+    work/                         ←   直前の練習の作業ファイル（コピーしなくてよい）
 ```
 
-> **参加者の練習記録は `data/users/<利用者ID>/` にログインユーザー単位で分離**されます
+未ログインで使っていた共有の単語が残っている場合は、これらもコピーします（[§9.5](#95-置き場所と共有の単語を移す)）。
+
+```
+data/config/words_db.json・words.txt・audio.scp・lip_refs.json
+data/raw_audio/sound/             ← 共有のお手本音声・お手本録画・アライメント結果
+data/mfcc/                        ← 共有の MFCC バイナリ
+```
+
+> **参加者のデータは `data/users/<利用者ID>/` にログインユーザー単位で分離**されます
 > （倫理審査資料 §6.1）。`data/config/accounts.json` は要配慮個人情報（聴覚障害の程度）
-> とパスワードハッシュを含むため、取り扱いに注意してください。いずれも `data/` 配下なので
-> `.gitignore` により GitHub には上がりません。
+> とパスワードハッシュを含むため、取り扱いに注意してください。`library/` にはお手本を録画した人の顔の動画が入ります。
+> いずれも `data/` 配下なので `.gitignore` により GitHub には上がりません。
 
 ---
 
@@ -530,6 +561,20 @@ Wi-Fi が一瞬切れても自動でつなぎ直し、公開URLもそのまま�
 > デスクトップのアイコン（`SP-PS 起動.command` など）は、中で `scripts/server.sh` を呼んでいるだけです。
 > 消してしまった場合や別の Mac で使う場合は、`scripts/server.sh start` などを直接実行してください。
 > 仕組みの詳しい説明は次の「スマートフォンで使う（Cloudflare Tunnel）」にあります。
+>
+> アイコンはリポジトリには入っていません。別の Mac で作るときは、リポジトリのフォルダで次を実行すると、デスクトップに3つのアイコンができます。
+>
+> ```bash
+> for pair in "起動:start" "停止:stop" "状態の確認:status"; do
+>   name="${pair%%:*}"; cmd="${pair##*:}"
+>   f="$HOME/Desktop/SP-PS ${name}.command"
+>   printf '#!/bin/bash\ncd "%s" && scripts/server.sh %s\n' "$PWD" "$cmd" > "$f"
+>   chmod +x "$f"
+> done
+> ```
+>
+> 初めて使う Mac では、先に `brew install cloudflared` と仮想環境 `.venv` の準備（[§3 ステップ 2](#ステップ-2--python-パッケージをインストール)）が要ります。
+> `server.sh` は `.venv/bin/python` があればそれを、無ければ `python3` を使い、ログインシェルを通らない SSH 接続でも見つかるよう `/opt/homebrew/bin`・`/usr/local/bin` を PATH に足して `cloudflared` を探します。
 
 ### スマートフォンで使う（Cloudflare Tunnel）
 
@@ -542,7 +587,7 @@ Cloudflareに登録して固定URLのTunnelを用意してください。
 ```bash
 # 初回のみ。Homebrewが必要
 brew install cloudflared
-python -m pip install "qrcode[pil]"
+python -m pip install "qrcode[pil]"    # requirements.txt を入れていれば不要
 
 # 1つ目のターミナル
 HOST=127.0.0.1 TRUSTED_PROXY=cloudflare FLASK_ENV=production python app.py
@@ -599,7 +644,7 @@ PUBLIC_BASE_URL=https://sp-ps.example.com scripts/serve_mac.sh named sp-ps
 ```powershell
 # 初回のみ（インストール後は新しいターミナルを開く）
 winget install --id Cloudflare.cloudflared --exact
-python -m pip install "qrcode[pil]"
+python -m pip install "qrcode[pil]"    # requirements.txt を入れていれば不要
 
 # 1つ目のターミナル
 $env:HOST = "127.0.0.1"
@@ -622,9 +667,11 @@ export PUBLIC_BASE_URL="https://実際の公開先"
 python scripts/make_access_qr.py
 ```
 
-`data/access_qr.png` が生成されます。外部のQR生成サービスへURLを送らず、
+`data/access_qr.png` が生成され、ターミナルにも文字で QR コードが出ます。外部のQR生成サービスへURLを送らず、
 ローカルで作成します。既存画像を上書きしないため、再生成は
 `python scripts/make_access_qr.py --output data/access_qr_new.png` としてください。
+画像を作らずターミナルに表示するだけなら `--no-file` を付けます（SSH 接続で画像を開けないとき。`server.sh` の表示もこれを使っています）。
+印刷して配るなら、先生モードで公開URLの `/admin/accounts/access_qr` を開くほうが簡単です（`PUBLIC_BASE_URL` があればその URL、無ければ今開いているホスト名で QR を作ります。Mac の中のアドレスやポート付きの URL で開くと「公開URLが分かりません」になります）。
 WindowsのPowerShellでは `$env:PUBLIC_BASE_URL="https://実際の公開先"` と設定します。
 環境変数は各ターミナルで設定します。`.env` の自動読み込みはありません。
 
@@ -744,6 +791,8 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
 
 ### 基本的な使い方の流れ
 
+生徒・保護者に配る操作の説明は、画面写真つきの手順書 [docs/手順書/](docs/手順書/)（生徒用・保護者用。Word・PDF・HTML）にあります。ここでは画面の構成と、どの URL・処理につながるかをまとめます。
+
 ```
 ⓪ ログイン（/login）
     ├ 研究者が割り当てた利用者 ID とパスワードを入力する
@@ -759,9 +808,12 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
     │   ※ 主役の「はじめる」がスマホの最初の1画面に入るよう、今日のれんしゅうの下に置く
     ├ ほかの練習：苦手な音のドリル／口の形／ことば当てクイズ／れんぞく練習
     ├ 単語：すべて・にがて（最高60点未満）・まだ・マスター（90点以上）・タグのチップで絞り込み、
-    │       虫めがねで検索（ひらがなでもカタカナの読みに当たる）
-    ├ 右上の歯車（設定）：画面の明るさ（自動／明るい／暗い）、お手本の速さ、振動で知らせる、
-    │       使い方を見る、練習のお知らせ、先生モード、ログアウト
+    │       虫めがねで検索（ひらがなでもカタカナの読みに当たる）。
+    │       カードには「お手本を聞く」「録音する」と、上に「お手本を録り直す」「削除」（2回押すと削除）。
+    │       単語が1つも無いときは「単語を追加」のボタンが出る
+    ├ 右上の歯車（設定）：利用者ID、画面の明るさ（自動／明るい／暗い）、お手本の速さ、振動で知らせる、
+    │       使い方を見る、練習のお知らせ（通知が使える端末だけ）、単語を追加（お手本録画つき）、
+    │       単語の管理（/admin）、先生モード、ログアウト
     └ はじめての使い方：練習が3回未満の人が初めて開いたときだけ、3枚の絵で流れを説明
             （お手本を見る → 自分のペースで録音 → 直すところは1つだけ）
 
@@ -896,7 +948,7 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
 カウントダウンの ON / OFF は録音ページの「練習の設定」で切り替えられます（設定はブラウザに保存され、既定は ON）。
 振動に対応した端末（Android の Chrome など。iPhone の Safari は非対応）では、3・2・1、録音の開始・終わり、クイズの正解を短い振動でも伝えます（設定で OFF にできます）。
 
-> **自分の口の動画について**：録音と同時に撮った口の動画は、解析のためにサーバーへ送られ、解析が終わるとサーバーからは削除されます。
+> **自分の口の動画について**：録音と同時に撮った口の動画は、解析のためにサーバーへ送られ、解析が終わるとサーバーからは削除されます（「結果を見る」を押さないままログアウトした回などは残ることがあります。[§17](#17-既知の限界と今後の課題)）。
 > 「ならべて再生」のために、直前の1本だけをその端末のブラウザ（IndexedDB）に保存します。録音を始めた時点で前の動画を消し、その録音で撮れたときだけ保存します（2時間より古いものは使いません）。結果画面は、サーバーに今回の口の動画が届いたときだけ表示するので、共有の端末でも前の人の動画は出ません。
 
 お手本の長さの帯は、お手本のアライメント結果を使うため、お手本が登録済みの単語でのみ表示されます。
@@ -909,8 +961,9 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
 |------|------|
 | 単語を追加する | ホーム右上の設定 →「単語を追加」（テキスト入力 → お手本録画3秒で登録完了）。単語が1つも無いときはホームにも「単語を追加」が出る |
 | 単語を編集・削除する | 単語カードの「削除」、またはホーム右上の設定 →「単語の管理」（`/admin`） |
-| お手本を録り直す | 単語カードの「お手本を録り直す」、または録音ページの「お手本を録画（3秒）」 |
+| お手本を録り直す | 単語カードの「お手本を録り直す」（録音ページにも「お手本を録画（3秒）」の部品がありますが、今の画面には表示していません） |
 | 参加者アカウントを管理する | ホーム右上の設定 → 先生モードを ON（先生用パスワード）→「参加者アカウントの管理」 |
+| 配布用の QR コードを印刷する | 先生モードで参加者アカウント管理の右上「配布用QRコード」（`/admin/accounts/access_qr`。公開URLから開く） |
 | 単語の検索・絞り込み | ホーム画面「単語」の虫めがね（検索）と、にがて／まだ／マスター／タグのチップ |
 | 練習履歴を CSV でダウンロード | 記録ページ「分析」タブのいちばん下「数値の詳細（先生・研究用）」 |
 
@@ -939,6 +992,7 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
   web/static/js/audio_recorder.js  AudioWorklet プロセッサ（録音中のサンプルを main.js に渡す）
   web/static/js/mouth_compare.js   お手本とあなたの口を「ならべて再生」、直前の口の動画を端末に保存
   web/static/js/theme.js / tabbar.js  テーマ・振動・画面下のタブ
+  web/static/js/lip_compare.js     唇比較ページ（/lip_compare）用
   web/static/js/sw.js       Service Worker（/static の CSS・JS・画像だけをキャッシュ）
 
 【サーバー（Flask）】
@@ -959,14 +1013,19 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
   ├─ analysis.py    学習曲線の統計分析
   ├─ vocab.py       単語データベース（words_db.json）と単語登録
   ├─ accent.py      MeCab + UniDic によるアクセント型取得
-  ├─ audio.py       WAV のサンプリング変換、発話区間の切り出し、audio.scp の読み込み
+  ├─ audio.py       WAV のサンプリング変換、発話区間の切り出し、お手本音声の場所を返す
   ├─ utils.py       ローマ字モーラ→かな変換、長音のまとまり判定など
   ├─ accounts.py    参加者アカウント（ハッシュ化パスワード・学年・聴覚障害の程度）
   ├─ teacher.py     先生用パスワードと先生モード
-  └─ usercontext.py ログイン中の参加者 ID をリクエスト単位で保持
+  ├─ usercontext.py ログイン中の参加者 ID をリクエスト単位で保持
+  ├─ library.py     参加者ごとの単語とお手本の置き場所（data/users/<ID>/library/。§9.5）
+  ├─ workspace.py   参加者ごとの直前の練習の作業ファイルの置き場所（data/users/<ID>/work/。§5.2）
+  └─ public_access.py  公開 URL の検証、Cloudflare Tunnel / ngrok 経由の接続元 IP の判定（§4・§10）
 
 【外部プロセス】
-  scripts/segment_julius.pl + engine/bin/julius-4.3.1.exe + engine/models/*.binhmm
+  scripts/segment_julius.pl + Julius（Windows は engine/bin/julius-4.3.1.exe、Mac/Linux は各自インストール）
+    + engine/models/hmmdefs_monof_mix16_gid.binhmm
+  スマホから使うとき：gunicorn（app:app）+ cloudflared（scripts/serve_mac.sh・server.sh。§4）
 ```
 
 ---
@@ -994,17 +1053,21 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
 
 **`POST /audio`**：`align/test.wav` として保存 → `convert_to_16kHz()`（16kHz・モノラル・16bit でなければ変換）→ `run_alignment()`（[§5.3](#53-julius-強制アライメント)）で `test.lab` / `test.log` を作ります。
 
-**`POST /upload_lip_video`（test）**：動画を作業フォルダの `lip/` に一時ファイルとして保存し、そのパスをセッションに入れます（解析後に削除）。
+**`POST /upload_lip_video`（test）**：動画を作業フォルダの `lip/` に一時ファイルとして保存し、そのパスをセッションに入れます。`POST /graph` が解析に使ったあとで削除します。
+結果を見ずに録り直したときは、同じセッションの前の動画を消してから新しい動画を保存します。結果を見ないままログアウトした・セッションが切れたときは、その動画が `lip/` に残ります（[§17](#17-既知の限界と今後の課題)）。
+録音の `align/test.wav` は保存し続けず、次の録音で上書きします（参加者ごとに最新の1回分だけが残る）。
 
 **`POST /graph`** は次の順に処理します。
 
 ```
- 1. 単語 ID（word_id.txt）とお手本の音声（audio.scp）・.lab・.log を特定する
+ 1. 単語 ID（word_id.txt）と、お手本の音声（ライブラリの sound/<word_id>/<word_id>.wav。
+    未ログイン時は audio.scp から探す）・.lab・.log を特定する
  2. 口の動画から唇形状ベクトル・口の開き・フレーム時刻を取り出し、唇スコアを出す     … §7.2（表示のみ）
  3. お手本・録音それぞれの声の高さの範囲を推定し、Praat でピッチを測って 10ms に揃える … §6.2
  4. .lab（秒）・.log（フレーム）を読み、音素・モーラの区間を得る                     … §5.3
  5. 発話区間を切り出し、録音のピッチをお手本の音素の長さに合わせ、半音に変換する     … §6.2
- 6. 録音の発話区間（前後 100ms 付き）を test2.wav に切り出し、全単語と音色を比べる   … §7.4（表示のみ）
+ 6. 録音の発話区間（前後 100ms 付き）を作業フォルダの test2.wav に切り出し、
+    その参加者の全単語のお手本と音色を比べる                                         … §7.4（表示のみ）
  7. 口と声の同期（クロスチェック）、モーラ別の口の開きを計算する                     … §7.2（表示のみ）・§7.3（減点）
  8. Julius スコアが -35 未満なら、ここで採点をやめて再録音の案内を返す               … §5.3
  9. フォルマントを測って母音スコアを出す（長音はまとまりの区間で測る）               … §6.5
@@ -1390,7 +1453,7 @@ Bark = 26.81 × F / (1960 + F) − 0.53
 
 「こう」の「う」のような長音の後半（[§6.4](#長音のまとまり)）は、前のモーラと**まとまり全体の区間**で測ります（`core/utils.py` の `long_vowel_spans()`）。お手本「がっこう」の `u` は 30ms しかなく、母音の終わりの崩れた部分（F1 約 900Hz・F2 約 2500Hz）を測っていたためです。
 
-お手本のフォルマントは `data/config/formant_cache.json` にキャッシュします。キーには wav のパス・更新時刻・最大フォルマント周波数・**モーラ区間**を含めます（アライメントだけやり直したときに古い値が返らないように）。
+お手本のフォルマントは、単語と同じライブラリの `formant_cache.json`（参加者ごと。未ログイン時は `data/config/formant_cache.json`）にキャッシュします。キーには wav のパス・更新時刻・最大フォルマント周波数・**モーラ区間**を含めます（アライメントだけやり直したときに古い値が返らないように。参加者ごとに同じ単語 ID があっても、パスが違うので混ざりません）。
 
 #### 話者差の補正
 
@@ -1601,7 +1664,9 @@ Julius アライメントのモーラ区間（秒）の **30% / 50% / 70%** の�
 
 **お手本のモーラごとのデータが無い場合**は、母音ごとの目安の開き（`_VOWEL_OPENNESS`：あ 1.0、え 0.55、お 0.45、い 0.15、う 0.10）を期待値にして同じ判定をします。この目安は設計上の値です。
 
-#### お手本の口形データ（`data/config/lip_refs.json`）
+#### お手本の口形データ（ライブラリの `lip_refs.json`）
+
+参加者ごとのライブラリ（`data/users/<利用者ID>/library/lip_refs.json`。未ログイン時は `data/config/lip_refs.json`）に、単語 ID をキーにして保存します。
 
 ```json
 {
@@ -1624,7 +1689,7 @@ Julius アライメントのモーラ区間（秒）の **30% / 50% / 70%** の�
 
 #### お手本動画そのものの保存・再生
 
-登録時に録画した WebM 動画は `data/raw_audio/sound/{word_id}/{word_id}.webm` に保存され、`/sample_video/<word_id>` から配信されます。録音ページの「お手本を見る」、母音トレーナー、ことば当てクイズ（口の動きで当てる）で使います。
+登録時に録画した WebM 動画は、ライブラリの `sound/{word_id}/{word_id}.webm`（`data/users/<利用者ID>/library/sound/…`。未ログイン時は `data/raw_audio/sound/…`）に保存され、`/sample_video/<word_id>` から配信されます。ログイン中の参加者のライブラリからだけ配信するので、ほかの参加者のお手本は見えません。録音ページの「お手本を見る」、母音トレーナー、ことば当てクイズ（口の動きで当てる）で使います。
 
 #### MediaPipe が使えない環境では
 
@@ -1841,7 +1906,7 @@ librosa.feature.mfcc(n_mfcc=13, n_fft=512, hop_length=160)   … 16kHz なら窓
 | 13〜24 | Δ MFCC（1階差分） | 変化の速さ |
 | 25〜36 | ΔΔ MFCC（2階差分） | 変化の加速度 |
 
-お手本の MFCC は登録時に `data/mfcc/{word_id}.bin`（float32、36次元 × フレーム数）として保存します。
+お手本の MFCC は登録時に、ライブラリの `mfcc/{word_id}.bin`（float32、36次元 × フレーム数。未ログイン時は `data/mfcc/{word_id}.bin`）として保存します。
 
 #### DTW（動的時間伸縮法）
 
@@ -1853,7 +1918,7 @@ normalized_distance = distance / (len(mfcc_録音) + len(mfcc_お手本))
 ```
 
 累積距離は音声の長さに比例して大きくなるため、両方のフレーム数の和で割ります。
-録音は発話区間（前後 100ms 付き、`data/raw_audio/test2.wav`）を使い、`words_db.json` の全単語と比べて距離が小さい順に上位 20 語（練習した単語が入らなければ末尾に追加）を表示します。
+録音は発話区間（前後 100ms 付き、作業フォルダの `test2.wav`）を使い、その参加者の `words_db.json` の全単語と比べて距離が小さい順に上位 20 語（練習した単語が入らなければ末尾に追加）を表示します。単語が少ない参加者では、比べる相手も少なくなります。
 
 #### グラフの見方
 
@@ -1915,7 +1980,7 @@ normalized_distance = distance / (len(mfcc_録音) + len(mfcc_お手本))
 | 今週のようす | ホーム | `get_week_activity()`：今週（月〜日）の日ごとの練習回数 |
 | 単語の絞り込み | ホーム | にがて＝自己ベスト 60 点未満、マスター＝自己ベスト 90 点以上、まだ＝未練習 |
 | アクセントの型ごとの点数 | 記録ページ | アクセント型が分かっている単語だけで、型ごとに合計・3軸の平均を出し、低い順に並べる |
-| CSV | 記録ページ（先生・研究用） | `/history/export.csv`：日時・単語ID・単語・読み・合計点・アクセント・長さ・母音・グレード（BOM 付き UTF-8） |
+| CSV | 記録ページ（先生・研究用） | `/history/export.csv`：日時・単語ID・単語・読み・合計点・アクセント・長さ・母音・グレード・口と声の減点・口と声のばらつき(ms)（BOM 付き UTF-8。ログイン中の参加者の履歴。[§11.3](#113-保存されるデータの形式)） |
 
 ---
 
@@ -2017,10 +2082,11 @@ POST /admin/add_word（display=表示テキスト, reading=ひらがな読み, f
   2. register_word(display, reading, wav_path)            … core/vocab.py
      ├ get_next_word_id() … これまでに使われた最大の ID + 1（§9.4）
      ├ get_accent(display) … MeCab + UniDic でアクセント型を取得（§9.2）
-     ├ data/raw_audio/sound/{word_id}/ に {word_id}.txt（読み）と {word_id}.wav を置く
+     ├ ライブラリの sound/{word_id}/ に {word_id}.txt（読み）と {word_id}.wav を置く
      ├ run_alignment_on_file() … Julius で .lab・.log を作る（§5.3）
-     ├ audio_mfcc() … MFCC（36次元）を data/mfcc/{word_id}.bin に保存（§7.4）
-     └ words_db.json に追記し、audio.scp・words.txt を作り直す
+     ├ audio_mfcc() … MFCC（36次元）をライブラリの mfcc/{word_id}.bin に保存（§7.4）
+     └ ライブラリの words_db.json に追記し、audio.scp・words.txt を作り直す
+       （ライブラリ＝data/users/<利用者ID>/library/。未ログイン時は共有の場所。§9.5）
 
   3. アライメント結果の確認
      .lab が作られなかった（発話を認識できなかった）ら delete_word() で登録ごと取り消し、
@@ -2052,7 +2118,7 @@ POST /admin/add_word（display=表示テキスト, reading=ひらがな読み, f
 
 ### 9.3 お手本の録り直し
 
-ログイン中の参加者が、自分の単語カードの「お手本を録り直す」（`POST /api/lip_refs/overwrite`）または録音ページのお手本録画（`POST /upload_lip_video` の `mode=ref`、3秒）から録り直せます。録音ページからの録画は、画面が表示中の単語 ID（`word_id`）を送り、サーバーはその単語が実在するときだけ保存します（無ければ何も書かずに 404）。どちらも次を作り直します。
+ログイン中の参加者が、自分の単語カードの「お手本を録り直す」（`POST /api/lip_refs/overwrite`）から録り直せます。録音ページのお手本録画（`POST /upload_lip_video` の `mode=ref`、3秒）も同じ処理をしますが、今の録音ページではこのボタン（`#buttonLipRef`）を画面に出していない部品置き場（`.rp-parts`）に置いています。録音ページからの録画は、画面が表示中の単語 ID（`word_id`）を送り、サーバーはその単語が実在するときだけ保存します（無ければ何も書かずに 404）。どちらも次を作り直します。
 
 - お手本の音声（`{word_id}.wav`）と動画（`{word_id}.webm`）
 - MFCC（`{word_id}.bin`）
@@ -2068,12 +2134,17 @@ POST /admin/add_word（display=表示テキスト, reading=ひらがな読み, f
 （録音ページのお手本ピッチのキャッシュも、単語 ID ではなくファイルの場所で引きます）。
 
 `get_next_word_id()` は words_db.json に現存する ID だけでなく、ライブラリの `sound/` に残る痕跡
-（未ログイン時の共有の単語では `web/static/sample/` も）を見て「これまでに一度でも使われた最大 ID + 1」を返します。
+（未ログイン時の共有の単語では `web/static/sample/` も）と、**その参加者の練習履歴にある単語 ID** を見て、
+「これまでに一度でも使われた最大 ID + 1」を返します。
 
-これは、単語を全削除した直後に再び `word1` から採番されると、初期データセット由来の
-`web/static/sample/word1.wav`（VOICEVOX 合成の「おんど」）が新しい単語のサンプル音声として
-誤って再生されてしまうためです。あわせて `/sample_audio` も、実際に録音された音声を
-`static/sample` より優先して配信します。
+理由は2つです。
+
+- 単語を全削除した直後に再び `word1` から採番されると、初期データセット由来の
+  `web/static/sample/word1.wav`（VOICEVOX 合成の「おんど」）が新しい単語のサンプル音声として
+  誤って再生されてしまうため。あわせて `/sample_audio` も、実際に録音された音声を
+  `static/sample` より優先して配信します。
+- 単語を削除すると `sound/` のフォルダも消えるので、履歴を見ないと同じ ID が別の単語に振られ、
+  消した単語の練習記録が新しい単語の記録として苦手音の分析などに混ざってしまうため（2026-10-13 に修正）。
 
 ### 9.5 置き場所と、共有の単語を移す
 
@@ -2154,15 +2225,18 @@ MFCC の作り直しも `python scripts/regenerate_mfcc.py --user <利用者ID>`
 app.py の before_request
    └→ usercontext.set_current_user(session["user_id"])
           │
-          ├→ history.history_path()  → data/users/<ID>/history.json
-          └→ lesson の進捗ファイル    → data/users/<ID>/daily_lesson.json
+          ├→ history.history_path()          → data/users/<ID>/history.json
+          ├→ lesson の進捗ファイル            → data/users/<ID>/daily_lesson.json
+          ├→ library.current_library()       → data/users/<ID>/library/（単語とお手本。§9.5）
+          └→ workspace.current_workspace()   → data/users/<ID>/work/（直前の練習の作業ファイル。§5.2）
 
 app.py の teardown_request
    └→ usercontext.clear()   ← スレッド再利用で次のリクエストへ ID が漏れるのを防ぐ
 ```
 
 未ログイン時や CLI スクリプト（`diagnose.py` 等）では `current_user()` が `None` を返し、
-従来の共有パス（`data/config/history.json`）にフォールバックします。
+従来の共有パス（`data/config/history.json`・`data/config/words_db.json`・`data/raw_audio/wav/` など）にフォールバックします。
+利用者 ID をフォルダ名に使うときは、`core/history.py` の `_safe_seg()` が区切り文字（`/` `\`）を取り除き、`..` を含む ID は受け付けません。ID の形式はアカウント作成時にも検査していますが、ほかのフォルダを指せないよう二重に守っています（`tests/test_workspace.py`）。
 
 ### 認証の適用範囲
 
@@ -2172,8 +2246,8 @@ app.py の teardown_request
 |------|------------------|
 | 通常のページ（GET） | `/login` へ転送 |
 | `/api/` 配下・POST 等 | `401` と JSON エラーを返す |
-| `/login` `/first_login` `/logout` `/teacher`・静的ファイル | 認証免除（そのまま処理） |
-| **`/admin/accounts` 配下** | 参加者ログインではなく**先生モード**が必要（下記） |
+| `/login` `/first_login` `/logout` `/teacher` `/teacher/unlock` `/teacher/lock`・静的ファイル | 認証免除（そのまま処理） |
+| **`/admin/accounts` 配下**（配布用QRの `/admin/accounts/access_qr` を含む） | 参加者ログインではなく**先生モード**が必要（下記） |
 | `/admin`（単語の管理）・単語とお手本の操作 | ログインが必要。ログイン中の参加者自身の単語とお手本だけを扱う |
 
 セッションに残っている ID のアカウントが削除済みだった場合（参加撤回など）は、
@@ -2204,7 +2278,7 @@ app.py の teardown_request
 
 ## 11. 研究で参照するときのまとめ
 
-論文・発表で手法を書くときの早見表です。値はすべて 2026-09-14 時点のソースコードのものです。コードを変えたら、この節も合わせて更新してください。
+論文・発表で手法を書くときの早見表です。値は 2026-09-14 の評価ロジックの見直しと、2026-10-03 の口と声の減点の変更を反映したもので、2026-10-14 のソースコードと一致することを確かめています（その後の変更は、データの置き場所を参加者ごとに分けたもので、採点の計算は変わっていません）。コードを変えたら、この節も合わせて更新してください。
 
 ### 11.1 手法とパラメータの一覧
 
@@ -2331,6 +2405,7 @@ app.py の teardown_request
 | 2026-09-14 | Julius スコアの分布（お手本 86 本、生徒 2 本、別の単語の読み 12 本、雑音 3 本） | 別の単語を言ったかは見分けられない | §5.3 |
 | 2026-09-14 | アクセント核の検出とアクセント型の一致（お手本 45 語） | 15 / 45（しきい値を変えても 11〜22） | §6.3 |
 | 2026-09-15 | ソフトウェアとしての QA（一時データで実行）：全ルートを未ログイン・生徒・先生モードで操作する機能テスト 138 項目、実際のサーバーと Chrome でスマホ幅 23 画面の実行時エラー・横スクロール、採点関数の境界ケース 15 項目とランダム入力 500 通り、お手本 52 語の自己比較 | すべて合格（途中で見つかった不具合は修正済み） | — |
+| 2026-10-14 | 参加者ごとのライブラリ・作業フォルダに分けたあとの通し動作（一時データ・見本アカウントで実行）：新しい参加者の初回ログイン → 設定から単語を追加（お手本録画）→ 録音 → 採点 → 記録・分析を、Chromium のスマホ幅で操作。合成音声とそれを加工した発音をお手本と比べて 100 回以上採点。`tests/` の単体テスト 13 件 | すべて動作。設定シートの「単語を追加」で追加の画面がシートの裏に隠れる不具合を見つけて修正。生徒用・保護者用の手順書（`docs/手順書/`）の画面写真はこのときのもの | §9・§10 |
 
 使ったお手本は、過去にコミットされた人の録音 30 語と合成音声（VOICEVOX）22 語、および現在の先生の録音です。生徒の録音は数本しかありません。
 
@@ -2395,15 +2470,19 @@ app.py の teardown_request
 
 #### そのほか
 
+参加者ごとのファイルは `data/users/<利用者ID>/` の下にあります（下の表の `library/` `work/` もその中。未ログイン時の共有の場所は [§9.5](#95-置き場所と共有の単語を移す)）。
+
 | ファイル | 形式の説明 |
 |---------|----------|
-| `data/config/words_db.json` | 単語データベース（§9.1） |
 | `data/config/accounts.json` | 参加者アカウント（§10） |
-| `data/config/lip_refs.json` | お手本の口形データ（§7.2） |
-| `data/raw_audio/sound/<word_id>/<word_id>.lab` | 1行1音素：`開始秒 終了秒 音素`（silB / silE を含む。§5.3） |
-| `data/raw_audio/sound/<word_id>/<word_id>.log` | Julius のログ。強制アライメント部に `[開始フレーム 終了フレーム] 1フレームあたり平均対数尤度 音素` |
-| `data/mfcc/<word_id>.bin` | float32 のベクトル列（36次元 × フレーム数、ヘッダなし） |
-| `data/users/<利用者ID>/daily_lesson.json` | その日のレッスン（`date`・`steps`・`mouth_done`） |
+| `library/words_db.json` | 単語データベース（§9.1） |
+| `library/lip_refs.json` | お手本の口形データ（§7.2） |
+| `library/sound/<word_id>/<word_id>.lab` | 1行1音素：`開始秒 終了秒 音素`（silB / silE を含む。§5.3） |
+| `library/sound/<word_id>/<word_id>.log` | Julius のログ。強制アライメント部に `[開始フレーム 終了フレーム] 1フレームあたり平均対数尤度 音素` |
+| `library/sound/<word_id>/<word_id>.wav` / `.webm` | お手本の音声（16kHz・モノラル・16bit）／お手本の録画（WebM。顔が映る） |
+| `library/mfcc/<word_id>.bin` | float32 のベクトル列（36次元 × フレーム数、ヘッダなし） |
+| `daily_lesson.json` | その日のレッスン（`date`・`steps`・`mouth_done`） |
+| `work/align/test.wav` など | 直前の練習の録音とアライメント結果。次の練習で上書きされ、研究データとしては残らない（§5.2） |
 
 ---
 
@@ -2423,6 +2502,7 @@ app.py の teardown_request
 | pydub | 0.25.1 |
 | MediaPipe / opencv-python | 0.10.21 / 5.0.0.93 |
 | mecab-python3 / unidic | 1.0.12 / 1.1.0 |
+| qrcode / Pillow（2026-10-14 に確認） | 8.2 / 12.3.0 |
 
 `requirements.txt` は MediaPipe 以外のバージョンを固定していません。論文に書くときは、実験に使った環境で `pip freeze` を取って記録してください。
 
@@ -2483,13 +2563,16 @@ sp-ps/
 ├── compare_lips.py             # 唇比較の試作スクリプト（アプリからは使っていない）
 ├── test_mecab.py               # MeCab でアクセント型が取れるかの確認用
 ├── test_voicevox.py            # VOICEVOX の確認用（現在は使っていない）
+├── .tmp/                       # 実行時の一時ファイル（.gitignore で除外）
+│   ├── serve/                  #   サーバーのログ（gunicorn.log・cloudflared-*.log）、server.pid、server.out（§4）
+│   └── numba-cache/            #   音色解析ライブラリのキャッシュ（NUMBA_CACHE_DIR の既定）
 │
 ├── core/                       # コアモジュール（§5.1）
 │   ├── accent.py               # MeCab + UniDic によるアクセント型取得（§9.2）
 │   ├── accounts.py             # 参加者アカウントの読み書き・検証・認証（ハッシュ化）★
 │   ├── alignment.py            # Julius 強制アライメント（タイムアウト・再試行・診断つき）、.lab / .log 読み込み
 │   ├── analysis.py             # 学習曲線の統計分析（回帰・プラトー・Sランク分布）
-│   ├── audio.py                # WAV のサンプリング変換・発話区間の切り出し・audio.scp 読み込み
+│   ├── audio.py                # WAV のサンプリング変換・発話区間の切り出し・お手本音声の場所（read_sample()）
 │   │                           #   （reduce_noise_wav()・word_select() は現在どこからも呼ばれていない）
 │   ├── confidence.py           # ブートストラップ法による 95% 信頼区間の推定
 │   ├── drill.py                # 集中ドリル・ことば当てクイズのデータ生成
@@ -2497,29 +2580,34 @@ sp-ps/
 │   ├── formant.py              # F1/F2 抽出・話者差補正・母音スコア・ジッター/シマー・キャッシュ
 │   ├── history.py              # 練習履歴の保存・読み込み・連続日数・最近の点数・今週の集計
 │   ├── lesson.py               # 「今日のレッスン」の自動編成
+│   ├── library.py              # 参加者ごとの単語とお手本の置き場所（§9.5）★
 │   ├── pitch.py                # F0 抽出・10ms 整列・半音変換・補間・平滑化・時間正規化
 │   │                           #   （librosa_pitch()・normalize_zscore() は現在使っていない）
+│   ├── public_access.py        # 公開 URL の検証・Tunnel 経由の接続元 IP の判定（§4・§10）★
 │   ├── sync.py                 # 音映像クロスチェック（口と声の同期分析）★
 │   ├── teacher.py              # 先生用パスワードと先生モード（セッション期限・総当たり対策）★
 │   ├── timbre.py               # MFCC + Δ + ΔΔ（36次元）・DTW 音色評価
 │   ├── usercontext.py          # ログイン中の参加者IDをリクエスト単位で保持★
 │   ├── utils.py                # ローマ字モーラ→かな変換・長音のまとまり判定など
 │   ├── vocab.py                # words_db.json 管理・単語登録フロー・ID 採番
-│   └── weakness.py             # モーラ別スコアからの苦手音分析
+│   ├── weakness.py             # モーラ別スコアからの苦手音分析
+│   └── workspace.py            # 参加者ごとの直前の練習の作業ファイルの置き場所（§5.2）★
 │
 ├── data/                       # ユーザーデータ（.gitignore で data/ ごと除外。環境変数 DATA_DIR で場所を変えられる）
+│   ├── access_qr.png           # 配布用 QR 画像（make_access_qr.py。Quick Tunnel では access_qr_quick_<日時>.png）
+│   ├── shared_library_backup_<日時>/  # move_shared_library.py --apply で退避した共有の単語とお手本
 │   ├── config/
 │   │   ├── accounts.json       # 参加者アカウント（利用者ID・パスワードハッシュ・学年・聴覚障害の程度）★
 │   │   ├── teacher.json        # 先生用パスワードのハッシュ（scripts/set_teacher_password.py で作成）★
 │   │   ├── flask_secret_key.txt # セッション署名鍵（FLASK_SECRET_KEY が無いとき自動生成）★
-│   │   ├── audio.scp           # お手本音声ファイルのパス一覧（単語ごとに sound/{word_id}/{word_id}.wav）
+│   │   ├── audio.scp           # 共有の単語のお手本音声のパス一覧（未ログイン時。参加者の分は users/{利用者ID}/library/）
 │   │   ├── daily_lesson.json   # 「今日のレッスン」の進捗（未ログイン運用時の共有分）
-│   │   ├── formant_cache.json  # お手本音声フォルマントのキャッシュ（※ DATA_DIR ではなく常にリポジトリ内の data/）
+│   │   ├── formant_cache.json  # 共有の単語のフォルマントのキャッシュ（※ DATA_DIR ではなく常にリポジトリ内の data/）
 │   │   ├── history.json        # 練習履歴（未ログイン運用時の共有分・最大500件）
-│   │   ├── lip_refs.json       # お手本の口形データ（schema_version: 2）
+│   │   ├── lip_refs.json       # 共有の単語の口形データ（schema_version: 2。未ログイン時）
 │   │   ├── word_id.txt         # 直前に選択した単語 ID（未ログイン時の共有分）
-│   │   ├── words.txt           # 表示テキスト一覧
-│   │   └── words_db.json       # 単語データベース（display/reading/accent 等）
+│   │   ├── words.txt           # 共有の単語の表示テキスト一覧（未ログイン時）
+│   │   └── words_db.json       # 共有の単語データベース（未ログイン時。参加者の分は library/）
 │   ├── users/
 │   │   └── {利用者ID}/         # ログイン参加者ごとの練習データ★
 │   │       ├── history.json    # その参加者の練習履歴（最大500件）
@@ -2534,7 +2622,7 @@ sp-ps/
 │   │           ├── align/      # test.wav・test.txt・test.lab・test.log（Julius 用。他の wav は置かない）
 │   │           └── lip/        # 口の動画の一時ファイル（解析後に削除）
 │   ├── mfcc/
-│   │   └── {word_id}.bin       # お手本の MFCC（36次元 float32）
+│   │   └── {word_id}.bin       # 共有の単語のお手本の MFCC（36次元 float32。未ログイン時）
 │   └── raw_audio/
 │       ├── test2.wav           # 録音の発話区間（未ログイン時の共有分）
 │       ├── wav/
@@ -2542,7 +2630,7 @@ sp-ps/
 │       │   ├── test.lab        # Julius アライメント結果（秒）
 │       │   ├── test.log        # Julius ログ（フレーム・対数尤度）
 │       │   └── test.txt        # 録音単語のひらがな読み
-│       └── sound/
+│       └── sound/              # 共有の単語のお手本（未ログイン時。参加者の分は library/sound/）
 │           └── {word_id}/
 │               ├── {word_id}.wav   # お手本音声（16kHz/モノラル）
 │               ├── {word_id}.webm  # お手本録画（実写の口の動き）
@@ -2551,6 +2639,7 @@ sp-ps/
 │               └── {word_id}.txt   # ひらがな読み
 │
 ├── docs/
+│   ├── 手順書/                 # 生徒用・保護者用の手順書（Word・PDF・HTML と画面写真。§4）
 │   ├── 倫理審査資料_SP-PS.md    # 倫理審査申請用資料（正本。Word 版は scripts/md_to_docx.py で生成）
 │   ├── 倫理審査資料_SP-PS.docx
 │   ├── 実行方法.pdf
@@ -2581,6 +2670,11 @@ sp-ps/
 │   ├── move_folder.py          # 初期データセット作成時の音声移動（現在は不要）
 │   └── path_write.py           # 初期データセット作成時の audio.scp 生成（現在は不要）
 │
+├── tests/                      # 単体テスト（python -m unittest discover -s tests）★
+│   ├── test_library.py         # 単語とお手本が参加者ごとに分かれること
+│   ├── test_public_access.py   # 公開 URL の検証・接続元 IP の判定
+│   └── test_workspace.py       # 作業フォルダが参加者ごとに分かれること・不正な ID を拒むこと
+│
 └── web/                        # フロントエンド
     ├── static/
     │   ├── css/
@@ -2603,6 +2697,7 @@ sp-ps/
     │   └── distance_result/    # 旧・音色評価チャートの出力先（起動時に作るだけで、現在は何も書き込まない）
     └── templates/
         ├── _icons.html         # アイコンのマクロ
+        ├── access_qr.html      # 配布用 QR コードの印刷ページ（先生モード）★
         ├── admin.html          # 管理ページ（単語追加・編集・削除）
         ├── admin_accounts.html # 参加者アカウント管理（研究者用）★
         ├── analysis.html       # 学習曲線分析ページ（旧ページ）
@@ -2627,7 +2722,7 @@ sp-ps/
 
 ## 13. 主要 API ルート一覧
 
-> **認証：** `/login` `/first_login` `/logout` `/teacher` と `/admin/accounts` 配下を除く全ルートは
+> **認証：** `/login` `/first_login` `/logout` `/teacher` `/teacher/unlock` `/teacher/lock`・静的ファイルと `/admin/accounts` 配下を除く全ルートは
 > ログインが必要です。未ログインでアクセスすると、ページは `/login` へ転送され、
 > `/api/` 配下や POST は `401` を返します。`/admin/accounts` 配下は
 > 先生モードが必要です（詳細は [§10](#10-参加者アカウントとデータの分離)）。
@@ -2672,7 +2767,7 @@ sp-ps/
 | POST | `/audio` | 録音データ保存・Julius アライメント実行 |
 | POST | `/upload` | WAV をアップロードしてアライメントまで行う |
 | POST | `/graph` | 全スコア計算・結果ページを返す |
-| GET | `/recorded_audio` | 直前の録音（test.wav）を返す |
+| GET | `/recorded_audio` | ログイン中の参加者の直前の録音（作業フォルダの `align/test.wav`）を返す |
 | GET | `/sample_audio/<word_id>` | お手本音声を返す（実録音を `static/sample` より優先） |
 | GET | `/sample_video/<word_id>` | お手本録画（WebM）を返す |
 | POST | `/upload_lip_video` | 口形動画（ref / test）をアップロード（ref は自分のお手本を上書き） |
@@ -2710,6 +2805,7 @@ sp-ps/
 | メソッド | パス | 説明 |
 |---------|------|------|
 | GET | `/admin/accounts` | 参加者アカウント管理ページ |
+| GET | `/admin/accounts/access_qr` | 配布用の公開 URL と QR コードを1枚に印刷するページ（`PUBLIC_BASE_URL`、無ければ開いているホスト名から作る。§4） |
 | POST | `/admin/accounts/create` | 参加者を登録（利用者 ID・学年・聴覚障害の程度） |
 | POST | `/admin/accounts/update_profile` | 学年・聴覚障害の程度を更新 |
 | POST | `/admin/accounts/clear_password` | パスワードを未設定に戻す（本人が忘れた場合） |
@@ -2722,7 +2818,8 @@ sp-ps/
 
 ## 14. デプロイ（Docker / Railway）
 
-研究参加者の端末から使うときは、PC で `python app.py` と ngrok（[§4](#スマートフォンで使うngrok)）を使う方法が基本です。クラウドに置くための設定もリポジトリにありますが、**2026-09-14 時点ではクラウド上で採点まで動くことを確認していません**（下の注意を参照）。
+研究参加者のスマホから使うときは、**Mac で `scripts/server.sh start`（gunicorn ＋ Cloudflare Tunnel）を動かす方法が基本**です（[§4](#mac-でサーバーを起動停止する)）。解析と保存は Mac の中で行い、Cloudflare は通信を中継するだけです。PC で `python app.py` と ngrok（[§4](#スマートフォンで使うngrok)）を使う方法も使えます。
+クラウドに置くための設定もリポジトリにありますが、**2026-10-14 時点でもクラウド上で採点まで動くことは確認していません**（下の注意を参照）。
 
 ### 設定ファイル
 
@@ -2735,23 +2832,37 @@ sp-ps/
 | `.dockerignore` | `data/` の利用者データ、`web/static/sample/`、`engine/bin/`（Windows 用 exe）などをイメージに入れない |
 
 ワーカーを1つにしているのは、先生用パスワードの試行回数や解析の状態をプロセス内に持っているためです。録音・単語は参加者ごとのフォルダに分かれています（[§5.2](#52-1回の練習で行われる処理)）。
+起動のしかたは場所によって少し違います。
+
+| 起動のしかた | コマンド（要点） |
+|------------|----------------|
+| Mac（`scripts/serve_mac.sh`・`server.sh`） | `gunicorn app:app --bind 127.0.0.1:$PORT --workers 1 --threads 1 --timeout 300`（`TRUSTED_PROXY=cloudflare`・`FLASK_ENV=production`） |
+| `Dockerfile` / `Procfile` / `nixpacks.toml` | `gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120` |
+| 開発用 | `python app.py`（Flask の開発用サーバー） |
 
 ### 環境変数
 
 | 変数 | 用途 | 既定 |
 |------|------|------|
-| `PORT` | 待ち受けポート | 5000（`python app.py`）/ 8080（Dockerfile） |
+| `PORT` | 待ち受けポート | 5000（`python app.py`・`serve_mac.sh`・`server.sh`）/ 8080（Dockerfile） |
+| `HOST` | 待ち受けるアドレス（`python app.py` のみ。gunicorn は `--bind` で決める） | `0.0.0.0` |
 | `DATA_DIR` | 利用者データの置き場所（Railway では Volume をマウントした場所、例 `/app_data`） | リポジトリ内の `data/` |
 | `FLASK_SECRET_KEY` | セッション Cookie の署名鍵 | 無ければ `DATA_DIR/config/flask_secret_key.txt` に自動生成 |
 | `SP_PS_TEACHER_PASSWORD` | 先生用パスワード（ファイルより優先） | 無ければ `DATA_DIR/config/teacher.json` |
 | `JULIUS_BIN` | Julius 実行ファイルのパス | 自動検出（[§3 ステップ 3](#ステップ-3--julius-をセットアップ)） |
-| `FLASK_ENV` | `development` のときデバッグモード（`python app.py` のみ） | `development` |
+| `FLASK_ENV` | `development` のときデバッグモード（`python app.py` のみ） | `production`（デバッグ無効） |
+| `TRUSTED_PROXY` | 同じ PC で動く中継の種類。`cloudflare` なら `CF-Connecting-IP`、`ngrok` なら `X-Forwarded-For` の末尾を接続元として先生用パスワードの試行制限に使う（[§10](#先生モード先生だけの操作)） | 未設定（転送ヘッダーを信用しない）。`serve_mac.sh` は `cloudflare` |
+| `PUBLIC_BASE_URL` | 配布用 QR に入れる公開 URL（固定 URL の Tunnel のとき）。`https://` のみ | 未設定（印刷ページは開いているホスト名、`make_access_qr.py` はエラー） |
+| `NUMBA_CACHE_DIR` | 音色解析ライブラリ（librosa が使う numba）のキャッシュの置き場所 | リポジトリ内の `.tmp/numba-cache`（`app.py` が設定） |
+
+`.env` ファイルの自動読み込みはありません。環境変数は起動するターミナルごとに設定します。
 
 ### 注意（未解決）
 
 - **`Dockerfile` は Julius を入れていません。** `.dockerignore` で `engine/bin/` も除外しているため、`railway.toml` の設定のままでは Julius が見つからず、録音の解析と単語登録が失敗すると考えられます（未検証）。Linux 用の Julius を入れるか、`nixpacks.toml`（apt で `julius` を入れる）を使う必要があります。
-- **お手本フォルマントのキャッシュ**（`core/formant.py` の `_CACHE_PATH`）は `DATA_DIR` を見ず、常にリポジトリ内の `data/config/formant_cache.json` に書きます。Volume に保存されないため、再デプロイのたびに作り直しになります（採点結果は変わりません）。
-- 音声・映像は外部のサーバーに送られます。研究データを扱う場合は、倫理審査資料 §4.4 の運用形態との整合を確認してください。
+- **ヘルスチェックの URL**：`railway.toml` のヘルスチェックは `/select` ですが、ログインが必要になったため、未ログインでは `/login` へ転送（302）します。Railway は 200 を待つので、このままでは失敗すると考えられます（未検証）。`/login` に変えてください。
+- **共有の単語のフォルマントのキャッシュ**（未ログイン時。`core/library.py` の `SHARED_LIBRARY.formant_cache`）は `DATA_DIR` を見ず、常にリポジトリ内の `data/config/formant_cache.json` に書きます。参加者ごとのキャッシュは `DATA_DIR` の下の `users/<利用者ID>/library/` に書くので、Volume に保存されます（採点結果はどちらでも変わりません）。
+- 音声・映像は外部のサーバーに送られます。研究データを扱う場合は、倫理審査資料 §4.4 の運用形態との整合を確認してください。Mac ＋ Cloudflare Tunnel の場合も、通信は Cloudflare で一度復号されます（[§4](#スマートフォンで使うcloudflare-tunnel)）。
 
 ---
 
@@ -2866,15 +2977,19 @@ feature/fix                     ← 内容が不明
 以下のファイルは個人のデータや一時ファイルのため、`.gitignore` で除外されています。
 
 ```
-data/                           ← ユーザーデータ一式（単語・履歴・お手本・録画）を丸ごと除外
+data/                           ← ユーザーデータ一式（アカウント・単語・履歴・お手本・録画・配布用 QR 画像）を丸ごと除外
+.tmp/                           ← サーバーのログ・PID（.tmp/serve/）、音色解析のキャッシュ（.tmp/numba-cache/）
 web/static/sample/              ← ブラウザ再生用音声
-web/static/distance_result/     ← 音色評価チャート（解析のたびに再生成）
+web/static/distance_result/     ← 旧・音色評価チャートの出力先（今は起動時に作るだけ）
+.env・.venv/・venv/             ← 環境変数ファイル・仮想環境
+*.log                           ← ログファイル
 ```
 
 `data/` はディレクトリごと除外しています。個別ファイル名を列挙する方式だと、
 機能追加で新しいデータファイルが増えたときに `git add -A` で混入する余地があるためです。
 
-**別の PC に引き継ぐ場合は、これらを手動でコピーしてください。**
+**別の PC に引き継ぐ場合は、これらを手動でコピーしてください**（[§3 単語データを別の PC に移す場合](#単語データを別の-pc-に移す場合)）。
+一方、生徒用・保護者用の手順書（`docs/手順書/` の Word・PDF・画像）は、配布物として GitHub に入れています。
 
 ---
 
@@ -3048,7 +3163,22 @@ pip install "mediapipe==0.10.21"
 
 ### diagnose.py で `[NG]` や `[!!]` が出る
 
-「4. 基準音声ファイルの確認（word1）」「5. .lab ファイルの中身を確認（word1）」は初期データセットの `word1` を、「8. VOICEVOX の確認」は現在使っていない VOICEVOX を調べる古い項目です。単語を新しく登録した環境ではここが `[NG]` / `[!!]` になっても、採点には影響しません。
+- 「4〜7」は、共有の単語（無ければ単語のある最初の参加者のライブラリ）の最初の単語を調べます（[§3 ステップ 9](#ステップ-9--動作確認)）。単語が1つも無い環境では `[NG]` になりますが、単語を登録すれば消えます。参加者のライブラリで `[NG]` が出たときは、その単語のお手本を録り直すか、`python scripts/repair_alignment.py --user <利用者ID> <word_id>`・`python scripts/regenerate_mfcc.py --user <利用者ID>` で作り直します。
+- 「8. VOICEVOX の確認」は現在使っていない VOICEVOX を調べる古い項目です。`[!!]` と「単語追加機能を使う場合は VOICEVOX を起動してください」が出ても、単語登録にも採点にも影響しません。
+
+---
+
+### スマホで開けない・公開 URL が分からない・QR コードを印刷し直したい
+
+Mac のサーバー（Cloudflare Tunnel）まわりは [§4 の「困ったとき」](#困ったとき) にまとめています。
+Quick Tunnel の公開 URL はサーバーを起動するたびに変わるので、起動し直したら配布用 QR コードも印刷し直します。
+
+---
+
+### 設定の「単語を追加」を押しても、追加の画面が出ない
+
+2026-10-14 に修正しました（`git pull` で最新化してください）。以前は、設定シートを閉じないまま単語追加の画面を開いていたため、画面がシートの裏に隠れていました。
+古い版のままのときは、設定シートを「とじる」で閉じると、裏に開いている追加の画面が見えます。単語がまだ1つも無いときは、ホームの単語一覧の「単語を追加」からも開けます。
 
 ---
 
@@ -3085,7 +3215,11 @@ pip install "mediapipe==0.10.21"
 | 限界 | 詳細 | 将来の改善案 |
 |------|------|------------|
 | **解析は1件ずつ** | 録音・単語は参加者ごとに分けたが、gunicorn はワーカー・スレッドとも1つなので、同時に「結果を見る」を押すと後の人は前の解析（約10秒）を待つ。同じ利用者 ID を2台で同時に使うと作業フォルダが同じなので混ざる | 利用者が増えたらスレッドを増やせるか確かめる（MediaPipe・Praat のスレッド安全性の確認が必要） |
-| **クラウドで採点まで動くか未確認** | `Dockerfile` に Julius が入っていない。フォルマントのキャッシュが `DATA_DIR` を見ない（[§14](#14-デプロイdocker--railway)） | Linux 用 Julius の導入、キャッシュを `DATA_DIR` へ |
+| **クラウドで採点まで動くか未確認** | `Dockerfile` に Julius が入っていない。Railway のヘルスチェックが `/select`（未ログインでは 302）のまま。共有の単語のフォルマントのキャッシュが `DATA_DIR` を見ない（[§14](#14-デプロイdocker--railway)） | Linux 用 Julius の導入、ヘルスチェックを `/login` に、キャッシュを `DATA_DIR` へ |
+| **公開 URL が起動のたびに変わる** | Quick Tunnel（`scripts/server.sh`）の URL は起動し直すたびに変わり、前に配った QR コードは使えなくなる（[§4](#mac-でサーバーを起動停止する)） | 独自ドメインの固定 URL の Tunnel（`serve_mac.sh named`）を用意する |
+| **Mac が止まると使えない** | ふたを閉じる・再起動・手動のスリープでサーバーが止まる。動いている間は `caffeinate` で自動スリープだけを止めている | 常に電源を入れておける機器に置く |
+| **通信は Cloudflare で一度復号される** | Cloudflare Tunnel は HTTPS を中継するときに一度復号する。音声・映像も Cloudflare を通る（[§4](#スマートフォンで使うcloudflare-tunnel)） | 倫理審査資料 §4.4 の運用形態と照らし合わせ、説明文書に書く |
+| **結果を見ずに終えた回の口の動画が残ることがある** | 口の動画は解析に使ったあと消すが、「結果を見る」を押さないままログアウトした・セッションが切れた回の動画は `data/users/<利用者ID>/work/lip/` に残る（[§5.2](#52-1回の練習で行われる処理)） | ログイン時・起動時に古い一時ファイルを消す |
 | **倫理審査資料と実装の区分数** | 資料 §5.3 は聴覚障害の程度を「2〜3区分」とするが、実装は4区分＋未回答（[§10](#10-参加者アカウントとデータの分離)） | 運用前にどちらかに揃える |
 | **依存パッケージのバージョンが固定されていない** | `requirements.txt` は MediaPipe 以外を固定していない | 研究で使った環境の `pip freeze` を残す |
 | **使われていないコード** | `reduce_noise_wav()`・`word_select()`・`librosa_pitch()`・`normalize_zscore()`、`check.html`・`lip_refs_admin.html`、ルート直下の `compare_lips.py` など | 整理して削除 |
@@ -3110,6 +3244,11 @@ pip install "mediapipe==0.10.21"
 | ~~Julius がハングして解析が永久に詰まる~~ | 30秒タイムアウト + プロセスツリーの強制終了 |
 | ~~perl の種類でアライメントが失敗する~~ | msys / ネイティブ Windows perl を自動判別してパス形式を切り替え |
 | ~~削除した単語の ID が再利用され音声が混線~~ | 過去に使用した ID を避けて採番し、実録音を優先配信 |
+| ~~削除した単語の ID が別の単語に振られ、練習記録が混ざる~~ | 練習履歴にある ID も避けて採番（2026-10-13。[§9.4](#94-単語-id-の採番)） |
+| ~~参加者のあいだで録音・単語・口の動画が入れ替わる~~ | 作業ファイルを `data/users/<利用者ID>/work/`、単語とお手本を `library/` に分けた（2026-10-13。[§5.2](#52-1回の練習で行われる処理)・[§9.5](#95-置き場所と共有の単語を移す)） |
+| ~~ドリルの URL や単語名の引用符で、画面にスクリプトが入り込む（XSS）~~ | 画面の JavaScript に渡す値をエスケープ（2026-10-13） |
+| ~~存在しない単語 ID を操作すると 500 エラー~~ | 単語の操作は 400、お手本の録り直しは 404 を返す（2026-10-13） |
+| ~~設定の「単語を追加」を押すと、追加の画面が設定シートの裏に隠れる~~ | 開く前に設定シートを閉じる（2026-10-14） |
 | ~~声と口のタイミングのズレを検出できない~~ | 音映像クロスチェック（[§7.3](#73-音映像クロスチェック口と声の同期)）を実装 |
 
 ---
