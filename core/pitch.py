@@ -2,42 +2,19 @@
 core/pitch.py
 ピッチ（基本周波数）の抽出・補間・スムージング・正規化を担当するモジュール。
 
-【変更点】
-  smooth() のデフォルト window を 5（50ms）→ 3（30ms）に短縮。
-
-  【理由】
-  日本語のアクセント変化はモーラ境界で急激に起きる。
-  window=5（50ms）では境界が平滑化されすぎてアクセント核の検出が甘くなる。
-  window=3（30ms）の方が境界の立ち上がり・立ち下がりが鮮明になり、
-  detect_accent_nucleus() の精度が向上する。
-
-  表示用グラフ（pitch_native, pitch_learn）はHzのまま window=5 を使い、
-  スコア計算用（pitch_fin, pitch_fin2）は window=3 を使う。
-  app.py 側で window 引数を明示的に渡すことで使い分けが可能。
+smooth() の window は既定で 3（30ms）。日本語のアクセント変化はモーラ境界で急激に起き、
+window=5（50ms）では境界が平滑化されすぎてアクセント核の検出が甘くなるため。
+表示用グラフ（pitch_native, pitch_learn）は window=5、
+スコア計算用（pitch_fin, pitch_fin2）は window=3 を app.py から明示して使い分ける。
 """
 from __future__ import annotations
 
-import librosa
 import numpy as np
 import parselmouth
 
 from config import PITCH_FLOOR_DEFAULT, PITCH_CEILING_DEFAULT
 
 # ── F0 抽出 ──────────────────────────────────────────────────────────
-
-def librosa_pitch(sound_file: str) -> tuple[list[float], list[float]]:
-    """librosa の pyin アルゴリズムで F0 を推定する。"""
-    y, sr = librosa.load(sound_file, sr=None)
-    if str(y.dtype) == "int16":
-        y = (y / 32768).astype(np.float32)
-    f0, _, _ = librosa.pyin(
-        y,
-        fmin=librosa.note_to_hz("C2"),
-        fmax=librosa.note_to_hz("C7"),
-        sr=sr,
-    )
-    return f0.tolist(), librosa.times_like(f0).tolist()
-
 
 def estimate_pitch_range(
     sound_file: str,
@@ -213,10 +190,9 @@ def smooth(
     """
     移動平均でピッチ曲線をスムージングする。
 
-    【window のデフォルト変更：5 → 3】
     日本語アクセントの変化はモーラ境界で急激に起きるため、
     window=5（50ms）では境界が平滑化されすぎる。
-    window=3（30ms）の方がアクセント核の検出精度が向上する。
+    既定の window=3（30ms）なら境界が残り、アクセント核を見つけやすい。
 
     使い分け：
       スコア計算用（pitch_fin, pitch_fin2）→ window=3（デフォルト）
@@ -241,27 +217,6 @@ def scale(values: list[float] | np.ndarray) -> np.ndarray:
     if mx == mn:
         return np.zeros_like(arr)
     return (arr - mn) / (mx - mn)
-
-
-def normalize_zscore(
-    values: list[float] | np.ndarray,
-    clip_sigma: float = 2.5,
-) -> np.ndarray:
-    """
-    Z-score 正規化（0〜1）。外れ値に対してロバスト。
-    半音変換後は scale() で十分なため、通常は使用しない。
-    特に外れ値が多い録音環境での代替手段として残しておく。
-    """
-    arr = np.array(values, dtype=float)
-    if not len(arr):
-        return arr
-    mean = np.mean(arr)
-    std  = np.std(arr)
-    if std == 0:
-        return np.zeros_like(arr)
-    z         = (arr - mean) / std
-    z_clipped = np.clip(z, -clip_sigma, clip_sigma)
-    return (z_clipped + clip_sigma) / (2.0 * clip_sigma)
 
 
 # ── 長さ整合 ──────────────────────────────────────────────────────────

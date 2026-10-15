@@ -26,7 +26,6 @@ CONFIG_DIR          = DATA_DIR / "config"
 RAW_AUDIO_DIR       = DATA_DIR / "raw_audio"
 AUDIO_WAV_DIR       = RAW_AUDIO_DIR / "wav"
 AUDIO_MFCC_DIR      = DATA_DIR / "mfcc"
-DISTANCE_RESULT_DIR = STATIC_DIR / "distance_result"
 
 # ── エンジン関連（Julius本体・音響モデル） ────────────────────────────
 # segment_julius.pl は ENGINE_DIR をカレントとして実行する。
@@ -34,13 +33,9 @@ DISTANCE_RESULT_DIR = STATIC_DIR / "distance_result"
 ENGINE_DIR = BASE_DIR / "engine"
 
 # ── ファイルパス ─────────────────────────────────────────────────────
-TEST_TXT_PATH         = AUDIO_WAV_DIR / "test.txt"
 WORD_ID_MEMO_PATH     = CONFIG_DIR / "word_id.txt"
 AUDIO_SCP_PATH        = CONFIG_DIR / "audio.scp"
 WORDS_TXT_PATH        = CONFIG_DIR / "words.txt"
-TEST_WAV_PATH         = AUDIO_WAV_DIR / "test.wav"
-TEST_LAB_PATH         = AUDIO_WAV_DIR / "test.lab"
-TEST_LOG_PATH         = AUDIO_WAV_DIR / "test.log"
 TEST_SEGMENT_WAV_PATH = RAW_AUDIO_DIR / "test2.wav"
 
 # ── エンジン / スクリプト ────────────────────────────────────────────
@@ -75,26 +70,6 @@ def _detect_julius() -> str | None:
 
 JULIUS_BIN_PATH: str | None = _detect_julius()
 
-# ── アップロード許可拡張子 ────────────────────────────────────────────
-ALLOWED_EXTENSIONS = {".wav"}
-
-# ── 単語辞書（word_id → Julius読み） ─────────────────────────────────
-# 【注意】Julius に渡すひらがな読みを格納する。
-# 長音は「ー」で表記（Julius のひらがな→音素変換ルールに準拠）。
-# 表示用の標準表記は data/config/words.txt で管理する（2つは別物）。
-WORDS: dict[str, str] = {
-    "word1":  "おんど",        "word2":  "かいけー",      "word3":  "がっこー",
-    "word4":  "ぎんこー",      "word5":  "こーえん",      "word6":  "こーつー",
-    "word7":  "こーばい",      "word8":  "しごと",        "word9":  "しつど",
-    "word10": "じどーしゃ",    "word11": "しゅーしょく",  "word12": "しゅみ",
-    "word13": "しょーめーしょ","word14": "しょくざい",    "word15": "すけじゅーる",
-    "word16": "すーぱー",      "word17": "せーきゅーしょ","word18": "ぜーきん",
-    "word19": "ちゅーしょく",  "word20": "ちょーしょく",  "word21": "ちょーみりょー",
-    "word22": "ちょきん",      "word23": "でんしゃ",      "word24": "でんわ",
-    "word25": "どーろ",        "word26": "びょーいん",    "word27": "びよーいん",
-    "word28": "ほどー",        "word29": "ゆーしょく",    "word30": "やちん",
-}
-
 # ── 音素分類 ─────────────────────────────────────────────────────────
 VOWELS: list[str] = ["a", "i", "u", "e", "o", "a:", "i:", "u:", "e:", "o:"]
 CONSONANTS: list[str] = [
@@ -103,14 +78,10 @@ CONSONANTS: list[str] = [
 ]
 
 # ── ピッチ解析範囲（Hz） ──────────────────────────────────────────────
-# 話者の性別・属性に合わせて praat_pitch() に渡す。
-# デフォルトは男女両方をカバーする保守的な範囲を使用。
+# 話者ごとの範囲は estimate_pitch_range() が録音から推定する。
+# 推定できないとき（有声の部分が短いとき）は、男女両方をカバーするこの範囲を使う。
 PITCH_FLOOR_DEFAULT:   float = 70.0
 PITCH_CEILING_DEFAULT: float = 400.0
-PITCH_FLOOR_MALE:      float = 70.0
-PITCH_CEILING_MALE:    float = 200.0
-PITCH_FLOOR_FEMALE:    float = 150.0
-PITCH_CEILING_FEMALE:  float = 400.0
 
 # ── Flask シークレットキー ────────────────────────────────────────────
 # ログイン状態と先生モードは、この鍵で署名したセッション Cookie に入っている。

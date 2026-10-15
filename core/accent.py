@@ -1,7 +1,6 @@
 """
 core/accent.py
 MeCab によるアクセント型の自動取得を担当するモジュール。
-（VOICEVOX 音声生成は廃止）
 """
 from __future__ import annotations
 

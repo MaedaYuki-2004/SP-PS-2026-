@@ -8,9 +8,7 @@ core/drill.py
 from __future__ import annotations
 
 import random
-from pathlib import Path
 
-from config import STATIC_DIR
 from core.library import current_library
 from core.weakness import kana_vowel
 from core.history import load_history
@@ -110,10 +108,7 @@ def get_drill_data(kana: str, words: list[dict]) -> dict | None:
 # ── 聞き分けテスト ────────────────────────────────────────────────────
 
 def _has_audio(word_id: str) -> bool:
-    lib = current_library()
-    if lib.sample_wav(word_id).exists():
-        return True
-    return lib.shared and (STATIC_DIR / "sample" / f"{word_id}.wav").exists()
+    return current_library().sample_wav(word_id).exists()
 
 
 def _has_video(word_id: str) -> bool:

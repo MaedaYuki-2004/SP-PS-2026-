@@ -5,21 +5,6 @@ core/utils.py
 """
 from __future__ import annotations
 
-import time
-from pathlib import Path
-
-from config import ALLOWED_EXTENSIONS
-
-
-def allowed_file(filename: str) -> bool:
-    """アップロードされたファイルの拡張子が許可リストに含まれるか確認する。"""
-    return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
-
-
-def sleep_second(seconds: float = 1.5) -> None:
-    """指定秒数だけスリープする（Julius 処理待ち用）。"""
-    time.sleep(seconds)
-
 
 def pct_length(length: list[float]) -> list[float]:
     """各要素が合計に占める割合（%）を返す。"""

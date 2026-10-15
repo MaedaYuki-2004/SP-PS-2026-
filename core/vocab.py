@@ -29,7 +29,6 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path
 
-from config import STATIC_DIR
 from core.accent import get_accent
 from core.alignment import run_alignment_on_file
 from core.history import load_history
@@ -67,17 +66,9 @@ def active_words_db() -> dict:
 def get_next_word_id(db: dict) -> str:
     """これまでに一度でも使われた最大IDの次のIDを返す。例：word30 → word31
 
-    words_db に現存するIDだけでなく、単語削除後も残る痕跡
-    （静的サンプル音声・録音済みディレクトリ）も見て最大値を取る。
-    words_db だけを見ると、単語を全削除した直後は再び "word1" から
-    採番されてしまい、初期データセット由来の
-    web/static/sample/word1.wav（VOICEVOXの「おんど」等）が
-    新しく登録した別の単語のサンプル音声として誤って再生される
-    （sample_audio() は static/sample を優先するため）。
-
-    練習履歴にある ID も見る。単語を消すと sound/ のフォルダも消えるので、
-    履歴を見ないと同じ ID が別の単語に振られ、消した単語の練習記録が
-    新しい単語の記録として苦手音の分析などに混ざってしまう。
+    words_db にあるID（削除した単語も残っている）に加えて、お手本のフォルダと
+    練習履歴にある ID も見る。古い版で完全に消した単語の ID を別の単語に振ると、
+    消した単語の練習記録が新しい単語の記録として苦手音の分析などに混ざってしまうため。
     """
     lib  = current_library()
     nums = [0]
@@ -85,13 +76,6 @@ def get_next_word_id(db: dict) -> str:
         m = re.search(r"\d+", key)
         if m:
             nums.append(int(m.group()))
-
-    sample_dir = STATIC_DIR / "sample"
-    if lib.shared and sample_dir.exists():
-        for p in sample_dir.glob("word*.wav"):
-            m = re.search(r"\d+", p.stem)
-            if m:
-                nums.append(int(m.group()))
 
     sound_dir = lib.sound_root
     if sound_dir.exists():
@@ -319,7 +303,7 @@ def _update_words_txt(db: dict) -> None:
 
 
 def get_reading_for_julius(word_id: str) -> str:
-    """Julius に渡すひらがな読みを返す。app.py の word_select() 代替。"""
+    """Julius に渡すひらがな読みを返す。"""
     entry = get_word(word_id)
     if not entry:
         raise ValueError(f"不正な単語IDです: {word_id}")
@@ -414,12 +398,6 @@ def _remove_word(db: dict, word_id: str) -> None:
         lib.mfcc_bin(word_id).unlink(missing_ok=True)
     except OSError:
         pass
-
-    if lib.shared:
-        try:
-            (STATIC_DIR / "tts" / f"{word_id}.wav").unlink(missing_ok=True)
-        except OSError:
-            pass
 
 
 # ── 単語の情報の更新 ─────────────────────────────────────────────────

@@ -316,18 +316,6 @@ def get_weekly_report() -> dict | None:
             "delta": delta, "improved_sound": improved_sound}
 
 
-def get_word_recent_scores(limit: int = 5) -> dict[str, list[float]]:
-    """各単語の直近スコアを {word_id: [oldest→newest]} で返す。"""
-    history = load_history()
-    tmp: dict[str, list[float]] = {}
-    for r in reversed(history):
-        wid   = r.get("word_id", "")
-        total = r.get("total")
-        if wid and total is not None:
-            tmp.setdefault(wid, []).append(float(total))
-    return {wid: scores[-limit:] for wid, scores in tmp.items()}
-
-
 def get_daily_counts(days: int = 84) -> dict[str, int]:
     """過去 days 日分の日別録音回数を {YYYY-MM-DD: count} で返す。"""
     history = load_history()

@@ -26,9 +26,7 @@ RUN mkdir -p \
     data/config \
     data/raw_audio/wav \
     data/raw_audio/sound \
-    data/mfcc \
-    web/static/sample \
-    web/static/distance_result
+    data/mfcc
 
 EXPOSE 8080
 

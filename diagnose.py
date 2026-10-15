@@ -206,20 +206,6 @@ else:
     ng("audio.scp が見つかりません")
 
 
-# ── 8. VOICEVOX の確認 ───────────────────────────────────────────
-sep("8. VOICEVOX の確認（参考）")
-
-# VOICEVOX は初期データセットのお手本を作るのに使っただけで、今の単語登録（お手本は録画の音声）と
-# 採点では使わない。起動していなくても問題ないので、警告ではなく情報として出す
-try:
-    import urllib.request
-    with urllib.request.urlopen("http://127.0.0.1:50021/version", timeout=3) as res:
-        version = res.read().decode().strip()
-    info(f"VOICEVOX が起動しています（バージョン: {version}）。今の単語登録・採点では使いません")
-except Exception:
-    info("VOICEVOX は起動していません。今の単語登録・採点では使わないので、問題ありません")
-
-
 # ── まとめ ────────────────────────────────────────────────────────
 sep("診断まとめ")
 print("  [NG] が出た項目が起動失敗の原因の可能性が高いです。")

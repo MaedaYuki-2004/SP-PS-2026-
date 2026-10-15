@@ -25,7 +25,7 @@ data/config/word_id.txt
 data/raw_audio/
 data/mfcc/
 
-# 生成ファイル（実行時に再生成）
+# 古い版が作っていたファイル（今は使っていない。手元に残っていてもイメージに入れない）
 web/static/sample/
 web/static/distance_result/
 

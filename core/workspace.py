@@ -3,13 +3,13 @@ core/workspace.py
 直前の練習の作業ファイル（選んだ単語・録音・アライメント結果・切り出し音声・口の動画）の置き場所。
 
 なぜ必要か:
-  以前は全員が data/raw_audio/wav/test.wav や data/config/word_id.txt を共有していたため、
-  ある参加者が単語を選んでから「結果を見る」までの間に別の参加者が録音すると、
-  録音・単語・口の動画が入れ替わって採点されていた（README §5.2）。
+  全員で1つの作業ファイル（data/raw_audio/wav/test.wav・data/config/word_id.txt）を使うと、
+  ある参加者が単語を選んでから「結果を見る」までの間に別の参加者が録音したとき、
+  録音・単語・口の動画が入れ替わって採点されてしまう（README §5.2）。
   ログイン中の参加者ごとに data/users/<user_id>/work/ を使い、互いに上書きしないようにする。
 
 フォールバック:
-  未ログイン（CLI スクリプトなど）のときは従来の共有パスを返す。
+  未ログイン（CLI スクリプトなど）のときは共有のパスを返す。
 
 構成:
   work/word_id.txt   選んだ単語 ID
@@ -90,7 +90,7 @@ def clear_lip_dir(user_id: str) -> int:
 
 
 def current_workspace() -> Workspace:
-    """ログイン中の参加者の作業フォルダ。未ログインなら従来の共有パス。"""
+    """ログイン中の参加者の作業フォルダ。未ログインなら共有のパス。"""
     uid = usercontext.current_user()
     if not uid:
         return Workspace(

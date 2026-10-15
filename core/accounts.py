@@ -312,21 +312,6 @@ def complete_first_login(user_id: str, password: str) -> dict:
 
 
 @_exclusive
-def change_password(user_id: str, current_password: str, new_password: str) -> dict:
-    """参加者が現在のパスワードを確認のうえ新しいパスワードに変更する。"""
-    accounts = load_accounts()
-    acc = accounts.get((user_id or "").strip())
-    if not acc or not acc.get("password_set") or not acc.get("password_hash"):
-        raise ValueError("パスワードが未設定のアカウントです")
-    if not check_password_hash(acc["password_hash"], current_password or ""):
-        raise ValueError("現在のパスワードが正しくありません")
-    validate_password(new_password)
-    acc["password_hash"] = generate_password_hash(new_password)
-    acc["updated_at"] = _now_iso()
-    save_accounts(accounts)
-    return _sanitize(acc)
-
-
 def verify_login(user_id: str, password: str) -> dict | None:
     """ID とパスワードを検証する。成功で表示用アカウント、失敗で None。"""
     acc = get_account(user_id)

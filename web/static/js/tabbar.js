@@ -30,7 +30,7 @@
     { href: '/history#log', label: '記録', icon: ICONS.log,
       active: function (p, h) { return onHistory(p) && h !== '#analysis'; } },
     { href: '/history#analysis', label: '分析', icon: ICONS.insight,
-      active: function (p, h) { return (onHistory(p) && h === '#analysis') || /^\/analysis/.test(p); } }
+      active: function (p, h) { return onHistory(p) && h === '#analysis'; } }
   ];
   if (isTeacher) {
     TABS.push({ href: '/admin/accounts', label: '先生', icon: ICONS.admin,

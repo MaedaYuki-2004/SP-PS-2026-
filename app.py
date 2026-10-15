@@ -13,7 +13,6 @@ import io
 import math
 import os
 import queue
-import re
 import shutil
 import tempfile
 import threading
@@ -39,7 +38,7 @@ except ImportError:
 from flask import Flask, Response, g, jsonify, redirect, render_template, request, send_file, session
 
 from config import (
-    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DISTANCE_RESULT_DIR,
+    AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR,
     FLASK_SECRET_KEY, STATIC_DIR, TEMPLATES_DIR,
     WORD_ID_MEMO_PATH,
 )
@@ -55,7 +54,7 @@ from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_score
 from core.formant   import extract_mora_formants, calc_vowel_score, calc_voice_quality, speaker_formant_scale
 from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_overall_score, get_weekly_report, get_week_activity
-from core.utils     import pct_length, sleep_second, romaji_mora_to_kana, long_vowel_groups, long_vowel_spans
+from core.utils     import pct_length, romaji_mora_to_kana, long_vowel_groups, long_vowel_spans
 from core.analysis  import compute_learning_stats
 from core.dtw       import fastdtw
 from core.confidence import bootstrap_ci, needs_more_data
@@ -99,7 +98,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 # ── ユーティリティ ────────────────────────────────────────────────────
 
 def ensure_directories() -> None:
-    for d in [CONFIG_DIR, AUDIO_WAV_DIR, AUDIO_MFCC_DIR, DISTANCE_RESULT_DIR, STATIC_DIR]:
+    for d in [CONFIG_DIR, AUDIO_WAV_DIR, AUDIO_MFCC_DIR, STATIC_DIR]:
         d.mkdir(parents=True, exist_ok=True)
     if not (AUDIO_WAV_DIR / "test.txt").exists():
         (AUDIO_WAV_DIR / "test.txt").touch()
@@ -184,12 +183,6 @@ def get_lip_shape_vector(landmarks, w, h):
         shape_vector.append(dist_to_center / face_scale)
 
     return np.array(shape_vector)
-
-
-def _extract_lip_data(video_path: str, max_frames: int = 50) -> tuple[list[list[float]], list[float]]:
-    """後方互換ラッパー（vectors, ratios のみ返す）。"""
-    vectors, ratios, _times = _extract_lip_data_timed(video_path, max_frames)
-    return vectors, ratios
 
 
 def _extract_lip_data_timed(
@@ -651,14 +644,7 @@ def _get_reference_pitch_data(word_id: str) -> dict:
     wav_path  = sound_dir / f"{word_id}.wav"
     lab_path  = sound_dir / f"{word_id}.lab"
 
-    if not wav_path.exists():
-        static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
-        if lib.shared and static_path.exists():
-            wav_path = static_path
-        else:
-            return {"has_data": False}
-
-    if not lab_path.exists():
+    if not wav_path.exists() or not lab_path.exists():
         return {"has_data": False}
 
     # 単語 ID は参加者ごとに振るので、キャッシュはファイルの場所で引く
@@ -1138,7 +1124,6 @@ def select():
                                has_ref_video=has_sample_video(word_id))
 
     words    = list_words()
-    word_map = {w["word_id"]: w for w in words}
     stats    = get_stats()
     accent_patterns = {
         w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
@@ -1185,7 +1170,6 @@ def _get_weak_sound_cards(words: list[dict], limit: int = 3) -> list[dict]:
 @app.route("/select")
 def select_page():
     words    = list_words()
-    word_map = {w["word_id"]: w for w in words}
     stats    = get_stats()
     accent_patterns = {
         w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
@@ -1282,48 +1266,6 @@ def history_page():
                            analysis_stats=analysis_stats)
 
 
-@app.route("/analysis")
-def analysis_page():
-    history    = load_history()
-    stats      = compute_learning_stats(history, active_words_db())
-    return render_template("analysis.html", stats=stats)
-
-@app.route("/lip_compare")
-def lip_compare_page():
-    return render_template("lip_compare.html")
-
-@app.route("/lip_compare", methods=["POST"])
-@heavy_view
-def lip_compare_process():
-    try:
-        ref_video = request.files.get('ref_video')
-        test_video = request.files.get('test_video')
-        if not ref_video or not test_video:
-            return jsonify({"error": "お手本動画とテスト動画の両方をアップロードしてください。"}), 400
-
-        ref_path = _save_temp_video(ref_video)
-        test_path = _save_temp_video(test_video)
-        try:
-            reference_vectors, reference_ratios = _extract_lip_data(ref_path)
-            test_vectors, test_ratios = _extract_lip_data(test_path)
-            score, distance = _compute_lip_score(reference_vectors, test_vectors)
-            return jsonify({
-                "score": score,
-                "distance": distance,
-                "ref_ratios": reference_ratios,
-                "test_ratios": test_ratios,
-            })
-        finally:
-            for path in (ref_path, test_path):
-                try:
-                    if os.path.exists(path):
-                        os.remove(path)
-                except OSError:
-                    pass
-    except Exception as exc:
-        traceback.print_exc()
-        return jsonify({"error": str(exc)}), 500
-
 @app.route("/history/export.csv")
 def export_history_csv():
     history = load_history()
@@ -1345,30 +1287,6 @@ def export_history_csv():
     return Response("\ufeff" + output.getvalue(),
                     mimetype="text/csv; charset=utf-8",
                     headers={"Content-Disposition": "attachment; filename=sp-ps-history.csv"})
-
-
-@app.route("/upload", methods=["GET", "POST"])
-def upload_file():
-    words = list_words()
-    if request.method == "GET":
-        return render_template("upload.html", words=words)
-    try:
-        file    = request.files["file"]
-        word_id = request.form.get("fileword", "").strip()
-        reading = get_reading_for_julius(word_id)
-        ws = current_workspace()
-        ws.select_word(word_id, reading)
-        file.save(str(ws.wav))
-        convert_to_16kHz(ws.wav, ws.wav)
-        sleep_second()
-        with heavy_slot():
-            run_alignment(ws.align_dir)
-        return render_template("upload.html", words=words, message="アップロード完了")
-    except ServerBusy:
-        raise
-    except Exception as exc:
-        traceback.print_exc()
-        return render_template("upload.html", words=words, error=str(exc))
 
 
 @app.route("/audio", methods=["GET", "POST"])
@@ -1531,17 +1449,6 @@ def recorded_audio():
     return "録音データが見つかりません", 404
 
 
-# --- Lip refs admin APIs -------------------------------------------------
-@app.route('/api/lip_refs')
-def api_lip_refs_list():
-    try:
-        refs = load_lip_refs()
-        # 戻り値はキー一覧のみ
-        return jsonify({"keys": list(refs.keys())})
-    except Exception as exc:
-        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
-
-
 @app.route('/api/lip_refs/<word_id>/ratios')
 def api_lip_refs_ratios(word_id: str):
     try:
@@ -1654,23 +1561,6 @@ def api_vowel_trainer_complete():
             pass
 
         return jsonify({"ok": True, "completed_quests": []})
-    except Exception as exc:
-        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
-
-
-@app.route('/api/lip_refs/delete', methods=['POST'])
-def api_lip_refs_delete():
-    try:
-        data = request.get_json() or {}
-        word_id = (data.get('word_id') or '').strip()
-        if not word_id:
-            return jsonify({"error": "word_id required"}), 400
-        refs = load_lip_refs()
-        if word_id in refs:
-            refs.pop(word_id, None)
-            save_lip_refs(refs)
-            return jsonify({"message": "deleted"})
-        return jsonify({"error": "not found"}), 404
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
@@ -2136,18 +2026,9 @@ def _analyze_recording():
 
 @app.route("/sample_audio/<word_id>")
 def sample_audio(word_id: str):
-    # 実際に録音・登録された音声（register_word 経由）を必ず優先する。
-    # word_id は単語の全削除後に word1 から採番し直されることがあり、
-    # 初期データセット由来の static/sample/{word_id}.wav（VOICEVOX生成）が
-    # 別の単語のIDと衝突して残っていると、新しく登録した単語の再生時に
-    # 無関係な古いサンプル音声が流れてしまう。static/sample はそのIDに
-    # 実録音が存在しない場合（初期データセットの単語）にのみ使うフォールバック。
-    # static/sample は共有の単語（未ログイン時）だけ。参加者の単語 ID は参加者ごとに振る
-    lib = current_library()
-    tts_path = lib.sample_wav(word_id)
-    if tts_path.exists(): return send_file(str(tts_path), mimetype="audio/wav")
-    static_path = STATIC_DIR / "sample" / f"{word_id}.wav"
-    if lib.shared and static_path.exists(): return send_file(str(static_path), mimetype="audio/wav")
+    """お手本の音声（単語を登録したときの録画から取り出した wav）を配信する。"""
+    wav = current_library().sample_wav(word_id)
+    if wav.exists(): return send_file(str(wav), mimetype="audio/wav")
     return "not found", 404
 
 
@@ -2306,11 +2187,6 @@ def api_update_word_tags():
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
-
-
-@app.route("/api/tags")
-def api_get_all_tags():
-    return jsonify({"tags": get_all_tags()})
 
 
 @app.route("/api/history/calendar")

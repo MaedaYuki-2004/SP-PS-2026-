@@ -37,16 +37,14 @@ data/config/lip_refs.json
 # フォルマント分析キャッシュ
 data/config/formant_cache.json
 
-# 単語ごとのお手本音声（VOICEVOX生成 + Julius アライメント結果）
+# 共有の単語のお手本音声と Julius のアライメント結果（未ログインの CLI 用）
 data/raw_audio/sound/
 
 # 単語ごとの MFCC バイナリ（お手本音声から算出）
 data/mfcc/
 
-# ブラウザ再生用サンプル音声
+# 古い版が作っていたファイル（今は使っていない。手元に残っていてもコミットしない）
 web/static/sample/
-
-# 音色評価チャート（解析のたびに再生成）
 web/static/distance_result/
 
 # ── Python ───────────────────────────────────────

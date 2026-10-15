@@ -18,13 +18,9 @@ import numpy as np
 from config import (
     AUDIO_WAV_DIR,
     CONSONANTS,
-    DATA_DIR,
     ENGINE_DIR,
     JULIUS_BIN_PATH,
     PERL_SCRIPT_PATH,
-    TEST_LAB_PATH,
-    TEST_LOG_PATH,
-    TEST_WAV_PATH,
     VOWELS,
 )
 from core.utils import phone_list, phoneme_frame
@@ -286,7 +282,7 @@ def run_alignment_on_file(
     任意の WAV ファイルに対して Julius 強制アライメントを実行し、
     結果を lab_out / log_out に保存する。
 
-    TEST_WAV_PATH などの固定パスに依存せず動作するため、
+    作業フォルダの test.wav（run_alignment が使う）以外のファイルにも使えるため、
     お手本口形録画のアライメントなど、通常の録音フロー以外で
     アライメントが必要な場合に使用する。
     """

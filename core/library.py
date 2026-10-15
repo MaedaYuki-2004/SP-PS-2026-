@@ -7,7 +7,7 @@ core/library.py
 単語の ID（word1, word2, …）も参加者ごとに振る。
 
 フォールバック:
-  未ログイン（CLI スクリプトなど）のときは従来の共有の場所を返す。
+  未ログイン（CLI スクリプトなど）のときは共有の場所（data/config など）を返す。
   共有の単語を参加者へ移すには scripts/move_shared_library.py を使う。
 
 構成（参加者ごと）:
@@ -28,7 +28,6 @@ from pathlib import Path
 from config import (
     AUDIO_MFCC_DIR,
     AUDIO_SCP_PATH,
-    BASE_DIR,
     CONFIG_DIR,
     DATA_DIR,
     RAW_AUDIO_DIR,
@@ -47,7 +46,7 @@ class Library:
     mfcc_dir:      Path
     lip_refs:      Path
     formant_cache: Path
-    # 未ログイン時の共有ライブラリか。共有のときだけ web/static/sample の初期データも使う
+    # 未ログイン（CLI スクリプトなど）で使う共有ライブラリか
     shared:        bool
 
     def sound_dir(self, word_id: str) -> Path:
@@ -70,8 +69,7 @@ SHARED_LIBRARY = Library(
     sound_root=RAW_AUDIO_DIR / "sound",
     mfcc_dir=AUDIO_MFCC_DIR,
     lip_refs=CONFIG_DIR / "lip_refs.json",
-    # 以前から DATA_DIR ではなくリポジトリ内の data/ に置いている（README §17）
-    formant_cache=BASE_DIR / "data" / "config" / "formant_cache.json",
+    formant_cache=CONFIG_DIR / "formant_cache.json",
     shared=True,
 )
 

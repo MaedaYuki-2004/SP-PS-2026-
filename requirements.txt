@@ -8,7 +8,6 @@ librosa
 praat-parselmouth
 pydub
 soundfile
-noisereduce
 # Python 3.13 で標準ライブラリから audioop が削除されたため、
 # pydub が動作するように互換モジュールを入れる（3.13 以降で必要）。
 audioop-lts; python_version >= "3.13"
@@ -24,9 +23,6 @@ fastdtw
 # この制約から Python は 3.12 以下が必要（3.13 では 0.10.21 が入らない）。
 mediapipe==0.10.21
 opencv-python
-
-# 可視化
-matplotlib
 
 # 自然言語処理（アクセント型取得）
 # 任意。未インストールでもアプリは動作する（core/accent.py で利用可否を判定）。
