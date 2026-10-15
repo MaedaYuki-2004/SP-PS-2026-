@@ -10,7 +10,7 @@ DTW対応」という2本の独立した対応線が同じ場所を指してい�
 【本実装での構成】
 - 音声側の対応線: Julius 強制アライメント（各録音の .lab のモーラ境界）。
   同じモーラ同士が対応するという事実を使うため、生波形DTWより頑健。
-- 映像側の対応線: 唇形状ベクトル列同士の fastdtw 経路。
+- 映像側の対応線: 唇形状ベクトル列同士の FastDTW 経路（core/dtw.py）。
 - クロスチェック: お手本の各モーラ中心時刻を映像DTW経路で
   ユーザーの映像時刻に写し、音声アライメントが指すユーザーの
   モーラ中心時刻と比較する。差（offset）が小さければ
@@ -56,9 +56,8 @@ DTW対応」という2本の独立した対応線が同じ場所を指してい�
 from __future__ import annotations
 
 import numpy as np
-from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
 
+from core.dtw import fastdtw
 from core.utils import romaji_mora_to_kana
 
 # 校正済みしきい値（ms）— 上記の校正結果に基づく
@@ -166,7 +165,6 @@ def compute_av_sync(
     _, path = fastdtw(
         np.asarray(ref_vectors, dtype=float),
         np.asarray(test_vectors, dtype=float),
-        dist=euclidean,
     )
 
     # ref フレーム → 対応する test フレーム（中央値）のマップ

@@ -422,6 +422,7 @@ async function main() {
               // 録音のあとの画面（いま見えている画面）にも、理由と次にやることを出す
               const note = document.getElementById('doneNote');
               if (note) {
+                note.classList.remove('is-wait');
                 note.textContent = '録音をうまく送れませんでした。下の「すぐ録り直す」で、もう一度録音してください。';
                 note.hidden = false;
               }
@@ -521,13 +522,46 @@ function encodeAudio(buffers, settings) {
 }
 
 // ── 送信 ────────────────────────────────────────────────
-function sendAudio(blob) {
+// サーバーが混み合っているとき（503）は、少し待って同じ録音を送り直す（録音はこの端末に残っている）。
+// 待っている間は、録音のあとの画面にそのことを出す
+const AUDIO_RETRY_LIMIT = 5;
+
+async function sendAudio(blob) {
   window._spAudioUploadOk = false;
-  const fd = new FormData();
-  fd.append('file', blob, 'test.wav');
-  return fetch('/audio', { method:'POST', body:fd })
-    .then(r => { window._spAudioUploadOk = r.ok; return r; })
-    .catch(console.error);
+  for (let attempt = 0; ; attempt++) {
+    const fd = new FormData();
+    fd.append('file', blob, 'test.wav');
+    let r;
+    try {
+      r = await fetch('/audio', { method:'POST', body:fd });
+    } catch (err) {
+      console.error(err);
+      showWaitNote(false);
+      return;
+    }
+    if (r.status === 503 && attempt < AUDIO_RETRY_LIMIT) {
+      showWaitNote(true);
+      const seconds = Math.max(2, Number(r.headers.get('Retry-After')) || 5);
+      await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+      continue;
+    }
+    showWaitNote(false);
+    window._spAudioUploadOk = r.ok;
+    return r;
+  }
+}
+
+function showWaitNote(waiting) {
+  const note = document.getElementById('doneNote');
+  if (!note) return;
+  if (waiting) {
+    note.classList.add('is-wait');
+    note.textContent = 'いま混み合っています。順番が来たら自動で送ります。このまま少し待ってください。';
+    note.hidden = false;
+  } else if (note.classList.contains('is-wait')) {
+    note.classList.remove('is-wait');
+    note.hidden = true;
+  }
 }
 
 main();

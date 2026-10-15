@@ -51,6 +51,7 @@ import parselmouth.praat
 from pathlib import Path
 
 from core.library import current_library
+from core.storage import write_json_atomic
 from core.utils import long_vowel_groups, mora_group_kana
 
 _VOWEL_CHARS = {'a', 'i', 'u', 'e', 'o'}
@@ -94,11 +95,7 @@ def _load_formant_cache() -> dict:
 
 
 def _save_formant_cache(cache: dict) -> None:
-    path = _cache_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(_json.dumps(cache, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(path)
+    write_json_atomic(_cache_path(), cache, indent=None)
 
 
 def _has_vowel(mora_label: str) -> bool:

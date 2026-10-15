@@ -33,5 +33,6 @@ RUN mkdir -p \
 EXPOSE 8080
 
 # Railway は PORT 環境変数を自動でセットする
-# shell 形式にして ${PORT} を展開できるようにする
-CMD gunicorn app:app --bind "0.0.0.0:${PORT:-8080}" --workers 1 --timeout 120
+# shell 形式にして ${PORT} を展開できるようにする。スレッドの数などは gunicorn.conf.py。
+# クラウドはメモリが少ないことが多いので、ワーカーは既定で1つ（WEB_CONCURRENCY で増やせる。1つ 0.3〜0.5GB）
+CMD gunicorn app:app -c gunicorn.conf.py --bind "0.0.0.0:${PORT:-8080}" --workers "${WEB_CONCURRENCY:-1}"

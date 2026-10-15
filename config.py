@@ -129,10 +129,25 @@ def _load_or_create_secret_key() -> str:
     except OSError:
         pass
     import secrets
+    import time
     key = secrets.token_hex(32)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(key, encoding="utf-8")
+        # gunicorn は複数のワーカー（プロセス）を同時に起動する。それぞれが別の鍵を作ると、
+        # ログインがワーカーごとに通じたり通じなかったりするので、最初に作れた1つの鍵だけを使う
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(key)
+    except FileExistsError:
+        # ほかのワーカーが先に作った。書き終わるのを待って、その鍵を使う
+        for _ in range(50):
+            try:
+                existing = path.read_text(encoding="utf-8").strip()
+                if existing:
+                    return existing
+            except OSError:
+                pass
+            time.sleep(0.1)
     except OSError:
         pass  # 保存できない環境でも起動はする（再起動するとログインし直しになる）
     return key

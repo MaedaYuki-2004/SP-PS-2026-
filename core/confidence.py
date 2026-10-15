@@ -80,10 +80,14 @@ def bootstrap_ci(
         return None
 
     # ── ブートストラップ ──────────────────────────────────────────
-    rng              = np.random.default_rng()
-    bootstrap_means  = np.array([
-        np.mean(rng.choice(arr, size=n, replace=True))
-        for _ in range(n_bootstrap)
+    # n 個の復元抽出を n_bootstrap 回まとめて行う（以前は1回ずつ Python で回していて、
+    # 1回の採点で 20〜80ms かかり、その間ほかの要求の処理も止まっていた）。
+    # 記録の多い単語でもメモリを使いすぎないよう、まとめる回数を区切る
+    rng             = np.random.default_rng()
+    chunk           = max(1, 1_000_000 // n)
+    bootstrap_means = np.concatenate([
+        arr[rng.integers(0, n, size=(min(chunk, n_bootstrap - start), n))].mean(axis=1)
+        for start in range(0, n_bootstrap, chunk)
     ])
 
     alpha = 1.0 - ci_level

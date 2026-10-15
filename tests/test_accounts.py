@@ -13,7 +13,8 @@ class AccountDeletionTests(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         self.data_dir = Path(tmp.name)
         for target, value in [("core.accounts.DATA_DIR", self.data_dir),
-                              ("core.accounts.ACCOUNTS_PATH", self.data_dir / "config" / "accounts.json")]:
+                              ("core.accounts.ACCOUNTS_PATH", self.data_dir / "config" / "accounts.json"),
+                              ("core.storage.LOCK_DIR", self.data_dir / "run" / "locks")]:
             patcher = mock.patch(target, value)
             patcher.start()
             self.addCleanup(patcher.stop)

@@ -1,7 +1,7 @@
 """
 core/timbre.py
 音色評価（MFCC 抽出・DTW 距離計算）を担当するモジュール。
-librosa で MFCC を算出し、fastdtw で基準音声との類似度を評価する。
+librosa で MFCC を算出し、FastDTW（core/dtw.py）で基準音声との類似度を評価する。
 
 【変更点】
   - audio_mfcc() に Delta MFCC（Δ・ΔΔ）を追加。
@@ -17,9 +17,8 @@ from pathlib import Path
 
 import librosa
 import numpy as np
-from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
 
+from core.dtw import fastdtw
 from core.library import current_library
 
 # ── MFCC 次元数 ──────────────────────────────────────────────────────
@@ -118,7 +117,7 @@ def create_dtw_list_dynamic(
                 dtw_list.append(float("inf"))
                 continue
             mfcc2 = raw.reshape(-1, MFCC_TOTAL_DIMS)
-            distance, _ = fastdtw(mfcc1, mfcc2, dist=euclidean)
+            distance, _ = fastdtw(mfcc1, mfcc2)
             dtw_list.append(float(distance) / (len(mfcc1) + len(mfcc2)))
         except Exception as e:
             print(f"[timbre] {entry['bin_path'].name}: 読み込みエラー — {e}")

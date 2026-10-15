@@ -32,6 +32,7 @@ from config import (
 )
 from core import usercontext
 from core.history import _safe_seg
+from core.storage import write_text_atomic
 
 
 @dataclass(frozen=True)
@@ -65,8 +66,8 @@ class Workspace:
 
     def select_word(self, word_id: str, reading: str) -> None:
         """練習する単語を記録する（録音ページを開くときに呼ぶ）。"""
-        self.word_id_path.write_text(word_id, encoding="utf-8")
-        self.txt.write_text(reading, encoding="utf-8")
+        write_text_atomic(self.word_id_path, word_id)
+        write_text_atomic(self.txt, reading)
 
 
 def clear_lip_dir(user_id: str) -> int:

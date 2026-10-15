@@ -30,6 +30,7 @@ accounts.json の構造:
 """
 from __future__ import annotations
 
+import functools
 import json
 import re
 import shutil
@@ -39,6 +40,7 @@ from pathlib import Path
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from config import DATA_DIR
+from core import storage
 
 ACCOUNTS_PATH = DATA_DIR / "config" / "accounts.json"
 
@@ -86,11 +88,21 @@ def load_accounts() -> dict:
 
 
 def save_accounts(accounts: dict) -> None:
-    """accounts.json へアトミックに書き込む（tmp へ書いて置換）。"""
-    ACCOUNTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = ACCOUNTS_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(accounts, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(ACCOUNTS_PATH)
+    """accounts.json へアトミックに書き込む（一時ファイルへ書いて置換）。"""
+    storage.write_json_atomic(ACCOUNTS_PATH, accounts)
+
+
+def _exclusive(fn):
+    """accounts.json を「読んで・直して・書く」関数を、ほかのプロセス・スレッドと1つずつ動かす。
+
+    サーバーは複数のプロセスとスレッドで動く（gunicorn.conf.py）。ロックが無いと、2人が同時に
+    初回ログインしたとき、あとから書いた方が先の人のパスワードを消してしまう。
+    """
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with storage.lock("accounts"):
+            return fn(*args, **kwargs)
+    return wrapper
 
 
 def _now_iso() -> str:
@@ -161,6 +173,7 @@ def needs_password_setup(user_id: str) -> bool:
 
 # ── 研究者向け操作（管理画面 /admin/accounts） ───────────────────────
 
+@_exclusive
 def create_account(
     user_id: str,
     grade: str = DEFAULT_GRADE,
@@ -202,6 +215,7 @@ def create_account(
     return _sanitize(accounts[uid])
 
 
+@_exclusive
 def update_research_profile(
     user_id: str,
     grade: str | None = None,
@@ -222,6 +236,7 @@ def update_research_profile(
     return _sanitize(acc)
 
 
+@_exclusive
 def clear_password(user_id: str) -> dict:
     """パスワードを未設定に戻す（次回ログインで参加者が再設定する）。"""
     accounts = load_accounts()
@@ -241,6 +256,7 @@ def user_data_dir(user_id: str) -> Path:
     return DATA_DIR / "users" / _safe_seg(user_id)
 
 
+@_exclusive
 def delete_account(user_id: str) -> dict:
     """アカウントと、その参加者のデータ（data/users/<利用者ID>/）をまとめて削除する（参加の撤回時など）。
 
@@ -272,22 +288,30 @@ def complete_first_login(user_id: str, password: str) -> dict:
 
     学年・聴覚障害の程度はここでは触らない（研究者が調査票から入力済み）。
     """
-    accounts = load_accounts()
-    acc = accounts.get((user_id or "").strip())
-    if not acc:
-        raise ValueError(f"利用者ID {user_id} は登録されていません")
-    if acc.get("password_set"):
-        raise ValueError("このアカウントは既にパスワードが設定されています")
+    def check(acc: dict | None) -> None:
+        if not acc:
+            raise ValueError(f"利用者ID {user_id} は登録されていません")
+        if acc.get("password_set"):
+            raise ValueError("このアカウントは既にパスワードが設定されています")
 
+    uid = (user_id or "").strip()
+    check(load_accounts().get(uid))
     validate_password(password)
-
-    acc["password_hash"] = generate_password_hash(password)
-    acc["password_set"] = True
-    acc["updated_at"] = _now_iso()
-    save_accounts(accounts)
+    # ハッシュの計算（scrypt、0.1秒ほど）はロックの外で行う。授業の始めに全員が同時に
+    # 初回ログインしても、ほかの人の書き込みを待たせない
+    password_hash = generate_password_hash(password)
+    with storage.lock("accounts"):
+        accounts = load_accounts()
+        acc = accounts.get(uid)
+        check(acc)   # ハッシュを計算している間に、ほかの端末が先に設定していないか確かめ直す
+        acc["password_hash"] = password_hash
+        acc["password_set"] = True
+        acc["updated_at"] = _now_iso()
+        save_accounts(accounts)
     return _sanitize(acc)
 
 
+@_exclusive
 def change_password(user_id: str, current_password: str, new_password: str) -> dict:
     """参加者が現在のパスワードを確認のうえ新しいパスワードに変更する。"""
     accounts = load_accounts()

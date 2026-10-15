@@ -15,6 +15,7 @@ from pathlib import Path
 
 from config import DATA_DIR
 from core import usercontext
+from core.storage import write_json_atomic
 
 # 未ログイン時・CLI スクリプト用の共有パス（従来どおり）
 LEGACY_HISTORY_PATH = DATA_DIR / "config" / "history.json"
@@ -392,10 +393,6 @@ def save_record(
     history.insert(0, record)
     history = history[:MAX_RECORDS]
 
-    path = history_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    write_json_atomic(history_path(), history)
 
     return record

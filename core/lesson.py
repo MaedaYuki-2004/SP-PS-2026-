@@ -25,6 +25,7 @@ from pathlib import Path
 from config import DATA_DIR
 from core import usercontext
 from core.history import load_history, get_spaced_repetition_candidates, get_stats
+from core.storage import write_json_atomic
 from core.weakness import get_weak_sounds, find_words_with_kana
 
 # 未ログイン時・CLI 用の共有パス（従来どおり）
@@ -54,11 +55,7 @@ def _load() -> dict:
 
 
 def _save(state: dict) -> None:
-    path = _lesson_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    write_json_atomic(_lesson_path(), state)
 
 
 def _practiced_today(word_id: str) -> bool:

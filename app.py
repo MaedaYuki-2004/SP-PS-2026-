@@ -8,13 +8,18 @@ app.py — Flask ルーティング
 from __future__ import annotations
 
 import csv
+import functools
 import io
 import math
 import os
+import queue
 import re
 import shutil
 import tempfile
+import threading
+import time
 import traceback
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -26,14 +31,12 @@ try:
     import cv2
     import mediapipe as mp
     import numpy as np
-    from fastdtw import fastdtw
-    from scipy.spatial.distance import euclidean
     MEDIA_PIPE_AVAILABLE = True
 except ImportError:
-    cv2 = mp = np = fastdtw = euclidean = None
+    cv2 = mp = np = None
     MEDIA_PIPE_AVAILABLE = False
 
-from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, session
+from flask import Flask, Response, g, jsonify, redirect, render_template, request, send_file, session
 
 from config import (
     AUDIO_MFCC_DIR, AUDIO_WAV_DIR, CONFIG_DIR, DISTANCE_RESULT_DIR,
@@ -50,6 +53,7 @@ from core.timbre    import audio_mfcc, dtw_ascending_order
 from core.history   import save_record, load_history, get_last_score, get_stats, load_word_history, get_daily_counts, get_overall_score, get_weekly_report, get_week_activity
 from core.utils     import pct_length, sleep_second, romaji_mora_to_kana, long_vowel_groups, long_vowel_spans
 from core.analysis  import compute_learning_stats
+from core.dtw       import fastdtw
 from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
 from core import teacher
@@ -57,7 +61,10 @@ from core import usercontext
 from core.workspace import current_workspace
 from core.library import current_library
 from core.public_access import client_key, public_url, url_from_host
+from core import capacity, storage
+from core.capacity import ServerBusy, heavy_slot
 from core.ratelimit import FailureLimiter
+from core.storage import RUN_DIR, write_json_atomic
 from core.workspace import clear_lip_dir
 
 # Julius の音素ごとのスコア（1フレームあたりの平均対数尤度）の平均がこれより低ければ採点しない。
@@ -96,21 +103,54 @@ def ensure_directories() -> None:
         WORD_ID_MEMO_PATH.touch()
 
 
-_face_mesh = None
+# ── MediaPipe FaceMesh の貸し出し ────────────────────────────────────
+# FaceMesh は前のフレームの続きとして顔を追うので、1つを複数のスレッドで同時に使うと、別の人の
+# 動画のフレームが混ざって結果が崩れる（以前は1つを全員で共有していた。サーバーが1件ずつしか
+# 処理しなかったので問題にならなかった）。同時に動く重い処理の数（core/capacity.py）まで作って
+# 使い回し、使っている間は1つのスレッドだけが持つ。
+_face_mesh_pool: queue.LifoQueue = queue.LifoQueue()
+_face_mesh_made = 0
+_face_mesh_lock = threading.Lock()
 
 
-def _get_face_mesh():
-    global _face_mesh
+def _new_face_mesh():
+    return mp.solutions.face_mesh.FaceMesh(
+        max_num_faces=1,
+        refine_landmarks=True,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5,
+    )
+
+
+@contextmanager
+def _face_mesh():
+    """FaceMesh を1つ借りる（with の間はこのスレッドだけが使う）。"""
+    global _face_mesh_made
     if not MEDIA_PIPE_AVAILABLE:
         raise RuntimeError("MediaPipe と OpenCV がインストールされていません。")
-    if _face_mesh is None:
-        _face_mesh = mp.solutions.face_mesh.FaceMesh(
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
-        )
-    return _face_mesh
+    try:
+        mesh = _face_mesh_pool.get_nowait()
+    except queue.Empty:
+        with _face_mesh_lock:
+            make = _face_mesh_made < capacity.HEAVY_SLOTS
+            if make:
+                _face_mesh_made += 1
+        if make:
+            try:
+                mesh = _new_face_mesh()
+            except Exception:
+                with _face_mesh_lock:
+                    _face_mesh_made -= 1
+                raise
+        else:
+            try:
+                mesh = _face_mesh_pool.get(timeout=capacity.HEAVY_WAIT_SECONDS)
+            except queue.Empty:
+                raise ServerBusy() from None
+    try:
+        yield mesh
+    finally:
+        _face_mesh_pool.put(mesh)
 
 
 def calc_distance(p1, p2, w, h):
@@ -157,7 +197,13 @@ def _extract_lip_data_timed(
     時刻を復元することはできない。音映像同期分析（core/sync.py）が
     正確な時刻対応を必要とするので、フレーム時刻を明示的に記録する。
     """
-    face_mesh = _get_face_mesh()
+    with _face_mesh() as face_mesh:
+        return _extract_lip_frames(face_mesh, video_path, max_frames)
+
+
+def _extract_lip_frames(
+    face_mesh, video_path: str, max_frames: int,
+) -> tuple[list[list[float]], list[float], list[float]]:
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise ValueError(f"動画を開けませんでした: {video_path}")
@@ -213,7 +259,7 @@ def _compute_lip_score(reference_vectors, test_vectors):
     """
     if not reference_vectors or not test_vectors:
         raise ValueError("お手本とテストの両方が必要です。")
-    distance, path = fastdtw(reference_vectors, test_vectors, dist=euclidean)
+    distance, path = fastdtw(reference_vectors, test_vectors)
     per_step = distance / max(1, len(path))
     # per_step の目安: 0.05=ほぼ一致 / 0.15=近い / 0.3以上=大きく異なる
     score = int(round(100 - per_step * 200))
@@ -246,6 +292,7 @@ def _extract_mora_lip_openness(video_path, mora_list_sec, times=None, ratios=Non
     """
     if not MEDIA_PIPE_AVAILABLE:
         return []
+    leases = ExitStack()   # 動画から補うときに借りる FaceMesh を、最後に必ず返す
     try:
         # 各モーラのサンプル時刻を列挙: (モーラ番号, 時刻)
         sample_specs: list[tuple[int, float]] = []
@@ -279,7 +326,7 @@ def _extract_mora_lip_openness(video_path, mora_list_sec, times=None, ratios=Non
 
         # ── 流用でカバーできなかったサンプルだけ動画から補完 ──────────
         if pending:
-            face_mesh = _get_face_mesh()
+            face_mesh = leases.enter_context(_face_mesh())
             cap = cv2.VideoCapture(video_path)
             if cap.isOpened():
                 fps = cap.get(cv2.CAP_PROP_FPS)
@@ -338,6 +385,8 @@ def _extract_mora_lip_openness(video_path, mora_list_sec, times=None, ratios=Non
     except Exception:
         traceback.print_exc()
         return []
+    finally:
+        leases.close()
 
 
 def _normalize_p95(vals: list) -> float:
@@ -565,11 +614,9 @@ def load_lip_refs() -> dict:
 
 
 def save_lip_refs(d: dict) -> None:
-    p = _lip_refs_path()
     try:
-        import json
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+        # 書きかけを結果画面などに読まれないよう、一時ファイルに書いてから置き換える
+        write_json_atomic(_lip_refs_path(), d, indent=None)
     except Exception:
         traceback.print_exc()
 
@@ -766,6 +813,28 @@ def server_error(e):
     return render_template("error.html", code=500, title="サーバーエラー",
                            message="解析中に問題が発生しました。もう一度試してください。"), 500
 
+@app.errorhandler(ServerBusy)
+def server_busy(e):
+    """重い処理の順番が来なかった（core/capacity.py）、または同じ人の前の処理が終わらなかった。"""
+    msg = "いま、ほかの人の録音を順番に調べていて混み合っています。少し待ってから、もう一度ためしてください。"
+    headers = {"Retry-After": str(ServerBusy.retry_after)}
+    if _wants_html():
+        # 「結果を見る」（POST /graph）は、録音がサーバーに残っているので同じ画面から送り直せる
+        retry_post = request.path if request.method == "POST" and request.path == "/graph" else None
+        return render_template("error.html", code=503, title="混み合っています", message=msg,
+                               retry_post=retry_post), 503, headers
+    return jsonify({"error": msg, "busy": True}), 503, headers
+
+
+def heavy_view(fn):
+    """重い処理（解析）をする画面・API。順番（core/capacity.py）を取ってから実行する。"""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with heavy_slot():
+            return fn(*args, **kwargs)
+    return wrapper
+
+
 @app.errorhandler(413)
 def too_large(e):
     msg = f"送られたファイルが大きすぎます（{MAX_UPLOAD_MB}MB まで）。録画・録音をし直してください。"
@@ -826,6 +895,8 @@ def _require_login():
         # 以降このリクエスト内の load_history()/save_record()/今日のレッスンは
         # data/users/<user_id>/ 配下を読み書きする。
         usercontext.set_current_user(user_id)
+        if request.method == "POST":
+            _hold_user_lock(user_id)
         return
     if user_id:
         # アカウントが削除済み（参加撤回など）→ セッションを破棄
@@ -835,10 +906,29 @@ def _require_login():
     return redirect("/login")
 
 
+# 同じ参加者の書き込み（POST）は、プロセスをまたいで1つずつ処理する。録音・アライメント結果の
+# 作業フォルダと練習記録は参加者ごとに1つなので、2つのタブや2台の端末から同時に送られると、
+# 書きかけの録音で採点したり、練習記録が1件消えたりする（以前はサーバーが1件ずつしか処理しなかった）。
+# 待つのは同じ人の前の処理だけで、ほかの人の処理は待たない。
+USER_LOCK_SECONDS = 50
+
+
+def _hold_user_lock(user_id: str) -> None:
+    stack = ExitStack()
+    try:
+        stack.enter_context(storage.lock(f"user-{user_id}", timeout=USER_LOCK_SECONDS))
+    except storage.LockTimeout:
+        raise ServerBusy() from None
+    g.user_lock = stack
+
+
 @app.teardown_request
 def _clear_user_context(exc=None):
     # スレッド再利用で次のリクエストへ ID が漏れないよう必ず消す
     usercontext.clear()
+    user_lock = g.pop("user_lock", None)
+    if user_lock is not None:
+        user_lock.close()
 
 
 @app.context_processor
@@ -930,8 +1020,8 @@ def logout():
 
 
 # 参加者のログインの総当たり対策。同じ接続元から同じ利用者 ID で5回続けて間違えたら60秒待たせる
-# （先生用パスワードと同じ回数・秒数。core/teacher.py）
-_login_limiter = FailureLimiter(max_fails=5, lock_seconds=60)
+# （先生用パスワードと同じ回数・秒数。core/teacher.py）。回数は全ワーカーで共有する（core/ratelimit.py）
+_login_limiter = FailureLimiter(max_fails=5, lock_seconds=60, path=RUN_DIR / "login_failures.json")
 
 
 def _start_session(user_id: str) -> None:
@@ -1199,6 +1289,7 @@ def lip_compare_page():
     return render_template("lip_compare.html")
 
 @app.route("/lip_compare", methods=["POST"])
+@heavy_view
 def lip_compare_process():
     try:
         ref_video = request.files.get('ref_video')
@@ -1264,8 +1355,11 @@ def upload_file():
         file.save(str(ws.wav))
         convert_to_16kHz(ws.wav, ws.wav)
         sleep_second()
-        run_alignment(ws.align_dir)
+        with heavy_slot():
+            run_alignment(ws.align_dir)
         return render_template("upload.html", words=words, message="アップロード完了")
+    except ServerBusy:
+        raise
     except Exception as exc:
         traceback.print_exc()
         return render_template("upload.html", words=words, error=str(exc))
@@ -1280,19 +1374,29 @@ def record_audio():
     file = request.files.get("file")
     if not file:
         return "エラー: 録音が送られていません", 400
-    try:
-        ws = current_workspace()
-        file.save(str(ws.wav))
-        convert_to_16kHz(ws.wav, ws.wav)
-        run_alignment(ws.align_dir)
-        return "OK!"
-    except Exception as exc:
-        traceback.print_exc()
-        return f"エラー: {exc}", 500
+    # Julius のアライメントは重い処理なので、同時に動かす数を絞る（混み合うと 503。main.js が送り直す）
+    with heavy_slot():
+        try:
+            ws = current_workspace()
+            file.save(str(ws.wav))
+            convert_to_16kHz(ws.wav, ws.wav)
+            run_alignment(ws.align_dir)
+            return "OK!"
+        except Exception as exc:
+            traceback.print_exc()
+            return f"エラー: {exc}", 500
 
 
 @app.route("/upload_lip_video", methods=["POST"])
 def upload_lip_video():
+    # お手本（ref）は口の形の抽出とアライメントを行う重い処理なので順番を取る。練習（test）は保存するだけ
+    if request.form.get("mode", "").strip() == "ref":
+        with heavy_slot():
+            return _upload_lip_video()
+    return _upload_lip_video()
+
+
+def _upload_lip_video():
     try:
         mode = request.form.get("mode", "").strip()
         if mode not in ("ref", "test"):
@@ -1566,6 +1670,7 @@ def api_lip_refs_delete():
 
 
 @app.route('/api/lip_refs/overwrite', methods=['POST'])
+@heavy_view
 def api_lip_refs_overwrite():
     try:
         word_id = (request.form.get('word_id') or '').strip()
@@ -1666,6 +1771,12 @@ def audio_analysis():
     except OSError:
         pass
 
+    # 採点は重い処理なので順番を取る（core/capacity.py）。混み合っていれば 503 の画面から送り直せる
+    with heavy_slot():
+        return _analyze_recording()
+
+
+def _analyze_recording():
     try:
         ws        = current_workspace()
         word_id   = ws.read_word_id()
@@ -2247,6 +2358,7 @@ def admin_accounts_delete():
 
 
 @app.route("/admin/add_word", methods=["POST"])
+@heavy_view
 def add_word():
     """
     単語を登録する（multipart/form-data + 動画ファイル必須）。
@@ -2345,7 +2457,36 @@ def add_word():
 # gunicorn / 直接起動の両方でディレクトリを確保する
 ensure_directories()
 
+def warm_up() -> None:
+    """起動直後の最初の解析が遅くならないよう、重いライブラリの準備を先に済ませる。
+
+    librosa は最初の MFCC で読み込みと numba のコンパイルに数秒かかり、MediaPipe は FaceMesh を作るのに
+    0.2 秒ほど、結果画面のテンプレートは最初の表示で組み立てに時間がかかる。以前は、サーバーを起動して
+    最初に「結果を見る」を押した人がその分を待っていた。gunicorn.conf.py（ワーカーの起動後）と
+    python app.py が、裏のスレッドで呼ぶ。
+    """
+    started = time.monotonic()
+    try:
+        import librosa
+        import numpy as _np
+        y = _np.random.default_rng(0).normal(0.0, 0.01, 16000).astype(_np.float32)
+        mfcc = librosa.feature.mfcc(y=y, sr=16000, n_mfcc=13, n_fft=512, hop_length=160)
+        librosa.feature.delta(mfcc, order=2)
+        fastdtw(mfcc.T, mfcc.T[::-1])
+        if MEDIA_PIPE_AVAILABLE:
+            with _face_mesh() as mesh:
+                mesh.process(_np.zeros((240, 320, 3), dtype=_np.uint8))
+        for name in ("line_graph.html", "audio.html", "select.html", "history.html"):
+            app.jinja_env.get_template(name)
+        print(f"[warm_up] 解析の準備ができました（{time.monotonic() - started:.1f} 秒）", flush=True)
+    except Exception:
+        traceback.print_exc()
+
+
 if __name__ == "__main__":
     _port  = int(os.environ.get("PORT", 5000))
     _debug = os.environ.get("FLASK_ENV", "production") == "development"
+    # デバッグ時の自動再読み込みでは、実際に要求を受ける子プロセスでだけ準備する
+    if not _debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        threading.Thread(target=warm_up, name="warm-up", daemon=True).start()
     app.run(host=os.environ.get("HOST", "0.0.0.0"), port=_port, debug=_debug)

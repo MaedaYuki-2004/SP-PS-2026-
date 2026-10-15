@@ -6,7 +6,8 @@
 #   scripts/serve_mac.sh named <名前>   独自ドメインの名前付き Tunnel で公開する
 #
 # Ctrl+C で gunicorn・cloudflared・スリープ防止をまとめて止める。
-# 環境変数: PORT（既定 5000）、PUBLIC_BASE_URL（named で QR を作るときの公開 URL）
+# 環境変数: PORT（既定 5000）、PUBLIC_BASE_URL（named で QR を作るときの公開 URL）、
+#           WEB_CONCURRENCY・SP_PS_THREADS（gunicorn のワーカー・スレッドの数。gunicorn.conf.py）
 set -u
 
 MODE="${1:-}"
@@ -59,11 +60,10 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
-# 先生用パスワードの試行回数などをプロセス内に持つため、ワーカーとスレッドは1つにする（README §14）。
+# ワーカー（プロセス）・スレッドの数などは gunicorn.conf.py で決める（既定はワーカー2・スレッド16。README §14）。
 # 127.0.0.1 で待ち受け、外からは Tunnel 経由でしか届かないようにする。
 TRUSTED_PROXY=cloudflare FLASK_ENV=production \
-    "$PY" -m gunicorn app:app --bind "127.0.0.1:$PORT" \
-    --workers 1 --threads 1 --timeout 300 \
+    "$PY" -m gunicorn app:app -c gunicorn.conf.py --bind "127.0.0.1:$PORT" \
     >>"$LOG_DIR/gunicorn.log" 2>&1 &
 APP_PID=$!
 PIDS="$APP_PID"

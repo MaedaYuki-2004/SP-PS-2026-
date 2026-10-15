@@ -27,13 +27,14 @@ from __future__ import annotations
 import hmac
 import json
 import os
-import threading
 import time
 from datetime import datetime
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from config import DATA_DIR
+from core.ratelimit import FailureLimiter
+from core.storage import RUN_DIR, write_json_atomic
 
 TEACHER_CONFIG_PATH = DATA_DIR / "config" / "teacher.json"
 ENV_PASSWORD = "SP_PS_TEACHER_PASSWORD"
@@ -79,14 +80,10 @@ def validate_password(password: str) -> str:
 def set_password(password: str) -> None:
     """先生用パスワードを設定する（ハッシュだけを保存し、平文は残さない）。"""
     validate_password(password)
-    TEACHER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    data = {
+    write_json_atomic(TEACHER_CONFIG_PATH, {
         "password_hash": generate_password_hash(password),
         "updated_at":    datetime.now().isoformat(timespec="seconds"),
-    }
-    tmp = TEACHER_CONFIG_PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(TEACHER_CONFIG_PATH)
+    })
 
 
 def verify_password(password: str) -> bool:
@@ -125,29 +122,19 @@ def deactivate(sess) -> None:
 
 
 # ── 総当たり対策 ─────────────────────────────────────────────────────
-# 端末（接続元）ごとに、続けて間違えた回数を覚えておく。サーバーを再起動すると消える。
-_fails: dict[str, tuple[int, float]] = {}
-_fails_lock = threading.Lock()
+# 端末（接続元）ごとに、続けて間違えた回数を覚えておく。サーバーは複数のプロセスで動くので、
+# 回数はファイル（DATA_DIR/run/teacher_failures.json）に持って全プロセスで共有する（core/ratelimit.py）。
+_limiter = FailureLimiter(MAX_FAILS, LOCK_SECONDS, path=RUN_DIR / "teacher_failures.json")
 
 
 def seconds_locked(key: str) -> int:
     """まだ受け付けない残り秒数（0 なら受け付ける）。"""
-    with _fails_lock:
-        count, locked_until = _fails.get(key, (0, 0.0))
-    left = locked_until - time.time()
-    return int(left) + 1 if left > 0 else 0
+    return _limiter.seconds_locked(key)
 
 
 def record_failure(key: str) -> None:
-    with _fails_lock:
-        count, _ = _fails.get(key, (0, 0.0))
-        count += 1
-        if count >= MAX_FAILS:
-            _fails[key] = (0, time.time() + LOCK_SECONDS)
-        else:
-            _fails[key] = (count, 0.0)
+    _limiter.record_failure(key)
 
 
 def clear_failures(key: str) -> None:
-    with _fails_lock:
-        _fails.pop(key, None)
+    _limiter.clear(key)

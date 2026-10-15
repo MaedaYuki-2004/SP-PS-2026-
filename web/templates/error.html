@@ -40,16 +40,30 @@
 #}
 <div class="error-page">
   <div class="error-icon">{{ icon('search' if code == 404 else 'alert', size=40) }}</div>
-  <div class="error-title">{% if code == 404 %}ページが見つかりませんでした{% else %}うまく処理できませんでした{% endif %}</div>
+  <div class="error-title">{% if code == 404 %}ページが見つかりませんでした{% elif code == 503 %}いま混み合っています{% else %}うまく処理できませんでした{% endif %}</div>
   <div class="error-msg">
+    {% if code == 503 %}
+    ほかの人の録音を順番に調べています。<br>
+    少し待ってから、下のボタンでもう一度ためしてください。
+    {% else %}
     あなたのせいではありません。<br>
     下のボタンからもう一度ためしてみてください。
+    {% endif %}
   </div>
   <div class="error-actions">
+    {% if retry_post %}
+    {# 「結果を見る」の送り直し。録音はサーバーに残っているので、同じ内容でもう一度調べられる #}
+    <form method="post" action="{{ retry_post }}"
+          onsubmit="var b=this.querySelector('button'); b.disabled=true; b.textContent='調べています…';">
+      <button type="submit" class="btn btn-primary btn-lg">もう一度ためす</button>
+    </form>
+    <button onclick="history.back()" class="btn btn-ghost btn-lg">前のページにもどる</button>
+    {% else %}
     <button onclick="history.back()" class="btn btn-primary btn-lg">前のページにもどる</button>
+    {% endif %}
     <a href="/select" class="btn btn-ghost btn-lg">ホームへ</a>
   </div>
-  {% if message %}
+  {% if message and code != 503 %}
   <details class="error-detail">
     <summary>先生用：エラーの内容（{{ code }}）</summary>
     <pre>{{ message }}</pre>

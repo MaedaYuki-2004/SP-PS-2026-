@@ -24,6 +24,7 @@ from core.accent import get_accent
 from core.alignment import run_alignment_on_file
 from core.history import load_history
 from core.library import current_library
+from core.storage import write_json_atomic, write_text_atomic
 from core.timbre import audio_mfcc
 
 
@@ -39,11 +40,8 @@ def load_db() -> dict:
 
 
 def save_db(db: dict) -> None:
-    """words_db.json に書き込む。"""
-    path = current_library().words_db
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False, indent=2)
+    """words_db.json に書き込む（書きかけを読まれないよう、一時ファイルに書いてから置き換える）。"""
+    write_json_atomic(current_library().words_db, db)
 
 
 def get_next_word_id(db: dict) -> str:
@@ -191,17 +189,13 @@ def _update_audio_scp(db: dict) -> None:
         f"sound/{wid}/{wid}.wav"
         for wid in db
     ]
-    path = current_library().audio_scp
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(current_library().audio_scp, "\n".join(lines) + "\n")
 
 
 def _update_words_txt(db: dict) -> None:
     """words.txt（DTW表示用）を words_db の内容で再生成する。"""
     lines = [entry["display"] for entry in db.values()]
-    path = current_library().words_txt
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(current_library().words_txt, "\n".join(lines) + "\n")
 
 
 def get_reading_for_julius(word_id: str) -> str:
