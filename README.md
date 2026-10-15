@@ -60,7 +60,7 @@
     - 11.4 [使用ソフトウェアと参考文献](#114-使用ソフトウェアと参考文献)
 12. [ディレクトリ構成](#12-ディレクトリ構成)
 13. [主要 API ルート一覧](#13-主要-api-ルート一覧)
-14. [デプロイ（Docker / Railway）](#14-デプロイdocker--railway)
+14. [起動のしかたと環境変数](#14-起動のしかたと環境変数)
 15. [GitHub での開発方法](#15-github-での開発方法)
 16. [よくあるトラブルと対処法](#16-よくあるトラブルと対処法)
 17. [既知の限界と今後の課題](#17-既知の限界と今後の課題)
@@ -162,7 +162,7 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 | パッケージ | 役割 | 使っている場所 |
 |-----------|------|--------------|
 | `flask` | Web サーバー | `app.py` |
-| `gunicorn` | 本番用 WSGI サーバー（Mac のサーバー起動・Docker / Railway。Windows では動かない） | `scripts/serve_mac.sh`・`Dockerfile`・`Procfile` |
+| `gunicorn` | 本番用 WSGI サーバー（Mac のサーバー起動。Windows では動かない） | `scripts/serve_mac.sh`・`gunicorn.conf.py` |
 | `qrcode[pil]` | 配布用の QR コード（印刷ページの SVG・QR 画像・ターミナルへの表示）。外部の QR 生成サービスに URL を送らないため | `app.py` `admin_access_qr()`・`scripts/make_access_qr.py` |
 | `praat-parselmouth` | Praat による F0・フォルマント・ジッター/シマーの測定 | `core/pitch.py`・`core/formant.py` |
 | `librosa` | 音声の読み込みと MFCC 抽出 | `core/timbre.py`・`scripts/regenerate_mfcc.py` |
@@ -734,7 +734,7 @@ Cloudflareにも内容を読ませない暗号化とは異なります。
     │       カードには「お手本を聞く」「録音する」と、上に「お手本を録り直す」「削除」（2回押すと削除）。
     │       単語が1つも無いときは「単語を追加」のボタンが出る
     ├ 右上の歯車（設定）：利用者ID、画面の明るさ（自動／明るい／暗い）、お手本の速さ、振動で知らせる、
-    │       使い方を見る、練習のお知らせ（通知が使える端末だけ）、単語を追加（お手本録画つき）、
+    │       使い方を見る、単語を追加（お手本録画つき）、
     │       単語の管理（/admin）、先生モード、ログアウト
     └ はじめての使い方：練習が3回未満の人が初めて開いたときだけ、3枚の絵で流れを説明
             （お手本を見る → 自分のペースで録音 → 直すところは1つだけ）
@@ -1016,7 +1016,6 @@ Cloudflareにも内容を読ませない暗号化とは異なります。
 
 Julius は HMM（隠れマルコフモデル）の音響モデルと、発話内容だけを受け付ける文法を使って、Viterbi 探索で音声と音素列を最尤対応付けします。
 音響モデルは Julius の音素セグメンテーションキットに含まれる `engine/models/hmmdefs_monof_mix16_gid.binhmm`（ファイル名のとおり monophone・16混合・性別非依存）です。
-同じフォルダの triphone モデル（`hmmdefs_ptm_gid.binhmm`・`logicalTri`）は使っていません。
 
 #### 実装の流れ
 
@@ -1105,7 +1104,7 @@ Julius の単位は実際のモーラ数と一致しないことがあります�
 | 仕組み | 内容 | 場所 |
 |------|------|------|
 | ワーカーとスレッド | gunicorn をワーカー 2・スレッド 16 で動かす。声の高さの計算（Praat）などの Python の処理は、1つのプロセスの中では同時に1つしか進まない（GIL）ので、プロセスを分けて CPU のコアを使う。ワーカー1つで 0.3〜0.5GB のメモリを使う | `gunicorn.conf.py` |
-| 重い解析の順番待ち | 「結果を見る」（`POST /graph`）、録音の受け取り（`POST /audio`。Julius）、お手本の登録（`/upload_lip_video` の `ref`・`/api/lip_refs/overwrite`・`/admin/add_word`）は、1つのワーカーで同時に動かす数を決め（CPU の数 ÷ ワーカー数。2〜4）、超えた分は順番を待つ。40 秒待っても順番が来ないときは `503`「いま混み合っています」を返す。録音の送信は `main.js` が自動で送り直し、「結果を見る」は出てきた画面の「もう一度ためす」で送り直せる（録音はサーバーに残っている）。ホームなどの軽い画面は、順番待ちと関係なくすぐ返る | `core/capacity.py` |
+| 重い解析の順番待ち | 「結果を見る」（`POST /graph`）、録音の受け取り（`POST /audio`。Julius）、お手本の登録（`/api/lip_refs/overwrite`・`/admin/add_word`）は、1つのワーカーで同時に動かす数を決め（CPU の数 ÷ ワーカー数。2〜4）、超えた分は順番を待つ。40 秒待っても順番が来ないときは `503`「いま混み合っています」を返す。録音の送信は `main.js` が自動で送り直し、「結果を見る」は出てきた画面の「もう一度ためす」で送り直せる（録音はサーバーに残っている）。ホームなどの軽い画面は、順番待ちと関係なくすぐ返る | `core/capacity.py` |
 | 口の解析（MediaPipe） | FaceMesh を同時に動く解析の数だけ作って使い回し、使っている間は1つのスレッドだけが持つ（FaceMesh は前のフレームの続きとして顔を追うので、1つを同時に使うと結果が崩れる） | `app.py` の `_face_mesh()` |
 | 同じ人の処理を1つずつ | 同じ利用者 ID の書き込み（POST）は、ワーカーをまたいで1つずつ処理する。作業フォルダと練習記録が1人に1つなので、2つのタブや2台の端末から同時に送られると、書きかけの録音で採点したり記録が1件消えたりするため。ほかの人の処理は待たない | `app.py` の `_hold_user_lock()`・`core/storage.py` |
 | ファイルの書き込み | 練習記録・単語・お手本の口の形・アカウントなどは、一時ファイルに書いてから置き換える（読む側が書きかけを見ない）。アカウントの「読んで・直して・書く」はロックで1つずつ行う（2人が同時に初回ログインしても、片方のパスワードが消えない） | `core/storage.py` |
@@ -1119,7 +1118,7 @@ Julius の単位は実際のモーラ数と一致しないことがあります�
 
 | 環境変数 | 意味 | 既定 |
 |---------|------|------|
-| `WEB_CONCURRENCY` | ワーカーの数。増やすほど同時に処理できるが、1つ 0.3〜0.5GB のメモリを使う。メモリ 8GB の Mac なら 2〜3 | Mac 2、Docker・Railway 1 |
+| `WEB_CONCURRENCY` | ワーカーの数。増やすほど同時に処理できるが、1つ 0.3〜0.5GB のメモリを使う。メモリ 8GB の Mac なら 2〜3 | 2 |
 | `SP_PS_THREADS` | 1ワーカーのスレッドの数（画面の表示・送信の受け取り・順番待ちを並べて処理する数） | 16 |
 | `SP_PS_HEAVY_SLOTS` | 1ワーカーで同時に動かす重い解析の数 | CPU の数 ÷ ワーカー数（2〜4） |
 | `SP_PS_HEAVY_WAIT` | 重い解析の順番を待つ最大の秒数（超えると 503。Cloudflare が 100 秒で打ち切るので、それより短くする） | 40 |
@@ -2417,6 +2416,7 @@ CLI スクリプトなどリクエストの外では `current_user()` が `None`
 | 2026-10-14 | ソフトウェアとしての QA（一時データで実行）：全ルートを未ログイン・生徒2人・先生モードから、入力の端の値・権限・参加者のあいだの分離・XSS・開いたままのリダイレクト・総当たりを含めて 216 項目、実際のブラウザ（Chromium）でスマホ幅・PC 幅の 70 画面の実行時エラー・失敗した通信・横はみ出し、補助スクリプト（diagnose・make_access_qr・move_shared_library・regenerate_mfcc・repair_alignment）、単体テスト 20 件 | 見つかった不具合（アカウント削除でデータが残る、生徒のログインに試行制限が無い、壊れた動画でお手本が上書きされる、録音を送れないときに案内が出ない、入力によって 500 になる、古い説明文など）を修正して再実行し、すべて合格 | §10 |
 | 2026-10-15 | 同時に多くの人が使えるサーバーの作り（[§5.4](#54-同時に使う人が多いときサーバーの作りと負荷試験)）の確認：要求を1件ずつ処理する作りのコードと同じ録音 7 件を採点、`core/dtw.py` を fastdtw パッケージと比較（乱数・整数値の系列と、実際の MFCC・唇のベクトル 108 組）、ロックと書き込みをスレッド・別プロセスから同時に行う単体テスト、WSL2（Linux）の gunicorn で 10〜80 人の負荷試験（`scripts/loadtest.py`）、ルートの確認 216 項目、単体テスト 31 件 | 採点の結果（合計点・各観点・音ごとの点・音色の距離・唇スコア・同期）は一致。DTW の距離・経路も一致。40 人で採点の 90% が 0.9 秒、ホームの最大が 0.08 秒。80 人が休まず送り続けても失敗・503 なし。ワーカーを複数にすると起きる不具合（ログイン用の鍵がワーカーごとに別になる、試行回数がワーカーごとに分かれる、MediaPipe を同時に使うと結果が崩れる、2人が同時に初回ログインすると片方のパスワードが消える）を見つけて直した | §5.4 |
 | 2026-10-15 | 単語の削除（一覧から外す）と同じ単語の扱い（[§9.6](#96-単語の削除と同じ単語の記録のまとめ方)）の確認：単体テスト 11 件（削除・元に戻す・同じ単語の判定・古い版で消した ID の再利用・完全に消す条件・編集の重複・分かれた記録のまとめ）、アプリのルートを通した確認 21 項目（削除した単語が練習・一覧に出ない、同じ単語の追加は 409、お手本 ID が同じお手本では同じで録り直すと変わる、完全に消すのは先生モードだけ）、実際のブラウザ（スマホ幅）で単語の追加の案内と単語の管理の「削除した単語」、ルートの確認 216 項目 | すべて合格 | §9.6 |
+| 2026-10-16 | 使っていない部品・CSS・ファイル（画面に出ない「お手本を録画」部品、動いていない「練習のお知らせ」、クエスト機能の名残、未使用の CSS クラス 160 個、クラウド用の設定ファイルなど）を削除したあとの確認：候補の CSS クラスを持つ要素が全画面のどの状態にも無いことをブラウザで確認、全画面（63）を削除の前後で撮って比較、単体テスト、ルートの確認、サーバーを起動しての通しの練習 | 画面の違いは点数・出題順など毎回変わる中身だけ。すべて合格 | §13 |
 | 2026-10-15 | 使っていないページ・API・ファイルを削除したあとの確認：ルートの確認 206 項目（削除したページ・API が 404 になることを含む）、単体テスト 42 件、`diagnose.py`、未使用の名前の静的検査（pyflakes） | すべて合格 | §13 |
 
 検証に使ったお手本は、過去にコミットされていた人の録音 30 語と合成音声（VOICEVOX。検証の材料としてだけ使用）22 語、および現在の先生の録音です。生徒の録音は数本しかありません。
@@ -2582,10 +2582,7 @@ sp-ps/
 ├── config.py                   # パス定数・Julius 自動検出・音素の分類・セッション署名鍵
 ├── diagnose.py                 # 環境診断スクリプト（§3 ステップ 9）
 ├── requirements.txt            # Python パッケージ一覧
-├── runtime.txt                 # Python のバージョン指定（python-3.12）
-├── Dockerfile / railway.toml   # Docker / Railway デプロイ用設定（§14）
-├── Procfile / nixpacks.toml    # gunicorn 起動コマンド / Nixpacks でビルドする場合の設定（§14）
-├── gunicorn.conf.py            # 本番サーバー（gunicorn）の設定：ワーカー・スレッドの数、起動時の準備（§5.4）
+├── gunicorn.conf.py            # 本番サーバー（gunicorn）の設定：ワーカー・スレッドの数、起動時の準備（§5.4・§14）
 ├── test_mecab.py               # MeCab でアクセント型が取れるかの確認用（§16）
 ├── .tmp/                       # 実行時の一時ファイル（.gitignore で除外）
 │   ├── serve/                  #   サーバーのログ（gunicorn.log・cloudflared-*.log）、server.pid、server.out（§4）
@@ -2655,15 +2652,12 @@ sp-ps/
 │   ├── bin/
 │   │   └── julius-4.3.1.exe   # Julius 実行ファイル（Windows）
 │   ├── models/
-│   │   ├── hmmdefs_monof_mix16_gid.binhmm   # 日本語音響モデル（monophone・使用中）
-│   │   ├── hmmdefs_ptm_gid.binhmm           # triphone モデル（未使用）
-│   │   └── logicalTri                       # triphone 用 HMMList（未使用）
+│   │   └── hmmdefs_monof_mix16_gid.binhmm   # 日本語音響モデル（monophone）
 │   ├── README.md               # セグメンテーションキットの説明
 │   └── License.md
 │
 ├── scripts/                    # 補助スクリプト
 │   ├── segment_julius.pl       # Julius 音素アライメント Perl スクリプト（アプリが毎回呼ぶ）
-│   ├── yomi2voca.pl            # ひらがな → 音素列変換の単体版（アプリは segment_julius.pl 内の同じ変換を使う）
 │   ├── regenerate_mfcc.py      # MFCC バイナリの一括再生成（--user で参加者を指定）
 │   ├── repair_alignment.py     # 指定した単語のお手本のアライメントを作り直す（§16）
 │   ├── move_shared_library.py  # 古い版の共有の単語とお手本を参加者のライブラリへ移す（§9.5）
@@ -2728,7 +2722,7 @@ sp-ps/
 > 先生モードが必要です（詳細は [§10](#10-参加者アカウントとデータの分離)）。
 > 単語とお手本を扱うルートは、ログイン中の参加者自身の単語とお手本だけを読み書きします（[§9.5](#95-置き場所と共有の単語を移す)）。
 
-> **混み合っているとき：** 重い解析をするルート（`POST /audio`・`POST /graph`・`POST /upload_lip_video`（`mode=ref`）・`POST /api/lip_refs/overwrite`・`POST /admin/add_word`）は、順番が 40 秒来ないと `503` を返します（`Retry-After: 5`。JSON は `{"error": …, "busy": true}`、画面は「いま混み合っています」）。同じ参加者の POST は1つずつ処理し、同じ人の前の処理が 50 秒終わらないときも `503` です（[§5.4](#54-同時に使う人が多いときサーバーの作りと負荷試験)）。
+> **混み合っているとき：** 重い解析をするルート（`POST /audio`・`POST /graph`・`POST /api/lip_refs/overwrite`・`POST /admin/add_word`）は、順番が 40 秒来ないと `503` を返します（`Retry-After: 5`。JSON は `{"error": …, "busy": true}`、画面は「いま混み合っています」）。同じ参加者の POST は1つずつ処理し、同じ人の前の処理が 50 秒終わらないときも `503` です（[§5.4](#54-同時に使う人が多いときサーバーの作りと負荷試験)）。
 
 ### 認証
 
@@ -2768,7 +2762,7 @@ sp-ps/
 | GET | `/recorded_audio` | ログイン中の参加者の直前の録音（作業フォルダの `align/test.wav`）を返す |
 | GET | `/sample_audio/<word_id>` | お手本音声（WAV）を返す |
 | GET | `/sample_video/<word_id>` | お手本録画（WebM）を返す |
-| POST | `/upload_lip_video` | 練習で撮った口の動画（`mode=test`）を受け取る。`mode=ref` はお手本として作り直す（今の画面からは送らない。録り直しは `/api/lip_refs/overwrite`） |
+| POST | `/upload_lip_video` | 練習で撮った口の動画（`mode=test`）を受け取り、作業フォルダに一時保存する（`POST /graph` が解析に使ったあとで消す） |
 | GET | `/history/export.csv` | 履歴を CSV でダウンロード（BOM 付き UTF-8） |
 
 ### API（JSON）
@@ -2813,38 +2807,24 @@ sp-ps/
 
 ---
 
-## 14. デプロイ（Docker / Railway）
+## 14. 起動のしかたと環境変数
 
-研究参加者のスマホから使うときは、**Mac で `scripts/server.sh start`（gunicorn ＋ Cloudflare Tunnel）を動かす方法が基本**です（[§4](#mac-でサーバーを起動停止する)）。解析と保存は Mac の中で行い、Cloudflare は通信を中継するだけです。
-クラウドに置くための設定もリポジトリにありますが、**クラウド上で採点まで動くことは確認していません**（下の注意を参照）。
-
-### 設定ファイル
-
-| ファイル | 内容 |
-|---------|------|
-| `Dockerfile` | `python:3.12-slim` に MeCab・FFmpeg を入れ、`pip install -r requirements.txt` と `python -m unidic download` を実行。`gunicorn app:app -c gunicorn.conf.py --workers ${WEB_CONCURRENCY:-1}` を `PORT`（既定 8080）で起動 |
-| `railway.toml` | Railway で `Dockerfile` を使ってビルド。ヘルスチェックは `/login`、失敗時は最大3回再起動 |
-| `gunicorn.conf.py` | gunicorn の設定。ワーカー（`WEB_CONCURRENCY`、既定 2）・スレッド（`SP_PS_THREADS`、既定 16）の数と、起動後の準備（[§5.4](#54-同時に使う人が多いときサーバーの作りと負荷試験)） |
-| `Procfile` | gunicorn の起動コマンド（Heroku 形式） |
-| `nixpacks.toml` | Dockerfile を使わず Nixpacks でビルドする場合の設定（apt で MeCab・FFmpeg・**Julius** を入れる） |
-| `.dockerignore` | `data/` の利用者データ、`engine/bin/`（Windows 用 exe）などをイメージに入れない |
-
-Mac ではワーカー2・スレッド16、クラウドはメモリが少ないことが多いのでワーカー1・スレッド16 で起動します（`WEB_CONCURRENCY` で増やせる。ワーカー1つで 0.3〜0.5GB）。ログインの試行回数や同じ人の処理の順番は、ファイルとロックで全ワーカーが共有します（[§5.4](#54-同時に使う人が多いときサーバーの作りと負荷試験)）。
-起動のしかたは場所によって少し違います。
+研究参加者のスマホから使うときは、**Mac で `scripts/server.sh start`（gunicorn ＋ Cloudflare Tunnel）を動かします**（[§4](#mac-でサーバーを起動停止する)）。解析と保存は Mac の中で行い、Cloudflare は通信を中継するだけです。
 
 | 起動のしかた | コマンド（要点） |
 |------------|----------------|
 | Mac（`scripts/serve_mac.sh`・`server.sh`） | `gunicorn app:app -c gunicorn.conf.py --bind 127.0.0.1:$PORT`（ワーカー2・スレッド16。`TRUSTED_PROXY=cloudflare`・`FLASK_ENV=production`） |
-| `Dockerfile` / `Procfile` / `nixpacks.toml` | `gunicorn app:app -c gunicorn.conf.py --bind 0.0.0.0:$PORT --workers ${WEB_CONCURRENCY:-1}`（スレッド16） |
 | 開発用 | `python app.py`（Flask の開発用サーバー。1つのプロセスの中で、スレッドで同時に処理する） |
+
+gunicorn の設定（ワーカー・スレッドの数と、起動後の準備）は `gunicorn.conf.py` にあります（[§5.4](#54-同時に使う人が多いときサーバーの作りと負荷試験)）。ログインの試行回数や同じ人の処理の順番は、ファイルとロックで全ワーカーが共有します。
 
 ### 環境変数
 
 | 変数 | 用途 | 既定 |
 |------|------|------|
-| `PORT` | 待ち受けポート | 5000（`python app.py`・`serve_mac.sh`・`server.sh`）/ 8080（Dockerfile） |
+| `PORT` | 待ち受けポート | 5000（`python app.py`・`serve_mac.sh`・`server.sh`） |
 | `HOST` | 待ち受けるアドレス（`python app.py` のみ。gunicorn は `--bind` で決める） | `0.0.0.0` |
-| `DATA_DIR` | 利用者データの置き場所（Railway では Volume をマウントした場所、例 `/app_data`） | リポジトリ内の `data/` |
+| `DATA_DIR` | 利用者データの置き場所 | リポジトリ内の `data/` |
 | `FLASK_SECRET_KEY` | セッション Cookie の署名鍵 | 無ければ `DATA_DIR/config/flask_secret_key.txt` に自動生成 |
 | `SP_PS_TEACHER_PASSWORD` | 先生用パスワード（ファイルより優先） | 無ければ `DATA_DIR/config/teacher.json` |
 | `JULIUS_BIN` | Julius 実行ファイルのパス | 自動検出（[§3 ステップ 3](#ステップ-3--julius-をセットアップ)） |
@@ -2852,17 +2832,15 @@ Mac ではワーカー2・スレッド16、クラウドはメモリが少ない�
 | `TRUSTED_PROXY` | 同じ PC で動く中継の種類。`cloudflare` にすると `CF-Connecting-IP` を接続元として、先生用パスワードと参加者のログインの試行制限に使う（[§10](#先生モード先生だけの操作)） | 未設定（転送ヘッダーを信用しない）。`serve_mac.sh` は `cloudflare` |
 | `PUBLIC_BASE_URL` | 配布用 QR に入れる公開 URL（固定 URL の Tunnel のとき）。`https://` のみ | 未設定（印刷ページは開いているホスト名、`make_access_qr.py` はエラー） |
 | `NUMBA_CACHE_DIR` | 音色解析ライブラリ（librosa が使う numba）のキャッシュの置き場所 | リポジトリ内の `.tmp/numba-cache`（`app.py` が設定） |
-| `WEB_CONCURRENCY` | gunicorn のワーカー（プロセス）の数 | 2（`gunicorn.conf.py`）。Docker・Procfile・nixpacks は 1 |
+| `WEB_CONCURRENCY` | gunicorn のワーカー（プロセス）の数 | 2（`gunicorn.conf.py`） |
 | `SP_PS_THREADS` | 1ワーカーのスレッドの数 | 16 |
 | `SP_PS_HEAVY_SLOTS` | 1ワーカーで同時に動かす重い解析の数（[§5.4](#54-同時に使う人が多いときサーバーの作りと負荷試験)） | CPU の数 ÷ ワーカー数（2〜4） |
 | `SP_PS_HEAVY_WAIT` | 重い解析の順番を待つ最大の秒数（超えると 503） | 40 |
 
 `.env` ファイルの自動読み込みはありません。環境変数は起動するターミナルごとに設定します。
 
-### 注意（未解決）
+### 注意
 
-- **`Dockerfile` は Julius を入れていません。** `.dockerignore` で `engine/bin/` も除外しているため、`railway.toml` の設定のままでは Julius が見つからず、録音の解析と単語登録が失敗すると考えられます（未検証）。Linux 用の Julius を入れるか、`nixpacks.toml`（apt で `julius` を入れる）を使う必要があります。
-- **ヘルスチェックの URL**：ほかのページはログインしていないと `/login` へ転送（302）するので、`railway.toml` のヘルスチェックは、ログインしなくても 200 を返す `/login` にしています（Railway 上では未検証）。
 - 音声・映像は外部のサーバーに送られます。研究データを扱う場合は、倫理審査資料 §4.4 の運用形態との整合を確認してください。Mac ＋ Cloudflare Tunnel の場合も、通信は Cloudflare で一度復号されます（[§4](#スマートフォンで使うcloudflare-tunnel)）。
 
 ---
@@ -3223,7 +3201,6 @@ Quick Tunnel の公開 URL はサーバーを起動するたびに変わるの�
 | 限界 | 詳細 | 将来の改善案 |
 |------|------|------------|
 | **サーバーの Mac で何人まで使えるか未確認** | gunicorn をワーカー2・スレッド16にし、重い解析は同時に動かす数を絞って順番に処理する（[§5.4](#54-同時に使う人が多いときサーバーの作りと負荷試験)）。開発用の PC（Linux・CPU 8 個）では 80 人が休まず練習しても失敗しなかったが、サーバーの Mac での上限は測っていない。同じ利用者 ID の書き込みは1つずつ順番に処理する | 授業で使う人数で、サーバーの Mac に負荷試験をする（`scripts/loadtest.py`） |
-| **クラウドで採点まで動くか未確認** | `Dockerfile` に Julius が入っていない（[§14](#14-デプロイdocker--railway)） | Linux 用 Julius の導入 |
 | **初回ログインを先にされるおそれ** | パスワード未設定のアカウント（作ったばかり・パスワードをリセットした直後）は、利用者 ID を知っている人なら誰でも「はじめの設定」でパスワードを決められる。ID は `A01` のように推測しやすく、公開 URL は誰でも開ける | 先生が渡す使い捨ての「はじめのコード」を初回ログインで確かめる。それまでは、アカウントを作ったら・リセットしたら、その場で生徒にパスワードを決めてもらう |
 | **公開 URL が起動のたびに変わる** | Quick Tunnel（`scripts/server.sh`）の URL は起動し直すたびに変わり、前に配った QR コードは使えなくなる（[§4](#mac-でサーバーを起動停止する)） | 独自ドメインの固定 URL の Tunnel（`serve_mac.sh named`）を用意する |
 | **Mac が止まると使えない** | ふたを閉じる・再起動・手動のスリープでサーバーが止まる。動いている間は `caffeinate` で自動スリープだけを止めている | 常に電源を入れておける機器に置く |
