@@ -119,7 +119,7 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 | Python | **3.10 〜 3.12**（3.13 は不可。理由は下記） |
 | カメラ | お手本の登録と口形分析に必要（スマホのカメラ、PC の内蔵または外付け USB カメラ） |
 | マイク | 内蔵マイクでも動作するが、外付けコンデンサーマイク推奨 |
-| ブラウザ | カメラ・マイクを使うため HTTPS または `localhost` で開く（スマホからは [Cloudflare Tunnel](#スマートフォンで使うcloudflare-tunnel) か [ngrok](#スマートフォンで使うngrok) の HTTPS の URL） |
+| ブラウザ | カメラ・マイクを使うため HTTPS または `localhost` で開く（スマホからは [Cloudflare Tunnel](#スマートフォンで使うcloudflare-tunnel) の HTTPS の URL） |
 
 ### 外部ソフトウェア
 
@@ -586,6 +586,20 @@ Wi-Fi が一瞬切れても自動でつなぎ直し、公開URLもそのまま�
 まず独自ドメイン不要のQuick Tunnelで試験し、継続運用では独自ドメインを
 Cloudflareに登録して固定URLのTunnelを用意してください。
 
+**なぜ Cloudflare Tunnel（HTTPS）が必要か**:
+ブラウザはカメラとマイク（`getUserMedia`）を**セキュアコンテキスト（HTTPS か localhost）でしか許可しません**。
+同じ Wi-Fi のスマホから PC の IP アドレスで開いても、`http://` なので録音・録画ができません。
+
+| アクセス方法 | ページ表示 | カメラ・マイク |
+|------------|:--------:|:------------:|
+| `http://127.0.0.1:5000`（サーバーの PC 自身） | ○ | **○**（localhost は例外的に許可される） |
+| `http://192.168.x.x:5000`（同じ Wi-Fi のスマホ） | ○ | **×** ← 録音ボタンが動かない |
+| `https://….trycloudflare.com`（Cloudflare Tunnel） | ○ | **○** |
+
+Cloudflare Tunnel はインターネット経由で中継するので、スマホが別のネットワーク（4G/5G 回線など）でもつながります。
+カメラ・マイクは、録音ボタンを押したときに出る確認で「許可」を選びます。一度「許可しない」を選んだときは、
+録音の画面の「直し方を見る」の手順で、ブラウザの設定から許可し直します。
+
 **Macでの接続テスト**（プロジェクトのフォルダ・仮想環境で実行）:
 
 ```bash
@@ -688,7 +702,7 @@ URLを知っている人はアクセスできるため、参加者ログイン�
 
 - `TRUSTED_PROXY=cloudflare` のときだけ、ループバックからの接続の
   `CF-Connecting-IP` を検証して試行制限に使います。不正・未設定のIPは接続元に戻します。
-- `TRUSTED_PROXY` 未設定では転送ヘッダーを信用しません。ngrokは明示的に `ngrok` を設定します。
+- `TRUSTED_PROXY` 未設定では転送ヘッダーを信用しません。
 - Mac内のプロセスはヘッダーを偽装できるため、信頼できるMacで中継を動かすことが前提です。
 - 同じWi-Fiの利用者は公開IPを共有し、先生パスワードの試行制限を共有する場合があります。
 - デバッグは既定で無効です。開発時だけ `FLASK_ENV=development` を指定してください。
@@ -703,94 +717,9 @@ URLを知っている人はアクセスできるため、参加者ログイン�
 
 通信はCloudflareを経由し、通常のHTTPS中継ではCloudflareで一度復号されます。
 Cloudflareにも内容を読ませない暗号化とは異なります。
+解析はすべてMacで行うため、Macの回線が細いと録音・録画の送信に時間がかかります。
 [公式手順](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)・
 [接続元ヘッダー](https://developers.cloudflare.com/fundamentals/reference/http-headers/)
-
-### スマートフォンで使う（ngrok）
-
-本アプリはスマートフォンでの利用を主に想定していますが、**PC の IP アドレスに
-直接アクセスする方法では録音・録画ができません**。ngrok で HTTPS の URL を
-作って接続します。
-
-#### なぜ ngrok が必要か
-
-ブラウザはカメラとマイク（`getUserMedia`）を**セキュアコンテキストでしか許可しません**。
-
-| アクセス方法 | ページ表示 | カメラ・マイク |
-|------------|:--------:|:------------:|
-| `http://127.0.0.1:5000`（PC 自身） | ○ | **○**（localhost は例外的に許可される） |
-| `http://192.168.x.x:5000`（同じ Wi-Fi のスマホ） | ○ | **×** ← 録音ボタンが動かない |
-| `https://xxxx.ngrok-free.app`（ngrok） | ○ | **○** |
-
-同じ Wi-Fi につないでも `http://` では録音できません。**HTTPS が必要**なため
-ngrok を使います。ngrok はインターネット経由でトンネルするので、
-**スマホが別のネットワーク（4G/5G 回線など）でも接続できます**。
-
-#### 手順
-
-**1. ngrok を用意する**（初回のみ）
-
-```bash
-# Windows
-winget install ngrok.ngrok
-
-# macOS
-brew install ngrok
-```
-
-[ngrok.com](https://ngrok.com/) で無料アカウントを作り、認証トークンを登録します。
-
-```bash
-ngrok config add-authtoken <あなたのトークン>
-```
-
-**2. アプリを起動する**（1つ目のターミナル）
-
-```bash
-python app.py
-```
-
-`app.py` は `host="0.0.0.0"` で待ち受けるため、追加の設定は不要です。
-ngrok経由の接続元を試行制限に使う場合は、起動時に明示的に設定します。
-Macでは `TRUSTED_PROXY=ngrok python app.py`、PowerShellでは
-`$env:TRUSTED_PROXY="ngrok"` を設定してから `python app.py` を実行してください。
-
-**3. ngrok を起動する**（2つ目のターミナル。アプリは起動したままにする）
-
-```bash
-ngrok http 5000
-```
-
-次のように表示されるので、`Forwarding` の **https:// から始まる URL** を使います。
-
-```
-Forwarding    https://xxxx-xx-xx-xxx-xx.ngrok-free.app -> http://localhost:5000
-```
-
-**4. スマホでアクセスする**
-
-この URL をスマホのブラウザ（Chrome / Safari）で開きます。
-URL が長いので、PC で QR コードにするか、メッセージアプリで送ると確実です。
-
-初回は ngrok の警告ページが出ます。**「Visit Site」を押す**と本アプリに進みます。
-
-**5. カメラとマイクを許可する**
-
-録音ボタンを押すと許可を求められるので、**「許可」**を選びます。
-一度拒否すると再度聞かれないため、その場合はブラウザの設定から許可し直してください。
-
-#### 注意点
-
-| 項目 | 内容 |
-|------|------|
-| URL は毎回変わる | 無料プランでは `ngrok http` を実行するたびに別の URL になります。参加者への共有はそのつど必要です |
-| ターミナルを閉じない | ngrok を止めると URL が無効になります。アプリと ngrok の**両方**を起動したままにしてください |
-| 通信が外部を経由する | 音声・映像は ngrok 社のサーバーを経由します。研究データを扱う場合は取扱いの確認が必要です（倫理審査資料 §4.4 案 D と同じ論点） |
-| 動作が遅くなることがある | 解析はすべて PC 側で行われるため、回線が細いと録音の送信に時間がかかります |
-
-> **同じ Wi-Fi 内だけで使いたい場合：**
-> `http://<PCのIPアドレス>:5000` でページは開けますが、前述のとおり**録音できません**。
-> 練習記録の閲覧だけなら使えます。録音するには ngrok（または別途 HTTPS の用意）が必要です。
 
 ---
 
@@ -1027,7 +956,7 @@ URL が長いので、PC で QR コードにするか、メッセージアプリ
   ├─ usercontext.py ログイン中の参加者 ID をリクエスト単位で保持
   ├─ library.py     参加者ごとの単語とお手本の置き場所（data/users/<ID>/library/。§9.5）
   ├─ workspace.py   参加者ごとの直前の練習の作業ファイルの置き場所（data/users/<ID>/work/。§5.2）
-  ├─ public_access.py  公開 URL の検証、Cloudflare Tunnel / ngrok 経由の接続元 IP の判定（§4・§10）
+  ├─ public_access.py  公開 URL の検証、Cloudflare Tunnel 経由の接続元 IP の判定（§4・§10）
   ├─ ratelimit.py   続けて間違えたログインをしばらく受け付けない（総当たり対策。回数は全ワーカーで共有。§10）
   ├─ storage.py     データファイルの安全な書き込み（一時ファイル→置き換え）とプロセスをまたぐロック（§5.4）
   └─ capacity.py    重い解析を同時に動かす数を絞り、超えた分を順番待ちにする（混み合うと 503。§5.4）
@@ -2415,7 +2344,7 @@ app.py の teardown_request
 
 - 先生用パスワードは `python scripts/set_teacher_password.py` で設定し、ハッシュだけを `data/config/teacher.json` に保存します。環境変数 `SP_PS_TEACHER_PASSWORD` があればそちらを優先します。どちらも無いときは誰も先生モードにできません
 - 先生モードの期限（`session["teacher_until"]`）は、最後に先生の操作をしてから60分。ログアウト・ログインでも消えます
-- 同じ接続元から5回続けて間違えると、60秒は受け付けません（総当たり対策。回数は `DATA_DIR/run/teacher_failures.json` に持ち、全ワーカーで共有します）。`TRUSTED_PROXY=cloudflare` では `CF-Connecting-IP`、`TRUSTED_PROXY=ngrok` では `X-Forwarded-For` の末尾のIPを使います。どちらも同じPCからのループバック接続に限り、正しいIPだけを受け付けます。未設定では転送ヘッダーを信用しません（`app.py` の `_client_key()`）。同じWi-Fiなどで公開IPを共有する利用者は制限も共有します。別マシンの中継を信頼する構成は未対応です。
+- 同じ接続元から5回続けて間違えると、60秒は受け付けません（総当たり対策。回数は `DATA_DIR/run/teacher_failures.json` に持ち、全ワーカーで共有します）。`TRUSTED_PROXY=cloudflare` では `CF-Connecting-IP` のIPを使います。同じPCからのループバック接続に限り、正しいIPだけを受け付けます。未設定では転送ヘッダーを信用しません（`app.py` の `_client_key()`）。同じWi-Fiなどで公開IPを共有する利用者は制限も共有します。別マシンの中継を信頼する構成は未対応です。
 - 画面の出し分けは、サーバーが `<html class="teacher-mode">` を付けて行います（以前は端末の保存値で決めていたため、生徒が設定から ON にできました）
 - 最初の参加者アカウントを作る前にも使えるよう、`/admin/accounts` 配下は参加者ログインを求めません
 
@@ -3005,7 +2934,7 @@ sp-ps/
 
 ## 14. デプロイ（Docker / Railway）
 
-研究参加者のスマホから使うときは、**Mac で `scripts/server.sh start`（gunicorn ＋ Cloudflare Tunnel）を動かす方法が基本**です（[§4](#mac-でサーバーを起動停止する)）。解析と保存は Mac の中で行い、Cloudflare は通信を中継するだけです。PC で `python app.py` と ngrok（[§4](#スマートフォンで使うngrok)）を使う方法も使えます。
+研究参加者のスマホから使うときは、**Mac で `scripts/server.sh start`（gunicorn ＋ Cloudflare Tunnel）を動かす方法が基本**です（[§4](#mac-でサーバーを起動停止する)）。解析と保存は Mac の中で行い、Cloudflare は通信を中継するだけです。
 クラウドに置くための設定もリポジトリにありますが、**2026-10-14 時点でもクラウド上で採点まで動くことは確認していません**（下の注意を参照）。
 
 ### 設定ファイル
@@ -3039,7 +2968,7 @@ Mac ではワーカー2・スレッド16、クラウドはメモリが少ない�
 | `SP_PS_TEACHER_PASSWORD` | 先生用パスワード（ファイルより優先） | 無ければ `DATA_DIR/config/teacher.json` |
 | `JULIUS_BIN` | Julius 実行ファイルのパス | 自動検出（[§3 ステップ 3](#ステップ-3--julius-をセットアップ)） |
 | `FLASK_ENV` | `development` のときデバッグモード（`python app.py` のみ） | `production`（デバッグ無効） |
-| `TRUSTED_PROXY` | 同じ PC で動く中継の種類。`cloudflare` なら `CF-Connecting-IP`、`ngrok` なら `X-Forwarded-For` の末尾を接続元として先生用パスワードの試行制限に使う（[§10](#先生モード先生だけの操作)） | 未設定（転送ヘッダーを信用しない）。`serve_mac.sh` は `cloudflare` |
+| `TRUSTED_PROXY` | 同じ PC で動く中継の種類。`cloudflare` にすると `CF-Connecting-IP` を接続元として、先生用パスワードと参加者のログインの試行制限に使う（[§10](#先生モード先生だけの操作)） | 未設定（転送ヘッダーを信用しない）。`serve_mac.sh` は `cloudflare` |
 | `PUBLIC_BASE_URL` | 配布用 QR に入れる公開 URL（固定 URL の Tunnel のとき）。`https://` のみ | 未設定（印刷ページは開いているホスト名、`make_access_qr.py` はエラー） |
 | `NUMBA_CACHE_DIR` | 音色解析ライブラリ（librosa が使う numba）のキャッシュの置き場所 | リポジトリ内の `.tmp/numba-cache`（`app.py` が設定） |
 | `WEB_CONCURRENCY` | gunicorn のワーカー（プロセス）の数 | 2（`gunicorn.conf.py`）。Docker・Procfile・nixpacks は 1 |
