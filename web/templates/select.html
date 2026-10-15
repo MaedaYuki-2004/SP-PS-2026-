@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
+  <script src="/static/js/camera_error.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
     /* ══ ホーム（v5） ══════════════════════════════════════════
@@ -1153,7 +1154,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
       recordBtn.disabled = false;
       awMicMeter = createMicVolumeMeter(awStream, document.getElementById('awVolFill'));
     } catch (err) {
-      status2.textContent = 'カメラの起動に失敗しました。ブラウザのカメラ許可を確認してください。';
+      status2.textContent = cameraErrorMessage(err);
     }
   }
 
@@ -1300,7 +1301,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
       recordBtn.disabled = false;
       micMeter = createMicVolumeMeter(stream, document.getElementById('refVolFill'));
     } catch (err) {
-      statusEl.textContent = 'カメラの起動に失敗しました。ブラウザの権限を確認してください。';
+      statusEl.textContent = cameraErrorMessage(err);
     }
   }
 

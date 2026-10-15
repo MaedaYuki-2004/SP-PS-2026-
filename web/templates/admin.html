@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
+  <script src="/static/js/camera_error.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
     .page-header { position:relative; overflow:hidden; background:var(--grad-hero); color:#fff; margin:16px auto 0; width:calc(100% - 32px); max-width:1036px; border-radius:28px; padding:22px 32px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
@@ -217,7 +218,7 @@ async function initAdminCamera() {
     adminStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     document.getElementById('adminPreview').srcObject = adminStream;
   } catch(e) {
-    setRecStatus('カメラにアクセスできませんでした。ブラウザの権限を確認してください。');
+    setRecStatus(cameraErrorMessage(e));
   }
 }
 
