@@ -1,20 +1,14 @@
 """
 scripts/regenerate_mfcc.py
-基準音声（data/raw_audio/sound/wordX/wordX.wav）から
-MFCCを計算し直して data/mfcc/wordX.bin を上書きするスクリプト。
+お手本の音声（ライブラリの sound/<word_id>/<word_id>.wav）から MFCC を計算し直して、
+ライブラリの mfcc/<word_id>.bin を上書きするスクリプト。
 
 【実行方法】
   プロジェクトのルート階層（app.py と同じ場所）で実行してください。
   python scripts/regenerate_mfcc.py --user A01
-  単語とお手本は参加者ごとなので --user で参加者を指定する（省略すると共有の単語）。
+  単語とお手本は参加者ごとなので --user で参加者を指定する（省略すると古い版の共有の単語）。
 
-【変更点】
-  静的 MFCC（12次元）から Delta MFCC（Δ・ΔΔ追加 / 計36次元）に変更。
-  core/timbre.py の audio_mfcc() と完全に同じパラメータ・処理で計算する。
-
-  ⚠️ 既存の .bin ファイル（12次元）は非互換になるため、
-  　　このスクリプトを必ず再実行してください。
-  　　再実行しないと DTW 音色評価でエラーが発生します。
+core/timbre.py の audio_mfcc() と同じパラメータ・処理で計算する。
 
 【処理内容】
   - n_mfcc=13 で MFCC を計算し 0 次元を除去（12次元）

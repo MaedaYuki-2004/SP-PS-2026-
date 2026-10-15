@@ -27,9 +27,6 @@ async function main() {
     const btnGraph    = document.querySelector('#buttongraph');
     const audio       = document.querySelector('#audio');
     const lipPreview  = document.querySelector('#lipPreview');
-    const btnLipRef   = document.querySelector('#buttonLipRef');
-    const btnLipTest  = document.querySelector('#buttonLipTest');
-    const lipStatus   = document.querySelector('#lipStatus');
     const volumeBar   = document.querySelector('#volumeBar');       // B
     const volumeFill  = document.querySelector('#volumeFill');      // B
     const autoStop    = document.querySelector('#autoStopCountdown'); // C
@@ -175,61 +172,30 @@ async function main() {
 
     let lipRecorder       = null;
     let lipChunks         = [];
-    let lipMode           = null;
-    let lipRefUploaded    = false;
-    let lipTestUploaded   = false;
     let hasSavedRef       = false;
     let lipUploadPromise  = Promise.resolve();
     let lipStoreCleared   = Promise.resolve();
     const currentWordId   = window.CURRENT_WORD_ID || '';
 
-    function updateLipButtons() {
-      if (btnLipTest) {
-        btnLipTest.disabled = !(lipRefUploaded || hasSavedRef) || !!lipRecorder;
-      }
-      if (btnLipRef) {
-        btnLipRef.disabled = !!lipRecorder;
-      }
-    }
-
+    // お手本の口形データ（単語の登録・お手本の録り直しで作る）がある単語だけ、口の動画も撮る
     async function checkSavedRef() {
       if (!currentWordId) return;
       try {
         const response = await fetch(`/api/lip_refs/${encodeURIComponent(currentWordId)}/ratios`);
         if (response.ok) {
           const result = await response.json();
-          if (Array.isArray(result.ratios) && result.ratios.length > 0) {
-            hasSavedRef = true;
-            setLipStatus('');
-            // お手本登録済みバッジを表示し、録画ボタンを隠す
-            const tag = document.getElementById('lipRefTag');
-            if (tag) tag.classList.add('show');
-            if (btnLipRef) btnLipRef.style.display = 'none';
-          } else {
-            setLipStatus('お手本未登録 — 右の「お手本を録画」で先に3秒間登録してください');
-          }
+          hasSavedRef = Array.isArray(result.ratios) && result.ratios.length > 0;
         }
       } catch (err) {
         console.warn('Saved ref check failed', err);
       }
-      updateLipButtons();
     }
 
-    function setLipStatus(message) {
-      if (lipStatus) lipStatus.textContent = message;
-    }
-
-    // durationMs: 指定ありは自動停止あり（お手本用）、null は手動停止（テスト用）
-    function startLipRecording(mode, durationMs = null) {
-      // ref は Julius アライメント用に音声も必要なので full stream を使う
-      // test は映像のみで十分（音声は別途 AudioWorklet で録音済み）
-      const recordStream = mode === 'ref' ? stream : videoStream;
-      if (!recordStream) return;
-      if (lipRecorder) return;
-      lipMode = mode;
+    // 練習の口の動画（映像だけ。音声は AudioWorklet で別に録る）。録音を止めたときに止める
+    function startLipRecording() {
+      if (!videoStream || lipRecorder) return;
       lipChunks.length = 0;
-      const mimeType = mode === 'ref' ? 'video/webm' : 'video/webm;codecs=vp8';
-      lipRecorder = new MediaRecorder(recordStream, { mimeType });
+      lipRecorder = new MediaRecorder(videoStream, { mimeType: 'video/webm;codecs=vp8' });
 
       lipRecorder.addEventListener('dataavailable', event => {
         if (event.data && event.data.size > 0) {
@@ -238,50 +204,35 @@ async function main() {
       });
       lipRecorder.addEventListener('stop', () => {
         const blob = new Blob(lipChunks, { type: 'video/webm' });
-        lipUploadPromise = sendLipVideo(mode, blob);
+        lipUploadPromise = sendLipVideo(blob);
 
         // 自分の口の動きをその場で見返せるようにする。
         // 聞こえ方によっては音の録り直し判断ができないため、
         // 「口が動いていたか」を目で確かめられることが手がかりになる。
-        if (mode === 'test') {
-          const replay = document.getElementById('userLipReplay');
-          if (replay) {
-            if (replay.dataset.url) URL.revokeObjectURL(replay.dataset.url);
-            const url = URL.createObjectURL(blob);
-            replay.dataset.url = url;
-            replay.src = url;
-            replay.classList.add('ready');
-            // 録音のあとの画面で「お手本とならべて見る」に使う
-            document.dispatchEvent(new CustomEvent('sp:lipready', { detail: { url, blob } }));
-          }
-          // 結果画面の「くらべる → 口の形」でも見返せるよう、この端末にだけ置いておく
-          // （録音開始時の clear が終わってから保存する。順番が逆になると今回の動画が消えるため）
-          if (window.SPLipStore) lipStoreCleared.then(() => window.SPLipStore.save(currentWordId, blob));
+        const replay = document.getElementById('userLipReplay');
+        if (replay) {
+          if (replay.dataset.url) URL.revokeObjectURL(replay.dataset.url);
+          const url = URL.createObjectURL(blob);
+          replay.dataset.url = url;
+          replay.src = url;
+          replay.classList.add('ready');
+          // 録音のあとの画面で「お手本とならべて見る」に使う
+          document.dispatchEvent(new CustomEvent('sp:lipready', { detail: { url, blob } }));
         }
+        // 結果画面の「くらべる → 口の形」でも見返せるよう、この端末にだけ置いておく
+        // （録音開始時の clear が終わってから保存する。順番が逆になると今回の動画が消えるため）
+        if (window.SPLipStore) lipStoreCleared.then(() => window.SPLipStore.save(currentWordId, blob));
         lipRecorder = null;
-        lipMode = null;
-        updateLipButtons();
       });
 
       lipRecorder.start();
-      setLipStatus(mode === 'ref' ? 'お手本動画を録画中…' : 'テスト動画を録画中…');
-      updateLipButtons();
-      if (durationMs) {
-        setTimeout(() => {
-          if (lipRecorder && lipRecorder.state === 'recording') {
-            lipRecorder.stop();
-          }
-        }, durationMs);
-      }
     }
 
-    async function sendLipVideo(mode, blob) {
+    async function sendLipVideo(blob) {
       try {
         const formData = new FormData();
-        formData.append('mode', mode);
-        // お手本（ref）をどの単語に保存するかは、この画面の単語で決める（サーバーの共有ファイルに頼らない）
-        if (currentWordId) formData.append('word_id', currentWordId);
-        formData.append('file', blob, `${mode}.webm`);
+        formData.append('mode', 'test');
+        formData.append('file', blob, 'test.webm');
         const response = await fetch('/upload_lip_video', {
           method: 'POST',
           body: formData,
@@ -290,25 +241,8 @@ async function main() {
         if (!response.ok) {
           throw new Error(data.error || '唇動画のアップロードに失敗しました');
         }
-        if (mode === 'ref') {
-          lipRefUploaded = true;
-          const tag = document.getElementById('lipRefTag');
-          if (tag) tag.classList.add('show');
-          if (btnLipRef) btnLipRef.style.display = 'none';
-          // アライメント成否をユーザーに通知
-          if (data.alignment_ok) {
-            setLipStatus(`お手本登録完了（${data.mora_count}モーラ分析済み）`);
-            setTimeout(() => setLipStatus(''), 3000);
-          } else {
-            setLipStatus('⚠ 音声認識に失敗しました。はっきり発音して録画し直してください。');
-          }
-        } else {
-          lipTestUploaded = true;
-          setLipStatus('');
-        }
       } catch (err) {
         console.error(err);
-        setLipStatus('唇動画のアップロードに失敗しました。再度お試しください。');
       }
     }
 
@@ -340,8 +274,8 @@ async function main() {
 
       // 録音開始と同時に唇のテスト動画を自動録画（保存済みお手本がある場合）
       try {
-        if ((lipRefUploaded || hasSavedRef) && !lipRecorder) {
-          startLipRecording('test');
+        if (hasSavedRef && !lipRecorder) {
+          startLipRecording();
         }
       } catch (e) { console.warn('auto lip record failed', e); }
 
@@ -431,15 +365,6 @@ async function main() {
       }, 200);
     });
 
-    if (btnLipRef) {
-      // お手本は手動ボタン操作 → 3秒で自動停止
-      btnLipRef.addEventListener('click', () => startLipRecording('ref', 3000));
-    }
-    if (btnLipTest) {
-      btnLipTest.addEventListener('click', () => startLipRecording('test'));
-    }
-
-    updateLipButtons();
     checkSavedRef();
 
     // ── マイク品質チェック（録音前の背景ノイズ測定） ────────────

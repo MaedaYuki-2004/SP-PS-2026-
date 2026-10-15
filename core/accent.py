@@ -4,7 +4,7 @@ MeCab によるアクセント型の自動取得を担当するモジュール�
 """
 from __future__ import annotations
 
-# MeCab はオプション依存。Railway など環境によって利用不可の場合は
+# MeCab はオプション依存。入っていない環境では
 # accent=None / source="unknown" を返してアプリを継続動作させる。
 try:
     import MeCab

@@ -3,13 +3,8 @@ core/timbre.py
 音色評価（MFCC 抽出・DTW 距離計算）を担当するモジュール。
 librosa で MFCC を算出し、FastDTW（core/dtw.py）で基準音声との類似度を評価する。
 
-【変更点】
-  - audio_mfcc() に Delta MFCC（Δ・ΔΔ）を追加。
-    静的MFCC（12次元）＋ Δ（12次元）＋ ΔΔ（12次元）= 計36次元に変更。
-    時間的な変化（音の動き）も捉えられるため DTW の比較精度が向上する。
-
-  ⚠️ 重要：この変更により既存の .bin ファイル（12次元）は非互換になる。
-  　　　　　python scripts/regenerate_mfcc.py を必ず再実行すること。
+MFCC は静的 12 次元 ＋ Δ 12 次元 ＋ ΔΔ 12 次元 = 36 次元（音の時間的な変化も比べるため）。
+お手本の MFCC はライブラリの mfcc/<word_id>.bin に保存する。作り直すときは scripts/regenerate_mfcc.py。
 """
 from __future__ import annotations
 

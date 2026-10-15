@@ -1,10 +1,9 @@
 """
 core/history.py
-練習履歴の保存・読み込みを担当するモジュール。
+練習履歴の保存・読み込みと、記録からの集計を担当するモジュール。
 
-【追加】get_spaced_repetition_candidates()
-  指定日数以上練習していない単語のうち、スコアが一定以下のものを返す。
-  間隔反復クエスト（12）の基盤となる関数。
+get_spaced_repetition_candidates() は、指定日数以上練習していない単語のうち、
+スコアが一定以下のものを返す（今日のレッスンの「復習」に使う）。
 """
 from __future__ import annotations
 

@@ -203,10 +203,6 @@ h1, h2, h3, button, .btn, .chip, [class*='-title'], [class*='-label'] { font-fea
 .top-nav { position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:60px;
            background:var(--glass); backdrop-filter:blur(20px) saturate(170%); -webkit-backdrop-filter:blur(20px) saturate(170%);
            box-shadow:0 1px 0 var(--border-light); }
-.nav-brand { display:flex; align-items:baseline; gap:10px; text-decoration:none; }
-.nav-brand-main { font-family:var(--font-num); font-size:17px; font-weight:800; letter-spacing:-.01em; background:var(--grad-brand); -webkit-background-clip:text; background-clip:text; color:transparent; }
-.nav-brand-sub { font-size:11px; color:var(--text-3); font-weight:400; letter-spacing:.06em; }
-.nav-divider { width:1px; height:14px; background:var(--border); }
 .nav-link { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:100px; font-size:13px; font-weight:700; color:var(--text-2); background:none; border:1px solid transparent; cursor:pointer; font-family:var(--font); text-decoration:none; transition:color var(--dur),background var(--dur),border-color var(--dur); }
 .nav-link:hover { color:var(--text); background:var(--bg-muted); }
 .nav-actions { display:flex; align-items:center; gap:8px; }
@@ -242,58 +238,28 @@ body.has-tabbar { padding-bottom:calc(var(--tabbar-h) + 32px + env(safe-area-ins
 .btn:disabled { opacity:.35; cursor:not-allowed; pointer-events:none; }
 .btn-primary { background:var(--grad-brand); color:#fff; box-shadow:var(--shadow-brand); }
 .btn-primary:hover { filter:brightness(1.06); }
-.btn-accent  { background:var(--grad-rec); color:#fff; box-shadow:var(--shadow-rec); }
-.btn-accent:hover { filter:brightness(1.06); }
-.btn-quest   { background:var(--quest-fill); color:#fff; border-color:var(--quest-fill); }
-.btn-quest:hover { filter:brightness(1.1); }
 .btn-ghost   { background:var(--bg-card); color:var(--text-2); border-color:var(--border); }
 .btn-ghost:hover { background:var(--bg-muted); color:var(--text); }
-.btn-full { width:100%; }
-.btn-sm { padding:8px 14px; font-size:12px; }
 .btn-lg { padding:15px 28px; font-size:15px; border-radius:var(--r); }
-
-/* ── Category / Difficulty badges ─────────────────── */
-.cat-badge { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:3px 9px; border-radius:100px; }
-.cat-accent { background:var(--navy-soft); color:var(--brand-700); }
-.cat-length { background:var(--green-bg);  color:var(--green);  }
-.cat-vowel  { background:var(--blue-bg);   color:var(--blue);   }
-.cat-total  { background:var(--bg-muted);  color:var(--text-2); }
-.cat-sound  { background:var(--navy-soft); color:var(--navy); }
-.cat-mouth  { background:var(--quest-bg);  color:var(--quest); }
-.cat-review { background:var(--green-bg);  color:var(--green); }
-.diff-badge { display:inline-block; font-size:10px; font-weight:600; letter-spacing:.06em; padding:2px 8px; border-radius:100px; border:1px solid currentColor; }
-.diff-easy   { color:var(--brand-400); }
-.diff-normal { color:var(--brand-600); }
-.diff-hard   { color:var(--brand-800); }
-
-/* ── Progress bar ──────────────────────────────────── */
-.progress-bar { height:8px; background:var(--bg-muted); border-radius:100px; overflow:hidden; }
-.progress-fill { height:100%; border-radius:100px; background:var(--grad-brand); transition:width .8s var(--spring); }
 
 /* ── Card ──────────────────────────────────────────── */
 .card { background:var(--bg-card); border:1px solid var(--surface-line); border-radius:var(--r-lg); box-shadow:var(--elev-1); }
 
 /* ── Hero（主役の面） ──────────────────────────────── */
-.hero-block, .aurora { position:relative; overflow:hidden; border-radius:var(--r-lg); background:var(--grad-hero); color:#fff; isolation:isolate; }
-.hero-block::before, .aurora::before { content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
+.aurora { position:relative; overflow:hidden; border-radius:var(--r-lg); background:var(--grad-hero); color:#fff; isolation:isolate; }
+.aurora::before { content:''; position:absolute; inset:0; z-index:-1; pointer-events:none;
   background:
     radial-gradient(60% 55% at 92% 0%, rgba(255,255,255,.20), rgba(255,255,255,0) 70%),
     radial-gradient(40% 60% at 0% 100%, rgba(120,200,255,.16), rgba(120,200,255,0) 70%),
     linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 40%); }
-.hero-block::after, .aurora::after { content:''; position:absolute; inset:0; z-index:-1; border-radius:inherit; pointer-events:none;
+.aurora::after { content:''; position:absolute; inset:0; z-index:-1; border-radius:inherit; pointer-events:none;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.22), inset 0 0 0 1px rgba(255,255,255,.06); }
-
-/* ── Stat chip ─────────────────────────────────────── */
-.stat-chip { display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:100px; background:rgba(255,255,255,.16); backdrop-filter:blur(6px); font-size:12px; font-weight:700; color:#fff; }
-.stat-chip .num { font-size:15px; }
 
 /* ── Accent viz (A) ────────────────────────────────── */
 .accent-viz { display:flex; align-items:flex-end; gap:3px; height:22px; }
-.av-mora { display:flex; flex-direction:column; align-items:center; gap:2px; }
 .av-bar  { width:16px; border-radius:3px 3px 0 0; }
 .av-bar.H { height:14px; background:var(--navy); opacity:.85; }
 .av-bar.L { height:7px;  background:var(--border); }
-.av-label { font-size:8px; font-family:var(--mono); color:var(--text-3); }
 
 /* ── 折りたたみセクション（共通） ─────────────────── */
 .fold-section { border:1px solid var(--surface-line); border-radius:var(--r); background:var(--bg-card); margin-top:12px; box-shadow:var(--elev-1); }
@@ -304,22 +270,12 @@ body.has-tabbar { padding-bottom:calc(var(--tabbar-h) + 32px + env(safe-area-ins
 .fold-hint { font-size:11px; font-weight:400; color:var(--text-3); }
 .fold-body { padding:4px 18px 18px; }
 
-/* ── Misc ──────────────────────────────────────────── */
-.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0; }
-
 /* ── 生徒向け画面の共通ルール（スマホ前提） ─────────────────
    利用者は聴覚特別支援学校の中学部・高等部の生徒で、ほぼ全員がスマホで使う。
    - 押すものは 48px 以上（指で押せる大きさ）
    - 本文は 14px 以上（10px 前後の注釈は読まれない／読めない）
    - 1画面に出すのは「いま必要なもの」だけ
    ここには全画面で共通の下敷きだけを置き、画面ごとの調整は各テンプレートに書く。 */
-
-/* 生徒には見せない情報（先生・研究用）を包むための印。
-   .teacher-only 自体は常に表示。隠すのは各画面の折りたたみ側で行う。 */
-.teacher-only { --is-teacher-block: 1; }
-
-/* 画面下のタブバーに隠れないための余白。sticky なボタンを置く画面で使う */
-.pad-for-tabbar { padding-bottom:calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom)); }
 
 /* 画面下に固定する主操作（録音する・もう一度 など）。
    スクロールしないと押せないボタンを作らないための共通部品。 */
@@ -342,9 +298,6 @@ body.has-tabbar .sticky-cta { bottom:calc(var(--tabbar-h) + 10px + env(safe-area
                    box-shadow:inset 0 1px 0 rgba(255,255,255,.22); }
 .btn-hero:hover { filter:brightness(1.05); }
 .btn-hero:active { transform:scale(.97); }
-.btn-hero.btn-hero-rec { background:var(--grad-rec); box-shadow:var(--shadow-rec); }
-.btn-hero.btn-hero-quiet { background:var(--bg-card); color:var(--text); border:1px solid var(--border); box-shadow:var(--elev-1); }
-.btn-hero.btn-hero-quiet::after { display:none; }
 
 @media (max-width:768px) {
   /* スマホでは 12px 未満の文字を作らない。読めない注釈は無いのと同じで、
@@ -352,7 +305,6 @@ body.has-tabbar .sticky-cta { bottom:calc(var(--tabbar-h) + 10px + env(safe-area
   .fold-hint { font-size:12px; }
   .fold-summary { padding:15px 16px; font-size:14px; min-height:52px; align-items:center; }
   .btn { min-height:46px; }
-  .btn-sm { min-height:40px; font-size:13px; }
 }
 
 /* ── Focus indicators (アクセシビリティ) ─────────────── */
@@ -368,26 +320,21 @@ button:focus:not(:focus-visible) { outline:none; }
 /* ── Mobile nav ────────────────────────────────────── */
 @media (max-width:600px) {
   .top-nav { padding:0 12px; height:54px; gap:8px; }
-  .nav-brand-sub { display:none; }
-  .nav-divider { display:none; }
   .nav-link { padding:7px 10px; font-size:12px; }
 
   /* 文字が2行に折り返してヘッダーが崩れるのを防ぐ。
      幅が足りないときは縮めるのではなく、折り返さずに詰める。 */
-  .nav-brand, .nav-brand-main, .nav-link, .nav-userid { white-space:nowrap; }
+  .nav-link { white-space:nowrap; }
   .nav-actions { display:flex; align-items:center; gap:6px; flex:none; }
 
   /* 「記録・分析」は画面下部のタブバーにも同じ導線があるため、
      スマホでは重複を外してヘッダーの幅を確保する。 */
   .nav-link[href="/history"] { display:none; }
 
-  /* 利用者IDは確認できれば十分なので、長い場合は省略記号で切る */
-  .nav-userid { max-width:96px; overflow:hidden; text-overflow:ellipsis; }
 }
 
 /* 画面が特に狭い端末では、ログアウトの文字も省いてアイコン相当の幅にする */
 @media (max-width:380px) {
-  .nav-userid { max-width:72px; }
   .nav-link { padding:6px 8px; font-size:11px; }
 }
 
@@ -405,11 +352,7 @@ button:focus:not(:focus-visible) { outline:none; }
 }
 
 /* ボタン・見出しの中では、文字とのあいだに一定の間隔を空ける */
-.weak-word-btn .ic,
-.fold-summary .ic,
-.lesson-title .ic,
-.continuous-btn .ic,
-.hero-sub .ic {
+.fold-summary .ic {
   margin-right: .35em;
 }
 
@@ -418,7 +361,6 @@ button:focus:not(:focus-visible) { outline:none; }
 
 /* テーマ切替ボタンは文字を持たないので中央に置く */
 .theme-toggle .ic { margin: 0; vertical-align: middle; }
-
 
 /* ══════════════════════════════════════════════════════
    共通の画面部品
@@ -462,24 +404,9 @@ button:focus:not(:focus-visible) { outline:none; }
 /* 画面の器 */
 .page { width:100%; max-width:640px; margin:0 auto; padding:14px 16px 32px; display:flex; flex-direction:column; gap:16px; }
 
-/* カード */
-.ui-card { background:var(--bg-card); border:1px solid var(--surface-line); border-radius:var(--r-lg); padding:18px; box-shadow:var(--elev-1); }
-.ui-card-title { font-size:16px; font-weight:700; color:var(--text); }
-.ui-card-sub { font-size:13px; line-height:1.6; color:var(--text-3); margin-top:2px; }
-
 /* 見出し（カードの外に置く小見出し） */
 .section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 2px 0; }
 .section-head h2 { font-size:19px; font-weight:700; color:var(--text); letter-spacing:.01em; }
-
-/* 大きい2番手ボタン（主ボタン .btn-hero の隣に置く） */
-.btn-sub {
-  display:flex; width:100%; min-height:54px; align-items:center; justify-content:center; gap:8px;
-  border-radius:18px; border:1px solid var(--border); background:var(--bg-card); color:var(--text);
-  font-family:var(--font); font-size:15px; font-weight:700; text-decoration:none; cursor:pointer;
-  box-shadow:var(--elev-1); transition:transform .15s var(--ease), color var(--dur), border-color var(--dur);
-}
-.btn-sub:hover { border-color:var(--navy); color:var(--navy); }
-.btn-sub:active { transform:scale(.97); }
 
 /* 絞り込みチップ：面の色で選択を示す */
 .chip-row { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; padding:3px 2px 6px; }
@@ -538,24 +465,51 @@ button:focus:not(:focus-visible) { outline:none; }
 .switch input:checked + span::after { transform:translateX(20px); }
 .switch input:focus-visible + span { outline:3px solid color-mix(in srgb, var(--navy) 60%, transparent); outline-offset:2px; }
 
-
 /* ══════════════════════════════════════════════════════
    面の質感をそろえる
    各画面の <style> にあるカードも、細い線ではなく影で浮かせる。
    body を付けて詳細度を上げ、各画面の <style> より確実に優先させる
 ══════════════════════════════════════════════════════ */
-body .ui-card, body .rec-card, body .rs-main, body .rs-item, body .result-card, body .compare-card,
-body .mora-review, body .tile, body .word-card, body .all-good-card,
-body .auth-card, body .lip-card, body .sheet-panel, body .rp-status, body .wp-card, body .drill-card,
-body .qz-card, body .chart-card, body .s-card, body .stat-card, body .add-section, body .word-table-wrap {
+body .rec-card,
+ body .rs-main,
+ body .rs-item,
+ body .result-card,
+ body .compare-card,
+
+body .mora-review,
+ body .tile,
+ body .word-card,
+ body .all-good-card,
+
+body .auth-card,
+ body .sheet-panel,
+ body .wp-card,
+ body .drill-card,
+
+body .qz-card,
+ body .chart-card,
+ body .stat-card,
+ body .add-section,
+ body .word-table-wrap {
   border-color:var(--surface-line);
   box-shadow:var(--elev-1);
 }
 body .today, body .next-one-card { box-shadow:var(--elev-2); }
 
 /* 大きな数字：欧文書体で、字間を少し詰めて締める */
-.rc-num, .rs-value, .rs-item-val, .rp-display, .ln-word, .hchip b,
-.av-spread-val, .rl-score, .guide-count-num, .wp-stat b, .ps b, .qz-ring-in b, .today-count, .wc-best b {
+.rc-num,
+ .rs-value,
+ .rs-item-val,
+ .rp-display,
+
+.av-spread-val,
+ .rl-score,
+ .guide-count-num,
+ .wp-stat b,
+ .ps b,
+ .qz-ring-in b,
+ .today-count,
+ .wc-best b {
   letter-spacing:-.02em; font-feature-settings:'palt' 1, 'tnum' 1;
 }
 .rc-num, .rs-value, .rs-item-val, .rl-score, .guide-count-num, .wp-stat b, .ps b, .qz-ring-in b, .wc-best b, .av-spread-val {

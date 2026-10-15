@@ -261,9 +261,8 @@ def length_arrange(
     """
     phoneme1（基準）の各音素長に合わせて pitch（録音側）を線形補間でリサンプリングする。
 
-    変更前：不足分に NaN を追加、超過分を切り取り（音調の形が崩れる）。
-    変更後：各音素を _resample_chunk で等比リサンプリング（音調の形を保持）。
-    これにより「ピッチ比較（正規化）」グラフで録音タイミング差が吸収される。
+    各音素を _resample_chunk で等比に伸び縮みさせるので、音調の形を保ったまま
+    お手本と同じ時間軸に並ぶ（録音のタイミングの差が吸収される）。
     """
     pitch_arr = np.array(pitch, dtype=float)
     usable    = min(len(phoneme1), len(phoneme2))

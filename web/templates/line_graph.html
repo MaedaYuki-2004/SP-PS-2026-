@@ -13,14 +13,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
-    .results-header { background:var(--navy); padding:10px 14px; display:flex; align-items:center; gap:12px; min-height:58px; }
-    .rh-back { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; flex:none; border-radius:100px; background:rgba(255,255,255,.14); color:#fff; text-decoration:none; }
-    .rh-back .ic { transform:rotate(180deg); }
-    .rh-word { flex:1; min-width:0; font-size:20px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .rh-sub { font-size:12px; font-weight:400; color:rgba(255,255,255,.6); margin-left:6px; }
-    .delta-badge  { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:13px; font-weight:600; padding:5px 12px; border-radius:100px; }
-    .delta-up   { background:rgba(141,139,242,.22); color:#C5C4FA; border:1px solid rgba(141,139,242,.3); }
-    .delta-down { background:rgba(255,255,255,.08); color:rgba(255,255,255,.72); border:1px solid rgba(255,255,255,.14); }
 
     .tab-bar { display:flex; padding:0 32px; background:var(--bg-card); border-bottom:1px solid var(--border-light); overflow-x:auto; scrollbar-width:none; }
     .tab-bar::-webkit-scrollbar { display:none; }
@@ -35,44 +27,7 @@
     .panel-heading { font-size:17px; font-weight:700; color:var(--navy); margin-bottom:4px; }
     .panel-sub { font-size:12px; color:var(--text-2); margin-bottom:20px; }
 
-    /* ── 新リザルトヒーロー（3秒でわかる） ── */
-    .result-hero { display:flex; align-items:center; gap:18px; padding:20px 22px; border-radius:var(--r-lg); background:var(--bg-card); border:1px solid var(--border); margin:14px 0 12px; box-shadow:var(--shadow-sm); }
-    .result-grade-badge { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:700; color:#fff; flex-shrink:0; box-shadow:var(--shadow-sm); }
-    .result-total-row { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
-    .result-total { font-family:var(--mono); font-size:38px; font-weight:500; color:var(--text); line-height:1; }
-    .result-max { font-size:13px; color:var(--text-2); }
-    .result-delta { font-family:var(--mono); font-size:12px; font-weight:700; padding:2px 10px; border-radius:100px; }
-    .result-delta.up   { background:var(--good-bg);  color:var(--good); }
-    .result-delta.down { background:var(--bg-muted); color:var(--text-2); }
-    .result-verdict { font-size:14px; font-weight:700; color:var(--text-2); margin-top:6px; line-height:1.5; }
-
-    /* ── モーラ信号機 ── */
-    .mora-lights { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px 18px 13px; margin-bottom:12px; }
-    .mora-lights-title { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; }
-    .mora-lights-row { display:flex; gap:8px; flex-wrap:wrap; }
-    .mora-light { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:52px; padding:9px 8px 7px; border-radius:var(--r); border:2px solid transparent; }
-    .mora-light.ok  { background:var(--good-bg);  border-color:var(--good); }
-    .mora-light.mid { background:var(--mid-bg);  border-color:var(--mid-line); }
-    .mora-light.ng  { background:var(--todo-bg); border-color:var(--todo-line); }
-    .mora-light.na  { background:var(--bg-muted); opacity:.6; }
-    .ml-kana { font-size:20px; font-weight:700; color:var(--text); line-height:1.15; }
-    .ml-icon { font-size:12px; font-weight:700; }
-    .mora-light.ok  .ml-icon { color:var(--good); }
-    .mora-light.mid .ml-icon { color:var(--mid); }
-    .mora-light.ng  .ml-icon { color:var(--todo); }
-    .mora-lights-legend { display:flex; gap:14px; margin-top:10px; font-size:10.5px; color:var(--text-2); flex-wrap:wrap; }
-    .lg-dot { width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:4px; vertical-align:-1px; }
-
-    /* ── 音映像クロスチェックカード（試験運用） ── */
-    .av-sync-card { background:var(--bg-card); border:1px solid var(--border); border-left-width:3px; border-radius:var(--r-lg); padding:14px 18px; margin-bottom:12px; }
-    .av-sync-card.verdict-ok   { border-left-color:var(--good); }
-    .av-sync-card.verdict-warn { border-left-color:var(--mid); }
-    .av-sync-card.verdict-ng   { border-left-color:var(--todo-bar); }
-    .av-sync-head { display:flex; align-items:flex-start; gap:12px; }
-    .av-sync-icon { font-size:20px; flex-shrink:0; line-height:1.4; }
-    .av-sync-title { font-size:13.5px; font-weight:700; color:var(--text); }
-    .av-sync-val { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--text-2); margin-left:8px; }
-    .av-sync-sub { font-size:11px; color:var(--text-2); margin-top:2px; line-height:1.6; }
+/* ── 音映像クロスチェックカード（試験運用） ── */
     .av-sync-details { margin-top:12px; }
     .av-sync-details summary { font-size:13px; font-weight:700; color:var(--text-2); cursor:pointer; user-select:none; min-height:40px; display:flex; align-items:center; }
     .av-sync-moras { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
@@ -109,7 +64,6 @@
     .next-one-label { display:inline-flex; align-items:center; gap:6px; min-height:28px; padding:3px 12px; border-radius:100px;
                       background:rgba(255,255,255,.18); font-size:13px; font-weight:700; letter-spacing:.04em; color:#fff; }
     .next-one-kana { font-size:48px; font-weight:700; line-height:1.15; margin:10px 0 8px; text-shadow:0 2px 18px rgba(20,10,80,.25); }
-    .next-one-pts { font-family:var(--font-num); font-size:14px; font-weight:700; color:rgba(255,255,255,.7); margin-left:8px; }
     .next-one-why { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; }
     .next-one-how { font-size:13.5px; color:rgba(255,255,255,.86); margin:6px 0 16px; line-height:1.7; }
     .next-one-actions { display:flex; flex-direction:column; gap:8px; }
@@ -234,10 +188,7 @@
     .score-item-value { font-size:22px; font-weight:700; color:var(--text); line-height:1.2; }
     .grade-S{color:var(--brand-800);} .grade-A{color:var(--brand-600);} .grade-B{color:var(--brand-500);} .grade-C{color:var(--text-2);} .grade-D{color:var(--text-3);}
 
-    .radar-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:18px; display:flex; flex-direction:column; align-items:center; box-shadow:var(--shadow-xs); }
-    .radar-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; align-self:flex-start; }
-
-    /* Compare (F) */
+/* Compare (F) */
     .score-compare { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; margin-bottom:14px; box-shadow:var(--shadow-xs); }
     .compare-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; }
     .compare-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
@@ -327,35 +278,8 @@
 
     /* Quest clear */
     @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
-    .quest-clear-banner { background:var(--navy-fill); border-radius:var(--r); padding:14px 18px; margin-bottom:8px; display:flex; align-items:center; gap:12px; animation:slideIn .3s ease; }
-    .quest-clear-check { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .quest-clear-badge { font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.6); display:block; margin-bottom:2px; }
-    .quest-clear-title { font-size:13px; font-weight:700; color:#fff; }
-    .quest-clear-sub   { font-size:11px; color:rgba(255,255,255,.65); margin-top:1px; }
 
-    /* Quest cards */
-    .quests-header { display:flex; align-items:baseline; gap:10px; margin:20px 0 10px; }
-    .quests-sec-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); }
-    .quest-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
-    .quest-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; transition:box-shadow var(--dur),transform var(--dur); }
-    .quest-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-1px); }
-    .quest-card[data-cat="accent"] { border-left:3px solid var(--brand-400); }
-    .quest-card[data-cat="length"] { border-left:3px solid var(--brand-400); }
-    .quest-card[data-cat="vowel"]  { border-left:3px solid var(--brand-400); }
-    .quest-card[data-cat="total"]  { border-left:3px solid var(--navy); }
-    .quest-card[data-cat="review"] { border-left:3px solid var(--brand-400); }
-    .quest-card-body { padding:14px 16px 12px; }
-    .quest-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:5px; }
-    .quest-card-title { font-size:13px; font-weight:700; color:var(--text); line-height:1.3; flex:1; }
-    .quest-card-desc { font-size:11px; color:var(--text-2); line-height:1.65; margin-bottom:8px; }
-    .quest-hint-bar { font-size:11px; color:var(--text-2); line-height:1.9; background:var(--bg-muted); border-left:2px solid var(--navy); padding:10px 12px; border-radius:0 var(--r-sm) var(--r-sm) 0; margin-bottom:8px; white-space:pre-line; }
-    .quest-progress-meta { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px; }
-    .quest-progress-vals { font-family:var(--mono); font-size:10px; color:var(--text-2); }
-    .quest-progress-pct  { font-family:var(--mono); font-size:11px; font-weight:500; color:var(--mid-text); }
-    .quest-card-footer { padding:8px 16px 12px; border-top:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .cat-review { background:var(--mid-bg); color:var(--mid-text); }
-
-    /* Suggestions */
+/* Suggestions */
     .suggestions-section { margin-top:24px; }
     .suggestions-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-2); margin-bottom:10px; display:flex; align-items:center; gap:10px; }
     .suggestions-line { flex:1; height:1px; background:var(--border-light); }
@@ -371,7 +295,7 @@
     .suggestion-btn:hover { background:var(--navy-mid); }
     .suggestion-btn:active { transform:scale(.97); }
 
-    @media (max-width:720px) { .score-layout{grid-template-columns:1fr;} .feedback-grid{grid-template-columns:1fr;} .suggestions-grid{grid-template-columns:1fr;} .compare-grid{grid-template-columns:repeat(2,1fr);} .compare-player-grid{grid-template-columns:1fr;} .section-panel{padding:16px 20px;} .tab-bar{padding:0 20px;} }
+    @media (max-width:720px) {  .feedback-grid{grid-template-columns:1fr;} .suggestions-grid{grid-template-columns:1fr;} .compare-grid{grid-template-columns:repeat(2,1fr);} .compare-player-grid{grid-template-columns:1fr;} .section-panel{padding:16px 20px;} .tab-bar{padding:0 20px;} }
 
     /* ── モーラ別唇開き分析 ── */
     .lip-mora-list { display:flex; flex-direction:column; gap:12px; }
@@ -413,58 +337,7 @@
     .detail-tabs-fold[open] > summary::after { transform:rotate(90deg); }
     .detail-tabs-fold .tab-bar { margin-top:8px; }
 
-    /* グレードは点数の言い換えなので、文字を置かず色だけで示す */
-    .result-grade-badge.grade-dot {
-      width:14px; height:14px; min-width:14px; border-radius:50%;
-      font-size:0; box-shadow:none; align-self:center;
-    }
-
-    /* 音ごとのできばえ（開いた人にだけ見せる） */
-    .mora-fold { max-width:1080px; margin:0 auto 12px; padding:0 16px; }
-    .mora-fold > summary {
-      list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px;
-      padding:11px 14px; border:1px solid var(--border); border-radius:var(--r-sm);
-      background:var(--bg-card); font-size:13px; font-weight:700; color:var(--text-2);
-      white-space:nowrap;
-    }
-    .mora-fold > summary::-webkit-details-marker { display:none; }
-    .mora-fold > summary::after { content:'▸'; margin-left:auto; color:var(--text-3); transition:transform .2s; }
-    .mora-fold[open] > summary::after { transform:rotate(90deg); }
-    .mora-fold .mora-lights { margin-top:8px; }
-
-    /* 詳細群の入口をひとまとめに見せる区切り */
-    .more-heading {
-      max-width:1080px; margin:22px auto 8px; padding:0 16px;
-      font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--text-3);
-    }
-
-    /* 結果の一言（点数は「点数の内訳」に任せ、ここでは出さない） */
-    .result-verdict-solo {
-      max-width:1080px; margin:0 auto 14px; padding:14px 18px;
-      background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-lg);
-      font-size:15px; font-weight:700; color:var(--text);
-      display:flex; align-items:center; gap:9px;
-    }
-    @media (max-width:768px) {
-      .result-verdict-solo { margin:0 16px 12px; font-size:14px; padding:12px 14px; }
-    }
-
-    /* 折りたたみを開かなくても点数が読めるようにする */
-    .fold-score {
-      font-family:var(--mono); font-size:15px; font-weight:700; color:var(--text);
-      margin-left:2px;
-    }
-    .fold-score span { font-size:10px; font-weight:600; color:var(--text-3); margin-left:1px; }
-
-    @media (max-width:768px) {
-      /* レーダーは内訳バーと同じ情報。狭い画面では省いて縦の長さを抑える */
-      .radar-card { display:none; }
-      /* 点数カードと結果の一言をひと続きに見せる */
-      .score-layout { margin-bottom:10px; }
-      .result-verdict-solo { margin-top:0; }
-    }
-
-    /* 指導者・研究者向けのまとまり。生徒向けの内容と区別が付くようにする */
+/* 指導者・研究者向けのまとまり。生徒向けの内容と区別が付くようにする */
     .teacher-fold { max-width:1080px; margin:24px auto 12px; padding:0 16px; }
     .teacher-fold > summary {
       list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px;
@@ -477,7 +350,6 @@
     .teacher-fold[open] > summary::after { transform:rotate(90deg); }
     .teacher-fold-body { padding-top:10px; }
     /* 中の入口は控えめにして、二重に主張しないようにする */
-    .teacher-fold-body .more-heading { display:none; }
     .teacher-fold-body .detail-tabs-fold,
     .teacher-fold-body .fold-section { padding-left:0; padding-right:0; }
 
@@ -624,8 +496,7 @@
       .cmp-chart { height:240px; }
     }
 
-
-    /* ── 結果のタブ ── */
+/* ── 結果のタブ ── */
     .rs-tabs { position:sticky; top:calc(58px + env(safe-area-inset-top)); z-index:50; display:grid; grid-template-columns:repeat(3,1fr); gap:4px;
                margin:4px 16px 14px; padding:4px; border-radius:18px;
                background:color-mix(in srgb, var(--bg-muted) 82%, transparent);
@@ -1907,12 +1778,6 @@ function showSection(n,b){
     b.classList.add('active');
   } catch(e){ console.error('showSection error:', e); }
 }
-function gotoTab(name){
-  document.querySelectorAll('.sec-tab').forEach(function(b){
-    var oc = b.getAttribute('onclick') || '';
-    if (oc.indexOf("'" + name + "'") !== -1) { b.click(); window.scrollTo({top:0,behavior:'smooth'}); }
-  });
-}
 
 /* ── グラフ画面から結果へ戻る ──
    タブの並びは「くわしい分析」の折りたたみの中にあり、
@@ -2287,8 +2152,6 @@ document.getElementById('rsTabs')?.addEventListener('click', e => {
   }
 })();
 
-/* ── 最終練習時刻を記録（通知リマインダー用） ── */
-localStorage.setItem('sp-ps-last-practice', String(Date.now()));
 </script>
 <script>
 // ── 好成績の完了演出（紙吹雪） ──

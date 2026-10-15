@@ -18,8 +18,7 @@ TEMPLATES_DIR  = WEB_DIR / "templates"
 STATIC_DIR     = WEB_DIR / "static"
 
 # ── データ関連 ───────────────────────────────────────────────────────
-# Railway では環境変数 DATA_DIR=/app_data を設定し Volume をマウントする。
-# ローカル開発時は BASE_DIR/data をそのまま使用。
+# 環境変数 DATA_DIR で場所を変えられる。無ければリポジトリ内の data/ を使う。
 _DATA_DIR_OVERRIDE = os.environ.get("DATA_DIR")
 DATA_DIR            = Path(_DATA_DIR_OVERRIDE) if _DATA_DIR_OVERRIDE else BASE_DIR / "data"
 CONFIG_DIR          = DATA_DIR / "config"

@@ -8,12 +8,9 @@ def client_key(remote: str | None, headers, proxy: str) -> str:
     # ループバックでもローカルプロセスは偽装できる。信頼できるPC上の中継のみ想定する。
     if remote not in {"127.0.0.1", "::1"}:
         return remote
-    if proxy == "cloudflare":
-        value = headers.get("CF-Connecting-IP", "").strip()
-    elif proxy == "ngrok":
-        value = headers.get("X-Forwarded-For", "").split(",")[-1].strip()
-    else:
+    if proxy != "cloudflare":
         return remote
+    value = headers.get("CF-Connecting-IP", "").strip()
     try:
         return str(ip_address(value))
     except ValueError:

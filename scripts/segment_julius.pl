@@ -62,10 +62,6 @@ if (defined $ENV{JULIUS_BIN} && $ENV{JULIUS_BIN} ne "") {
 
 ## acoustic model
 $hmmdefs="./models/hmmdefs_monof_mix16_gid.binhmm"; # monophone model
-#$hmmdefs="./models/hmmdefs_ptm_gid.binhmm"; # triphone model
-
-## HMMList file (needed for triphone model)
-#$hlist="./models/logicalTri";
 
 ## other options to Julius if needed
 $OPTARGS="-input file";	# raw speech file input

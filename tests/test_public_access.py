@@ -14,8 +14,8 @@ class PublicAccessTests(unittest.TestCase):
             self.assertEqual(client_key("127.0.0.1", {"CF-Connecting-IP": value,
                 "X-Forwarded-For": "203.0.113.9"}, "cloudflare"), "127.0.0.1")
 
-    def test_ngrok_uses_last_ip(self):
-        self.assertEqual(client_key("127.0.0.1", {"X-Forwarded-For": "bad, 203.0.113.6"}, "ngrok"), "203.0.113.6")
+    def test_other_proxy_names_are_not_trusted(self):
+        self.assertEqual(client_key("127.0.0.1", {"X-Forwarded-For": "203.0.113.6"}, "ngrok"), "127.0.0.1")
 
     def test_public_url_validation(self):
         self.assertEqual(public_url("https://example.com"), "https://example.com/")

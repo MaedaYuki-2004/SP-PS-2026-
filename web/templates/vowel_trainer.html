@@ -49,7 +49,6 @@
     .detected-label { font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--text-3); margin-bottom:8px; }
     .detected-vowel { font-size:64px; font-weight:700; line-height:1; transition:color .2s,transform .15s; }
     .detected-vowel.match   { color:var(--good); transform:scale(1.1); }
-    .detected-vowel.partial { color:var(--mid); }
     .detected-vowel.wrong   { color:var(--todo); }
     .detected-vowel.closed  { color:var(--text-3); }
 
@@ -682,22 +681,12 @@ function showComplete() {
     video.srcObject.getTracks().forEach(t => t.stop());
   }
 
-  // 完走をサーバに報告（口の形クエストの進捗更新）
+  // 完走をサーバに報告（今日のレッスンの「口の形」を完了にする）
   fetch('/api/vowel_trainer/complete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ word_id: WORD_ID }),
-  })
-    .then(r => r.json())
-    .then(d => {
-      if (d.completed_quests && d.completed_quests.length > 0) {
-        const el = document.createElement('div');
-        el.style.cssText = 'margin-top:6px;padding:12px 20px;border-radius:14px;background:var(--good-bg);border:1px solid var(--good-line);color:var(--good-text);font-size:14px;font-weight:700;';
-        el.innerHTML = '<svg class="ic" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M8 3h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3"/><path d="M12 12v4M9 21h6M10 21c0-2 .8-3 2-3s2 1 2 3"/></svg> クエスト達成: ' + d.completed_quests.join(' / ');
-        document.querySelector('.complete-sub')?.after(el);
-      }
-    })
-    .catch(() => {});
+  }).catch(() => {});
 }
 
 /* ══════════════════════════════════════════════════════

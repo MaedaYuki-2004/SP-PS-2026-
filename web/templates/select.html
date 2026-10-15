@@ -271,16 +271,8 @@
       .today-word { font-size:36px; }
     }
 
-
-    /* ── ここから下は単語追加・お手本録画のモーダル（参加者が自分の単語を管理する）── */
+/* ── ここから下は単語追加・お手本録画のモーダル（参加者が自分の単語を管理する）── */
     /* 単語編集モーダル */
-    .edit-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:400; align-items:center; justify-content:center; }
-    .edit-modal-overlay.open { display:flex; }
-    .edit-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:24px; width:min(420px,92vw); display:flex; flex-direction:column; gap:14px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
-    .edit-modal-title { font-size:15px; font-weight:700; color:var(--navy); }
-    .edit-modal-status { font-size:12px; min-height:18px; }
-    .edit-modal-status.ok  { color:var(--good); }
-    .edit-modal-status.err { color:var(--danger); }
     .no-results { display:none; text-align:center; padding:48px; color:var(--text-3); font-size:14px; grid-column:1/-1; }
 
     /* 単語追加モーダル */
@@ -665,13 +657,6 @@
       <button type="button" class="sheet-link" id="btnShowIntro">{{ icon('bulb') }} 使い方を見る</button>
     </div>
 
-    <div class="sheet-group" id="notifyGroup" hidden>
-      <div class="sheet-row">
-        <span><span class="sheet-row-text">練習のお知らせ</span><br><span class="sheet-row-sub">しばらく練習していないときに知らせます</span></span>
-        <button type="button" class="ls-btn" id="notifyEnableBtn">受け取る</button>
-      </div>
-    </div>
-
     <div class="sheet-group">
       <button type="button" class="sheet-link" id="btnAddWord">{{ icon('video') }} 単語を追加（お手本録画つき）</button>
       <a class="sheet-link" href="/admin">{{ icon('clipboard') }} 単語の管理</a>
@@ -898,24 +883,6 @@ document.getElementById('btnContinuous')?.addEventListener('click', () => {
   if (first) first.submit();
 });
 
-/* ── 練習のお知らせ（通知が使える端末で、まだ許可していないときだけ出す） ── */
-(function () {
-  const group = document.getElementById('notifyGroup');
-  const btn   = document.getElementById('notifyEnableBtn');
-  if (!group || !btn || !('Notification' in window)) return;
-  if (Notification.permission !== 'default') return;
-  group.hidden = false;
-  btn.addEventListener('click', async () => {
-    const perm = await Notification.requestPermission();
-    group.hidden = true;
-    if (perm === 'granted') {
-      new Notification('SP-PS 練習のお知らせ', {
-        body: 'しばらく練習していないときにお知らせします。',
-        icon: '/static/icon-192.svg',
-      });
-    }
-  });
-})();
 </script>
 
 <!-- 単語追加モーダル（Step1: 登録 → Step2: お手本録画） -->

@@ -1,9 +1,5 @@
 """
-app.py — Flask ルーティング
-
-【変更点】
-  calc_vowel_score() に pitch_ceiling_native=ceiling_sample を追加。
-  ネイティブとユーザー両方の性別を考慮した補正を有効化する。
+app.py — Flask のルーティング、採点処理の呼び出し、口形分析（MediaPipe）。
 """
 from __future__ import annotations
 
@@ -1313,127 +1309,26 @@ def record_audio():
 
 @app.route("/upload_lip_video", methods=["POST"])
 def upload_lip_video():
-    # お手本（ref）は口の形の抽出とアライメントを行う重い処理なので順番を取る。練習（test）は保存するだけ
-    if request.form.get("mode", "").strip() == "ref":
-        with heavy_slot():
-            return _upload_lip_video()
-    return _upload_lip_video()
-
-
-def _upload_lip_video():
+    """練習で撮った口の動画（mode=test）を作業フォルダに一時保存する。POST /graph が解析に使ったあとで消す。"""
     try:
-        mode = request.form.get("mode", "").strip()
-        if mode not in ("ref", "test"):
-            return jsonify({"error": "mode は ref または test を指定してください。"}), 400
-        # ref はログイン中の参加者自身のお手本を上書きする（core/library.py）。test は練習の録画
+        if request.form.get("mode", "").strip() != "test":
+            return jsonify({"error": "mode は test を指定してください。"}), 400
         file = request.files.get("file")
         if not file:
             return jsonify({"error": "動画ファイルが送信されていません。"}), 400
 
-        # お手本を保存する単語。画面が表示中の単語 ID を送る（word_id）。
-        # 以前は共有ファイル word_id.txt だけを見ていたため、別の端末が単語を選ぶと別の単語に保存され、
-        # 削除済みの単語を指していると、その単語のフォルダと口形データを作り直してしまっていた。
-        current_word_id = None
-        if mode == "ref":
-            current_word_id = (request.form.get("word_id") or "").strip()
-            if not current_word_id:
-                current_word_id = current_workspace().read_word_id()
-            if not current_word_id or get_word(current_word_id) is None:
-                return jsonify({"error": "お手本を登録する単語が見つかりません。ホームから単語を選び直してください。"}), 404
-
+        # 結果を見ずに録り直したときは、前の動画を消してから保存する
         lip_video_paths = session.get("lip_video_paths", {})
-        old_path = lip_video_paths.get(mode)
+        old_path = lip_video_paths.get("test")
         if old_path and os.path.exists(old_path):
             try:
                 os.remove(old_path)
             except OSError:
                 pass
 
-        new_path = _save_temp_video(file, current_workspace().lip_dir)
-        lip_video_paths[mode] = new_path
+        lip_video_paths["test"] = _save_temp_video(file, current_workspace().lip_dir)
         session["lip_video_paths"] = lip_video_paths
         session.modified = True
-        # 参照（ref）をアップロードした場合は抽出データを永続化しておく
-        if mode == 'ref' and MEDIA_PIPE_AVAILABLE:
-            mora_data: list[dict] = []
-            # 読めない動画・顔が映っていない動画は、お手本を書きかえずに録り直してもらう
-            try:
-                reference_vectors, reference_ratios, reference_times = _extract_lip_data_timed(new_path)
-            except ValueError as exc:
-                return jsonify({"error": _lip_video_error(exc)}), 400
-            try:
-                if current_word_id:
-                    _persist_ref_video(current_word_id, new_path)
-
-                # ── アライメントによるモーラ別参照データを生成 ────────────
-                if current_word_id:
-                    try:
-                        word_entry = get_word(current_word_id)
-                        reading    = word_entry.get("reading", "") if word_entry else ""
-                        if not reading:
-                            reading = get_reading_for_julius(current_word_id)
-                        if reading:
-                            lib        = current_library()
-                            sound_dir  = lib.sound_dir(current_word_id)
-                            sound_dir.mkdir(parents=True, exist_ok=True)
-                            native_wav = sound_dir / f"{current_word_id}.wav"
-                            native_lab = sound_dir / f"{current_word_id}.lab"
-                            native_log = sound_dir / f"{current_word_id}.log"
-                            ref_wav = _webm_to_wav(new_path)
-                            try:
-                                # 音声は常にサンプルとして保存（アライメント成否に関わらず）
-                                shutil.copy2(ref_wav, native_wav)
-                                print(f"[lip_ref] サンプル音声を更新: {native_wav}")
-                                try:
-                                    mfcc = audio_mfcc(native_wav)
-                                    lib.mfcc_bin(current_word_id).parent.mkdir(parents=True, exist_ok=True)
-                                    mfcc.tofile(str(lib.mfcc_bin(current_word_id)))
-                                except Exception:
-                                    pass
-                                ref_mora_list = _align_lip_ref(
-                                    ref_wav, reading,
-                                    lab_out=native_lab,
-                                    log_out=native_log,
-                                )
-                                if ref_mora_list:
-                                    raw_ref = _extract_mora_lip_openness(
-                                        new_path, ref_mora_list,
-                                        times=reference_times, ratios=reference_ratios,
-                                    )
-                                    mora_data = [
-                                        {"label": item["label"], "v_h_ratio": item["openness"]}
-                                        for item in raw_ref
-                                    ]
-                                    print(f"[lip_ref] アライメント成功: {len(mora_data)} モーラ")
-                            finally:
-                                try:
-                                    os.remove(ref_wav)
-                                except Exception:
-                                    pass
-                    except Exception:
-                        # アライメント失敗は致命的でない
-                        traceback.print_exc()
-
-                if current_word_id:
-                    refs = load_lip_refs()
-                    entry: dict = {
-                        "schema_version": 2,
-                        "vectors":        reference_vectors,
-                        "ratios":         reference_ratios,
-                        "times":          reference_times,
-                    }
-                    if mora_data:
-                        entry["mora_data"] = mora_data
-                    refs[current_word_id] = entry
-                    save_lip_refs(refs)
-            except Exception:
-                traceback.print_exc()
-            # アライメント成否をフロントエンドに返す
-            return jsonify({
-                "message":       "ok",
-                "alignment_ok":  bool(mora_data),
-                "mora_count":    len(mora_data),
-            })
         return jsonify({"message": "ok"})
     except Exception as exc:
         traceback.print_exc()
@@ -1560,7 +1455,7 @@ def api_vowel_trainer_complete():
         except Exception:
             pass
 
-        return jsonify({"ok": True, "completed_quests": []})
+        return jsonify({"ok": True})
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
 
@@ -1604,7 +1499,7 @@ def api_lip_refs_overwrite():
                     native_log = sound_dir / f"{word_id}.log"
                     ref_wav = _webm_to_wav(tmp)
                     try:
-                        # 音声は常にサンプルとして保存（アライメント成否に関わらず）
+                        # 音声は常にお手本として保存（アライメント成否に関わらず）
                         shutil.copy2(ref_wav, native_wav)
                         try:
                             mfcc = audio_mfcc(native_wav)
@@ -1681,7 +1576,6 @@ def _analyze_recording():
         lip_ref_ratios = []
         lip_test_ratios = []
         lip_paths = session.get("lip_video_paths", {})
-        ref_video = lip_paths.get("ref")
         test_video = lip_paths.get("test")
         # 今回の録音で口の動画が届いたか。結果画面は、これが無いときに端末に残った
         # 前の動画を「あなた」として出さないよう、この値を見る（下の一時ファイル削除より前に調べる）
@@ -1689,19 +1583,14 @@ def _analyze_recording():
         reference_vectors = None
         ref_lip_times     = None   # 音映像同期分析用（Noneなら30fps仮定）
         test_lip_times    = None
-        # 優先順序: セッションにある ref 動画 -> 保存済み参照データ
+        # お手本の口形データは、単語の登録・お手本の録り直しで保存したもの
         if MEDIA_PIPE_AVAILABLE:
             try:
-                if ref_video and os.path.exists(ref_video):
-                    reference_vectors, lip_ref_ratios, ref_lip_times = _extract_lip_data_timed(ref_video)
-                else:
-                    # 保存済み参照をロード
-                    refs = load_lip_refs()
-                    saved = refs.get(word_id)
-                    if saved:
-                        reference_vectors = saved.get("vectors")
-                        lip_ref_ratios = saved.get("ratios", [])
-                        ref_lip_times  = saved.get("times")  # 旧データはNone
+                saved = load_lip_refs().get(word_id)
+                if saved:
+                    reference_vectors = saved.get("vectors")
+                    lip_ref_ratios = saved.get("ratios", [])
+                    ref_lip_times  = saved.get("times")  # 古い版で登録したお手本では None
 
                 if test_video and os.path.exists(test_video):
                     test_vectors, lip_test_ratios, test_lip_times = _extract_lip_data_timed(test_video)
@@ -1951,7 +1840,7 @@ def _analyze_recording():
             mora_scores  = []
             worst_mora   = None
 
-        # モーラ別スコアにかなラベルを付与（苦手音分析・クエスト判定用）
+        # モーラ別スコアにかなラベルを付与（苦手音分析用）
         mora_kana_scores: dict[str, float] = {}
         for m in mora_scores:
             try:
