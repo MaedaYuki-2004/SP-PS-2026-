@@ -44,7 +44,11 @@ from config import (
     WORD_ID_MEMO_PATH,
 )
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
-from core.vocab     import load_db, list_words, register_word, get_reading_for_julius, get_word, delete_word, update_word, update_word_tags, get_all_tags, update_word_note
+from core.vocab     import (
+    WordExists, active_words_db, archive_word, discard_new_word, find_same_words, get_all_tags,
+    get_reading_for_julius, get_word, list_archived_words, list_words, purge_word, register_word,
+    restore_word, update_word, update_word_note, update_word_tags,
+)
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
 from core.pitch     import comp, estimate_pitch_range, hz_to_semitone, length_arrange, praat_pitch, resample_to_10ms, scale, smooth
 from core.evaluate  import calc_total_score, calc_speaking_rate, calc_mora_scores
@@ -59,7 +63,7 @@ from core import accounts as acc
 from core import teacher
 from core import usercontext
 from core.workspace import current_workspace
-from core.library import current_library
+from core.library import current_library, reference_id
 from core.public_access import client_key, public_url, url_from_host
 from core import capacity, storage
 from core.capacity import ServerBusy, heavy_slot
@@ -1268,8 +1272,8 @@ def history_page():
     # 平均スコアが低い順（= 苦手順）に並べる
     accent_stats.sort(key=lambda x: x["avg_total"])
 
-    # ── 分析タブ用データ ─────────────────────────────────────────────
-    analysis_stats = compute_learning_stats(history, load_db())
+    # ── 分析タブ用データ（削除した単語の記録は「単語別スコア推移」と同じく除く） ──
+    analysis_stats = compute_learning_stats(history, active_words_db())
 
     return render_template("history.html",
                            history=history[:100], stats=stats,
@@ -1281,7 +1285,7 @@ def history_page():
 @app.route("/analysis")
 def analysis_page():
     history    = load_history()
-    stats      = compute_learning_stats(history, load_db())
+    stats      = compute_learning_stats(history, active_words_db())
     return render_template("analysis.html", stats=stats)
 
 @app.route("/lip_compare")
@@ -1326,8 +1330,9 @@ def export_history_csv():
     output  = io.StringIO()
     writer  = csv.writer(output)
     # 口と声の列は 2026-09-29 に追加。既存の列の位置を変えないよう末尾に置く（空欄＝点数に入れていない回）
+    # お手本ID は 2026-10-15 に追加（比べたお手本の識別子。録り直すと変わる。それより前の記録は空欄）
     writer.writerow(["日時","単語ID","単語","読み","合計点","アクセント","長さ","母音","グレード",
-                     "口と声の減点","口と声のばらつき(ms)"])
+                     "口と声の減点","口と声のばらつき(ms)","お手本ID"])
     for r in history:
         writer.writerow([
             (r.get("timestamp") or "")[:19].replace("T"," "),
@@ -1335,6 +1340,7 @@ def export_history_csv():
             r.get("total",""), r.get("accent_score",""), r.get("length_score",""),
             r.get("vowel_score",""), r.get("grade",""),
             r.get("sync_penalty",""), r.get("sync_spread_ms",""),
+            r.get("ref_id") or "",
         ])
     return Response("\ufeff" + output.getvalue(),
                     mimetype="text/csv; charset=utf-8",
@@ -2102,9 +2108,11 @@ def _analyze_recording():
             word_progress = None
 
         try:
-            save_record(word_id, display, reading, score_result, mora_scores=mora_scores)
+            # どのお手本（録音・音の区切り・録画）と比べた点数かを残す。録り直すと変わる
+            ref_id = reference_id(audio_sample, lab_sample, current_library().sample_video(word_id))
+            save_record(word_id, display, reading, score_result, mora_scores=mora_scores, ref_id=ref_id)
         except Exception:
-            pass
+            traceback.print_exc()
 
         suggestions = _get_suggestions(word_id, score_result, words_list)
 
@@ -2155,18 +2163,67 @@ def has_sample_video(word_id: str) -> bool:
     return current_library().sample_video(word_id).exists()
 
 
+# 単語の「削除」は一覧から外すだけで、ID・お手本・練習記録は残す（core/vocab.py）。
+# 同じ単語を削除して登録し直すと、記録が2つの ID に分かれ、比べたお手本も変わってしまうため。
+
 @app.route("/admin/delete_word", methods=["POST"])
 def api_delete_word():
     try:
         data    = request.get_json(force=True, silent=True) or {}
         word_id = data.get("word_id", "").strip()
         if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
-        return jsonify(delete_word(word_id))
+        return jsonify(archive_word(word_id))
     except ValueError as exc:
         # 自分の単語に無い ID（ほかの参加者の単語 ID を含む）など、入力の誤り
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:
         traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/admin/restore_word", methods=["POST"])
+def api_restore_word():
+    """削除した単語を元に戻す（同じ ID・同じお手本で、練習記録がつながる）。"""
+    try:
+        data    = request.get_json(force=True, silent=True) or {}
+        word_id = (data.get("word_id") or "").strip()
+        if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
+        return jsonify(restore_word(word_id))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/admin/purge_word", methods=["POST"])
+def api_purge_word():
+    """削除した単語を、お手本の録音・録画ごと完全に消す（先生モードだけ。練習記録がある単語は消さない）。"""
+    if not teacher.is_active(session):
+        return _teacher_denied()
+    teacher.activate(session)
+    try:
+        data    = request.get_json(force=True, silent=True) or {}
+        word_id = (data.get("word_id") or "").strip()
+        if not word_id: return jsonify({"error": "word_id が指定されていません"}), 400
+        result = purge_word(word_id)
+        refs = load_lip_refs()
+        if refs.pop(word_id, None) is not None:
+            save_lip_refs(refs)
+        return jsonify(result)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        traceback.print_exc(); return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/admin/check_word", methods=["POST"])
+def api_check_word():
+    """単語を追加する前に、同じ単語・似ている単語（削除した単語を含む）があるかを返す。"""
+    data    = request.get_json(force=True, silent=True) or {}
+    display = (data.get("display") or "").strip()
+    reading = (data.get("reading") or "").strip()
+    if not display or not reading:
+        return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
+    return jsonify(find_same_words(display, reading))
 
 
 @app.route("/admin/update_word", methods=["POST"])
@@ -2268,7 +2325,8 @@ def api_history_calendar():
 
 @app.route("/admin")
 def admin():
-    return render_template("admin.html", words=list_words(), stats=get_stats(), all_tags=get_all_tags())
+    return render_template("admin.html", words=list_words(), archived=list_archived_words(),
+                           stats=get_stats(), all_tags=get_all_tags())
 
 
 # ── 研究参加者アカウント管理（研究者用・ローカル運用前提） ───────────
@@ -2377,6 +2435,10 @@ def add_word():
             return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
         if not file:
             return jsonify({"error": "お手本の録画（動画）が必要です。単語登録とセットで録画してください。"}), 400
+        # 表示と読みが同じ単語（削除した単語を含む）は新しく作らない。削除した単語なら元に戻してもらう
+        same = find_same_words(display, reading)["exact"]
+        if same:
+            return jsonify({"error": str(WordExists(same[0])), "word": same[0]}), 409
 
         # 音声抽出 → 登録 → 口形データ保存（テキスト+動画をまとめて atomic に登録）
         video_tmp = _save_temp_video(file)
@@ -2388,6 +2450,8 @@ def add_word():
                 return jsonify({"error": "お手本の録画を読み込めませんでした。もう一度録画してください。"}), 400
             try:
                 result = register_word(display, reading, Path(ref_wav))
+            except WordExists as exc:
+                return jsonify({"error": str(exc), "word": exc.word}), 409
             finally:
                 try:
                     os.remove(ref_wav)
@@ -2402,7 +2466,7 @@ def add_word():
                 # （register_word 呼び出し元コメント参照）に反するため、
                 # 登録自体を取り消してユーザーに録り直しを促す。
                 try:
-                    delete_word(word_id)
+                    discard_new_word(word_id)
                 except Exception:
                     traceback.print_exc()
                 return jsonify({

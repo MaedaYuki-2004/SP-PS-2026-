@@ -69,7 +69,7 @@ def audio_mfcc(wav_file: str | Path) -> np.ndarray:
 def _load_all_words() -> list[dict]:
     """
     words_db.json から全単語を読み込む。
-    .bin ファイルが存在する単語のみ返す。
+    .bin ファイルが存在し、削除していない単語のみ返す（core/vocab.py の archived）。
     """
     import json
 
@@ -83,6 +83,8 @@ def _load_all_words() -> list[dict]:
 
     words = []
     for word_id, entry in db.items():
+        if entry.get("archived"):
+            continue
         bin_path = lib.mfcc_bin(word_id)
         if bin_path.exists() and bin_path.stat().st_size > 0:
             words.append({

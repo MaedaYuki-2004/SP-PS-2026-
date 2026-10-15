@@ -21,6 +21,7 @@ core/library.py
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -93,3 +94,23 @@ def current_library() -> Library:
     """ログイン中の参加者の単語とお手本。未ログインなら共有の場所。"""
     uid = usercontext.current_user()
     return library_for(uid) if uid else SHARED_LIBRARY
+
+
+def reference_id(*paths: Path | str) -> str | None:
+    """お手本のファイル（録音の wav・音の区切りの lab・録画の webm）の中身から作る短い識別子。
+
+    練習記録（history.json の ref_id）に残し、どのお手本と比べた点数かを分析で分けられるようにする。
+    お手本を録り直す・音の区切りを作り直すと変わり、削除した単語を元に戻すと同じ値に戻る。
+    ファイルが1つも無いときは None。
+    """
+    digest = hashlib.sha1()
+    found = False
+    for p in paths:
+        try:
+            data = Path(p).read_bytes()
+            found = True
+        except OSError:
+            data = b""
+        digest.update(len(data).to_bytes(8, "big"))
+        digest.update(data)
+    return digest.hexdigest()[:12] if found else None

@@ -351,11 +351,14 @@ def save_record(
     reading:      str,
     score_result: dict,
     mora_scores:  list[dict] | None = None,
+    ref_id:       str | None = None,
 ) -> dict:
     """スコア結果を履歴の先頭に追加して保存する。
 
     mora_scores はモーラ別スコア（苦手音分析用）。
     [{kana, accent, length, vowel, total}] の圧縮形で保存する。
+    ref_id は比べたお手本の識別子（core/library.py の reference_id()。2026-10-15 から）。
+    同じ単語でもお手本を録り直すと変わるので、分析ではお手本ごとに分けられる。
     """
     record = {
         "id":           f"rec_{time.time_ns()}",
@@ -372,6 +375,7 @@ def save_record(
         "sync_spread_ms": score_result.get("sync_spread_ms"),
         "grade":        score_result.get("grade"),
         "accent_label": score_result.get("accent_label"),
+        "ref_id":       ref_id,
     }
     if mora_scores:
         compact = []

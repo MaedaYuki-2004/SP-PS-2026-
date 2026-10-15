@@ -77,6 +77,8 @@
     .action-del  { background:transparent; color:var(--danger); border-color:var(--danger); }
     .action-del:hover  { background:var(--danger); color:#fff; box-shadow:none; }
     .action-del.del-pending { background:var(--rec) !important; color:#fff !important; }
+    .archived-section { margin-top:28px; }
+    .archived-note { font-size:12px; color:var(--text-2); line-height:1.7; margin:0 0 12px; max-width:68ch; }
     .modal-overlay { display:none; position:fixed; inset:0; background:rgba(10,10,14,.45); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
     .modal-overlay.show { display:flex; }
     .modal-box { background:var(--bg-card); border-radius:var(--r-lg); padding:26px; width:90%; max-width:420px; box-shadow:var(--shadow-lg); }
@@ -114,7 +116,7 @@
   })();
 </script>
 <div class="page-header">
-  <div><div class="page-header-title">単語管理</div><div class="page-header-sub">単語の追加・編集・削除（追加時は参照動画が必要）</div></div>
+  <div><div class="page-header-title">単語管理</div><div class="page-header-sub">単語の追加・編集・削除（追加時は参照動画が必要。削除した単語は下の一覧から元に戻せます）</div></div>
 </div>
 <div class="main">
   <div class="stats-row">
@@ -176,6 +178,38 @@
       </tbody>
     </table>
   </div>
+
+  {% if archived %}
+  {# 削除した単語。削除は一覧から外すだけで、練習の記録とお手本は残す（core/vocab.py） #}
+  <div class="archived-section">
+    <div class="tbl-header"><span class="tbl-title">削除した単語（{{ archived|length }} 語）</span></div>
+    <p class="archived-note">
+      削除した単語は練習の一覧に出ませんが、練習の記録とお手本の録画は残っています。
+      「元に戻す」と、同じ単語として前の記録の続きから練習できます。
+      {% if is_teacher %}練習の記録が無い単語（打ち間違えて登録した単語など）は、「完全に消す」でお手本の録画ごと消せます。{% endif %}
+    </p>
+    <div class="word-table-wrap">
+      <table class="word-table" id="archivedTable">
+        <thead><tr><th>ID</th><th>単語</th><th>読み</th><th>削除した日</th><th>練習の記録</th><th>操作</th></tr></thead>
+        <tbody>
+          {% for w in archived %}
+          <tr>
+            <td class="tbl-id">{{ w.word_id }}</td>
+            <td class="tbl-word">{{ w.display }}</td>
+            <td><span style="font-family:var(--mono);font-size:11px;">{{ w.reading }}</span></td>
+            <td><span style="font-family:var(--mono);font-size:11px;">{{ (w.archived_at or '')[:10] }}</span></td>
+            <td>{{ w.records }} 回</td>
+            <td><div class="action-row">
+              <button class="action-btn action-edit" onclick='restoreWord({{ w.word_id|tojson }}, this)'>元に戻す</button>
+              {% if is_teacher and not w.records %}<button class="action-btn action-del" onclick='purgeWord({{ w.word_id|tojson }}, this)'>完全に消す</button>{% endif %}
+            </div></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 <div class="modal-overlay" id="editModal">
@@ -261,11 +295,43 @@ function onFileSelect(input) {
 }
 
 // ── 単語登録 ─────────────────────────────────────────────────────────
+// 同じ単語を2つ作ると練習の記録が分かれるので、追加の前に同じ単語・似ている単語を確かめる。
+// 似ている単語（読みだけ・表示だけが同じ）は別の語のこともあるので、もう一度「追加」を押せば追加できる
+let _similarConfirmed = '';
+['inputDisplay', 'inputReading'].forEach(id => document.getElementById(id).addEventListener('input', () => { _similarConfirmed = ''; }));
+
+function _wordName(w) { return `「${w.display}」（${w.reading}）`; }
+
+async function checkSameWord(display, reading) {
+  const res = await fetch('/admin/check_word', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({display, reading}) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || '確認できませんでした');
+  const exact = data.exact[0];
+  if (exact) {
+    return exact.archived
+      ? `前に削除した${_wordName(exact)}があります。新しく追加せずに、下の「削除した単語」から元に戻してください（練習の記録がつながります）。`
+      : `${_wordName(exact)}はもう登録されています。`;
+  }
+  const key = display + '\n' + reading;
+  if (data.similar.length && _similarConfirmed !== key) {
+    _similarConfirmed = key;
+    const list = data.similar.map(w => _wordName(w) + (w.archived ? '（削除した単語）' : '')).join('、');
+    return `よく似た単語があります：${list}。同じ単語なら、新しく追加しないでください（記録が分かれます）。別の単語なら、もう一度「追加」を押してください。`;
+  }
+  return null;
+}
+
 async function registerWord() {
   const display = document.getElementById('inputDisplay').value.trim();
   const reading = document.getElementById('inputReading').value.trim();
   if (!display || !reading) { showError('表示テキストとひらがな読みを入力してください。'); return; }
   if (!adminBlob) { showError('お手本を録画（または「またはファイルを選択」）してから「追加」してください。'); return; }
+  try {
+    const problem = await checkSameWord(display, reading);
+    if (problem) { hideAll(); showError(problem); return; }
+  } catch (e) {
+    hideAll(); showError(`確認できませんでした: ${e.message}`); return;
+  }
 
   hideAll();
   document.getElementById('statusLoading').classList.add('show');
@@ -324,6 +390,34 @@ async function deleteWord(id,display,btn){
   }
   clearTimeout(_adminDelTimer);btn.classList.remove('del-pending');btn.textContent='削除';_adminDelPending=null;
   try{const res=await fetch('/admin/delete_word',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word_id:id})});const data=await res.json();if(res.ok){location.reload();}else{alert('エラー: '+(data.error||'削除失敗'));}}catch(e){alert('通信エラー: '+e.message);}
+}
+// ── 削除した単語：元に戻す・完全に消す ─────────────────────────────
+async function restoreWord(id, btn) {
+  btn.disabled = true;
+  try {
+    const res = await fetch('/admin/restore_word', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({word_id:id}) });
+    const data = await res.json();
+    if (res.ok) { location.reload(); } else { alert('エラー: ' + (data.error || '元に戻せませんでした')); btn.disabled = false; }
+  } catch (e) { alert('通信エラー: ' + e.message); btn.disabled = false; }
+}
+let _purgePending = null, _purgeTimer = null;
+async function purgeWord(id, btn) {
+  if (_purgePending !== id) {
+    clearTimeout(_purgeTimer);
+    const prev = document.querySelector('#archivedTable .action-del.del-pending');
+    if (prev) { prev.classList.remove('del-pending'); prev.textContent = '完全に消す'; }
+    _purgePending = id;
+    btn.classList.add('del-pending'); btn.textContent = '確認？';
+    _purgeTimer = setTimeout(() => { btn.classList.remove('del-pending'); btn.textContent = '完全に消す'; _purgePending = null; }, 2500);
+    return;
+  }
+  clearTimeout(_purgeTimer); _purgePending = null;
+  btn.disabled = true;
+  try {
+    const res = await fetch('/admin/purge_word', { method:'POST', headers:{'Content-Type':'application/json', 'Accept':'application/json'}, body:JSON.stringify({word_id:id}) });
+    const data = await res.json();
+    if (res.ok) { location.reload(); } else { alert('エラー: ' + (data.error || '消せませんでした')); btn.disabled = false; }
+  } catch (e) { alert('通信エラー: ' + e.message); btn.disabled = false; }
 }
 // ── タグ入力UI ────────────────────────────────────────────
 let _editTags = [];

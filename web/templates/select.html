@@ -305,6 +305,10 @@
     .aw-input { font-family:var(--font); font-size:13px; padding:10px 14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); color:var(--text); transition:border-color var(--dur),box-shadow var(--dur); }
     .aw-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(91,75,234,.14); }
     .aw-status { font-size:12px; min-height:18px; }
+    .aw-match { display:grid; gap:10px; padding:12px 14px; border-radius:10px; background:var(--bg-muted); }
+    .aw-match[hidden] { display:none; }
+    .aw-match-text { margin:0; font-size:12.5px; line-height:1.7; color:var(--text-2); }
+    .aw-match-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .aw-status.ok  { color:var(--good); }
     .aw-status.err { color:var(--danger); }
     .aw-status.loading { color:var(--text-3); }
@@ -938,6 +942,11 @@ document.getElementById('btnContinuous')?.addEventListener('click', () => {
         </div>
       </div>
       <div class="aw-status" id="awStatus1"></div>
+      <!-- 同じ単語・似ている単語があったときの案内（/admin/check_word の結果） -->
+      <div class="aw-match" id="awMatch" role="status" hidden>
+        <p class="aw-match-text" id="awMatchText"></p>
+        <div class="aw-match-actions" id="awMatchActions"></div>
+      </div>
       <div class="aw-actions">
         <button class="aw-btn-primary" id="awRegisterBtn">次へ（お手本録画） →</button>
         <button class="aw-btn-secondary" id="awCloseBtn1">閉じる</button>
@@ -1087,6 +1096,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
     displayInp.value = '';
     readingInp.value = '';
     setStatus1('', '');
+    hideMatch();
     registerBtn.disabled = false;
     recordBtn.disabled = true;
     backBtn.disabled = false;
@@ -1118,11 +1128,95 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
   // Step1 は入力チェックのみ。実際の単語登録は Step2 の録画完了時に
   // テキスト+動画をまとめて /admin/add_word に送信して行う
   // （録画なしの単語が作られないようにするため）。
-  registerBtn.addEventListener('click', function () {
+  // 同じ単語を2つ作ると練習の記録が分かれるので、先に同じ単語・似ている単語（削除した単語を含む）を確かめる
+  const matchBox     = document.getElementById('awMatch');
+  const matchText    = document.getElementById('awMatchText');
+  const matchActions = document.getElementById('awMatchActions');
+
+  function hideMatch() {
+    matchBox.hidden = true;
+    matchActions.replaceChildren();
+  }
+
+  function showMatch(text, buttons) {
+    matchText.textContent = text;
+    matchActions.replaceChildren(...buttons.map(function (b) {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = b.primary ? 'aw-btn-primary' : 'aw-btn-secondary';
+      el.textContent = b.label;
+      el.addEventListener('click', b.onClick);
+      return el;
+    }));
+    matchBox.hidden = false;
+  }
+
+  function wordName(w) { return `「${w.display}」（${w.reading}）`; }
+
+  [displayInp, readingInp].forEach(function (el) {
+    el.addEventListener('input', function () { hideMatch(); setStatus1('', ''); });
+  });
+
+  async function restoreFromModal(w) {
+    setStatus1('元に戻しています…', 'loading');
+    try {
+      const res = await fetch('/admin/restore_word', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word_id: w.word_id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '元に戻せませんでした');
+      hideMatch();
+      setStatus1('', '');
+      goToStep3(`「${w.display}」を元に戻しました（前の練習の記録とお手本がそのまま使えます）`);
+    } catch (err) {
+      setStatus1('エラー: ' + err.message, 'err');
+    }
+  }
+
+  registerBtn.addEventListener('click', async function () {
     const display = displayInp.value.trim();
     const reading = readingInp.value.trim();
     if (!display || !reading) { setStatus1('表示テキストと読みの両方を入力してください。', 'err'); return; }
+    hideMatch();
+    setStatus1('確認しています…', 'loading');
+    registerBtn.disabled = true;
+    let same;
+    try {
+      const res = await fetch('/admin/check_word', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display: display, reading: reading }),
+      });
+      same = await res.json();
+      if (!res.ok) throw new Error(same.error || '確認できませんでした');
+    } catch (err) {
+      setStatus1('エラー: ' + err.message, 'err');
+      return;
+    } finally {
+      registerBtn.disabled = false;
+    }
     setStatus1('', '');
+    const exact = same.exact[0];
+    if (exact && !exact.archived) {
+      setStatus1(`${wordName(exact)}はもう登録されています。`, 'err');
+      return;
+    }
+    if (exact) {
+      showMatch(`前に削除した${wordName(exact)}があります（練習の記録 ${exact.records} 回）。`
+        + '新しく追加せずに元に戻すと、前の記録とお手本の録画がそのまま使えます。'
+        + 'お手本を録り直したいときは、戻したあとで単語の「お手本を録り直す」を押してください。',
+        [{ label: '元に戻す', primary: true, onClick: function () { restoreFromModal(exact); } }]);
+      return;
+    }
+    if (same.similar.length) {
+      const list = same.similar.map(function (w) { return wordName(w) + (w.archived ? '（削除した単語）' : ''); }).join('、');
+      const buttons = same.similar.filter(function (w) { return w.archived; }).slice(0, 2).map(function (w) {
+        return { label: `${wordName(w)}を元に戻す`, onClick: function () { restoreFromModal(w); } };
+      });
+      buttons.push({ label: '別の単語として追加する', primary: true, onClick: function () { hideMatch(); goToStep2(); } });
+      showMatch(`よく似た単語があります：${list}。同じ単語なら、新しく追加しないでください（練習の記録が分かれます）。`, buttons);
+      return;
+    }
     goToStep2();
   });
 
@@ -1175,7 +1269,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
     if (reload) location.reload();
   }
 
-  function goToStep3() {
+  function goToStep3(title) {
     stopAwCamera();
     addedCount++;
     pane1.style.display = 'none';
@@ -1183,7 +1277,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
     pane3.style.display = '';
     ind1.className = 'aw-step done';
     ind2.className = 'aw-step done';
-    doneTitle.textContent = `「${displayInp.value.trim()}」を追加しました（お手本つき）`;
+    doneTitle.textContent = title || `「${displayInp.value.trim()}」を追加しました（お手本つき）`;
     doneCount.textContent = `これまでに ${addedCount} 件 追加しました`;
     awRecorder = null;
     awChunks = [];
@@ -1247,7 +1341,11 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
       if (!res.ok) throw new Error(data.error || '登録に失敗しました');
       newWordId = data.word_id;
       status2.textContent = '✓ 登録しました！';
-      setTimeout(function () { goToStep3(); }, 700);
+      // 以前の版で完全に消した同じ単語なら、練習記録に残る前の ID で登録される（core/vocab.py）
+      const title = data.reused
+        ? `「${displayInp.value.trim()}」を追加しました（前に練習した記録とつなげました）`
+        : '';
+      setTimeout(function () { goToStep3(title); }, 700);
     } catch (err) {
       status2.textContent = 'エラー: ' + err.message;
       backBtn.disabled = false;

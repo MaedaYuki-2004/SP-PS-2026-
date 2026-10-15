@@ -77,7 +77,9 @@ def _build_steps(words: list[dict]) -> list[dict]:
 
     # ── 1. 復習（間隔反復） ─────────────────────────────
     try:
-        sr = get_spaced_repetition_candidates(min_days=3.0, max_score=85.0, limit=1)
+        # 削除した単語の記録も候補に入るので、一覧にある単語から選ぶ
+        sr = [c for c in get_spaced_repetition_candidates(min_days=3.0, max_score=85.0, limit=20)
+              if c["word_id"] in word_map]
         if sr:
             wid = sr[0]["word_id"]
             if wid in word_map:
