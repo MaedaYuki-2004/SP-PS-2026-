@@ -366,7 +366,7 @@ h1, h2, h3 { font-weight: 700; letter-spacing: 0; }
         <li>お子さんの<b>利用者ID</b>（学校から配られます）</li>
         <li>SP-PS の<b>QRコード</b>または<b>URL</b>（表紙の記入欄）</li>
       </ul>
-      <div class="note"><svg aria-hidden="true"><use href="#i-bulb"/></svg><p><span class="lab">開き方</span>QRコードをスマートフォンのカメラで読み取り、表示されたURLを開きます。必ず <b>https://</b> で始まるURLから開いてください。https 以外で開くと、ブラウザの決まりにより、マイクとカメラが使えません。</p></div>
+      <div class="note"><svg aria-hidden="true"><use href="#i-bulb"/></svg><p><span class="lab">開き方</span>QRコードをスマートフォンのカメラで読み取り、表示されたURLを開きます。必ず <b>https://</b> で始まるURLから開いてください。https 以外で開くと、ブラウザの決まりで、マイクとカメラが使えません。LINE などのアプリ内でも使えないことがあります。</p></div>
       <div class="note warn"><svg aria-hidden="true"><use href="#i-alert"/></svg><p><span class="lab">使える時間</span>SP-PS は、担当者が管理するパソコンをサーバーにして動いています。そのパソコンが止まっているあいだは、ページが開きません。使える時間は、学校からのお知らせをご確認ください。</p></div>
     </div>
   </article>
@@ -435,11 +435,25 @@ h1, h2, h3 { font-weight: 700; letter-spacing: 0; }
   </article>
 
   <article class="step">
+    <figure class="phone"><div class="screen"><img src="img/p_aw_match.jpg" width="640" height="1385" alt="新しい単語を追加の画面。前に削除した「温度」（おんど）があります（練習の記録6回）という案内と、元に戻す のボタン。"></div></figure>
+    <div class="step-text">
+      <h3>同じ単語・よく似た単語があるとき</h3>
+      <p><span class="ui">次へ（お手本録画） →</span>を押すと、同じ単語がないかを確かめます。練習の記録が2つに分かれないよう、同じ単語は新しく追加できません。</p>
+      <ul class="tips">
+        <li><b>「○○はもう登録されています。」と出たとき</b>：単語の一覧にあります。新しく追加する必要はありません。</li>
+        <li><b>「前に削除した○○があります」と出たとき</b>：<span class="ui">元に戻す</span>を押すと、前の練習の記録とお手本の録画のまま、一覧に戻ります。お手本を録り直したいときは、戻したあとで<span class="ui">お手本を録り直す</span>を使ってください。</li>
+        <li><b>「よく似た単語があります」と出たとき</b>：読みだけ、または書き方だけが同じ単語があります。同じ単語なら追加しないでください。「橋」と「箸」のような別の単語なら、<span class="ui">別の単語として追加する</span>を押して進みます。</li>
+      </ul>
+    </div>
+  </article>
+
+  <article class="step">
     <figure class="phone"><div class="screen"><img src="img/p_aw_step2.jpg" width="640" height="1385" alt="お手本を録画の画面。カメラの映像に点線の枠、MIC のバー、準備完了のメッセージ、録画開始（3秒）のボタン。"></div></figure>
     <div class="step-text">
       <h3><span class="sn">3</span>カメラとマイクを確かめる</h3>
       <p>カメラが起動します。顔を点線の枠に合わせ、「準備完了。『録画開始』を押してください。」と表示されたら準備ができています。</p>
       <p>声を出したときに、<b>MIC</b> のバーが動くことも確かめてください。動かないときは、マイクが音を拾えていません。</p>
+      <p>カメラが使えないときは、画面に原因と直し方が表示されます（10章も見てください）。</p>
     </div>
   </article>
 
@@ -589,9 +603,10 @@ h1, h2, h3 { font-weight: 700; letter-spacing: 0; }
         <h3><i>保存</i>保存されるもの</h3>
         <ul>
           <li><b>利用者ID とパスワード</b>パスワードは元に戻せない形に変換して保存します。</li>
+          <li><b>学年と聞こえの程度</b>学校や研究の担当者が、区分（中学部・高等部、難聴の程度）で入力します。検査の数値などは保存しません。</li>
           <li><b>練習した日時と単語</b></li>
           <li><b>点数</b>合計点、高さ・長さ・口の形の点数、音ごとの点数、口と声のずれの大きさ（数値）。</li>
-          <li><b>登録したお手本</b>ご家族や先生が録画したお手本の動画と声、そこから作った口の形のデータ。練習のたびに再生するため保存します。</li>
+          <li><b>登録したお手本</b>ご家族や先生が録画したお手本の動画と声、そこから作った口の形のデータ。練習のたびに再生するため保存します。単語を削除しても、元に戻せるように残ります（消したいときは、担当の先生にご相談ください）。</li>
         </ul>
       </section>
       <section class="gone">
@@ -627,6 +642,14 @@ h1, h2, h3 { font-weight: 700; letter-spacing: 0; }
         <div class="cap"><b>Android（Chrome）</b><ol><li>アドレスバーの左の鍵のマークを押す</li><li>「権限」（または「サイトの設定」）を押す</li><li>「マイク」と「カメラ」を「許可」にする</li><li>「もう一度ためす」を押す</li></ol></div></figure>
     </div>
     <p>それでも使えないときは、ほかのアプリがマイクを使っていないか確かめてください。</p>
+  </div>
+
+  <div class="qa">
+    <h3>iPhone の Chrome や、LINE から開いている</h3>
+    <ul>
+      <li><b>iPhone で Chrome をお使いのとき</b>：iPhone の「設定」→「アプリ」→「Chrome」で、カメラとマイクをオンにしてから、ページを読み込み直してください。</li>
+      <li><b>LINE などのアプリから開いたとき</b>：アプリの中では、カメラが使えないことがあります。右上（または右下）のメニューから、Safari（Android は Chrome）で開き直してください。</li>
+    </ul>
   </div>
 
   <div class="qa">
