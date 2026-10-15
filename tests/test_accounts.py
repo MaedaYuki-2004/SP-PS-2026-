@@ -4,9 +4,10 @@ from pathlib import Path
 from unittest import mock
 
 from core import accounts as acc
+from core import storage
 
 
-class AccountDeletionTests(unittest.TestCase):
+class TempDataTestCase(unittest.TestCase):
     def setUp(self):
         # 実際の data/ に触れないよう、アカウントとデータの置き場所を一時フォルダへ向ける
         tmp = tempfile.TemporaryDirectory()
@@ -19,6 +20,8 @@ class AccountDeletionTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
+
+class AccountDeletionTests(TempDataTestCase):
     def test_delete_removes_participant_data(self):
         # 参加をやめた人のデータ（練習記録・お手本の録画など）はアカウントと一緒に消す（倫理審査資料 §7.1）
         acc.create_account("A01")
@@ -40,6 +43,37 @@ class AccountDeletionTests(unittest.TestCase):
         acc.create_account("A03")
         with self.assertRaises(ValueError):
             acc.create_account("a03")
+
+
+class LockScopeTests(TempDataTestCase):
+    """パスワードの照合（scrypt、0.1秒ほど）は、アカウントのロックの外で行う。
+
+    ロックの中で行うと、授業の始めに全員が同時にログインしたとき、1人ずつ順番に待たされる。
+    """
+
+    def _spy_lock_held_while_checking(self):
+        held = []
+        real = acc.check_password_hash
+
+        def spy(pwhash, password):
+            try:
+                with storage.lock("accounts", timeout=0):
+                    held.append(False)
+            except storage.LockTimeout:
+                held.append(True)
+            return real(pwhash, password)
+        patcher = mock.patch("core.accounts.check_password_hash", spy)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return held
+
+    def test_login_checks_password_outside_lock(self):
+        acc.create_account("A01")
+        acc.complete_first_login("A01", "abcdef1")
+        held = self._spy_lock_held_while_checking()
+        self.assertIsNotNone(acc.verify_login("A01", "abcdef1"))
+        self.assertIsNone(acc.verify_login("A01", "wrong-pass"))
+        self.assertEqual(held, [False, False])
 
 
 if __name__ == "__main__":

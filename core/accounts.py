@@ -311,7 +311,6 @@ def complete_first_login(user_id: str, password: str) -> dict:
     return _sanitize(acc)
 
 
-@_exclusive
 def verify_login(user_id: str, password: str) -> dict | None:
     """ID とパスワードを検証する。成功で表示用アカウント、失敗で None。"""
     acc = get_account(user_id)
