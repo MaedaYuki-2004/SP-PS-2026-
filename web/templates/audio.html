@@ -205,6 +205,7 @@
                              color:var(--navy); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
     .perm-steps b { font-weight:700; }
     .perm-note { margin-top:12px; font-size:13px; line-height:1.7; color:var(--text-3); }
+    .perm-inapp { margin:0 0 12px; padding:12px 14px; border-radius:14px; background:var(--bg-muted); font-size:14px; line-height:1.7; font-weight:700; color:var(--text); }
     .perm-retry { width:100%; min-height:54px; margin-top:14px; border:none; border-radius:16px; background:var(--grad-brand); box-shadow:var(--shadow-brand); color:#fff;
                   font-family:var(--font); font-size:16px; font-weight:700; cursor:pointer; }
 
@@ -708,6 +709,7 @@
     <div class="sheet-panel" role="dialog" aria-label="マイクとカメラの直し方">
       <div class="sheet-grip"></div>
       <div class="sheet-title">マイクとカメラを使えるようにする</div>
+      <p class="perm-inapp" id="permInApp" hidden>LINE などのアプリの中で開いていると、マイクとカメラが使えないことがあります。右上（または右下）のメニューから、Safari（Android は Chrome）で開き直してください。</p>
       <div class="seg perm-os" id="permOs">
         <button type="button" data-os="ios">iPhone</button>
         <button type="button" data-os="android">Android</button>
@@ -718,6 +720,12 @@
         <li><span><b>「Webサイトの設定」</b> を押す</span></li>
         <li><span><b>「マイク」</b> と <b>「カメラ」</b> を <b>「許可」</b> にする</span></li>
         <li><span>下の <b>「もう一度ためす」</b> を押す</span></li>
+      </ol>
+      <ol class="perm-steps" data-os="ios-chrome" hidden>
+        <li><span>iPhone の <b>「設定」</b> を開く</span></li>
+        <li><span><b>「アプリ」</b> → <b>「Chrome」</b> を押す</span></li>
+        <li><span><b>「カメラ」</b> と <b>「マイク」</b> を <b>オン</b> にする</span></li>
+        <li><span>SP-PS にもどって、下の <b>「もう一度ためす」</b> を押す</span></li>
       </ol>
       <ol class="perm-steps" data-os="android" hidden>
         <li><span>アドレスバーの左にある <b>鍵のマーク</b> を押す</span></li>
@@ -799,10 +807,19 @@
     const seg = document.getElementById('permOs');
     if (!seg) return;
     const ua = navigator.userAgent;
-    const os = /iPhone|iPad|iPod/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : 'pc';
+    // 判定は単語の追加などで使う camera_error.js と同じ（iPad は Mac の名前で名乗ることがある）
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const os = isIOS ? 'ios' : /Android/.test(ua) ? 'android' : 'pc';
+    // iPhone の Chrome には Safari の「ぁあ」の画面が無く、iPhone の設定で許可する
+    const iosChrome = isIOS && /CriOS/.test(ua);
+    // LINE などのアプリの中のブラウザは、カメラとマイクを使わせないことが多い
+    if (/\bLine\/|Instagram|FBAN|FBAV|MicroMessenger|KAKAOTALK/i.test(ua)) {
+      document.getElementById('permInApp').hidden = false;
+    }
     function show(name) {
       seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.os === name));
-      document.querySelectorAll('.perm-steps').forEach(l => { l.hidden = l.dataset.os !== name; });
+      const list = (name === 'ios' && iosChrome) ? 'ios-chrome' : name;
+      document.querySelectorAll('.perm-steps').forEach(l => { l.hidden = l.dataset.os !== list; });
     }
     seg.addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.os); });
     show(os);
