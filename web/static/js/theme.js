@@ -13,6 +13,9 @@
  *     音が聞こえにくい人にとって「触ってわかる合図」は、画面を見ていなくても伝わる手がかり。
  *     録音の開始・停止やカウントダウンで短く震わせる（対応端末のみ。iPhone の Safari は非対応）。
  *     保存値 sp-ps-haptics : 'on' | 'off'（未保存は on）
+ * ・ページの移動のアニメーション（base.css の @view-transition）
+ *     移動が速く続いたときなどにブラウザがアニメーションを飛ばすと、「Transition was skipped」という
+ *     エラーが記録される。移動そのものは普通に終わるので、受け取って捨てる。
  */
 (function () {
   'use strict';
@@ -90,6 +93,19 @@
     success: function () { this.buzz([40, 60, 40, 60, 90]); },
     nope:    function () { this.buzz([90, 60, 90]); }
   };
+
+  // ── ページの移動のアニメーション ──
+  // 飛ばされたときに失敗で終わる約束（ready など）を受け取っておく。受け取らないと、
+  // だれも受け取らなかったエラーとして記録される（見た目には何も起きない）
+  function quietSkippedTransition(e) {
+    var vt = e.viewTransition;
+    if (!vt) return;
+    ['ready', 'finished', 'updateCallbackDone'].forEach(function (k) {
+      if (vt[k] && vt[k].catch) vt[k].catch(function () {});
+    });
+  }
+  window.addEventListener('pageswap', quietSkippedTransition);     // 古いページの側
+  window.addEventListener('pagereveal', quietSkippedTransition);   // 新しいページの側
 
   // ── 数字のカウントアップ・リングの伸び ──
   // 点数が「0 から増えて止まる」動きは、音の効果音の代わりに「結果が出た」ことを伝える。
