@@ -34,6 +34,13 @@ def public_url(value: str) -> str:
     return value.rstrip("/") + "/"
 
 
+def qr_target(url: str) -> str:
+    """QRコードに入れるURL。LINE のQRコードリーダーで読み取っても、LINE の中ではなく Safari・Chrome で
+    開くよう openExternalBrowser=1 を付ける（LINE の中のブラウザでは、マイク・カメラが使えないことがある）。
+    ほかのアプリ・ブラウザはこのクエリを使わず、サーバーもログイン画面へ転送するときに捨てる。"""
+    return public_url(url) + "?openExternalBrowser=1"
+
+
 def url_from_host(host: str) -> str:
     """今開いているホスト名から公開URLを作る。Tunnel 経由（ポート番号なしのドメイン名）のときだけ使える。"""
     host = (host or "").strip()

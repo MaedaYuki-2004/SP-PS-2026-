@@ -59,7 +59,7 @@ from core import teacher
 from core import usercontext
 from core.workspace import current_workspace
 from core.library import current_library, reference_id
-from core.public_access import client_key, public_url, url_from_host
+from core.public_access import client_key, public_url, qr_target, url_from_host
 from core import capacity, storage
 from core.capacity import ServerBusy, heavy_slot
 from core.ratelimit import FailureLimiter
@@ -2150,7 +2150,7 @@ def admin_access_qr():
         import qrcode
         import qrcode.image.svg
         # 外部のQRサービスにURLを送らず、ここでSVGを作る
-        qr_svg = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage,
+        qr_svg = qrcode.make(qr_target(url), image_factory=qrcode.image.svg.SvgPathImage,
                              box_size=10, border=2).to_string(encoding="unicode")
     return render_template("access_qr.html", url=url, qr_svg=qr_svg, error=error,
                            changing=".trycloudflare.com" in (url or ""))

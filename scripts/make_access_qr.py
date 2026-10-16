@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core.public_access import public_url
+from core.public_access import public_url, qr_target
 
 
 def main() -> int:
@@ -32,7 +32,7 @@ def main() -> int:
         print("出力ファイルが存在します。--outputで別のファイル名を指定してください。", file=sys.stderr)
         return 1
     qr = qrcode.QRCode(border=2)
-    qr.add_data(url)
+    qr.add_data(qr_target(url))   # LINE で読み取っても Safari・Chrome で開くように
     # SSH 接続でも読めるよう、ターミナルにも文字でQRを出す。
     # 背景が白か黒かはターミナルの設定で変わるので、色を指定して白地に黒で描く
     buf = io.StringIO()

@@ -44,7 +44,7 @@
   <div class="aq-err">{{ error }}</div>
   {% else %}
   <p class="aq-note">
-    下の枠の中だけが印刷されます。QRコードはこのMacの中で作っています（外部サービスにURLは送っていません）。
+    下の枠の中だけが印刷されます。QRコードはこのMacの中で作っています（外部サービスにURLは送っていません）。LINE で読み取っても Safari・Chrome で開くよう、QRコードのURLには「?openExternalBrowser=1」を付けています。
     {% if changing %}<br><span class="aq-warn">このURL（trycloudflare.com）はサーバーを起動し直すたびに変わります。
     起動し直したら、このページを開き直して印刷し直してください。前に配った紙は使えなくなります。</span>{% endif %}
   </p>

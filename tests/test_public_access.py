@@ -1,5 +1,5 @@
 import unittest
-from core.public_access import client_key, public_url, url_from_host
+from core.public_access import client_key, public_url, qr_target, url_from_host
 
 
 class PublicAccessTests(unittest.TestCase):
@@ -31,6 +31,12 @@ class PublicAccessTests(unittest.TestCase):
                       "192.168.1.4:5000", "[::1]:5000", "::1", "sp-ps.example.com:8443"]:
             with self.assertRaises(ValueError):
                 url_from_host(value)
+
+    def test_qr_target_opens_outside_line(self):
+        # LINE のQRコードリーダーで読み取っても、LINE の中ではなく Safari・Chrome で開く
+        self.assertEqual(qr_target("https://abc-def.trycloudflare.com/"),
+                         "https://abc-def.trycloudflare.com/?openExternalBrowser=1")
+        self.assertEqual(qr_target("https://example.com/sp-ps"), "https://example.com/sp-ps/?openExternalBrowser=1")
 
 
 if __name__ == "__main__":
