@@ -2363,7 +2363,7 @@ CLI スクリプトなどリクエストの外では `current_user()` が `None`
 
 | 項目 | 値 | 根拠 | 場所 |
 |------|----|------|------|
-| フォルマント推定 | Praat `To Formant (burg)`、刻み 5ms、窓 25ms、5 本、最大 5000Hz（上限推定 > 400Hz なら 5500Hz）、プリエンファシス 50Hz | 設計（本数・窓長・プリエンファシスは Praat の既定値、最大周波数は Praat マニュアルの男性 5000Hz / 女性 5500Hz の目安に倣う） | `core/formant.py` `extract_mora_formants()` |
+| フォルマント推定 | Praat `To Formant (burg)`、刻み 5ms、窓 25ms、5 本、最大 5000Hz（上限推定 > 400Hz なら 5500Hz）、プリエンファシス 50Hz | 設計（本数・窓長・プリエンファシスは Praat の既定値、最大周波数は Praat マニュアルの男性 5000Hz / 女性 5500Hz の目安に倣う） | `core/formant.py` `extract_mora_formants()`（最大周波数は `app.py` で選ぶ） |
 | 測定点 | モーラ区間の 30 / 50 / 70%、妥当な値（150 ≤ F1 ≤ 1200、400 ≤ F2 ≤ 3500、F2 > F1 + 150）の中央値 | 設計 | 同上 |
 | 尺度 | Bark = 26.81F / (1960 + F) − 0.53 | Traunmüller (1990) | `_hz_to_bark()` |
 | 距離 | √((ΔBark_F1 / 3)² + (ΔBark_F2 / 4)²) | 設計 | `vowel_distance()` |
