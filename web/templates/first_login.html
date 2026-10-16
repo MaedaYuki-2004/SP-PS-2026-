@@ -48,6 +48,7 @@
     .pw-wrap input { padding-right:78px !important; }
     .pw-toggle { position:absolute; right:7px; top:50%; transform:translateY(-50%); min-height:40px; padding:0 12px; border:none;
                  border-radius:12px; background:var(--bg-card); box-shadow:var(--elev-1); color:var(--text-2); font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; }
+    .back-link { display:inline-flex; align-items:center; min-height:48px; margin-top:6px; font-size:14px; font-weight:700; color:var(--navy); text-decoration:none; }
   </style>
 </head>
 <body>
@@ -58,13 +59,25 @@
     </div>
     <div class="auth-card">
       <div class="auth-title">はじめの設定</div>
-      <div class="auth-sub">ログイン用のパスワードを決めます。</div>
+      <div class="auth-sub">先生からもらった「はじめのコード」を入れて、ログイン用のパスワードを決めます。</div>
       <span class="id-chip">利用者ID：{{ user_id }}</span>
 
       {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
 
+      {% if not has_code %}
+      {# 10回まちがえてコードが消えたときは、上の「使えなくなりました」だけを出す #}
+      {% if not error %}<div class="auth-error">はじめのコードがまだ用意されていません。先生に伝えて、はじめのコードをもらってください。</div>{% endif %}
+      <a class="back-link" href="/login">ログインの画面にもどる</a>
+      {% else %}
       <form method="post" action="/first_login" autocomplete="off">
         <input type="hidden" name="user_id" value="{{ user_id }}">
+
+        <div class="field">
+          <label for="setup_code">はじめのコード</label>
+          <input type="text" id="setup_code" name="setup_code" required inputmode="numeric" autocomplete="one-time-code"
+                 maxlength="12" placeholder="6けたの数字">
+          <span class="hint">先生からもらった紙に書いてあります。</span>
+        </div>
 
         <div class="field">
           <label for="password">パスワード</label>
@@ -80,6 +93,7 @@
 
         <button type="submit" class="btn-primary">設定してはじめる</button>
       </form>
+      {% endif %}
     </div>
   </div>
   <script>

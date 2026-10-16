@@ -53,6 +53,14 @@
     .cell-actions { display:flex; gap:6px; flex-wrap:wrap; }
     .inline-form { display:flex; gap:6px; align-items:center; }
     .empty { color:var(--text-3); font-size:13px; padding:18px 4px; }
+    .code-state { display:block; font-size:11px; color:var(--text-3); margin-top:3px; }
+    /* 発行した「はじめのコード」。この画面を離れると二度と表示できないので、大きく目立たせる */
+    .issued { border:2px solid var(--navy); border-radius:var(--r); background:var(--bg-card); padding:18px 22px; margin-bottom:22px; }
+    .issued-head { font-size:13px; font-weight:700; color:var(--navy); margin-bottom:10px; }
+    .issued-row { display:flex; gap:28px; flex-wrap:wrap; align-items:baseline; }
+    .issued-label { font-size:11px; font-weight:700; color:var(--text-3); }
+    .issued-value { font-family:var(--mono); font-size:30px; font-weight:700; letter-spacing:.12em; color:var(--text); }
+    .issued-note { font-size:12px; color:var(--text-2); line-height:1.7; margin-top:10px; }
   </style>
 </head>
 <body>
@@ -71,11 +79,26 @@
   <div class="main">
     {% if error %}<div class="err">{{ error }}</div>{% endif %}
 
+    {% if issued %}
+    <div class="issued" role="status">
+      <div class="issued-head">{{ issued.reason }}。はじめのコードを本人に渡してください</div>
+      <div class="issued-row">
+        <div><div class="issued-label">利用者ID</div><div class="issued-value">{{ issued.user_id }}</div></div>
+        <div><div class="issued-label">はじめのコード</div><div class="issued-value">{{ issued.code }}</div></div>
+      </div>
+      <p class="issued-note">
+        このコードは、この画面を離れると二度と表示できません。紙に書いて、利用者IDと一緒に本人へ渡してください。<br>
+        本人ははじめてログインするときに、このコードを入れてからパスワードを決めます。コードは1回使うと消えます。なくしたときは、下の表の「コードを発行し直す」で新しいコードを作れます（前のコードは使えなくなります）。
+      </p>
+    </div>
+    {% endif %}
+
     <div class="card">
       <div class="card-title">新しい参加者を登録</div>
       <p class="ethics-note">
         利用者IDは研究者が割り当てます（例：A01, A02）。氏名・あだ名は入れないでください。<br>
-        学年と聴覚障害の程度は調査票の内容をここで入力します。パスワードは参加者本人が初回ログイン時に設定します。
+        学年と聴覚障害の程度は調査票の内容をここで入力します。パスワードは参加者本人が初回ログイン時に設定します。<br>
+        登録すると「はじめのコード」（6けたの数字）が表示されます。本人は初回ログインでこのコードを入れてから、パスワードを決めます（利用者IDを知っているだけの人が、先にパスワードを決められないようにするため）。
       </p>
       <form class="row-form" method="post" action="/admin/accounts/create" autocomplete="off">
         <div class="fld">
@@ -139,15 +162,23 @@
             </td>
             <td>
               {% if a.password_set %}<span class="pw-set">設定済み</span>
-              {% else %}<span class="pw-unset">未設定</span>{% endif %}
+              {% else %}<span class="pw-unset">未設定</span>
+              <span class="code-state">{% if a.setup_code_issued %}はじめのコード：発行済み（{{ (a.setup_code_issued_at or '')[5:10] | replace('-', '/') }}）{% else %}はじめのコード：まだ無い{% endif %}</span>
+              {% endif %}
             </td>
             <td>
               <div class="cell-actions">
                 {% if a.password_set %}
                 <form method="post" action="/admin/accounts/clear_password"
-                      onsubmit="return confirm('{{ a.user_id }} のパスワードを未設定に戻します。次回ログインで参加者が再設定します。よろしいですか？');">
+                      onsubmit="return confirm('{{ a.user_id }} のパスワードを未設定に戻し、新しいはじめのコードを発行します。本人はそのコードでパスワードを決め直します（練習の記録は消えません）。よろしいですか？');">
                   <input type="hidden" name="user_id" value="{{ a.user_id }}">
                   <button type="submit" class="btn btn-ghost">パスワード初期化</button>
+                </form>
+                {% else %}
+                <form method="post" action="/admin/accounts/issue_code"
+                      {% if a.setup_code_issued %}onsubmit="return confirm('{{ a.user_id }} のはじめのコードを作り直します。前に渡したコードは使えなくなります。よろしいですか？');"{% endif %}>
+                  <input type="hidden" name="user_id" value="{{ a.user_id }}">
+                  <button type="submit" class="btn btn-ghost">{{ 'コードを発行し直す' if a.setup_code_issued else 'コードを発行' }}</button>
                 </form>
                 {% endif %}
                 <form method="post" action="/admin/accounts/delete"

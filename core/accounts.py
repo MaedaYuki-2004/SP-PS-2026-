@@ -6,6 +6,8 @@ core/accounts.py
   - §6.1  利用者 ID は研究者が割り当てる（A01, A02 ...）。本人は自由入力しない。
   - §6.1  パスワードは本人が初回ログイン時に設定し、ハッシュ化して保存する
           （werkzeug、平文は保持しない）。
+          初回ログインでは、先生が渡す「はじめのコード」（6けたの数字）を確かめる。利用者 ID を
+          知っているだけの別の人が、先にパスワードを決めてしまわないようにするため。
   - §5.1#6 学年（grade）は学部単位（中学部・高等部）に丸めて保持する。
   - §5.3  聴覚障害の程度（hearing_level）は要配慮個人情報のため、
           dB 値などの詳細は持たず区分に丸めて保持する。
@@ -19,6 +21,9 @@ accounts.json の構造:
     "user_id":       "A01",
     "password_hash": "scrypt:...",           # 未設定時は null
     "password_set":  true,
+    "setup_code_hash":      "scrypt:...",    # はじめのコード（パスワード未設定の間だけ。平文は持たない）
+    "setup_code_issued_at": "2026-08-31T12:00:00",
+    "setup_code_failures":  0,               # まちがえた回数（SETUP_CODE_MAX_FAILURES で使えなくなる）
     "profile": {
       "grade":         "junior",
       "hearing_level": "moderate"
@@ -33,7 +38,9 @@ from __future__ import annotations
 import functools
 import json
 import re
+import secrets
 import shutil
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -52,6 +59,12 @@ USER_ID_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 
 MIN_PASSWORD_LENGTH = 6
 MAX_PASSWORD_LENGTH = 128
+
+# はじめのコード：6けたの数字。10回まちがえると使えなくなり、先生が発行し直す
+# （当てずっぽうで当たる見込みは 10 / 1,000,000。ログインの試行回数の制限も別にかかる）
+SETUP_CODE_DIGITS = 6
+SETUP_CODE_MAX_FAILURES = 10
+_SETUP_CODE_KEYS = ("setup_code_hash", "setup_code_issued_at", "setup_code_failures")
 
 # 学年は学部単位（中学部・高等部）に丸めて保持する（再識別リスク低減、資料 §5.3）。
 GRADE_LABELS: dict[str, str] = {
@@ -110,10 +123,25 @@ def _now_iso() -> str:
 
 
 def _sanitize(account: dict) -> dict:
-    """password_hash を除いた表示用のコピーを返す。"""
-    safe = {k: v for k, v in account.items() if k != "password_hash"}
+    """password_hash とはじめのコードのハッシュを除いた表示用のコピーを返す。"""
+    safe = {k: v for k, v in account.items() if k not in ("password_hash", "setup_code_hash")}
     safe["profile"] = dict(account.get("profile", {}))
+    safe["setup_code_issued"] = bool(account.get("setup_code_hash"))
     return safe
+
+
+def _new_setup_code(acc: dict) -> str:
+    """はじめのコードを新しく作り、ハッシュだけをアカウントに入れる。平文のコードを返す（表示は1回だけ）。"""
+    code = f"{secrets.randbelow(10 ** SETUP_CODE_DIGITS):0{SETUP_CODE_DIGITS}d}"
+    acc["setup_code_hash"] = generate_password_hash(code)
+    acc["setup_code_issued_at"] = _now_iso()
+    acc["setup_code_failures"] = 0
+    return code
+
+
+def normalize_setup_code(code: str) -> str:
+    """全角の数字・空白・ハイフンが混ざっても受け付ける（スマホの入力で入りやすいため）。"""
+    return re.sub(r"[\s\-ー－]", "", unicodedata.normalize("NFKC", code or ""))
 
 
 # ── 検証 ─────────────────────────────────────────────────────────────
@@ -179,7 +207,10 @@ def create_account(
     grade: str = DEFAULT_GRADE,
     hearing_level: str = DEFAULT_HEARING_LEVEL,
 ) -> dict:
-    """新しい参加者アカウントを発行する。パスワードは未設定で作成する。"""
+    """新しい参加者アカウントを発行する。パスワードは未設定で作成する。
+
+    戻り値の setup_code が、本人に渡す「はじめのコード」（ここでしか分からない）。
+    """
     uid = validate_user_id(user_id)
     grade = validate_grade(grade)
     hearing_level = validate_hearing_level(hearing_level)
@@ -211,8 +242,9 @@ def create_account(
         "created_at": now,
         "updated_at": now,
     }
+    code = _new_setup_code(accounts[uid])
     save_accounts(accounts)
-    return _sanitize(accounts[uid])
+    return {**_sanitize(accounts[uid]), "setup_code": code}
 
 
 @_exclusive
@@ -238,16 +270,38 @@ def update_research_profile(
 
 @_exclusive
 def clear_password(user_id: str) -> dict:
-    """パスワードを未設定に戻す（次回ログインで参加者が再設定する）。"""
+    """パスワードを未設定に戻し、新しいはじめのコードを発行する（本人はそのコードで決め直す）。
+
+    戻り値の setup_code が、本人に渡す新しいはじめのコード。
+    """
     accounts = load_accounts()
     acc = accounts.get((user_id or "").strip())
     if not acc:
         raise ValueError(f"利用者ID {user_id} は登録されていません")
     acc["password_hash"] = None
     acc["password_set"] = False
+    code = _new_setup_code(acc)
     acc["updated_at"] = _now_iso()
     save_accounts(accounts)
-    return _sanitize(acc)
+    return {**_sanitize(acc), "setup_code": code}
+
+
+@_exclusive
+def issue_setup_code(user_id: str) -> dict:
+    """パスワード未設定のアカウントに、はじめのコードを発行し直す（なくした・使えなくなったとき）。
+
+    前のコードは使えなくなる。戻り値の setup_code が新しいコード。
+    """
+    accounts = load_accounts()
+    acc = accounts.get((user_id or "").strip())
+    if not acc:
+        raise ValueError(f"利用者ID {user_id} は登録されていません")
+    if acc.get("password_set"):
+        raise ValueError(f"{acc['user_id']} はパスワードが設定済みです。決め直すときは「パスワード初期化」を使ってください")
+    code = _new_setup_code(acc)
+    acc["updated_at"] = _now_iso()
+    save_accounts(accounts)
+    return {**_sanitize(acc), "setup_code": code}
 
 
 def user_data_dir(user_id: str) -> Path:
@@ -283,32 +337,68 @@ def delete_account(user_id: str) -> dict:
 
 # ── 参加者向け操作（初回ログイン・ログイン） ─────────────────────────
 
-def complete_first_login(user_id: str, password: str) -> dict:
-    """初回ログイン: 参加者がパスワードを設定する。
+class SetupCodeError(ValueError):
+    """はじめのコードがちがう・使えない。app.py はログインの試行回数に数える。"""
+
+
+def complete_first_login(user_id: str, setup_code: str, password: str) -> dict:
+    """初回ログイン: はじめのコードを確かめてから、参加者がパスワードを設定する。
 
     学年・聴覚障害の程度はここでは触らない（研究者が調査票から入力済み）。
+    コードは使ったら消す。SETUP_CODE_MAX_FAILURES 回まちがえたら使えなくする。
     """
     def check(acc: dict | None) -> None:
         if not acc:
             raise ValueError(f"利用者ID {user_id} は登録されていません")
         if acc.get("password_set"):
             raise ValueError("このアカウントは既にパスワードが設定されています")
+        if not acc.get("setup_code_hash"):
+            raise SetupCodeError("はじめのコードが使えません。先生に新しいコードをもらってください。")
 
     uid = (user_id or "").strip()
-    check(load_accounts().get(uid))
+    acc = load_accounts().get(uid)
+    check(acc)
     validate_password(password)
-    # ハッシュの計算（scrypt、0.1秒ほど）はロックの外で行う。授業の始めに全員が同時に
-    # 初回ログインしても、ほかの人の書き込みを待たせない
-    password_hash = generate_password_hash(password)
+    code = normalize_setup_code(setup_code)
+    # コードの照合とパスワードのハッシュの計算（scrypt、それぞれ0.1秒ほど）はロックの外で行う。
+    # 授業の始めに全員が同時に初回ログインしても、ほかの人の書き込みを待たせない
+    code_hash = acc["setup_code_hash"]
+    code_ok = check_password_hash(code_hash, code)
+    password_hash = generate_password_hash(password) if code_ok else None
     with storage.lock("accounts"):
         accounts = load_accounts()
         acc = accounts.get(uid)
-        check(acc)   # ハッシュを計算している間に、ほかの端末が先に設定していないか確かめ直す
+        check(acc)   # 計算している間に、ほかの端末が先に設定していないか確かめ直す
+        if acc["setup_code_hash"] != code_hash:
+            # 計算している間に、先生がコードを発行し直した（まれ）。いまのコードで確かめ直す
+            code_ok = check_password_hash(acc["setup_code_hash"], code)
+            if code_ok and password_hash is None:
+                password_hash = generate_password_hash(password)
+        if not code_ok:
+            failures = int(acc.get("setup_code_failures") or 0) + 1
+            if failures >= SETUP_CODE_MAX_FAILURES:
+                for k in _SETUP_CODE_KEYS:
+                    acc.pop(k, None)
+                message = "はじめのコードを何回もまちがえたため、このコードは使えなくなりました。先生に新しいコードをもらってください。"
+            else:
+                acc["setup_code_failures"] = failures
+                message = "はじめのコードが正しくありません。先生からもらった6けたの数字を確かめてください。"
+            acc["updated_at"] = _now_iso()
+            save_accounts(accounts)
+            raise SetupCodeError(message)
         acc["password_hash"] = password_hash
         acc["password_set"] = True
+        for k in _SETUP_CODE_KEYS:
+            acc.pop(k, None)
         acc["updated_at"] = _now_iso()
         save_accounts(accounts)
     return _sanitize(acc)
+
+
+def setup_code_issued(user_id: str) -> bool:
+    """パスワード未設定のアカウントに、使えるはじめのコードがあるか（初回ログインの画面の出し分け用）。"""
+    acc = get_account(user_id)
+    return bool(acc) and not acc.get("password_set") and bool(acc.get("setup_code_hash"))
 
 
 def verify_login(user_id: str, password: str) -> dict | None:

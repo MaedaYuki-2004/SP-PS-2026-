@@ -966,33 +966,47 @@ def login():
 
 @app.route("/first_login", methods=["GET", "POST"])
 def first_login():
+    """初回ログイン：先生からもらった「はじめのコード」を確かめて、本人がパスワードを決める。
+
+    コードが無いと、利用者 ID を知っているだけの別の人が先にパスワードを決められてしまう。
+    """
     if request.method == "GET":
         user_id = (request.args.get("user_id") or "").strip()
         if not acc.needs_password_setup(user_id):
             return redirect("/login")
-        return render_template("first_login.html", user_id=user_id)
+        return render_template("first_login.html", user_id=user_id,
+                               has_code=acc.setup_code_issued(user_id))
 
     user_id   = (request.form.get("user_id") or "").strip()
+    code      = request.form.get("setup_code") or ""
     password  = request.form.get("password") or ""
     password2 = request.form.get("password2") or ""
 
     if not acc.needs_password_setup(user_id):
         return redirect("/login")
 
+    def again(error: str, status: int):
+        return render_template("first_login.html", user_id=user_id, error=error,
+                               has_code=acc.setup_code_issued(user_id)), status
+
+    # はじめのコードの当てずっぽうも、ログインと同じ回数の制限に数える（同じ接続元・同じ利用者 ID）
+    limit_key = f"{_client_key()}|{user_id.lower()[:64]}"
+    wait = _login_limiter.seconds_locked(limit_key)
+    if wait:
+        return again(f"続けて間違えたため、{wait}秒待ってからもう一度入力してください。", 429)
+
     if password != password2:
-        return render_template(
-            "first_login.html", user_id=user_id,
-            error="確認用のパスワードが一致しません。",
-        ), 400
+        return again("確認用のパスワードが一致しません。", 400)
 
     try:
-        account = acc.complete_first_login(user_id, password)
+        account = acc.complete_first_login(user_id, code, password)
+    except acc.SetupCodeError as exc:
+        _login_limiter.record_failure(limit_key)
+        return again(str(exc), 400)
     except ValueError as exc:
-        return render_template(
-            "first_login.html", user_id=user_id,
-            error=str(exc),
-        ), 400
+        return again(str(exc), 400)
 
+    _login_limiter.clear(limit_key)
     _start_session(account["user_id"])
     return redirect("/select")
 
@@ -2098,15 +2112,21 @@ def admin():
 # 倫理審査資料 §5.1#6 / §5.3：学年と聴覚障害の程度は調査票由来のため
 # 研究者がここで入力する。参加者が設定するのはパスワードと表示名のみ。
 
-def _render_admin_accounts(error: str | None = None, status: int = 200):
+def _render_admin_accounts(error: str | None = None, status: int = 200, issued: dict | None = None):
+    """参加者アカウントの管理画面。issued を渡すと、発行した「はじめのコード」をこの1回だけ表示する
+    （サーバーにはハッシュしか残らないので、あとから見ることはできない）。"""
     html = render_template(
         "admin_accounts.html",
         accounts=acc.list_accounts(),
         grade_labels=acc.GRADE_LABELS,
         hearing_labels=acc.HEARING_LEVEL_LABELS,
         error=error,
+        issued=issued,
     )
-    return (html, status) if status != 200 else html
+    resp = app.make_response((html, status))
+    # コードが表示された画面を、ブラウザや中継に残さない
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @app.route("/admin/accounts")
@@ -2139,14 +2159,15 @@ def admin_access_qr():
 @app.route("/admin/accounts/create", methods=["POST"])
 def admin_accounts_create():
     try:
-        acc.create_account(
+        account = acc.create_account(
             request.form.get("user_id", ""),
             request.form.get("grade", acc.DEFAULT_GRADE),
             request.form.get("hearing_level", acc.DEFAULT_HEARING_LEVEL),
         )
     except ValueError as exc:
         return _render_admin_accounts(error=str(exc), status=400)
-    return redirect("/admin/accounts")
+    return _render_admin_accounts(issued={"user_id": account["user_id"], "code": account["setup_code"],
+                                          "reason": "登録しました"})
 
 
 @app.route("/admin/accounts/update_profile", methods=["POST"])
@@ -2165,10 +2186,22 @@ def admin_accounts_update_profile():
 @app.route("/admin/accounts/clear_password", methods=["POST"])
 def admin_accounts_clear_password():
     try:
-        acc.clear_password(request.form.get("user_id", ""))
+        account = acc.clear_password(request.form.get("user_id", ""))
     except ValueError as exc:
         return _render_admin_accounts(error=str(exc), status=400)
-    return redirect("/admin/accounts")
+    return _render_admin_accounts(issued={"user_id": account["user_id"], "code": account["setup_code"],
+                                          "reason": "パスワードを初期化しました"})
+
+
+@app.route("/admin/accounts/issue_code", methods=["POST"])
+def admin_accounts_issue_code():
+    """パスワード未設定のアカウントに、はじめのコードを発行し直す（なくした・使えなくなったとき）。"""
+    try:
+        account = acc.issue_setup_code(request.form.get("user_id", ""))
+    except ValueError as exc:
+        return _render_admin_accounts(error=str(exc), status=400)
+    return _render_admin_accounts(issued={"user_id": account["user_id"], "code": account["setup_code"],
+                                          "reason": "はじめのコードを発行し直しました"})
 
 
 @app.route("/admin/accounts/delete", methods=["POST"])

@@ -48,9 +48,9 @@ def create(count: int, source: str, prefix: str, password: str) -> None:
         if acc.account_exists(uid):
             print(f"{uid}: すでにあるので使います")
             continue
-        acc.create_account(uid)
+        code = acc.create_account(uid)["setup_code"]
         shutil.copytree(library, acc.user_data_dir(uid) / "library")
-        acc.complete_first_login(uid, password)
+        acc.complete_first_login(uid, code, password)
         created.append(uid)
         write_json_atomic(RECORD, sorted(set(created)))
         print(f"{uid}: 作りました（単語 {len(words)} 個）")
