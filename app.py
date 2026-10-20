@@ -21,6 +21,13 @@ from urllib.parse import quote, urlparse
 # librosa/NumbaがPythonのインストール先へキャッシュを書こうとして
 # 権限制限下で止まることを防ぐ。明示された設定は優先する。
 os.environ.setdefault("NUMBA_CACHE_DIR", str(Path(__file__).resolve().parent / ".tmp" / "numba-cache"))
+# numpy の行列計算（OpenBLAS）を1スレッドにする。numpy を読み込む前に決める必要がある。
+# 複数スレッドのままだと、あるスレッドの行列計算（MFCC など）の最中に別のスレッドが Julius を起動する
+# （fork する）と、OpenBLAS が自分のスレッドの終わりを待ったまま止まり、GIL を握ったままなので
+# ワーカー全体が固まる（2026-10-20 の負荷試験で再現）。同時の処理はリクエストごとのスレッドと
+# ワーカーで分けているので、1スレッドでも遅くならず、CPU の取り合いも減る。
+for _name in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS"):
+    os.environ.setdefault(_name, "1")
 
 try:
     import cv2

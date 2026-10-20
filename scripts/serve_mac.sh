@@ -62,7 +62,9 @@ trap 'exit 130' INT TERM
 
 # ワーカー（プロセス）・スレッドの数などは gunicorn.conf.py で決める（既定はワーカー2・スレッド16。README §14）。
 # 127.0.0.1 で待ち受け、外からは Tunnel 経由でしか届かないようにする。
-TRUSTED_PROXY=cloudflare FLASK_ENV=production \
+# OBJC_DISABLE_INITIALIZE_FORK_SAFETY: macOS でワーカーを起動し直すとき、fork の安全チェックで
+# ワーカーがクラッシュし続けないようにする（gunicorn.conf.py の control_socket_disable も参照）
+OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES TRUSTED_PROXY=cloudflare FLASK_ENV=production \
     "$PY" -m gunicorn app:app -c gunicorn.conf.py --bind "127.0.0.1:$PORT" \
     >>"$LOG_DIR/gunicorn.log" 2>&1 &
 APP_PID=$!
