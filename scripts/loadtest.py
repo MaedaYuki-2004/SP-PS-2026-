@@ -31,6 +31,7 @@ Cloudflare の Quick Tunnel（trycloudflare.com）は同時に処理できる要
 from __future__ import annotations
 
 import argparse
+import gzip
 import http.cookiejar
 import json
 import random
@@ -76,12 +77,20 @@ class Client:
 
     def request(self, method: str, path: str, data: bytes | None = None,
                 headers: dict | None = None) -> tuple[int, bytes, dict]:
-        req = urllib.request.Request(self.base + path, data=data, method=method, headers=headers or {})
+        # ブラウザと同じく gzip で受け取る（サーバーは画面や JSON を縮めて送る）
+        req = urllib.request.Request(self.base + path, data=data, method=method,
+                                     headers={"Accept-Encoding": "gzip", **(headers or {})})
         try:
             with self.opener.open(req, timeout=self.timeout) as res:
-                return res.status, res.read(), dict(res.headers)
+                return res.status, _decode(res.read(), res.headers), dict(res.headers)
         except urllib.error.HTTPError as err:
-            return err.code, err.read(), dict(err.headers or {})
+            return err.code, _decode(err.read(), err.headers), dict(err.headers or {})
+
+
+def _decode(body: bytes, headers) -> bytes:
+    if headers is not None and (headers.get("Content-Encoding") or "").lower() == "gzip":
+        return gzip.decompress(body)
+    return body
 
 
 def multipart(fields: dict, files: dict) -> tuple[bytes, str]:

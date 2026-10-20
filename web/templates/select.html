@@ -1257,7 +1257,8 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
     document.getElementById('awVolWarn').classList.remove('show');
     if (awMicMeter) awMicMeter.resetMax();
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
-    awRecorder = new MediaRecorder(awStream, { mimeType });
+    // 録画は 1 Mbps にする（ブラウザ任せだと Chrome で約 2.6 Mbps、Safari で約 8 Mbps になり、Mac の細い上り・下りで送信に数十秒かかった。口の開き具合の差は動く範囲の 2.5% ほど。README §5.4）
+    awRecorder = new MediaRecorder(awStream, { mimeType, videoBitsPerSecond: 1000000 });
     awRecorder.addEventListener('dataavailable', function (e) {
       if (e.data && e.data.size > 0) awChunks.push(e.data);
     });
@@ -1396,7 +1397,8 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
 
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
       ? 'video/webm;codecs=vp8' : 'video/webm';
-    recorder = new MediaRecorder(stream, { mimeType });
+    // 録画は 1 Mbps にする（ブラウザ任せだと Chrome で約 2.6 Mbps、Safari で約 8 Mbps になり、Mac の細い上り・下りで送信に数十秒かかった。口の開き具合の差は動く範囲の 2.5% ほど。README §5.4）
+    recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 1000000 });
     recorder.addEventListener('dataavailable', function (e) {
       if (e.data && e.data.size > 0) chunks.push(e.data);
     });

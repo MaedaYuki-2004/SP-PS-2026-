@@ -195,7 +195,8 @@ async function main() {
     function startLipRecording() {
       if (!videoStream || lipRecorder) return;
       lipChunks.length = 0;
-      lipRecorder = new MediaRecorder(videoStream, { mimeType: 'video/webm;codecs=vp8' });
+      // 録画は 1 Mbps にする（ブラウザ任せだと Chrome で約 2.6 Mbps、Safari で約 8 Mbps になり、Mac の細い上り・下りで送信に数十秒かかった。口の開き具合の差は動く範囲の 2.5% ほど。README §5.4）
+      lipRecorder = new MediaRecorder(videoStream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 1000000 });
 
       lipRecorder.addEventListener('dataavailable', event => {
         if (event.data && event.data.size > 0) {

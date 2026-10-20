@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import csv
 import functools
+import gzip
 import io
 import math
 import os
 import queue
 import shutil
+import subprocess
 import tempfile
 import threading
 import time
@@ -823,6 +825,11 @@ def heavy_view(fn):
     """重い処理（解析）をする画面・API。順番（core/capacity.py）を取ってから実行する。"""
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
+        # 送られてくる録画・録音を、順番を取る前に受け取りきる。Flask は本文を使うときに初めて読むので、
+        # そのままだと回線の遅い端末の送信中も順番を握ったままになり、CPU が空いているのに
+        # ほかの人が待たされる（2026-10-20 の実機テストで、9 台の単語の追加が 15〜18 秒かかった）
+        if request.method == "POST":
+            request.form, request.files
         with heavy_slot():
             return fn(*args, **kwargs)
     return wrapper
@@ -866,6 +873,38 @@ def _teacher_denied():
                  f"{teacher.SESSION_MINUTES}分たつと自動でOFFになります）。",
         "teacher_required": True,
     }), 403
+
+
+_GZIP_TYPES = {"text/html", "application/json", "text/plain", "text/css",
+               "application/javascript", "text/javascript", "image/svg+xml"}
+
+
+@app.after_request
+def _gzip_response(response):
+    """画面（HTML）や JSON を gzip で縮めて送る。
+
+    サーバーの Mac のインターネットへの上りは細く（2026-10-20 の測定で約 1.5 Mbps）、生徒へ送る
+    すべての画面がそこを通る。結果の画面は 158KB → 33KB ほどになる。ファイルをそのまま送る応答
+    （お手本の動画・録音・CSS・JS。send_file）は対象にしない。
+    """
+    if (response.status_code != 200
+            or response.direct_passthrough
+            or response.is_streamed
+            or response.mimetype not in _GZIP_TYPES
+            or "Content-Encoding" in response.headers
+            or "gzip" not in request.headers.get("Accept-Encoding", "").lower()):
+        return response
+    data = response.get_data()
+    if len(data) < 1024:
+        return response
+    response.set_data(gzip.compress(data, compresslevel=6))
+    response.headers["Content-Encoding"] = "gzip"
+    response.vary.add("Accept-Encoding")
+    if response.headers.get("ETag"):
+        # 縮める前と同じ ETag のままだと、中身の違う2つの応答が同じ印になるので弱い ETag にする
+        etag, weak = response.get_etag()
+        response.set_etag(etag, weak=True)
+    return response
 
 
 @app.before_request
@@ -1946,8 +1985,53 @@ def sample_audio(word_id: str):
 def sample_video(word_id: str):
     """お手本録画（webm）を配信する。母音トレーナー等での実映像再生用。"""
     video_path = current_library().sample_video(word_id)
-    if video_path.exists(): return send_file(str(video_path), mimetype="video/webm")
+    if video_path.exists(): return send_file(str(_delivery_video(video_path)), mimetype="video/webm")
     return "not found", 404
+
+
+# 生徒に送るお手本の動画は、元の動画が大きいとき小さくしたコピー（<word_id>.web.webm）にする。
+# サーバーの Mac のインターネットへの上りは約 1.5 Mbps しかなく（2026-10-20 の測定）、16 台で練習したとき
+# 3MB のお手本の動画を送るのに最長 140 秒かかり、生徒からの送信まで遅くなった。生徒は見て真似るだけなので
+# 600 kbps でよい。採点・口の形の基準データ（lip_refs.json）には元の動画を使うので、採点は変わらない。
+DELIVERY_VIDEO_KBPS = 600
+DELIVERY_VIDEO_MIN_BYTES = 600 * 1024   # これより小さい動画（1 Mbps で録った新しいお手本など）はそのまま送る
+_delivery_locks: dict[str, threading.Lock] = {}
+_delivery_locks_guard = threading.Lock()
+
+
+def _delivery_video(original: Path) -> Path:
+    """生徒に送るお手本の動画のパス。小さくしたコピーが無いか古いときは作る（失敗したら元の動画）。"""
+    copy = original.with_name(original.stem + ".web.webm")
+    try:
+        if original.stat().st_size <= DELIVERY_VIDEO_MIN_BYTES:
+            return original
+        with _delivery_locks_guard:
+            lock = _delivery_locks.setdefault(str(copy), threading.Lock())
+        with lock:   # 同じお手本を何人も同時に開いても、作るのは1回
+            if copy.exists() and copy.stat().st_mtime >= original.stat().st_mtime:
+                return copy
+            ffmpeg = shutil.which("ffmpeg")
+            if not ffmpeg:
+                return original
+            tmp = copy.with_name(f"{copy.stem}.{os.getpid()}.tmp.webm")
+            subprocess.run(
+                [ffmpeg, "-y", "-v", "error", "-i", str(original), "-c:v", "libvpx",
+                 "-b:v", f"{DELIVERY_VIDEO_KBPS}k", "-deadline", "realtime", "-cpu-used", "8",
+                 "-c:a", "copy", str(tmp)],
+                check=True, timeout=120, stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            )
+            if tmp.stat().st_size >= original.stat().st_size:
+                shutil.copy2(original, tmp)   # 小さくならなかったときも、毎回作り直さないよう同じものを置く
+            os.replace(tmp, copy)
+            return copy
+    except Exception:
+        traceback.print_exc()
+        try:
+            tmp.unlink(missing_ok=True)   # 作りかけを残さない
+        except (NameError, OSError):
+            pass
+        return original
 
 
 def has_sample_video(word_id: str) -> bool:

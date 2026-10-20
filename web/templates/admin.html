@@ -265,9 +265,10 @@ function startAdminRec() {
 
   const chunks = [];
   try {
-    adminRecorder = new MediaRecorder(adminStream, { mimeType: 'video/webm' });
+    // 録画は 1 Mbps にする（ブラウザ任せだと Chrome で約 2.6 Mbps、Safari で約 8 Mbps になり、Mac の細い上り・下りで送信に数十秒かかった。口の開き具合の差は動く範囲の 2.5% ほど。README §5.4）
+    adminRecorder = new MediaRecorder(adminStream, { mimeType: 'video/webm', videoBitsPerSecond: 1000000 });
   } catch(e) {
-    adminRecorder = new MediaRecorder(adminStream);
+    adminRecorder = new MediaRecorder(adminStream, { videoBitsPerSecond: 1000000 });
   }
   adminRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
   adminRecorder.onstop = () => {
