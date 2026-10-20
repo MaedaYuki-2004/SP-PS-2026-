@@ -2023,45 +2023,85 @@ def sample_video(word_id: str):
 # サーバーの Mac のインターネットへの上りは約 1.5 Mbps しかなく（2026-10-20 の測定）、16 台で練習したとき
 # 3MB のお手本の動画を送るのに最長 140 秒かかり、生徒からの送信まで遅くなった。生徒は見て真似るだけなので
 # 600 kbps でよい。採点・口の形の基準データ（lip_refs.json）には元の動画を使うので、採点は変わらない。
+#
+# コピーは要求の中では作らない。まだ無いときはその回は元の動画を返し、裏で作る（1 ワーカーで同時に 1 本、
+# ffmpeg は 1 スレッド）。要求の中で作ると、40 人がそれぞれ自分のお手本を初めて開いたとき ffmpeg が 40 個
+# 同時に動いて CPU を使い切り、採点まで止まった（2026-10-20 の負荷試験）。今あるお手本は
+# scripts/make_delivery_videos.py で前もって作っておける。1 Mbps で録った新しいお手本は小さいのでコピーは作らない。
 DELIVERY_VIDEO_KBPS = 600
-DELIVERY_VIDEO_MIN_BYTES = 600 * 1024   # これより小さい動画（1 Mbps で録った新しいお手本など）はそのまま送る
-_delivery_locks: dict[str, threading.Lock] = {}
-_delivery_locks_guard = threading.Lock()
+DELIVERY_VIDEO_MIN_BYTES = 600 * 1024   # これより小さい動画はそのまま送る
+_delivery_slot = threading.BoundedSemaphore(1)
+_delivery_pending: set[str] = set()
+_delivery_pending_lock = threading.Lock()
+
+
+def _delivery_copy_path(original: Path) -> Path:
+    return original.with_name(original.stem + ".web.webm")
+
+
+def _delivery_copy_is_fresh(original: Path) -> bool:
+    copy = _delivery_copy_path(original)
+    return copy.exists() and copy.stat().st_mtime >= original.stat().st_mtime
+
+
+def make_delivery_video(original: Path) -> Path | None:
+    """小さくしたコピーを作る（作れないときや小さくする必要がないときは None）。"""
+    if original.stat().st_size <= DELIVERY_VIDEO_MIN_BYTES:
+        return None
+    copy = _delivery_copy_path(original)
+    if _delivery_copy_is_fresh(original):
+        return copy
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return None
+    tmp = copy.with_name(f"{copy.stem}.{os.getpid()}.{threading.get_ident()}.tmp.webm")
+    try:
+        subprocess.run(
+            [ffmpeg, "-y", "-v", "error", "-i", str(original), "-c:v", "libvpx", "-threads", "1",
+             "-b:v", f"{DELIVERY_VIDEO_KBPS}k", "-deadline", "realtime", "-cpu-used", "8",
+             "-c:a", "copy", str(tmp)],
+            check=True, timeout=120, stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        )
+        if tmp.stat().st_size >= original.stat().st_size:
+            shutil.copy2(original, tmp)   # 小さくならなかったときも、毎回作り直さないよう同じものを置く
+        os.replace(tmp, copy)
+        return copy
+    finally:
+        tmp.unlink(missing_ok=True)   # 作りかけを残さない
+
+
+def _make_delivery_video_later(original: Path) -> None:
+    key = str(original)
+    with _delivery_pending_lock:
+        if key in _delivery_pending:
+            return
+        _delivery_pending.add(key)
+
+    def run():
+        try:
+            with _delivery_slot:
+                make_delivery_video(original)
+        except Exception:
+            traceback.print_exc()
+        finally:
+            with _delivery_pending_lock:
+                _delivery_pending.discard(key)
+
+    threading.Thread(target=run, name="delivery-video", daemon=True).start()
 
 
 def _delivery_video(original: Path) -> Path:
-    """生徒に送るお手本の動画のパス。小さくしたコピーが無いか古いときは作る（失敗したら元の動画）。"""
-    copy = original.with_name(original.stem + ".web.webm")
+    """生徒に送るお手本の動画のパス。小さくしたコピーが無いか古いときは元の動画を返し、裏で作る。"""
     try:
         if original.stat().st_size <= DELIVERY_VIDEO_MIN_BYTES:
             return original
-        with _delivery_locks_guard:
-            lock = _delivery_locks.setdefault(str(copy), threading.Lock())
-        with lock:   # 同じお手本を何人も同時に開いても、作るのは1回
-            if copy.exists() and copy.stat().st_mtime >= original.stat().st_mtime:
-                return copy
-            ffmpeg = shutil.which("ffmpeg")
-            if not ffmpeg:
-                return original
-            tmp = copy.with_name(f"{copy.stem}.{os.getpid()}.tmp.webm")
-            subprocess.run(
-                [ffmpeg, "-y", "-v", "error", "-i", str(original), "-c:v", "libvpx",
-                 "-b:v", f"{DELIVERY_VIDEO_KBPS}k", "-deadline", "realtime", "-cpu-used", "8",
-                 "-c:a", "copy", str(tmp)],
-                check=True, timeout=120, stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-            )
-            if tmp.stat().st_size >= original.stat().st_size:
-                shutil.copy2(original, tmp)   # 小さくならなかったときも、毎回作り直さないよう同じものを置く
-            os.replace(tmp, copy)
-            return copy
+        if _delivery_copy_is_fresh(original):
+            return _delivery_copy_path(original)
+        _make_delivery_video_later(original)
     except Exception:
         traceback.print_exc()
-        try:
-            tmp.unlink(missing_ok=True)   # 作りかけを残さない
-        except (NameError, OSError):
-            pass
-        return original
+    return original
 
 
 def has_sample_video(word_id: str) -> bool:
