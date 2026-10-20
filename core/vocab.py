@@ -138,6 +138,23 @@ def _norm_reading(text: str) -> str:
     return "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in _norm_display(text))
 
 
+def julius_reading(text: str) -> str:
+    """読みを Julius に渡せる形（ひらがなと「ー」だけ）にする。カタカナはひらがなに直す。
+
+    Julius はひらがなしか音に直せないので、カタカナや漢字のままだと、録画をいくらやり直しても
+    「発音が認識できませんでした」になる（2026-10-20 の実機テストで「メダカ」「田んぼ」が失敗した）。
+    ひらがなにできない文字があるときは ValueError（録画の前に、どの文字が使えないかを知らせる）。
+    """
+    reading = _norm_reading(text)
+    # ゔ・ゕ・ゖ は Julius の変換表（scripts/segment_julius.pl の yomi2voca）に無い
+    bad = sorted({c for c in reading if not ("ぁ" <= c <= "ゔ" or c == "ー") or c == "ゔ"}, key=reading.index)
+    if not reading:
+        raise ValueError("ひらがな読みを入力してください")
+    if bad:
+        raise ValueError(f"読みは、ひらがなで入力してください（使えない文字: {'・'.join(bad)}）")
+    return reading
+
+
 def word_key(display: str, reading: str) -> tuple[str, str]:
     """同じ単語かどうかを決める組（表示と読みを比べやすい形にしたもの）。"""
     return _norm_display(display), _norm_reading(reading)
@@ -214,6 +231,7 @@ def register_word(display: str, reading: str, wav_path: Path | None = None) -> d
     -------
     dict : 登録結果 {"word_id": ..., "accent": ..., "alignment_ok": ..., "reused": ..., "message": ...}
     """
+    reading = julius_reading(reading)
     lib     = current_library()
     db      = load_db()
     same    = find_same_words(display, reading)
@@ -441,6 +459,7 @@ def update_word(word_id: str, display: str, reading: str, accent) -> dict:
     単語の表示テキスト・読み・アクセント型を更新する。
     ほかの単語（削除した単語を含む）と表示・読みが同じになる変更は受け付けない（WordExists）。
     """
+    reading = julius_reading(reading)
     db    = load_db()
     entry = _active_entry(db, word_id)
     same  = find_same_words(display, reading, exclude_id=word_id)

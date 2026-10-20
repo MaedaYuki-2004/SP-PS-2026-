@@ -176,6 +176,34 @@ def _lab_has_content(lab_path: Path) -> bool:
         return False
 
 
+# Julius が1つの音に割り当てる最短の長さ（10ms のフレーム × 3 状態）
+_MIN_PHONE_SEC = 0.03
+
+
+def lab_is_squeezed(lab_path: Path) -> bool:
+    """認識に失敗して、音がすべて最短の長さに押し込まれた結果か。
+
+    Julius は読みがなどおりの声が見つからなくても、結果を出すことがある。そのときは、
+    すべての音を録音の端に最短の長さ（0.03 秒）ずつ並べる（2026-10-20、「でんわ」の 5 音が
+    3 秒の録画の最後の 0.18 秒に並び、声のある 0.9 秒あたりは無音とされた）。
+    このままお手本にすると、長さ・タイミング・口の動きの採点が正しく出ない。
+    """
+    try:
+        lines = lab_path.read_text(encoding="utf-8", errors="replace").split("\n")
+    except OSError:
+        return False
+    durations = []
+    for line in lines:
+        parts = line.split()
+        if len(parts) < 3 or parts[2] in ("silB", "silE", "sp"):
+            continue
+        try:
+            durations.append(float(parts[1]) - float(parts[0]))
+        except ValueError:
+            continue
+    return len(durations) >= 2 and all(d <= _MIN_PHONE_SEC + 0.001 for d in durations)
+
+
 def _alignment_failure_detail(log_path: Path) -> str:
     """julius/perl のログから失敗理由の手がかりを抜き出す。
 
@@ -305,6 +333,12 @@ def run_alignment_on_file(
             # 成否にかかわらず最後の試行のログだけは先に退避しておく。
             if tmp_log.exists():
                 shutil.copy(str(tmp_log), str(log_out))
+        # 結果を lab_out に置く前に確かめる（お手本の録り直しで、壊れた結果が前の結果を上書きしないように）
+        if lab_is_squeezed(tmp_lab):
+            raise RuntimeError(
+                "アライメントに失敗しました（声が読みがなどおりに認識できず、"
+                "すべての音が最短の長さになりました）。録画をやり直してください。"
+            )
         shutil.copy(str(tmp_lab), str(lab_out))
 
 

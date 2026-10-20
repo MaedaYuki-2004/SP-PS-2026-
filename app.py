@@ -50,7 +50,7 @@ from config import (
 from core.audio     import convert_to_16kHz, read_sample, segment_audio
 from core.vocab     import (
     WordExists, active_words_db, archive_word, discard_new_word, find_same_words, get_all_tags,
-    get_reading_for_julius, get_word, list_archived_words, list_words, purge_word, register_word,
+    get_reading_for_julius, get_word, julius_reading, list_archived_words, list_words, purge_word, register_word,
     restore_word, update_word, update_word_note, update_word_tags,
 )
 from core.alignment import lab_load, log_load, run_alignment, extract_julius_score, run_alignment_on_file
@@ -576,6 +576,36 @@ def _save_temp_video(uploaded_file, directory=None):
     uploaded_file.save(tmp.name)
     tmp.close()
     return tmp.name
+
+
+FAILED_WORDS_DIR = Path(__file__).resolve().parent / ".tmp" / "failed_words"
+
+
+def _keep_failed_word(word_id: str, video_tmp: str, display: str, reading: str) -> None:
+    """お手本の音声認識に失敗した録画を、原因を調べるために .tmp/failed_words/ に残す。
+
+    登録は取り消すので、残さないと何が悪かったか（声が切れた・音が小さい・読みがなが違う）が
+    分からない。録画・音声・Julius の結果をまとめて置く。失敗しても登録の処理には影響させない。
+    """
+    try:
+        import json
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        dest = FAILED_WORDS_DIR / f"{stamp}_{usercontext.current_user() or 'unknown'}_{word_id}"
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(video_tmp, dest / "upload.webm")
+        sound_dir = current_library().sound_dir(word_id)
+        if sound_dir.exists():
+            for f in sound_dir.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, dest / f.name)
+        (dest / "info.json").write_text(json.dumps({
+            "user": usercontext.current_user(), "word_id": word_id,
+            "display": display, "reading": reading,
+            "user_agent": request.headers.get("User-Agent", ""),
+        }, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"[add_word] 音声認識に失敗した録画を残しました: {dest}", flush=True)
+    except Exception:
+        traceback.print_exc()
 
 
 def _lip_video_error(exc: Exception) -> str:
@@ -2098,6 +2128,10 @@ def api_check_word():
     reading = (data.get("reading") or "").strip()
     if not display or not reading:
         return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
+    try:
+        reading = julius_reading(reading)   # 録画の前に、ひらがなでない読みを知らせる
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     return jsonify(find_same_words(display, reading))
 
 
@@ -2324,6 +2358,10 @@ def add_word():
             return jsonify({"error": "表示テキストとひらがな読みを入力してください"}), 400
         if not file:
             return jsonify({"error": "お手本の録画（動画）が必要です。単語登録とセットで録画してください。"}), 400
+        try:
+            reading = julius_reading(reading)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
         # 表示と読みが同じ単語（削除した単語を含む）は新しく作らない。削除した単語なら元に戻してもらう
         same = find_same_words(display, reading)["exact"]
         if same:
@@ -2354,6 +2392,7 @@ def add_word():
                 # 単語だけが残ってしまう。単語+動画は必ずセットという方針
                 # （register_word 呼び出し元コメント参照）に反するため、
                 # 登録自体を取り消してユーザーに録り直しを促す。
+                _keep_failed_word(word_id, video_tmp, display, reading)
                 try:
                     discard_new_word(word_id)
                 except Exception:
@@ -2361,7 +2400,8 @@ def add_word():
                 return jsonify({
                     "error": "発音が認識できませんでした。マイクが正しく音を拾えているか"
                              "（接続・選択デバイス・ミュート設定）を確認のうえ、"
-                             "もう一度、はっきり発音して録画し直してください。",
+                             "録画が始まったらすぐに、はっきり発音して録画し直してください"
+                             "（録画は3秒で止まります）。",
                     "alignment_ok": False,
                 }), 422
 
