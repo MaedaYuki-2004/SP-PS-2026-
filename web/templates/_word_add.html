@@ -1,0 +1,223 @@
+{% from "_icons.html" import icon %}{#
+  単語の追加・お手本の録り直しの画面（ホームと単語のページで使う）。動きは web/static/js/word_add.js。
+
+  流れ：①単語と読みがなを入れる → ②お手本を録画（3・2・1 のあと 3 秒）→ ③録画を見て確かめる → 登録。
+  以前は録画が終わるとすぐ登録され、声が入っていない・顔が切れている録画にも、登録したあとで気づいていた。
+  お手本の録り直し（単語のカードやページの「お手本を録り直す」）も、②③を同じ画面で行う。
+
+  使い方：{% include "_word_add.html" %} と <script src="/static/js/word_add.js" defer></script>。
+  先に camera_error.js と media.js を読み込んでおく。
+#}
+<style>
+  .aw-modal-overlay { display:none; position:fixed; inset:0; z-index:300; align-items:center; justify-content:center;
+                      padding:12px; background:rgba(14,12,34,.55); backdrop-filter:blur(3px); }
+  .aw-modal-overlay.open { display:flex; }
+  .aw-modal-card { position:relative; width:min(480px,100%); max-height:calc(100dvh - 24px); overflow-y:auto; overscroll-behavior:contain;
+                   display:flex; flex-direction:column; gap:14px; padding:20px 20px 18px; border-radius:28px;
+                   background:var(--bg-card); color:var(--text); box-shadow:var(--elev-3); }
+  .aw-head { display:flex; align-items:center; gap:10px; }
+  .aw-steps { flex:1; min-width:0; display:flex; align-items:center; gap:6px; }
+  .aw-step { display:flex; align-items:center; gap:6px; min-width:0; font-size:12.5px; font-weight:700; color:var(--text-3); white-space:nowrap; }
+  .aw-step-num { flex:none; width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+                 background:var(--bg-muted); font-family:var(--font-num); font-size:12px; font-weight:800; }
+  .aw-step.active { color:var(--navy); }
+  .aw-step.active .aw-step-num { background:var(--grad-brand); color:#fff; }
+  .aw-step.done .aw-step-num { background:var(--good-bg); color:var(--good-text); }
+  .aw-step-line { flex:1; min-width:8px; max-width:28px; height:2px; border-radius:2px; background:var(--border); }
+  .aw-close { flex:none; width:44px; height:44px; margin:-6px -8px -6px 0; border:none; border-radius:50%; background:none; color:var(--text-3);
+              display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+  .aw-close:hover { background:var(--bg-muted); }
+  .aw-close[hidden] { display:none; }
+  .aw-title { font-size:20px; font-weight:700; line-height:1.4; color:var(--text); text-wrap:balance; }
+  .aw-lead { margin-top:-6px; font-size:13.5px; line-height:1.7; color:var(--text-2); }
+
+  .aw-fields { display:flex; flex-direction:column; gap:14px; }
+  .aw-field { display:flex; flex-direction:column; gap:6px; }
+  .aw-label { font-size:13px; font-weight:700; color:var(--text-2); }
+  /* 16px 未満にすると、iPhone で入力欄を押したときに画面が拡大されてしまう */
+  .aw-input { width:100%; min-height:54px; padding:12px 16px; border:1.5px solid var(--border); border-radius:16px;
+              background:var(--bg); color:var(--text); font-family:var(--font); font-size:18px; font-weight:500;
+              transition:border-color var(--dur), box-shadow var(--dur); }
+  .aw-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 4px color-mix(in srgb, var(--navy) 16%, transparent); }
+  .aw-input.is-err { border-color:var(--danger); }
+  .aw-hint { min-height:1.3em; font-size:12.5px; line-height:1.6; color:var(--text-3); }
+  .aw-hint.auto { color:var(--mid-text); }
+  .aw-hint.err { color:var(--danger); font-weight:700; }
+
+  .aw-status { font-size:13.5px; line-height:1.6; color:var(--text-2); }
+  .aw-status:empty { display:none; }
+  .aw-status.ok  { color:var(--good-text); font-weight:700; }
+  .aw-status.err { color:var(--danger); font-weight:700; }
+  .aw-status.loading { color:var(--text-3); }
+  .aw-match { display:grid; gap:10px; padding:14px; border-radius:16px; background:var(--mid-bg); }
+  .aw-match[hidden] { display:none; }
+  .aw-match-text { margin:0; font-size:13.5px; line-height:1.7; color:var(--mid-text); }
+  .aw-match-actions { display:flex; flex-wrap:wrap; gap:8px; }
+
+  .aw-actions { display:flex; flex-direction:column; gap:8px; }
+  .aw-actions.row { flex-direction:row; }
+  .aw-actions.row > * { flex:1; }
+  .aw-btn-primary, .aw-btn-rec, .aw-btn-secondary { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:54px; padding:10px 16px;
+                    border:none; border-radius:16px; font-family:var(--font); font-size:16px; font-weight:700; cursor:pointer; text-decoration:none;
+                    -webkit-tap-highlight-color:transparent; transition:transform .15s var(--ease), filter .15s, opacity .15s; }
+  .aw-btn-primary { background:var(--grad-brand); color:#fff; box-shadow:var(--shadow-brand); }
+  .aw-btn-rec { background:var(--grad-rec); color:#fff; box-shadow:var(--shadow-rec); }
+  .aw-btn-secondary { background:var(--bg-muted); color:var(--text-2); }
+  .aw-btn-primary:active, .aw-btn-rec:active, .aw-btn-secondary:active { transform:scale(.97); }
+  .aw-btn-primary:disabled, .aw-btn-rec:disabled, .aw-btn-secondary:disabled { opacity:.45; cursor:not-allowed; transform:none; box-shadow:none; }
+  .aw-btn-primary .ic, .aw-btn-rec .ic, .aw-btn-secondary .ic { width:20px; height:20px; }
+
+  /* 何を言うか（録画の画面の上） */
+  .aw-say { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:18px; background:var(--navy-soft); }
+  .aw-say-word { font-size:26px; font-weight:700; line-height:1.2; color:var(--text); word-break:break-all; }
+  .aw-say-reading { font-size:14px; color:var(--brand-700); letter-spacing:.06em; }
+  .aw-say-text { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .aw-say-note { flex:none; max-width:44%; font-size:12.5px; line-height:1.55; color:var(--text-2); text-align:right; }
+
+  /* カメラ・録画を見る枠（4:3。カメラにも 640×480 を頼んでいる：media.js） */
+  .aw-stage { position:relative; width:100%; aspect-ratio:4/3; border-radius:20px; overflow:hidden; background:#0E0C1A; }
+  .aw-stage video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+  .aw-stage canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+  .aw-guide-status { position:absolute; left:0; right:0; bottom:0; z-index:2; padding:16px 10px 8px; text-align:center;
+                     font-size:13px; font-weight:700; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.8);
+                     background:linear-gradient(transparent, rgba(0,0,0,.55)); pointer-events:none; }
+  .aw-count { position:absolute; inset:0; z-index:3; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;
+              background:rgba(14,12,34,.38); color:#fff; pointer-events:none; }
+  .aw-count[hidden] { display:none; }
+  .aw-count b { font-family:var(--font-num); font-size:96px; font-weight:800; line-height:1; text-shadow:0 4px 24px rgba(0,0,0,.45); }
+  .aw-count small { font-size:15px; font-weight:700; text-shadow:0 1px 6px rgba(0,0,0,.6); }
+  .aw-count.go b { font-family:var(--font); font-size:44px; }
+  .aw-recbadge { position:absolute; top:12px; left:12px; z-index:3; display:inline-flex; align-items:center; gap:6px; padding:5px 12px 5px 10px;
+                 border-radius:100px; background:rgba(214,60,67,.92); color:#fff; font-size:13px; font-weight:700; }
+  .aw-recbadge[hidden] { display:none; }
+  .aw-recbadge i { width:9px; height:9px; border-radius:50%; background:#fff; animation:aw-blink 1s infinite; }
+  @keyframes aw-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+  .aw-recbar { position:absolute; left:0; right:0; bottom:0; z-index:3; height:6px; background:rgba(255,255,255,.25); }
+  .aw-recbar[hidden] { display:none; }
+  .aw-recbar i { display:block; height:100%; width:0; background:var(--rec); }
+  .aw-replay { position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center; border:none; background:rgba(14,12,34,.35);
+               color:#fff; font-family:var(--font); font-size:16px; font-weight:700; cursor:pointer; gap:8px; }
+  .aw-replay[hidden] { display:none; }
+  .aw-replay span { display:inline-flex; align-items:center; gap:8px; min-height:52px; padding:0 22px; border-radius:100px; background:rgba(0,0,0,.5); }
+
+  .mic-vol-wrap { display:flex; align-items:center; gap:10px; }
+  .mic-vol-label { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--text-3); white-space:nowrap; }
+  .mic-vol-track { flex:1; height:6px; background:var(--bg-muted); border-radius:100px; overflow:hidden; }
+  .mic-vol-fill { height:100%; width:0%; border-radius:100px; background:var(--ref-line); transition:width 60ms, background 200ms; }
+  .mic-vol-warn { display:none; padding:10px 12px; border-radius:14px; background:var(--danger-bg); font-size:13px; font-weight:700; color:var(--danger); line-height:1.6; }
+  .mic-vol-warn.show { display:block; }
+
+  .aw-checklist { display:flex; flex-direction:column; gap:6px; margin:0; padding:12px 14px; border-radius:16px; background:var(--bg-muted); list-style:none; }
+  .aw-checklist li { display:flex; align-items:flex-start; gap:8px; font-size:14px; line-height:1.6; color:var(--text-2); }
+  .aw-checklist li .ic { flex:none; margin-top:.25em; color:var(--good); }
+
+  .aw-done { display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; padding:6px 0 2px; }
+  .aw-done-icon { width:64px; height:64px; margin-bottom:6px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                  background:var(--good-bg); color:var(--good); }
+  .aw-done-count { font-size:13px; color:var(--text-3); }
+  @media (max-width:380px) {
+    .aw-modal-card { padding:16px 14px 14px; border-radius:24px; }
+    .aw-step-label { display:none; }
+    .aw-step.active .aw-step-label { display:inline; }
+    .aw-say-note { display:none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .aw-recbadge i { animation:none; } }
+</style>
+
+<div class="aw-modal-overlay" id="awModalOverlay" role="dialog" aria-modal="true" aria-labelledby="awDialogTitle">
+  <div class="aw-modal-card">
+    <div class="aw-head">
+      <div class="aw-steps" id="awSteps">
+        <div class="aw-step active" id="awInd1"><span class="aw-step-num">1</span><span class="aw-step-label">単語</span></div>
+        <span class="aw-step-line" aria-hidden="true"></span>
+        <div class="aw-step" id="awInd2"><span class="aw-step-num">2</span><span class="aw-step-label">録画</span></div>
+        <span class="aw-step-line" aria-hidden="true"></span>
+        <div class="aw-step" id="awInd3"><span class="aw-step-num">3</span><span class="aw-step-label">確かめる</span></div>
+      </div>
+      <button type="button" class="aw-close" id="awCloseX" aria-label="とじる">{{ icon('x-circle', size=24) }}</button>
+    </div>
+
+    <!-- ① 単語と読みがな（この時点ではまだ登録しない） -->
+    <div id="awPane1" class="aw-fields">
+      <h2 class="aw-title" id="awDialogTitle">新しい単語を追加</h2>
+      <p class="aw-lead">単語と、お手本の録画をセットで登録します。お手本は保護者が録画します。</p>
+      <div class="aw-field">
+        <label class="aw-label" for="awDisplay">単語</label>
+        <input type="text" class="aw-input" id="awDisplay" placeholder="例：夕食、スーパー" autocomplete="off" enterkeyhint="next">
+      </div>
+      <div class="aw-field">
+        <label class="aw-label" for="awReading">読みがな（ひらがな）</label>
+        <input type="text" class="aw-input" id="awReading" placeholder="例：ゆうしょく、すーぱー" autocomplete="off" lang="ja" enterkeyhint="next">
+        <p class="aw-hint" id="awReadingHint" aria-live="polite">のばす音は「ー」で書きます（例：すーぱー）</p>
+      </div>
+      <p class="aw-status" id="awStatus1" role="alert"></p>
+      <!-- 同じ単語・似ている単語があったときの案内（/admin/check_word の結果） -->
+      <div class="aw-match" id="awMatch" role="status" hidden>
+        <p class="aw-match-text" id="awMatchText"></p>
+        <div class="aw-match-actions" id="awMatchActions"></div>
+      </div>
+      <div class="aw-actions">
+        <button type="button" class="aw-btn-primary" id="awRegisterBtn">次へ：お手本を録画 {{ icon('arrow-right') }}</button>
+      </div>
+    </div>
+
+    <!-- ② お手本の録画 -->
+    <div id="awPane2" class="aw-fields" hidden>
+      <h2 class="aw-title" id="awPane2Title">お手本を録画</h2>
+      <div class="aw-say">
+        <span class="aw-say-text"><span class="aw-say-word" id="awSayWord"></span><span class="aw-say-reading" id="awSayReading"></span></span>
+        <span class="aw-say-note">3・2・1 のあと、1回はっきり言います</span>
+      </div>
+      <div class="aw-stage rec-vid-wrap">
+        <video id="awVideo" autoplay muted playsinline></video>
+        <canvas id="awGuideCanvas"></canvas>
+        <div id="awGuideStatus" class="aw-guide-status">顔を点線の枠に合わせてください</div>
+        <div class="aw-count" id="awCount" hidden><b id="awCountNum">3</b><small id="awCountText">言う準備をして…</small></div>
+        <div class="aw-recbadge" id="awRecBadge" hidden><i></i>録画中</div>
+        <div class="aw-recbar" id="awRecBar" hidden><i id="awRecBarFill"></i></div>
+      </div>
+      <div class="mic-vol-wrap" aria-hidden="true">
+        <span class="mic-vol-label">{{ icon('mic', size=14) }} 声の大きさ</span>
+        <div class="mic-vol-track"><div class="mic-vol-fill" id="awVolFill"></div></div>
+      </div>
+      <div class="mic-vol-warn" id="awVolWarn">{{ icon('alert') }} 声が録れていませんでした。マイクがつながっているか、ミュートになっていないかを確かめて、もう一度録画してください。</div>
+      <p class="aw-status" id="awStatus2" role="status">カメラを起動しています…</p>
+      <div class="aw-actions">
+        <button type="button" class="aw-btn-rec" id="awRecordBtn" disabled>{{ icon('video') }} 録画をはじめる</button>
+        <button type="button" class="aw-btn-secondary" id="awBackBtn">もどる</button>
+      </div>
+    </div>
+
+    <!-- ③ 録画を見て確かめる -->
+    <div id="awPaneCheck" class="aw-fields" hidden>
+      <h2 class="aw-title" id="awCheckTitle">録画を確かめる</h2>
+      <div class="aw-stage">
+        <video id="awPlayback" playsinline></video>
+        <button type="button" class="aw-replay" id="awReplayBtn" hidden><span>{{ icon('play') }} もう一度見る</span></button>
+      </div>
+      <ul class="aw-checklist">
+        <li>{{ icon('check-circle') }}<span>口が、はっきり映っている</span></li>
+        <li>{{ icon('check-circle') }}<span id="awCheckVoice">声が聞こえる</span></li>
+      </ul>
+      <p class="aw-status" id="awStatus3" role="status"></p>
+      <div class="aw-actions">
+        <button type="button" class="aw-btn-primary" id="awConfirmBtn">{{ icon('check') }} <span id="awConfirmLabel">これで登録する</span></button>
+        <button type="button" class="aw-btn-secondary" id="awRetakeBtn">{{ icon('repeat') }} 録り直す</button>
+      </div>
+    </div>
+
+    <!-- 登録できた -->
+    <div id="awPane3" class="aw-fields" hidden>
+      <div class="aw-done">
+        <div class="aw-done-icon">{{ icon('check', size=32) }}</div>
+        <h2 class="aw-title" id="awDoneTitle">追加しました</h2>
+        <p class="aw-done-count" id="awDoneCount"></p>
+      </div>
+      <div class="aw-actions">
+        <a class="aw-btn-primary" id="awPracticeBtn" href="/select">{{ icon('mic') }} この単語を練習する</a>
+        <button type="button" class="aw-btn-secondary" id="awAddAnotherBtn">＋ 続けて追加する</button>
+        <button type="button" class="aw-btn-secondary" id="awFinishBtn">おわる</button>
+      </div>
+    </div>
+  </div>
+</div>

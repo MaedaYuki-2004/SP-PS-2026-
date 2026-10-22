@@ -1,11 +1,11 @@
-/* SP-PS はじめてのチュートリアル（ホーム・録音ページ・結果ページで読み込む）
+/* SP-PS はじめてのチュートリアル（ホーム・単語のページ・録音ページ・結果ページで読み込む）
  *
  * 説明の絵を見せるだけでなく、本物の操作で
  *   単語の登録（お手本の録画）→ その単語で録音 → 結果を見る
  * を1回通してもらう。次に押すボタンだけを明るくして、吹き出しで案内する。ほかの場所は押せない
  * （「やめる」でいつでも抜けられる）。
  *
- * ・今どの手順かは、画面の状態（設定が開いている・単語の追加のどの段階か・録音ページのどの段階か）から
+ * ・今どの手順かは、画面の状態（どのページか・単語の追加のどの段階か・録音ページのどの段階か）から
  *   そのつど決める。途中で戻ったり読み込み直したりしても、案内がずれない。
  * ・進み具合は sessionStorage（このタブの中だけ）に持つ。共有の端末で、次の人に引き継がれない。
  * ・はじめての人に自動で出したかどうかは、利用者 ID ごとに localStorage に持つ。
@@ -91,7 +91,7 @@
     '.tour-toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483005;',
     '  width:min(360px,calc(100vw - 24px));box-sizing:border-box;padding:12px 16px;border-radius:14px;background:var(--text,#13121A);color:var(--bg-card,#fff);',
     '  font-family:var(--font,system-ui);font-size:14px;line-height:1.6;box-shadow:0 12px 30px -10px rgba(0,0,0,.4);}',
-    'body.tour-active #awAddAnotherBtn{display:none !important;}',
+    'body.tour-active #awAddAnotherBtn,body.tour-active #awFinishBtn{display:none !important;}',
     // 単語の追加の画面は上に寄せ、下にあけたところに吹き出しを出す（カメラや入力欄に重ねないため）
     'body.tour-active .aw-modal-overlay.open{align-items:flex-start;padding-top:calc(10px + env(safe-area-inset-top,0px));}',
     '.tour-step .tour-quit{margin-left:4px;min-height:32px;font-size:12px;}',
@@ -176,25 +176,37 @@
     var reading = st.reading || '';
     var awReading = ($('awReading') && $('awReading').value.trim()) || reading || 'たんご';
     return {
-      homeSettings: { n: 1, hole: function () { return $('btnSettings'); },
-        title: '設定をひらこう', text: ['右上の ', { b: '⚙（設定）' }, ' を押します。'] },
-      homeAddWord: { n: 2, hole: function () { return $('btnAddWord'); }, scroll: true,
+      homeWords: { n: 1, hole: function () { return $('btnWordsPage'); }, scroll: true,
+        title: '単語のページをひらこう', text: ['「単語」の横の「', { b: '追加・管理' }, '」を押します。'] },
+      wAdd: { n: 2, hole: function () { return $('btnAddWord'); }, scroll: true,
         title: '単語を追加しよう', text: ['「', { b: '単語を追加' }, '」を押します。'] },
       awInfo: { n: 3, hole: function () { return document.querySelector('#awModalOverlay .aw-modal-card'); },
         ring: function () { return $('awRegisterBtn'); }, pad: 0, outside: true, onEnter: prefillWord,
         title: '練習する単語を入れよう',
-        text: ['れんしゅうに「', { b: ($('awDisplay') && $('awDisplay').value.trim()) || '電話' }, '」を入れておいたよ。べつの単語にしてもOK。「', { b: '次へ（お手本録画）' }, '」を押します。'],
+        text: ['れんしゅうに「', { b: ($('awDisplay') && $('awDisplay').value.trim()) || '電話' }, '」を入れておいたよ。読みがなは自動で入ります。べつの単語にしてもOK。「', { b: '次へ：お手本を録画' }, '」を押します。'],
         note: '単語とお手本の録画は、ふだんは、保護者が登録します。今回は使い方を知るために、自分で1つ登録してみましょう。' },
       awRecord: { n: 4, hole: function () { return document.querySelector('#awModalOverlay .aw-modal-card'); },
         ring: function () { return $('awRecordBtn'); }, pad: 0, outside: true,
         title: 'お手本を録画しよう',
-        text: ['顔を点線の枠に合わせて「', { b: '録画開始' }, '」を押し、3秒のあいだに「', { b: awReading }, '」と1回はっきり言います。終わると、自動で登録されます。'] },
-      awDone: { n: 5, hole: function () { return document.querySelector('#awModalOverlay .aw-modal-card'); },
-        ring: function () { return $('awFinishBtn'); }, pad: 0, outside: true,
-        title: '登録できた！', text: ['「', { b: '完了して一覧に戻る' }, '」を押します。'] },
+        text: ['顔を点線の枠に合わせて「', { b: '録画をはじめる' }, '」を押します。3・2・1 のあと、「', { b: awReading }, '」と1回はっきり言います。'] },
+      awCheck: { n: 5, hole: function () { return document.querySelector('#awModalOverlay .aw-modal-card'); },
+        ring: function () { return $('awConfirmBtn'); }, pad: 0, outside: true,
+        title: '録画を確かめよう',
+        text: ['口が映っていて、声が聞こえたら「', { b: 'これで登録する' }, '」を押します。うまく録れていなければ「', { b: '録り直す' }, '」。'] },
+      awDone: { n: 6, hole: function () { return document.querySelector('#awModalOverlay .aw-modal-card'); },
+        ring: function () { return $('awPracticeBtn'); }, pad: 0, outside: true,
+        onTargetClick: function () { var s = load(); if (s) { s.stage = 'practice'; save(s); } },
+        title: '登録できた！', text: ['さっそく練習してみよう。「', { b: 'この単語を練習する' }, '」を押します。'] },
+      // 登録したあとで追加の画面を閉じた・読み込み直したとき
       homeCard: { n: 6, hole: function () { return homeCardButton(st); }, scroll: true,
         onTargetClick: function () { var s = load(); if (s) { s.stage = 'practice'; save(s); } },
         title: '「' + word + '」を練習しよう', text: ['登録した単語の「', { b: '録音する' }, '」を押します。'] },
+      wGo: { n: 6, anchor: 'bottom',
+        title: '「' + word + '」を練習しよう', text: ['登録できました。下のボタンで練習に進みます。'],
+        buttons: [{ label: 'この単語を練習する', onClick: function () {
+          var s = load(); if (s) { s.stage = 'practice'; save(s); }
+          location.href = '/practice/word/' + encodeURIComponent(st.wordId);
+        } }] },
       pStart: { n: 7, hole: function () { return $('refWatchBtn') || $('buttonStart'); },
         title: 'まず、お手本を見よう', text: ['「', { b: $('refWatchBtn') ? 'お手本を見る' : '録音する' }, '」を押します。'] },
       // お手本の動画が流れている間は吹き出しを出さない（動画と音の高さ・長さの図をかくさない）
@@ -234,7 +246,7 @@
   function prefillWord() {
     var d = $('awDisplay'), r = $('awReading');
     if (!d || !r || d.value.trim() || r.value.trim()) return;
-    var have = Array.prototype.map.call(document.querySelectorAll('.word-card'), function (c) { return c.dataset.word; });
+    var have = Array.prototype.map.call(document.querySelectorAll('.word-card, .wl-row'), function (c) { return c.dataset.word; });
     var ex = EXAMPLES.filter(function (e) { return have.indexOf(e[0]) < 0; })[0] || EXAMPLES[0];
     d.value = ex[0];
     r.value = ex[1];
@@ -248,20 +260,19 @@
 
   function resolve(st) {
     var defs = stepDefs(st);
-    if ($('awModalOverlay')) {                       // ホーム
+    if ($('awModalOverlay')) {                       // ホーム・単語のページ
       var aw = $('awModalOverlay');
       if (aw.classList.contains('open')) {
         if (shown($('awPane3'))) return ['awDone', defs.awDone];
+        if (shown($('awPaneCheck'))) return ['awCheck', defs.awCheck];
         if (shown($('awPane2'))) return ['awRecord', defs.awRecord];
         return ['awInfo', defs.awInfo];
       }
-      if (anySheetOpen('settingsSheet')) return null;
-      if (st.wordId || st.stage === 'practice' || st.stage === 'result') {
-        if (!$('settingsSheet').hidden) $('settingsSheet').hidden = true;
-        return ['homeCard', defs.homeCard];
-      }
-      if (!$('settingsSheet').hidden) return ['homeAddWord', defs.homeAddWord];
-      return ['homeSettings', defs.homeSettings];
+      if (anySheetOpen()) return null;
+      var registered = st.wordId || st.stage === 'practice' || st.stage === 'result';
+      if ($('btnWordsPage')) return registered ? ['homeCard', defs.homeCard] : ['homeWords', defs.homeWords];   // ホーム
+      if ($('btnAddWord')) return registered && st.wordId ? ['wGo', defs.wGo] : ['wAdd', defs.wAdd];         // 単語のページ
+      return null;
     }
     if ($('recStage')) {                             // 録音ページ
       if ($('loadingOverlay') && $('loadingOverlay').classList.contains('show')) return null;
@@ -358,6 +369,7 @@
     // outside：大きな画面（単語の追加）の中に重ねず、その外に出す。しっぽは押すボタンを指す
     var anchor = def.outside ? hole : (ring || hole);
     var pointAt = ring || hole;
+    var left = null;
     if (!anchor || def.anchor === 'bottom') {
       top = H - bh - margin - 70;
       cls += ' notail';
@@ -366,11 +378,19 @@
       top = anchor.y + anchor.h + gap; cls += ' below';
     } else if (anchor.y - gap - bh >= margin) {
       top = anchor.y - gap - bh; cls += ' above';
+    } else if (def.outside && W - (anchor.x + anchor.w) >= bw + gap + margin) {
+      // 大きな画面（単語の追加）の右に場所があれば、横に出して、押すボタンの高さにそろえる
+      left = anchor.x + anchor.w + gap;
+      top = Math.min(Math.max(margin, (pointAt || anchor).y + (pointAt || anchor).h / 2 - bh / 2), H - bh - margin);
+      cls += ' notail';
     } else {
-      top = H - bh - margin; cls += ' notail';
+      // どこにも入らないときは、画面の下か上の、押すボタンに重ならないほうに出す
+      top = H - bh - margin;
+      if (pointAt && pointAt.y + pointAt.h > top && pointAt.y > bh + margin * 2) top = margin;
+      cls += ' notail';
     }
     var cx = anchor ? (pointAt || anchor).x + (pointAt || anchor).w / 2 : W / 2;
-    var left = Math.min(Math.max(margin, cx - bw / 2), W - bw - margin);
+    if (left == null) left = Math.min(Math.max(margin, cx - bw / 2), W - bw - margin);
     u.bubble.className = cls;
     u.bubble.style.left = left + 'px';
     u.bubble.style.top = Math.max(margin, top) + 'px';
@@ -391,7 +411,7 @@
     if (!r) { hideUi(); current = null; return; }
     if (r[0] !== current) enter(r[0], r[1]);
     else currentDef = r[1];   // 文（入れた単語など）を新しくする
-    if (current === 'awRecord' || current === 'awInfo') {
+    if (current === 'awRecord' || current === 'awInfo' || current === 'awCheck') {
       fill(ui.text, r[1].text);
     }
     place(currentDef);
@@ -418,7 +438,7 @@
   window.addEventListener('resize', function () { if (timer) tick(); });
   window.addEventListener('scroll', function () { if (timer && currentDef) place(currentDef); }, { passive: true });
 
-  // 単語を登録した（select.html が知らせる）→ その単語で練習へ
+  // 単語を登録した（word_add.js が知らせる）→ その単語で練習へ
   document.addEventListener('sp:wordadded', function (e) {
     var s = load();
     if (!s || !e.detail) return;

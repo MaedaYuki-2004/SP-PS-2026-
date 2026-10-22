@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from core.accent import _get_tagger, guess_reading
 from core.alignment import lab_is_squeezed
 from core.vocab import julius_reading
 
@@ -25,6 +26,24 @@ class JuliusReadingTests(unittest.TestCase):
             julius_reading("ヴァイオリン")   # ゔ は Julius の変換表に無い
         with self.assertRaises(ValueError):
             julius_reading("   ")
+
+
+class GuessReadingTests(unittest.TestCase):
+    """単語を追加する画面で、読みの欄に先に入れておく候補（画面で確かめて直してもらう）。"""
+
+    def test_kana_only_words_become_hiragana_without_mecab(self):
+        self.assertEqual(guess_reading("スーパー"), "すーぱー")
+        self.assertEqual(guess_reading(" ゆうしょく "), "ゆうしょく")
+
+    def test_empty_or_too_long_gives_none(self):
+        self.assertIsNone(guess_reading(""))
+        self.assertIsNone(guess_reading("あ" * 41))
+
+    @unittest.skipIf(_get_tagger() is None, "MeCab・UniDic が入っていない")
+    def test_kanji_words_are_read_and_pass_the_julius_check(self):
+        for display, reading in [("夕食", "ゆうしょく"), ("病院", "びょういん"), ("田んぼ", "たんぼ"), ("学校", "がっこう")]:
+            self.assertEqual(guess_reading(display), reading)
+            self.assertEqual(julius_reading(guess_reading(display)), reading)
 
 
 class SqueezedAlignmentTests(unittest.TestCase):

@@ -346,7 +346,7 @@ def archive_word(word_id: str) -> dict:
     save_db(db)
     _update_audio_scp(db)
     _update_words_txt(db)
-    return {"message": f"{entry['display']} を削除しました（練習の記録は残ります。単語の管理から元に戻せます）"}
+    return {"message": f"{entry['display']} を削除しました（練習の記録は残ります。単語のページの「削除した単語」から元に戻せます）"}
 
 
 def restore_word(word_id: str) -> dict:

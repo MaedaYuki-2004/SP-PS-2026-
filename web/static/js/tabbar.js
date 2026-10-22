@@ -3,7 +3,8 @@
 
    「記録」と「分析」は同じ /history の中の2つの面だが、生徒がいちばん見たい
    「自分がどうなっているか」への入口なので、どちらもタブに直接置いて1タップで開けるようにする。
-   /history#log と /history#analysis はページを読み込み直さずに切り替わる（history.html が hashchange を見る）。 */
+   /history#log と /history#analysis はページを読み込み直さずに切り替わる（history.html が hashchange を見る）。
+   「単語」は単語の追加（お手本の録画つき）・編集・削除をまとめたページ（/words）。 */
 (function () {
   'use strict';
 
@@ -12,6 +13,7 @@
   };
   var ICONS = {
     home:     SVG('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>'),
+    words:    SVG('<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7.5h6M9 11h4"/>'),
     log:      SVG('<rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
     insight:  SVG('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
     admin:    SVG('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>')
@@ -27,6 +29,8 @@
   var TABS = [
     { href: '/select', label: 'ホーム', icon: ICONS.home,
       active: function (p) { return /^\/$/.test(p) || /^\/select/.test(p) || /^\/practice/.test(p); } },
+    { href: '/words', label: '単語', icon: ICONS.words,
+      active: function (p) { return /^\/words/.test(p); } },
     { href: '/history#log', label: '記録', icon: ICONS.log,
       active: function (p, h) { return onHistory(p) && h !== '#analysis'; } },
     { href: '/history#analysis', label: '分析', icon: ICONS.insight,

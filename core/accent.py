@@ -4,6 +4,8 @@ MeCab によるアクセント型の自動取得を担当するモジュール�
 """
 from __future__ import annotations
 
+import threading
+
 # MeCab はオプション依存。入っていない環境では
 # accent=None / source="unknown" を返してアプリを継続動作させる。
 try:
@@ -15,6 +17,9 @@ except Exception:
 
 # ── MeCab 初期化 ─────────────────────────────────────────────────────
 _tagger = None
+# サーバーは1つのプロセスで複数のスレッドが要求を受ける。MeCab の解析器は同時に使うと
+# 安全とは限らないので、解析は1つずつ行う
+_tagger_lock = threading.Lock()
 
 def _get_tagger():
     """MeCab tagger のシングルトン。初回のみ初期化する。"""
@@ -46,7 +51,8 @@ def get_accent(display: str) -> tuple[int | None, str]:
         return None, "unknown"
 
     try:
-        result = tagger.parse(display)
+        with _tagger_lock:
+            result = tagger.parse(display)
     except Exception:
         return None, "unknown"
 
@@ -65,3 +71,51 @@ def get_accent(display: str) -> tuple[int | None, str]:
         return int(first), "mecab"
 
     return None, "unknown"
+
+
+# ── 読みがなの候補 ────────────────────────────────────────────────────
+
+def _to_hiragana(text: str) -> str:
+    return "".join(chr(ord(c) - 0x60) if "ァ" <= c <= "ヶ" else c for c in text)
+
+
+def _is_kana_reading(text: str) -> bool:
+    return bool(text) and all("ぁ" <= c <= "ゖ" or c == "ー" for c in text)
+
+
+def guess_reading(display: str) -> str | None:
+    """
+    表示テキストから、読みがな（ひらがな）の候補を返す。単語を登録する画面で、読みの欄に先に入れておくため。
+
+    かな だけの単語は、カタカナをひらがなに直すだけ（「スーパー」→「すーぱー」）。
+    漢字を含む単語は MeCab + UniDic の読みをつなげる。MeCab は「お母さん」を「おははさん」と
+    読むようなまちがいもするので、あくまで候補として出し、画面で確かめて直してもらう。
+    分からないとき（MeCab が無い・ひらがなにならない文字がある）は None。
+    """
+    text = (display or "").strip()
+    if not text or len(text) > 40:
+        return None
+    kana = _to_hiragana(text)
+    if _is_kana_reading(kana):
+        return kana
+    tagger = _get_tagger()
+    if tagger is None:
+        return None
+    try:
+        with _tagger_lock:
+            result = tagger.parse(text)
+    except Exception:
+        return None
+    parts = []
+    for line in result.splitlines():
+        if not line or line == "EOS" or "	" not in line:
+            continue
+        surface, feature = line.split("	", 1)
+        f = feature.split(",")
+        # UniDic：20 番目が書いてあるとおりの読み（仮名形）、6 番目が語彙素の読み
+        kana_form = f[20] if len(f) > 20 and f[20] not in ("", "*") else (f[6] if len(f) > 6 else "")
+        if not kana_form or kana_form == "*":
+            kana_form = surface
+        parts.append(_to_hiragana(kana_form.strip('"')))
+    reading = "".join(parts)
+    return reading if _is_kana_reading(reading) else None

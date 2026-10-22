@@ -64,6 +64,7 @@ from core.analysis  import compute_learning_stats
 from core.dtw       import fastdtw
 from core.confidence import bootstrap_ci, needs_more_data
 from core import accounts as acc
+from core.accent import guess_reading
 from core import teacher
 from core import usercontext
 from core.workspace import current_workspace
@@ -897,7 +898,7 @@ def _teacher_denied():
     """先生モードでないときの返し方。画面の移動なら先生用パスワードの画面へ、通信なら 403。"""
     if _wants_html():
         # 画面を開こうとしたときはそのページへ、フォーム送信のときは送信元のページへ戻す
-        target = request.full_path if request.method == "GET" else (urlparse(request.referrer or "").path or "/admin")
+        target = request.full_path if request.method == "GET" else (urlparse(request.referrer or "").path or "/select")
         return redirect(f"/teacher?next={quote(target.rstrip('?'), safe='')}")
     return jsonify({
         "error": "先生モードでないため、この操作はできません。設定から先生モードをONにしてください"
@@ -947,7 +948,7 @@ def _require_login():
     endpoint = request.endpoint or ""
     if endpoint in _AUTH_EXEMPT_ENDPOINTS:
         return
-    # 参加者アカウントの管理だけは先生モードで行う。単語とお手本の管理（/admin ほか）は
+    # 参加者アカウントの管理だけは先生モードで行う。単語とお手本の管理（/words と /admin/… の API）は
     # ログイン中の参加者が自分の分を行う（core/library.py）ので、下のログイン確認に進む
     if request.path.startswith("/admin/accounts"):
         if not teacher.is_active(session):
@@ -1123,7 +1124,7 @@ def _remove_session_lip_videos() -> None:
 
 # ── 先生モード ───────────────────────────────────────────────────────
 
-def _safe_next(target: str | None, default: str = "/admin") -> str:
+def _safe_next(target: str | None, default: str = "/admin/accounts") -> str:
     """ログイン後などに戻る先。同じサイトの中のパスだけを許す。"""
     if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
         return target
@@ -2269,10 +2270,28 @@ def api_history_calendar():
     return jsonify(get_daily_counts(days))
 
 
+@app.route("/words")
+def words_page():
+    """単語のページ：単語の追加（お手本の録画つき）・編集・お手本の録り直し・削除・元に戻すを1か所で行う。
+    ホームの「単語」の見出しの横のボタンと、下のタブの「単語」から開く。?add=1 なら、追加の画面を開いた状態で出す。"""
+    words = list_words()
+    return render_template("words.html", words=words, archived=list_archived_words(),
+                           lip_ref_keys=set(load_lip_refs().keys()), all_tags=get_all_tags(),
+                           accent_patterns={w["word_id"]: _accent_pattern_for_word(w.get("accent"), w.get("reading", ""))
+                                            for w in words},
+                           open_add=request.args.get("add") == "1")
+
+
 @app.route("/admin")
 def admin():
-    return render_template("admin.html", words=list_words(), archived=list_archived_words(),
-                           stats=get_stats(), all_tags=get_all_tags())
+    """以前の単語の管理の画面。単語のページ（/words）にまとめたので、古いリンクやブックマークはそちらへ送る。"""
+    return redirect("/words")
+
+
+@app.route("/api/reading_hint")
+def api_reading_hint():
+    """単語を追加するときの、読みがなの候補（core/accent.py の guess_reading）。分からないときは null。"""
+    return jsonify({"reading": guess_reading(request.args.get("display", ""))})
 
 
 # ── 研究参加者アカウント管理（研究者用・ローカル運用前提） ───────────
@@ -2389,7 +2408,7 @@ def add_word():
     単語登録とお手本録画は必ずセットで行う仕様のため、動画なし
     （テキストのみ）での登録はサポートしない。動画から音声を抽出して
     アライメント・MFCC・口形データを一括で保存する。
-    呼び出し元: select.html の単語追加モーダル / admin.html のカメラ録画。
+    呼び出し元: 単語の追加の画面（web/templates/_word_add.html・web/static/js/word_add.js）。
     """
     try:
         display = (request.form.get("display") or "").strip()

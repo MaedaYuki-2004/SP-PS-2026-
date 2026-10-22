@@ -1,0 +1,438 @@
+{% from "_icons.html" import icon %}<!DOCTYPE html>
+<html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>単語 — SP-PS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/camera_error.js"></script>
+  <script src="/static/js/media.js"></script>
+  <link href="/static/css/base.css" rel="stylesheet">
+  <style>
+    /* ══ 単語のページ ══════════════════════════════════════════
+       単語の追加（お手本の録画つき）・編集・お手本の録り直し・削除・元に戻すを、ここ1か所で行う。
+       以前は、設定の「単語を追加」と、PC 向けの表の「単語の管理」（/admin）の2か所に分かれていて、
+       登録の画面も2種類あった。ホームの「単語」の見出しの横と、下のタブから開く。 */
+    .wp-intro { display:flex; flex-direction:column; gap:14px; padding:18px; }
+    .wp-intro p { font-size:14px; line-height:1.75; color:var(--text-2); }
+    .wp-intro p b { color:var(--text); }
+    .wp-stats { display:flex; flex-wrap:wrap; gap:8px; }
+    .wp-stat { display:inline-flex; align-items:baseline; gap:4px; min-height:30px; padding:4px 12px; border-radius:100px;
+               background:var(--bg-muted); font-size:12.5px; color:var(--text-2); }
+    .wp-stat b { font-family:var(--font-num); font-size:15px; color:var(--text); }
+    .wp-stat.warn { background:var(--mid-bg); color:var(--mid-text); }
+    .wp-stat.warn b { color:var(--mid-text); }
+
+    .section-head h2 b { font-family:var(--font-num); font-size:13px; font-weight:700; color:var(--text-3);
+                         background:var(--bg-card); box-shadow:var(--elev-1); border-radius:100px; padding:2px 10px; margin-left:8px; vertical-align:2px; }
+    .search-box { position:relative; }
+    .search-box .ic { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--text-3); }
+    .search-input { width:100%; min-height:52px; padding:12px 16px 12px 46px; border:1px solid transparent; border-radius:16px;
+                    font-family:var(--font); font-size:16px; background:var(--bg-card); color:var(--text); box-shadow:var(--elev-1); }
+    .search-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 4px color-mix(in srgb, var(--navy) 16%, transparent); }
+
+    /* 単語の一覧：1行に1語。押すと、その単語の編集が開く */
+    .wl { display:flex; flex-direction:column; border-radius:var(--r-lg); background:var(--bg-card); box-shadow:var(--elev-1); overflow:hidden; }
+    .wl-row { display:flex; align-items:center; gap:12px; width:100%; min-height:76px; padding:12px 14px 12px 18px; border:none; background:none;
+              text-align:left; font-family:var(--font); color:var(--text); cursor:pointer; -webkit-tap-highlight-color:transparent;
+              transition:background var(--dur); }
+    .wl-row + .wl-row { border-top:1px solid var(--border-light); }
+    .wl-row:hover { background:var(--bg); }
+    .wl-row:active { background:var(--bg-muted); }
+    .wl-row[hidden] { display:none; }
+    .wl-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+    .wl-word { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; }
+    .wl-word b { font-size:21px; font-weight:700; line-height:1.3; word-break:break-all; }
+    .wl-word span { font-size:13px; color:var(--text-3); letter-spacing:.06em; }
+    .wl-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+    .wl-badge { display:inline-flex; align-items:center; gap:4px; min-height:24px; padding:2px 9px; border-radius:100px;
+                background:var(--bg-muted); font-size:11.5px; font-weight:700; color:var(--text-3); }
+    .wl-badge .ic { width:13px; height:13px; }
+    .wl-badge.ok { background:var(--good-bg); color:var(--good-text); }
+    .wl-badge.warn { background:var(--mid-bg); color:var(--mid-text); }
+    .wl-note { font-size:12.5px; color:var(--text-2); line-height:1.5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .wl-go { flex:none; display:inline-flex; align-items:center; gap:4px; min-height:40px; padding:0 12px; border-radius:100px;
+             background:var(--navy-soft); color:var(--brand-700); font-size:13px; font-weight:700; }
+    .wl-go .ic { width:16px; height:16px; }
+    .wl-empty { display:flex; flex-direction:column; align-items:center; gap:10px; padding:32px 20px; text-align:center; color:var(--text-2); font-size:14px; line-height:1.7; }
+    .wl-empty-ic { width:64px; height:64px; border-radius:22px; display:flex; align-items:center; justify-content:center; background:var(--navy-soft); color:var(--navy); }
+    .no-results { text-align:center; padding:24px 0; color:var(--text-3); font-size:14px; }
+
+    /* 削除した単語 */
+    .arch-note { font-size:13px; line-height:1.75; color:var(--text-2); margin:0 0 12px; }
+    .arch-list { display:flex; flex-direction:column; gap:8px; }
+    .arch-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 14px; border-radius:18px; background:var(--bg-muted); }
+    .arch-main { flex:1; min-width:140px; }
+    .arch-main b { font-size:17px; }
+    .arch-main span { display:block; font-size:12px; color:var(--text-3); margin-top:2px; }
+    .arch-btns { display:flex; gap:6px; }
+    .arch-btn { min-height:42px; padding:0 14px; border-radius:100px; border:none; background:var(--bg-card); color:var(--text);
+                font-family:var(--font); font-size:13.5px; font-weight:700; cursor:pointer; box-shadow:var(--elev-1); }
+    .arch-btn.danger { color:var(--danger); }
+    .arch-btn.pending { background:var(--danger); color:#fff; }
+    .arch-btn:disabled { opacity:.5; }
+
+    /* 編集のシート */
+    .ed-ref { display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:20px; background:var(--bg-muted); }
+    .ed-ref-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .ed-ref-head b { font-size:14px; }
+    .ed-video-wrap { position:relative; width:100%; aspect-ratio:4/3; border-radius:16px; overflow:hidden; background:#0E0C1A; }
+    .ed-video-wrap video { width:100%; height:100%; object-fit:cover; display:block; }
+    .ed-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; border:none; background:rgba(14,12,34,.3);
+               color:#fff; font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; }
+    .ed-play span { display:inline-flex; align-items:center; gap:8px; min-height:50px; padding:0 20px; border-radius:100px; background:rgba(0,0,0,.5); }
+    .ed-play[hidden] { display:none; }
+    .ed-noref { font-size:13.5px; line-height:1.7; color:var(--mid-text); }
+    .ed-fields { display:flex; flex-direction:column; gap:14px; }
+    .ed-field { display:flex; flex-direction:column; gap:6px; }
+    .ed-label { font-size:13px; font-weight:700; color:var(--text-2); }
+    .ed-label small { font-weight:500; color:var(--text-3); margin-left:4px; }
+    .ed-input { width:100%; min-height:52px; padding:12px 16px; border:1.5px solid var(--border); border-radius:16px; background:var(--bg);
+                color:var(--text); font-family:var(--font); font-size:17px; }
+    textarea.ed-input { min-height:76px; resize:vertical; line-height:1.6; font-size:16px; }
+    .ed-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 4px color-mix(in srgb, var(--navy) 16%, transparent); }
+    .ed-hint { font-size:12.5px; line-height:1.6; color:var(--text-3); }
+    .ed-more { border-radius:16px; background:var(--bg-muted); }
+    .ed-more summary { min-height:48px; display:flex; align-items:center; padding:0 14px; font-size:13.5px; font-weight:700; color:var(--text-2); cursor:pointer; }
+    .ed-more > div { padding:0 14px 14px; }
+    .ed-status { font-size:13.5px; font-weight:700; line-height:1.6; }
+    .ed-status:empty { display:none; }
+    .ed-status.err { color:var(--danger); }
+    .ed-status.ok { color:var(--good-text); }
+    .ed-status.loading { color:var(--text-3); font-weight:500; }
+    .ed-actions { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+    .ed-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:52px; padding:0 16px; border:none; border-radius:16px;
+              font-family:var(--font); font-size:15.5px; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    .ed-btn.primary { background:var(--grad-brand); color:#fff; box-shadow:var(--shadow-brand); }
+    .ed-btn.sub { background:var(--bg-card); color:var(--text); box-shadow:var(--elev-1); }
+    .ed-btn.plain { background:var(--bg-muted); color:var(--text-2); }
+    .ed-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .ed-del { margin-top:6px; padding-top:14px; border-top:1px solid var(--border-light); display:flex; flex-direction:column; gap:8px; }
+    .ed-del p { font-size:12.5px; line-height:1.7; color:var(--text-3); }
+    .ed-del-btn { min-height:48px; border:none; border-radius:14px; background:var(--danger-bg); color:var(--danger); font-family:var(--font);
+                  font-size:14.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+    .ed-del-btn.pending { background:var(--danger); color:#fff; }
+    @media (min-width:760px) { .page.words { max-width:720px; } }
+  </style>
+</head>
+<body>
+<header class="app-header">
+  <a href="/select" class="app-header-left icon-btn" aria-label="ホームにもどる">{{ icon('back') }}</a>
+  <div class="app-header-title">単語</div>
+  <span class="app-header-right"></span>
+</header>
+
+{% set n_ref = words | selectattr('word_id', 'in', lip_ref_keys) | list | length %}
+<main class="page words">
+  <section class="card wp-intro">
+    <p>練習する単語を、<b>お手本の録画とセットで</b>登録します。単語の登録とお手本の録画は、保護者がします。</p>
+    <button type="button" class="btn-hero" id="btnAddWord" data-word-add>{{ icon('plus', size=22) }} 単語を追加</button>
+    {% if words %}
+    <div class="wp-stats">
+      <span class="wp-stat">登録した単語 <b>{{ words | length }}</b></span>
+      {% if words | length > n_ref %}<span class="wp-stat warn">お手本の録画がない <b>{{ words | length - n_ref }}</b></span>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  <section>
+    <div class="section-head"><h2>登録した単語<b>{{ words | length }}</b></h2></div>
+    {% if words | length >= 6 %}
+    <div class="search-box" style="margin-top:10px;">
+      {{ icon('search') }}
+      <input type="search" class="search-input" id="wlSearch" placeholder="単語をさがす（ひらがなでもOK）" autocomplete="off">
+    </div>
+    {% endif %}
+    {% if words %}
+    <div class="wl" id="wordList" style="margin-top:10px;">
+      {% for w in words %}
+      {% set has_ref = w.word_id in lip_ref_keys %}
+      <button type="button" class="wl-row" data-word-id="{{ w.word_id }}" data-word="{{ w.display }}" data-reading="{{ w.reading }}"
+              data-note="{{ w.note or '' }}" data-tags="{{ (w.tags or []) | join('、') }}" data-accent="{{ '' if w.accent is none else w.accent }}"
+              data-has-ref="{{ 1 if has_ref else 0 }}" data-fixed="{{ 1 if w.source == 'recorded' else 0 }}"
+              aria-label="{{ w.display }}（{{ w.reading }}）を編集">
+        <span class="wl-main">
+          <span class="wl-word"><b>{{ w.display }}</b><span>{{ w.reading }}</span></span>
+          <span class="wl-meta">
+            {% if has_ref %}<span class="wl-badge ok">{{ icon('video') }} お手本あり</span>
+            {% else %}<span class="wl-badge warn">{{ icon('alert') }} お手本の録画がありません</span>{% endif %}
+            {% for t in (w.tags or []) %}<span class="wl-badge">#{{ t }}</span>{% endfor %}
+          </span>
+          {% if w.note %}<span class="wl-note">{{ w.note }}</span>{% endif %}
+        </span>
+        <span class="wl-go">{{ icon('edit') }} 編集</span>
+      </button>
+      {% endfor %}
+    </div>
+    <p class="no-results" id="wlNoResults" hidden>見つかりませんでした</p>
+    {% else %}
+    <div class="wl" style="margin-top:10px;">
+      <div class="wl-empty">
+        <span class="wl-empty-ic">{{ icon('book', size=30) }}</span>
+        <p>まだ単語がありません。<br>上の「単語を追加」から、練習したい単語を登録しましょう。</p>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  {% if archived %}
+  {# 削除した単語。削除は一覧から外すだけで、練習の記録とお手本は残す（core/vocab.py） #}
+  <details class="fold-section" id="archivedSection">
+    <summary class="fold-summary">削除した単語（{{ archived | length }}）</summary>
+    <div class="fold-body">
+      <p class="arch-note">
+        削除した単語は練習の一覧に出ませんが、練習の記録とお手本の録画は残っています。「元に戻す」と、前の記録の続きから練習できます。
+        {% if is_teacher %}練習の記録が無い単語（打ちまちがえて登録した単語など）は、「完全に消す」でお手本の録画ごと消せます。{% endif %}
+      </p>
+      <div class="arch-list">
+        {% for w in archived %}
+        <div class="arch-row">
+          <div class="arch-main"><b>{{ w.display }}</b><span>{{ w.reading }}・{{ (w.archived_at or '')[:10] }} に削除・練習 {{ w.records }} 回</span></div>
+          <div class="arch-btns">
+            <button type="button" class="arch-btn" data-restore="{{ w.word_id }}">元に戻す</button>
+            {% if is_teacher and not w.records %}<button type="button" class="arch-btn danger" data-purge="{{ w.word_id }}">完全に消す</button>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </details>
+  {% endif %}
+</main>
+
+{# ── 単語の編集（シート） ── #}
+<div class="sheet" id="editSheet" hidden>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="edTitle">
+    <div class="sheet-grip"></div>
+    <div class="sheet-title" id="edTitle">単語を編集</div>
+    <div class="ed-fields">
+      <div class="ed-ref">
+        <div class="ed-ref-head"><b>お手本</b></div>
+        <div class="ed-video-wrap" id="edVideoWrap">
+          <video id="edVideo" playsinline preload="metadata"></video>
+          <button type="button" class="ed-play" id="edPlay"><span>{{ icon('play') }} お手本を見る</span></button>
+        </div>
+        <p class="ed-noref" id="edNoRef" hidden>{{ icon('alert') }} この単語には、お手本の録画がありません。録画すると、練習でお手本の口の動きが見られます。</p>
+        <button type="button" class="ed-btn sub" id="edRerecord">{{ icon('video') }} <span id="edRerecordLabel">お手本を録り直す</span></button>
+      </div>
+      <div class="ed-field">
+        <label class="ed-label" for="edDisplay">単語</label>
+        <input type="text" class="ed-input" id="edDisplay" autocomplete="off">
+      </div>
+      <div class="ed-field">
+        <label class="ed-label" for="edReading">読みがな（ひらがな）</label>
+        <input type="text" class="ed-input" id="edReading" autocomplete="off" lang="ja">
+        <p class="ed-hint" id="edReadingHint">読みを変えたときは、お手本も新しい読みで録り直します。</p>
+      </div>
+      <div class="ed-field">
+        <label class="ed-label" for="edNote">メモ<small>練習のコツなど。ホームの単語に出ます</small></label>
+        <textarea class="ed-input" id="edNote" rows="2" placeholder="例：さいごを上げないように"></textarea>
+      </div>
+      <div class="ed-field">
+        <label class="ed-label" for="edTags">タグ<small>「、」で区切る。ホームで絞り込めます</small></label>
+        <input type="text" class="ed-input" id="edTags" autocomplete="off" placeholder="例：たべもの、学校">
+      </div>
+      <details class="ed-more">
+        <summary>くわしい設定（音の高さの型）</summary>
+        <div class="ed-field">
+          <label class="ed-label" for="edAccent">アクセント型<small>空欄なら自動（0＝平板、1＝頭高 など）</small></label>
+          <input type="text" class="ed-input" id="edAccent" inputmode="numeric" autocomplete="off" placeholder="自動">
+        </div>
+      </details>
+      <p class="ed-status" id="edStatus" role="alert"></p>
+      <div class="ed-actions">
+        <button type="button" class="ed-btn primary" id="edSave">{{ icon('check') }} 保存する</button>
+        <button type="button" class="ed-btn plain" data-close-sheet>とじる</button>
+      </div>
+      <div class="ed-del">
+        <p>削除しても、練習の記録とお手本の録画は残ります。このページの下の「削除した単語」から元に戻せます。</p>
+        <button type="button" class="ed-del-btn" id="edDelete">{{ icon('trash') }} <span id="edDeleteLabel">この単語を削除</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "_word_add.html" %}
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  function kanaNorm(s) { return (s || '').toLowerCase().replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); }); }
+  async function postJson(url, body) {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body) });
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(data.error || '通信できませんでした');
+    return data;
+  }
+
+  /* ── 単語をさがす ── */
+  const search = $('wlSearch');
+  if (search) search.addEventListener('input', function () {
+    const q = kanaNorm(search.value.trim());
+    let vis = 0;
+    document.querySelectorAll('.wl-row').forEach(function (r) {
+      const show = !q || kanaNorm(r.dataset.word).includes(q) || kanaNorm(r.dataset.reading).includes(q);
+      r.hidden = !show;
+      if (show) vis++;
+    });
+    $('wlNoResults').hidden = vis > 0;
+  });
+
+  /* ── 編集のシート ── */
+  const sheet = $('editSheet');
+  const video = $('edVideo');
+  let cur = null;         // いま編集している単語（行の data-*）
+  let changed = false;    // 保存・削除した → とじたら一覧を新しくする
+  let delTimer = null;
+
+  function setStatus(msg, kind) { const s = $('edStatus'); s.textContent = msg || ''; s.className = 'ed-status' + (kind ? ' ' + kind : ''); }
+  function resetDelete() { clearTimeout(delTimer); $('edDelete').classList.remove('pending'); $('edDeleteLabel').textContent = 'この単語を削除'; }
+
+  function openEdit(row) {
+    cur = Object.assign({}, row.dataset);
+    $('edTitle').textContent = '「' + cur.word + '」';
+    $('edDisplay').value = cur.word;
+    $('edReading').value = cur.reading;
+    $('edNote').value = cur.note || '';
+    $('edTags').value = cur.tags || '';
+    $('edAccent').value = cur.accent || '';
+    const hasRef = cur.hasRef === '1';
+    $('edVideoWrap').hidden = !hasRef;
+    $('edNoRef').hidden = hasRef;
+    $('edRerecordLabel').textContent = hasRef ? 'お手本を録り直す' : 'お手本を録画する';
+    // 最初のコマを見せるため、開いたときに先頭だけ読む（#t=0.1）。一覧を出しただけでは全部の動画を読まない
+    if (hasRef) video.src = '/sample_video/' + encodeURIComponent(cur.wordId) + '#t=0.1';
+    else video.removeAttribute('src');
+    $('edPlay').hidden = false;
+    const fixed = cur.fixed === '1';
+    ['edDisplay', 'edReading', 'edNote', 'edTags', 'edAccent', 'edSave', 'edDelete', 'edRerecord'].forEach(function (id) { $(id).disabled = fixed; });
+    setStatus(fixed ? 'はじめから入っている単語なので、変えられません。' : '', fixed ? 'loading' : '');
+    resetDelete();
+    sheet.hidden = false;
+  }
+  function closeEdit() {
+    try { video.pause(); } catch (e) {}
+    sheet.hidden = true;
+    resetDelete();
+    if (changed) location.reload();
+  }
+  document.querySelectorAll('.wl-row').forEach(function (r) { r.addEventListener('click', function () { openEdit(r); }); });
+  sheet.addEventListener('click', function (e) { if (e.target === sheet) closeEdit(); });
+  sheet.querySelectorAll('[data-close-sheet]').forEach(function (b) { b.addEventListener('click', closeEdit); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sheet.hidden) closeEdit(); });
+
+  // お手本を見る
+  $('edPlay').addEventListener('click', function () {
+    if (!cur) return;
+    $('edPlay').hidden = true;
+    video.currentTime = 0;
+    const p = video.play();
+    if (p && p.catch) p.catch(function () { $('edPlay').hidden = false; });
+  });
+  video.addEventListener('ended', function () { $('edPlay').hidden = false; });
+  video.addEventListener('error', function () { $('edPlay').hidden = false; setStatus('お手本の録画を読み込めませんでした。', 'err'); });
+
+  // お手本の録り直しは、単語の追加と同じ画面（_word_add.html）で行う。シートの上に重ならないよう先に閉じる
+  $('edRerecord').addEventListener('click', function () {
+    if (!cur || !window.SPWordAdd) return;
+    const c = cur;
+    try { video.pause(); } catch (e) {}
+    sheet.hidden = true;
+    SPWordAdd.rerecord(c.wordId, c.word, c.reading);
+  });
+
+  $('edSave').addEventListener('click', async function () {
+    if (!cur) return;
+    const display = $('edDisplay').value.trim();
+    const reading = kanaNorm($('edReading').value.trim()).replace(/\s+/g, '');
+    const accent = $('edAccent').value.trim();
+    if (!display || !reading) { setStatus('単語と読みがなを入れてください。', 'err'); return; }
+    if (accent && !/^\d+$/.test(accent)) { setStatus('アクセント型は、数字か空欄にしてください。', 'err'); return; }
+    const tags = $('edTags').value.split(/[、,，\s]+/).map(function (t) { return t.replace(/^#/, '').trim(); }).filter(Boolean);
+    const btn = $('edSave');
+    btn.disabled = true;
+    setStatus('保存しています…', 'loading');
+    try {
+      await postJson('/admin/update_word', { word_id: cur.wordId, display: display, reading: reading, accent: accent || null });
+      await postJson('/admin/update_word_tags', { word_id: cur.wordId, tags: tags });
+      await postJson('/admin/update_word_note', { word_id: cur.wordId, note: $('edNote').value });
+    } catch (err) {
+      setStatus('エラー：' + err.message, 'err');
+      btn.disabled = false;
+      return;
+    }
+    changed = true;
+    btn.disabled = false;
+    // 読みを変えたら、お手本の音の区切りも新しい読みで作り直す必要がある → そのまま録り直しへ
+    if (reading !== cur.reading && cur.hasRef === '1' && window.SPWordAdd) {
+      sheet.hidden = true;
+      SPWordAdd.rerecord(cur.wordId, display, reading, { reloadOnClose: true });
+      return;
+    }
+    closeEdit();
+  });
+
+  // 削除は2回押す（confirm() のダイアログは使わない）
+  $('edDelete').addEventListener('click', async function () {
+    if (!cur) return;
+    const b = $('edDelete');
+    if (!b.classList.contains('pending')) {
+      b.classList.add('pending');
+      $('edDeleteLabel').textContent = 'もう一度押すと削除します';
+      delTimer = setTimeout(resetDelete, 3000);
+      return;
+    }
+    resetDelete();
+    b.disabled = true;
+    try {
+      await postJson('/admin/delete_word', { word_id: cur.wordId });
+      changed = true;
+      closeEdit();
+    } catch (err) {
+      setStatus('エラー：' + err.message, 'err');
+      b.disabled = false;
+    }
+  });
+
+  /* ── 削除した単語：元に戻す・完全に消す ── */
+  document.querySelectorAll('[data-restore]').forEach(function (b) {
+    b.addEventListener('click', async function () {
+      b.disabled = true;
+      try { await postJson('/admin/restore_word', { word_id: b.dataset.restore }); location.reload(); }
+      catch (err) { b.disabled = false; alert('エラー：' + err.message); }
+    });
+  });
+  document.querySelectorAll('[data-purge]').forEach(function (b) {
+    let t = null;
+    b.addEventListener('click', async function () {
+      if (!b.classList.contains('pending')) {
+        b.classList.add('pending'); b.textContent = 'もう一度押す';
+        t = setTimeout(function () { b.classList.remove('pending'); b.textContent = '完全に消す'; }, 3000);
+        return;
+      }
+      clearTimeout(t);
+      b.disabled = true;
+      try { await postJson('/admin/purge_word', { word_id: b.dataset.purge }); location.reload(); }
+      catch (err) { b.disabled = false; b.classList.remove('pending'); b.textContent = '完全に消す'; alert(err.message); }
+    });
+  });
+
+  /* ── ?add=1 のときは、追加の画面を開いて出す（ホームの単語が無いときのボタンから来たとき） ── */
+  {% if open_add %}
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.SPWordAdd) SPWordAdd.open();
+    if (history.replaceState) history.replaceState(null, '', '/words');
+  });
+  {% endif %}
+})();
+</script>
+<script src="/static/js/word_add.js" defer></script>
+<script src="/static/js/tabbar.js" defer></script>
+<script src="/static/js/tour.js" defer></script>
+</body>
+</html>

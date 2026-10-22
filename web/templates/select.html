@@ -247,72 +247,17 @@
       .today-word { font-size:36px; }
     }
 
-/* ── ここから下は単語追加・お手本録画のモーダル（参加者が自分の単語を管理する）── */
-    /* 単語編集モーダル */
-    .no-results { display:none; text-align:center; padding:48px; color:var(--text-3); font-size:14px; grid-column:1/-1; }
-
-    /* 単語追加モーダル */
-    .aw-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:300; align-items:center; justify-content:center; }
-    .aw-modal-overlay.open { display:flex; }
-    .aw-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:24px; width:min(460px,92vw); display:flex; flex-direction:column; gap:16px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
-    .aw-steps { display:flex; align-items:center; gap:8px; }
-    .aw-step { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:var(--text-3); }
-    .aw-step.active { color:var(--navy); }
-    .aw-step.done { color:var(--good); }
-    .aw-step-num { width:20px; height:20px; border-radius:50%; background:var(--bg-muted); border:1px solid var(--border); font-size:10px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .aw-step.active .aw-step-num { background:var(--navy-fill); color:#fff; border-color:var(--navy-fill); }
-    .aw-step.done .aw-step-num { background:var(--navy-fill); color:#fff; border-color:var(--navy-fill); }
-    .aw-step-arrow { color:var(--text-3); font-size:11px; padding:0 2px; }
-    .aw-done-icon { width:52px; height:52px; margin:4px auto 12px; border-radius:50%; background:var(--good-bg); color:var(--good); font-size:26px; font-weight:700; display:flex; align-items:center; justify-content:center; }
-    .aw-done-count { font-size:12px; color:var(--text-3); }
-    .aw-title { font-size:15px; font-weight:700; color:var(--navy); }
-    .aw-required-note { font-size:11.5px; color:var(--text-3); background:var(--bg-muted); border-left:3px solid var(--navy); border-radius:0 var(--r-xs) var(--r-xs) 0; padding:8px 10px; margin:8px 0 4px; line-height:1.6; }
-    .aw-fields { display:flex; flex-direction:column; gap:10px; }
-    .aw-field { display:flex; flex-direction:column; gap:4px; }
-    .aw-label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
-    .aw-input { font-family:var(--font); font-size:13px; padding:10px 14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); color:var(--text); transition:border-color var(--dur),box-shadow var(--dur); }
-    .aw-input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(91,75,234,.14); }
-    .aw-status { font-size:12px; min-height:18px; }
-    .aw-match { display:grid; gap:10px; padding:12px 14px; border-radius:10px; background:var(--bg-muted); margin-bottom:12px; }
-    .aw-match[hidden] { display:none; }
-    .aw-match-text { margin:0; font-size:12.5px; line-height:1.7; color:var(--text-2); }
-    .aw-match-actions { display:flex; flex-wrap:wrap; gap:8px; }
-    .aw-status.ok  { color:var(--good); }
-    .aw-status.err { color:var(--danger); }
-    .aw-status.loading { color:var(--text-3); }
-    .aw-actions { display:flex; gap:10px; }
-    .aw-btn-primary { flex:1; padding:11px; background:var(--navy-fill); color:#fff; border:none; border-radius:10px; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
-    .aw-btn-primary:disabled { opacity:.4; cursor:not-allowed; }
-    .aw-btn-secondary { padding:11px 16px; background:transparent; color:var(--text-3); border:1px solid var(--border); border-radius:10px; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
-    .aw-btn-secondary:hover { background:var(--bg-muted); }
-
-    /* お手本登録モーダル */
-    .ref-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:300; align-items:center; justify-content:center; }
-    .ref-modal-overlay.open { display:flex; }
-    .ref-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:24px; width:min(440px,90vw); display:flex; flex-direction:column; gap:14px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
-    .ref-modal-title { font-size:15px; font-weight:700; color:var(--navy); }
-    .ref-modal-sub { font-size:11px; color:var(--text-3); margin-top:2px; }
-    .ref-modal-video { width:100%; border-radius:12px; background:#000; aspect-ratio:4/3; object-fit:cover; }
-    .ref-modal-status { font-size:12px; color:var(--text-2); min-height:18px; }
-    .ref-modal-actions { display:flex; gap:10px; }
-    .ref-modal-record-btn { flex:1; padding:11px; background:var(--rec); color:#fff; border:none; border-radius:10px; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
-    .ref-modal-record-btn:disabled { opacity:.4; cursor:not-allowed; }
-    .ref-modal-cancel-btn { padding:11px 18px; background:transparent; color:var(--text-3); border:1px solid var(--border); border-radius:10px; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; }
-    .ref-modal-cancel-btn:hover { background:var(--bg-muted); }
-    .recording-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--rec); margin-right:5px; animation:blink 1s infinite; vertical-align:middle; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
-
-    /* 録画ガイドオーバーレイ */
-    .rec-vid-wrap { position:relative; width:100%; }
-    .rec-vid-wrap canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; border-radius:12px; }
-    .vid-status { position:absolute; bottom:0; left:0; right:0; padding:2px 0 5px; font-size:9px; font-weight:700; letter-spacing:.04em; color:#fff; text-align:center; text-shadow:0 1px 3px rgba(0,0,0,.9); background:linear-gradient(transparent,rgba(0,0,0,.6)); pointer-events:none; z-index:2; border-radius:0 0 12px 12px; }
-    /* マイク音量メーター（マイクが実際に音を拾えているかを録画前後で確認できるように） */
-    .mic-vol-wrap { display:flex; align-items:center; gap:8px; margin-top:8px; }
-    .mic-vol-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); white-space:nowrap; }
-    .mic-vol-track { flex:1; height:4px; background:var(--bg-muted); border-radius:100px; overflow:hidden; }
-    .mic-vol-fill { height:100%; width:0%; border-radius:100px; background:var(--ref-line); transition:width 60ms, background 200ms; }
-    .mic-vol-warn { display:none; font-size:11px; font-weight:600; color:var(--danger); margin-top:6px; line-height:1.6; }
-    .mic-vol-warn.show { display:block; }
+    /* 単語が1つも無いとき */
+    .words-empty { display:flex; flex-direction:column; align-items:center; gap:12px; padding:28px 20px; text-align:center;
+                   border-radius:var(--r-lg); background:var(--bg-card); box-shadow:var(--elev-1); color:var(--text-2); font-size:14.5px; line-height:1.75; }
+    .words-empty .btn-hero { max-width:320px; }
+    /* 単語のページへ（見出しの右） */
+    .sec-actions { display:flex; align-items:center; gap:4px; }
+    .sec-btn { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 14px; border-radius:100px;
+               background:var(--navy-soft); color:var(--brand-700); font-size:14px; font-weight:700; text-decoration:none; white-space:nowrap;
+               -webkit-tap-highlight-color:transparent; transition:transform .15s var(--ease); }
+    .sec-btn:active { transform:scale(.96); }
+    .sec-btn .ic { width:18px; height:18px; }
   </style>
 </head>
 <body>
@@ -405,7 +350,7 @@
   {% else %}
   <section class="today aurora today-empty">
     <div class="today-label">{{ icon('calendar', size=16) }} 今日のれんしゅう</div>
-    <div class="today-reason" style="margin-top:8px;">下の単語から、練習したいものを選びましょう</div>
+    <div class="today-reason" style="margin-top:8px;">{% if words %}下の単語から、練習したいものを選びましょう{% else %}まず、練習する単語を登録しましょう（下の「単語を追加」から。保護者が登録します）{% endif %}</div>
   </section>
   {% endif %}
 
@@ -482,7 +427,11 @@
   <section>
     <div class="section-head">
       <h2>単語<b>{{ n_all }}</b></h2>
-      <button type="button" class="icon-btn" id="btnSearch" aria-label="単語をさがす" aria-expanded="false">{{ icon('search') }}</button>
+      <div class="sec-actions">
+        {% if words %}<button type="button" class="icon-btn" id="btnSearch" aria-label="単語をさがす" aria-expanded="false">{{ icon('search') }}</button>{% endif %}
+        {# 単語の追加・編集・削除は、単語のページにまとめている（下のタブの「単語」からも開ける） #}
+        <a class="sec-btn" id="btnWordsPage" href="/words">{{ icon('plus') }} 追加・管理</a>
+      </div>
     </div>
 
     <div class="search-box" id="searchBox" hidden style="margin-top:8px;">
@@ -538,7 +487,7 @@
         <audio class="wc-audio" src="/sample_audio/{{ w.word_id }}" preload="none"></audio>
         <div class="word-card-actions">
           <button class="word-ref-btn {% if w.word_id in lip_ref_keys %}has-ref{% endif %}"
-                  data-word-id="{{ w.word_id }}" data-word-display="{{ w.display }}"
+                  data-word-id="{{ w.word_id }}" data-word-display="{{ w.display }}" data-word-reading="{{ w.reading }}"
                   title="{% if w.word_id in lip_ref_keys %}口のお手本登録済み（押すと録り直し）{% else %}口のお手本を登録{% endif %}">
             {{ icon('video') }} {% if w.word_id in lip_ref_keys %}お手本を録り直す{% else %}お手本を録画{% endif %}
           </button>
@@ -551,9 +500,9 @@
     </div>
     <div class="no-results" id="noResults" hidden>見つかりませんでした</div>
     {% if not words %}
-    <div class="no-results">
-      <p>まだ単語がありません。練習したい単語を、お手本の録画といっしょに登録しましょう。</p>
-      <button type="button" class="ls-btn" id="btnAddWordEmpty">{{ icon('video') }} 単語を追加</button>
+    <div class="words-empty">
+      <p>まだ単語がありません。<br>練習したい単語を、お手本の録画といっしょに登録しましょう（保護者が登録します）。</p>
+      <a class="btn-hero" href="/words?add=1">{{ icon('plus', size=22) }} 単語を追加</a>
     </div>
     {% endif %}
   </section>
@@ -631,11 +580,6 @@
 
     <div class="sheet-group">
       <button type="button" class="sheet-link" id="btnShowIntro">{{ icon('bulb') }} 使い方を見る</button>
-    </div>
-
-    <div class="sheet-group">
-      <button type="button" class="sheet-link" id="btnAddWord">{{ icon('video') }} 単語を追加（お手本録画つき）</button>
-      <a class="sheet-link" href="/admin">{{ icon('clipboard') }} 単語の管理</a>
     </div>
 
     <div class="sheet-group">
@@ -861,587 +805,9 @@ document.getElementById('btnContinuous')?.addEventListener('click', () => {
 
 </script>
 
-<!-- 単語追加モーダル（Step1: 登録 → Step2: お手本録画） -->
-<div class="aw-modal-overlay" id="awModalOverlay">
-  <div class="aw-modal-card">
-    <div class="aw-steps">
-      <div class="aw-step active" id="awInd1"><span class="aw-step-num">1</span>単語情報</div>
-      <span class="aw-step-arrow">›</span>
-      <div class="aw-step" id="awInd2"><span class="aw-step-num">2</span>お手本録画</div>
-    </div>
-
-    <!-- Step 1: 単語情報入力（この時点ではまだ登録しない） -->
-    <div id="awPane1">
-      <div class="aw-title">新しい単語を追加</div>
-      <p class="aw-required-note">{{ icon('video') }} お手本の録画とセットで登録します。テキストだけの登録はできません。</p>
-      <div class="aw-fields">
-        <div class="aw-field">
-          <label class="aw-label">表示テキスト</label>
-          <input type="text" class="aw-input" id="awDisplay" placeholder="例：夕食、スーパー">
-        </div>
-        <div class="aw-field">
-          <label class="aw-label">ひらがな読み</label>
-          <input type="text" class="aw-input" id="awReading" placeholder="例：ゆうしょく、すーぱー">
-        </div>
-      </div>
-      <div class="aw-status" id="awStatus1"></div>
-      <!-- 同じ単語・似ている単語があったときの案内（/admin/check_word の結果） -->
-      <div class="aw-match" id="awMatch" role="status" hidden>
-        <p class="aw-match-text" id="awMatchText"></p>
-        <div class="aw-match-actions" id="awMatchActions"></div>
-      </div>
-      <div class="aw-actions">
-        <button class="aw-btn-primary" id="awRegisterBtn">次へ（お手本録画） →</button>
-        <button class="aw-btn-secondary" id="awCloseBtn1">閉じる</button>
-      </div>
-    </div>
-
-    <!-- Step 2: お手本録画（必須・録画完了で自動的に登録される） -->
-    <div id="awPane2" style="display:none;">
-      <div class="aw-title" id="awPane2Title">お手本を録画</div>
-      <div class="rec-vid-wrap">
-        <video class="ref-modal-video" id="awVideo" autoplay muted playsinline></video>
-        <canvas id="awGuideCanvas"></canvas>
-        <div id="awGuideStatus" class="vid-status">顔を枠内に合わせてください</div>
-      </div>
-      <div class="mic-vol-wrap">
-        <span class="mic-vol-label">MIC</span>
-        <div class="mic-vol-track"><div class="mic-vol-fill" id="awVolFill"></div></div>
-      </div>
-      <div class="mic-vol-warn" id="awVolWarn">{{ icon('alert') }} マイクの音が検出されていません。マイクの接続・選択・ミュート設定を確認してください。</div>
-      <div class="aw-status" id="awStatus2">カメラを起動しています…</div>
-      <div class="aw-actions">
-        <button class="aw-btn-primary" id="awRecordBtn" disabled>録画開始（3秒）</button>
-        <button class="aw-btn-secondary" id="awBackBtn">← 戻る</button>
-      </div>
-    </div>
-
-    <!-- Step 3: 完了（連続追加） -->
-    <div id="awPane3" style="display:none;text-align:center;">
-      <div class="aw-done-icon">{{ icon('check') }}</div>
-      <div class="aw-title" id="awDoneTitle" style="margin-bottom:4px;">追加しました</div>
-      <div class="aw-done-count" id="awDoneCount"></div>
-      <div class="aw-actions" style="margin-top:18px;">
-        <button class="aw-btn-primary" id="awAddAnotherBtn">＋ 続けて単語を追加</button>
-        <button class="aw-btn-secondary" id="awFinishBtn">完了して一覧に戻る</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- お手本登録モーダル -->
-<div class="ref-modal-overlay" id="refModalOverlay">
-  <div class="ref-modal-card">
-    <div>
-      <div class="ref-modal-title" id="refModalTitle">お手本を登録</div>
-      <div class="ref-modal-sub">カメラで3秒間録画して保存します</div>
-    </div>
-    <div class="rec-vid-wrap">
-      <video class="ref-modal-video" id="refModalVideo" autoplay muted playsinline></video>
-      <canvas id="refGuideCanvas"></canvas>
-      <div id="refGuideStatus" class="vid-status">顔を枠内に合わせてください</div>
-    </div>
-    <div class="mic-vol-wrap">
-      <span class="mic-vol-label">MIC</span>
-      <div class="mic-vol-track"><div class="mic-vol-fill" id="refVolFill"></div></div>
-    </div>
-    <div class="mic-vol-warn" id="refVolWarn">{{ icon('alert') }} マイクの音が検出されていません。マイクの接続・選択・ミュート設定を確認してください。</div>
-    <div class="ref-modal-status" id="refModalStatus">カメラを起動しています…</div>
-    <div class="ref-modal-actions">
-      <button class="ref-modal-record-btn" id="refModalRecordBtn" disabled>録画開始（3秒）</button>
-      <button class="ref-modal-cancel-btn" id="refModalCancelBtn">閉じる</button>
-    </div>
-  </div>
-</div>
+{% include "_word_add.html" %}
 
 <script>
-/* ── マイク音量メーター（共通） ──────────────────────────────────
-   単語登録用の録画は音声認識の成否がそのままJulius解析に直結するが、
-   カメラ映像しか見えないため「マイクが実際に音を拾えているか」に
-   気づく手段がなかった。無音のまま録画→登録すると、ユーザーには
-   「発音が認識できませんでした」としか表示されず、原因（マイク未接続・
-   ミュート・入力デバイス選択ミスなど）が分からず同じ失敗を繰り返す。
-   録画中の音量を可視化し、無音のまま録画が終わった場合は送信前に
-   はっきり警告する。 */
-function createMicVolumeMeter(stream, fillEl) {
-  const track = stream.getAudioTracks()[0];
-  if (!track) return { resetMax(){}, getMaxRms(){ return 1; }, stop(){} };  // 音声トラックが無い異常系は誤検知させない
-
-  const ctx      = new (window.AudioContext || window.webkitAudioContext)();
-  const source   = ctx.createMediaStreamSource(stream);
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 512;
-  source.connect(analyser);
-  const buf = new Uint8Array(analyser.frequencyBinCount);
-
-  let maxRms = 0;
-  let rafId  = null;
-
-  function tick() {
-    analyser.getByteTimeDomainData(buf);
-    let sum = 0;
-    for (let i = 0; i < buf.length; i++) { const v = buf[i] / 128 - 1; sum += v * v; }
-    const rms = Math.sqrt(sum / buf.length);
-    maxRms = Math.max(maxRms, rms);
-    if (fillEl) {
-      const pct = Math.min(100, rms * 400);
-      fillEl.style.width = pct + '%';
-      fillEl.style.background = pct > 30 ? '#1B7F5B' : pct > 8 ? '#A3A3AE' : '#C4453D';
-    }
-    rafId = requestAnimationFrame(tick);
-  }
-  tick();
-
-  return {
-    resetMax()   { maxRms = 0; },
-    getMaxRms()  { return maxRms; },
-    stop() {
-      if (rafId) cancelAnimationFrame(rafId);
-      try { source.disconnect(); } catch (e) {}
-      try { ctx.close(); } catch (e) {}
-    },
-  };
-}
-const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりやや緩め（誤検知でブロックしない側に倒す）
-
-/* ── 単語追加 + お手本録画モーダル ─────────────────────────────── */
-(function () {
-  let newWordId   = null;
-  let awStream    = null;
-  let awRecorder  = null;
-  let awMicMeter  = null;
-  let awChunks    = [];
-  let addedCount  = 0;
-
-  const overlay      = document.getElementById('awModalOverlay');
-  const ind1         = document.getElementById('awInd1');
-  const ind2         = document.getElementById('awInd2');
-  const pane1        = document.getElementById('awPane1');
-  const pane2        = document.getElementById('awPane2');
-  const pane3        = document.getElementById('awPane3');
-  const displayInp   = document.getElementById('awDisplay');
-  const readingInp   = document.getElementById('awReading');
-  const status1      = document.getElementById('awStatus1');
-  const registerBtn  = document.getElementById('awRegisterBtn');
-  const closeBtn1    = document.getElementById('awCloseBtn1');
-  const videoEl      = document.getElementById('awVideo');
-  const status2      = document.getElementById('awStatus2');
-  const recordBtn    = document.getElementById('awRecordBtn');
-  const backBtn      = document.getElementById('awBackBtn');
-  const pane2Title   = document.getElementById('awPane2Title');
-  const doneTitle    = document.getElementById('awDoneTitle');
-  const doneCount    = document.getElementById('awDoneCount');
-  const addAnotherBtn= document.getElementById('awAddAnotherBtn');
-  const finishBtn    = document.getElementById('awFinishBtn');
-
-  function openStep1(resetCount) {
-    if (resetCount) addedCount = 0;
-    displayInp.value = '';
-    readingInp.value = '';
-    setStatus1('', '');
-    hideMatch();
-    registerBtn.disabled = false;
-    recordBtn.disabled = true;
-    backBtn.disabled = false;
-    pane1.style.display = '';
-    pane2.style.display = 'none';
-    pane3.style.display = 'none';
-    ind1.className = 'aw-step active';
-    ind2.className = 'aw-step';
-    overlay.classList.add('open');
-    setTimeout(function () { displayInp.focus(); }, 50);
-  }
-
-  // 設定シート（z-index:500）が開いたままだと、単語追加の画面（300）がその裏に隠れるので先に閉じる
-  document.getElementById('btnAddWord').addEventListener('click', function () { closeSheets(); openStep1(true); });
-  const addWordEmptyBtn = document.getElementById('btnAddWordEmpty');
-  if (addWordEmptyBtn) addWordEmptyBtn.addEventListener('click', function () { openStep1(true); });
-  addAnotherBtn.addEventListener('click', function () { openStep1(false); });
-  finishBtn.addEventListener('click', function () { closeAwModal(addedCount > 0); });
-
-  function setStatus1(msg, type) {
-    status1.textContent = msg;
-    status1.className = 'aw-status' + (type ? ' ' + type : '');
-  }
-
-  readingInp.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !registerBtn.disabled) registerBtn.click();
-  });
-
-  // Step1 は入力チェックのみ。実際の単語登録は Step2 の録画完了時に
-  // テキスト+動画をまとめて /admin/add_word に送信して行う
-  // （録画なしの単語が作られないようにするため）。
-  // 同じ単語を2つ作ると練習の記録が分かれるので、先に同じ単語・似ている単語（削除した単語を含む）を確かめる
-  const matchBox     = document.getElementById('awMatch');
-  const matchText    = document.getElementById('awMatchText');
-  const matchActions = document.getElementById('awMatchActions');
-
-  function hideMatch() {
-    matchBox.hidden = true;
-    matchActions.replaceChildren();
-  }
-
-  function showMatch(text, buttons) {
-    matchText.textContent = text;
-    matchActions.replaceChildren(...buttons.map(function (b) {
-      const el = document.createElement('button');
-      el.type = 'button';
-      el.className = b.primary ? 'aw-btn-primary' : 'aw-btn-secondary';
-      el.textContent = b.label;
-      el.addEventListener('click', b.onClick);
-      return el;
-    }));
-    matchBox.hidden = false;
-  }
-
-  function wordName(w) { return `「${w.display}」（${w.reading}）`; }
-
-  [displayInp, readingInp].forEach(function (el) {
-    el.addEventListener('input', function () { hideMatch(); setStatus1('', ''); });
-  });
-
-  async function restoreFromModal(w) {
-    setStatus1('元に戻しています…', 'loading');
-    try {
-      const res = await fetch('/admin/restore_word', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word_id: w.word_id }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '元に戻せませんでした');
-      hideMatch();
-      setStatus1('', '');
-      document.dispatchEvent(new CustomEvent('sp:wordadded', { detail: { wordId: w.word_id, display: w.display, reading: w.reading } }));
-      goToStep3(`「${w.display}」を元に戻しました（前の練習の記録とお手本がそのまま使えます）`);
-    } catch (err) {
-      setStatus1('エラー: ' + err.message, 'err');
-    }
-  }
-
-  registerBtn.addEventListener('click', async function () {
-    const display = displayInp.value.trim();
-    const reading = readingInp.value.trim();
-    if (!display || !reading) { setStatus1('表示テキストと読みの両方を入力してください。', 'err'); return; }
-    hideMatch();
-    setStatus1('確認しています…', 'loading');
-    registerBtn.disabled = true;
-    let same;
-    try {
-      const res = await fetch('/admin/check_word', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ display: display, reading: reading }),
-      });
-      same = await res.json();
-      if (!res.ok) throw new Error(same.error || '確認できませんでした');
-    } catch (err) {
-      setStatus1('エラー: ' + err.message, 'err');
-      return;
-    } finally {
-      registerBtn.disabled = false;
-    }
-    setStatus1('', '');
-    const exact = same.exact[0];
-    if (exact && !exact.archived) {
-      setStatus1(`${wordName(exact)}はもう登録されています。`, 'err');
-      return;
-    }
-    if (exact) {
-      showMatch(`前に削除した${wordName(exact)}があります（練習の記録 ${exact.records} 回）。`
-        + '新しく追加せずに元に戻すと、前の記録とお手本の録画がそのまま使えます。'
-        + 'お手本を録り直したいときは、戻したあとで単語の「お手本を録り直す」を押してください。',
-        [{ label: '元に戻す', primary: true, onClick: function () { restoreFromModal(exact); } }]);
-      return;
-    }
-    if (same.similar.length) {
-      const list = same.similar.map(function (w) { return wordName(w) + (w.archived ? '（削除した単語）' : ''); }).join('、');
-      const buttons = same.similar.filter(function (w) { return w.archived; }).slice(0, 2).map(function (w) {
-        return { label: `${wordName(w)}を元に戻す`, onClick: function () { restoreFromModal(w); } };
-      });
-      buttons.push({ label: '別の単語として追加する', primary: true, onClick: function () { hideMatch(); goToStep2(); } });
-      showMatch(`よく似た単語があります：${list}。同じ単語なら、新しく追加しないでください（練習の記録が分かれます）。`, buttons);
-      return;
-    }
-    goToStep2();
-  });
-
-  backBtn.addEventListener('click', function () {
-    stopAwCamera();
-    pane2.style.display = 'none';
-    pane1.style.display = '';
-    ind1.className = 'aw-step active';
-    ind2.className = 'aw-step';
-  });
-
-  function goToStep2() {
-    ind1.className = 'aw-step done';
-    ind2.className = 'aw-step active';
-    pane1.style.display = 'none';
-    pane2.style.display = '';
-    pane2Title.textContent = `「${displayInp.value.trim()}」のお手本を録画`;
-    status2.textContent = 'カメラを起動しています…';
-    recordBtn.disabled = true;
-    startAwCamera();
-    if (window._faceGuide) window._faceGuide.activate('awVideo', 'awGuideCanvas', 'awGuideStatus');
-  }
-
-  async function startAwCamera() {
-    try {
-      awStream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true, audio: true });
-      videoEl.srcObject = awStream;
-      status2.textContent = '準備完了。「録画開始」を押してください。';
-      recordBtn.disabled = false;
-      awMicMeter = createMicVolumeMeter(awStream, document.getElementById('awVolFill'));
-    } catch (err) {
-      status2.textContent = cameraErrorMessage(err);
-    }
-  }
-
-  function stopAwCamera() {
-    if (awStream) { awStream.getTracks().forEach(t => t.stop()); awStream = null; }
-    videoEl.srcObject = null;
-    if (awMicMeter) { awMicMeter.stop(); awMicMeter = null; }
-    document.getElementById('awVolWarn').classList.remove('show');
-  }
-
-  function closeAwModal(reload) {
-    overlay.classList.remove('open');
-    stopAwCamera();
-    if (awRecorder && awRecorder.state === 'recording') awRecorder.stop();
-    awRecorder = null;
-    awChunks = [];
-    newWordId = null;
-    if (reload) location.reload();
-  }
-
-  function goToStep3(title) {
-    stopAwCamera();
-    addedCount++;
-    pane1.style.display = 'none';
-    pane2.style.display = 'none';
-    pane3.style.display = '';
-    ind1.className = 'aw-step done';
-    ind2.className = 'aw-step done';
-    doneTitle.textContent = title || `「${displayInp.value.trim()}」を追加しました（お手本つき）`;
-    doneCount.textContent = `これまでに ${addedCount} 件 追加しました`;
-    awRecorder = null;
-    awChunks = [];
-    newWordId = null;
-  }
-
-  recordBtn.addEventListener('click', function () {
-    if (!awStream || awRecorder) return;
-    awChunks = [];
-    document.getElementById('awVolWarn').classList.remove('show');
-    if (awMicMeter) awMicMeter.resetMax();
-    // 録画は 1 Mbps・その端末で録れる形式（media.js。README §5.4）
-    awRecorder = new MediaRecorder(awStream, window.SPMedia ? SPMedia.recorderOptions() : { videoBitsPerSecond: 1000000 });
-    awRecorder.addEventListener('dataavailable', function (e) {
-      if (e.data && e.data.size > 0) awChunks.push(e.data);
-    });
-    awRecorder.addEventListener('stop', function () {
-      // 形式は止まった録画（this）から読む。閉じるときは stop() のすぐあとに awRecorder を空にするため
-      const blob = new Blob(awChunks, { type: this.mimeType || 'video/webm' });
-      // マイクの音が一切拾えていなかった場合、送信してもJulius側で
-      // 必ず失敗する（無音は forced alignment 不能）。ラウンドトリップを
-      // 待たせず、原因が特定できる形でその場でやり直しを促す。
-      if (awMicMeter && awMicMeter.getMaxRms() < MIC_SILENCE_THRESHOLD) {
-        document.getElementById('awVolWarn').classList.add('show');
-        status2.textContent = 'マイクの音が検出できなかったため、登録していません。';
-        recordBtn.disabled = false;
-        backBtn.disabled   = false;
-        awRecorder = null;
-        return;
-      }
-      submitWordWithVideo(blob);
-    });
-    awRecorder.start();
-    recordBtn.disabled = true;
-    backBtn.disabled = true;
-    let remaining = 3;
-    status2.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
-    const timer = setInterval(function () {
-      remaining--;
-      if (remaining <= 0) {
-        clearInterval(timer);
-        if (awRecorder && awRecorder.state === 'recording') awRecorder.stop();
-      } else {
-        status2.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
-      }
-    }, 1000);
-  });
-
-  // テキスト情報と録画した動画をまとめて送信し、その場で単語登録する
-  // （/admin/add_word の multipart 経路 = admin.html と同じ atomic 登録）。
-  async function submitWordWithVideo(blob) {
-    status2.textContent = 'アップロード中…';
-    const fd = new FormData();
-    fd.append('display', displayInp.value.trim());
-    fd.append('reading', readingInp.value.trim());
-    fd.append('file', blob, 'ref.webm');
-    try {
-      const res = await fetch('/admin/add_word', { method: 'POST', body: fd });
-      const data = await res.json();
-      // alignment_ok:false の場合サーバー側で登録自体を取り消して
-      // 422 を返す（お手本の音声認識に失敗した状態で単語だけ残さないため）。
-      if (!res.ok) throw new Error(data.error || '登録に失敗しました');
-      newWordId = data.word_id;
-      status2.textContent = '✓ 登録しました！';
-      // はじめてのチュートリアル（tour.js）が、この単語で練習へ案内する
-      document.dispatchEvent(new CustomEvent('sp:wordadded', { detail: {
-        wordId: data.word_id, display: displayInp.value.trim(), reading: readingInp.value.trim() } }));
-      // 以前の版で完全に消した同じ単語なら、練習記録に残る前の ID で登録される（core/vocab.py）
-      const title = data.reused
-        ? `「${displayInp.value.trim()}」を追加しました（前に練習した記録とつなげました）`
-        : '';
-      setTimeout(function () { goToStep3(title); }, 700);
-    } catch (err) {
-      status2.textContent = 'エラー: ' + err.message;
-      backBtn.disabled = false;
-      recordBtn.disabled = false;
-      awRecorder = null;
-    }
-  }
-
-  closeBtn1.addEventListener('click', function () { closeAwModal(addedCount > 0); });
-  overlay.addEventListener('click', function (e) {
-    // 録画中の誤クリックで中断されないようにする
-    if (e.target === overlay && !(awRecorder && awRecorder.state === 'recording')) closeAwModal(addedCount > 0);
-  });
-})();
-
-/* ── 既存単語のお手本登録モーダル ──────────────────────────────── */
-(function () {
-  let activeWordId = null;
-  let stream = null;
-  let recorder = null;
-  let chunks = [];
-  let micMeter = null;
-
-  const overlay   = document.getElementById('refModalOverlay');
-  const videoEl   = document.getElementById('refModalVideo');
-  const statusEl  = document.getElementById('refModalStatus');
-  const titleEl   = document.getElementById('refModalTitle');
-  const recordBtn = document.getElementById('refModalRecordBtn');
-  const cancelBtn = document.getElementById('refModalCancelBtn');
-
-  // 単語カードのお手本ボタンにイベントを委譲
-  document.addEventListener('click', function (e) {
-    const btn = e.target.closest('.word-ref-btn');
-    if (!btn) return;
-    activeWordId = btn.dataset.wordId;
-    const display = btn.dataset.wordDisplay;
-    titleEl.textContent = `「${display}」のお手本を登録`;
-    statusEl.textContent = 'カメラを起動しています…';
-    recordBtn.disabled = true;
-    cancelBtn.disabled = false;
-    overlay.classList.add('open');
-    startCamera();
-    if (window._faceGuide) window._faceGuide.activate('refModalVideo', 'refGuideCanvas', 'refGuideStatus');
-  });
-
-  async function startCamera() {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true, audio: true });
-      videoEl.srcObject = stream;
-      statusEl.textContent = '準備完了。「録画開始」を押してください。';
-      recordBtn.disabled = false;
-      micMeter = createMicVolumeMeter(stream, document.getElementById('refVolFill'));
-    } catch (err) {
-      statusEl.textContent = cameraErrorMessage(err);
-    }
-  }
-
-  function stopCamera() {
-    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-    videoEl.srcObject = null;
-    if (micMeter) { micMeter.stop(); micMeter = null; }
-    document.getElementById('refVolWarn').classList.remove('show');
-  }
-
-  function closeModal() {
-    overlay.classList.remove('open');
-    stopCamera();
-    if (recorder && recorder.state === 'recording') recorder.stop();
-    recorder = null;
-    chunks = [];
-    activeWordId = null;
-    recordBtn.disabled = true;
-    statusEl.textContent = '';
-  }
-
-  recordBtn.addEventListener('click', function () {
-    if (!stream || recorder) return;
-    chunks = [];
-    document.getElementById('refVolWarn').classList.remove('show');
-    if (micMeter) micMeter.resetMax();
-
-    // 録画は 1 Mbps・その端末で録れる形式（media.js。README §5.4）
-    recorder = new MediaRecorder(stream, window.SPMedia ? SPMedia.recorderOptions() : { videoBitsPerSecond: 1000000 });
-    recorder.addEventListener('dataavailable', function (e) {
-      if (e.data && e.data.size > 0) chunks.push(e.data);
-    });
-    recorder.addEventListener('stop', function () {
-      // 形式は止まった録画（this）から読む。閉じるときは stop() のすぐあとに recorder を空にするため
-      const blob = new Blob(chunks, { type: this.mimeType || 'video/webm' });
-      if (micMeter && micMeter.getMaxRms() < MIC_SILENCE_THRESHOLD) {
-        document.getElementById('refVolWarn').classList.add('show');
-        statusEl.textContent = 'マイクの音が検出できなかったため、登録していません。';
-        recordBtn.disabled = false;
-        cancelBtn.disabled = false;
-        recorder = null;
-        return;
-      }
-      uploadRef(blob);
-    });
-
-    recorder.start();
-    recordBtn.disabled = true;
-    cancelBtn.disabled = true;
-
-    let remaining = 3;
-    statusEl.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
-    const timer = setInterval(function () {
-      remaining--;
-      if (remaining <= 0) {
-        clearInterval(timer);
-        if (recorder && recorder.state === 'recording') recorder.stop();
-      } else {
-        statusEl.innerHTML = `<span class="recording-dot"></span>録画中… ${remaining}秒`;
-      }
-    }, 1000);
-  });
-
-  async function uploadRef(blob) {
-    statusEl.textContent = 'アップロード中…';
-    const fd = new FormData();
-    fd.append('word_id', activeWordId);
-    fd.append('file', blob, 'ref.webm');
-    try {
-      const res = await fetch('/api/lip_refs/overwrite', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '保存に失敗しました');
-      statusEl.textContent = '✓ お手本を保存しました！';
-      // ボタンの表示を「登録済み」に更新
-      const cardBtn = document.querySelector(`.word-ref-btn[data-word-id="${activeWordId}"]`);
-      if (cardBtn) {
-        cardBtn.classList.add('has-ref');
-        cardBtn.title = '口のお手本登録済み（クリックで再登録）';
-        cardBtn.innerHTML = {{ (icon('video') ~ ' お手本を録り直す') | tojson }};
-      }
-      setTimeout(closeModal, 1200);
-    } catch (err) {
-      statusEl.textContent = 'エラー: ' + err.message;
-      cancelBtn.disabled = false;
-      recorder = null;
-    }
-  }
-
-  cancelBtn.addEventListener('click', closeModal);
-  overlay.addEventListener('click', function (e) {
-    if (e.target === overlay) closeModal();
-  });
-})();
-
 /* ── 単語削除 ──────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function () {
   // 削除ボタン — ダブルクリック確認パターン（confirm() ダイアログ不使用）
@@ -1484,139 +850,6 @@ document.addEventListener('DOMContentLoaded', function () {
 }); // DOMContentLoaded
 </script>
 
-<script>
-/* ── 録画モーダル用 顔・距離ガイド ─────────────────────────── */
-(function() {
-  var CAM = null, CNVS = null, STS = null, ctx = null;
-  var W = 0, H = 0, fm = null, busy = false, lm = null, frm = 0;
-
-  var OVAL = [[10,338],[338,297],[297,332],[332,284],[284,251],[251,389],[389,356],[356,454],[454,323],[323,361],[361,288],[288,397],[397,365],[365,379],[379,378],[378,400],[400,377],[377,152],[152,148],[148,176],[176,149],[149,150],[150,136],[136,172],[172,58],[58,132],[132,93],[93,234],[234,127],[127,162],[162,21],[21,54],[54,103],[103,67],[67,109],[109,10]];
-  var LIP_OUTER = [[61,185],[185,40],[40,39],[39,37],[37,0],[0,267],[267,269],[269,270],[270,409],[409,291],[291,375],[375,321],[321,405],[405,314],[314,17],[17,84],[84,181],[181,91],[91,146],[146,61]];
-  var LIP_INNER = [[78,191],[191,80],[80,81],[81,82],[82,13],[13,312],[312,311],[311,310],[310,415],[415,308],[308,324],[324,318],[318,402],[402,317],[317,14],[14,87],[87,178],[178,88],[88,95],[95,78]];
-  var NOSE = [[168,6],[6,5],[5,4],[4,1],[1,19],[19,94],[94,49],[94,279],[49,48],[279,278]];
-
-  function sz() {
-    if (!CNVS) return;
-    var p = CNVS.parentElement;
-    var nw = (p && p.offsetWidth)  || 0;
-    var nh = (p && p.offsetHeight) || 0;
-    if (nw !== W || nh !== H) {
-      CNVS.width = nw; CNVS.height = nh;
-      W = nw; H = nh;
-    }
-  }
-
-  function drawConn(conns, color, lw) {
-    if (!lm || !ctx) return;
-    ctx.save();
-    ctx.strokeStyle = color; ctx.lineWidth = lw;
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.beginPath();
-    for (var i = 0; i < conns.length; i++) {
-      var pa = lm[conns[i][0]], pb = lm[conns[i][1]];
-      if (!pa || !pb) continue;
-      ctx.moveTo(pa.x * W, pa.y * H);
-      ctx.lineTo(pb.x * W, pb.y * H);
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function guide() {
-    if (!ctx || W < 1 || H < 1) return;
-    ctx.clearRect(0, 0, W, H);
-    var cx = W * 0.5, cy = H * 0.44;
-    var rx = W * 0.32, ry = H * 0.44;
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = Math.max(1.5, W * 0.004);
-    ctx.setLineDash([6, 5]);
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(181,173,255,0.9)';
-    ctx.lineWidth = Math.max(1.2, W * 0.003);
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + ry * 0.38, rx * 0.52, ry * 0.16, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-    if (STS) STS.textContent = '顔を枠内に合わせてください';
-  }
-
-  function draw() {
-    if (!ctx || W < 1 || H < 1) return;
-    ctx.clearRect(0, 0, W, H);
-    if (!lm) { guide(); return; }
-    var x454 = lm[454] ? lm[454].x : 1;
-    var x234 = lm[234] ? lm[234].x : 0;
-    var ratio = x454 - x234;
-    var bColor, statusTxt;
-    if (ratio > 0.82) {
-      bColor = 'rgba(233,176,79,0.9)'; statusTxt = '近すぎます — 少し離れてください';
-    } else if (ratio < 0.38) {
-      bColor = 'rgba(233,176,79,0.9)'; statusTxt = '遠すぎます — 近づいてください';
-    } else {
-      bColor = 'rgba(76,197,150,0.9)'; statusTxt = '✓ 位置OK';
-    }
-    ctx.save();
-    ctx.strokeStyle = bColor; ctx.lineWidth = Math.max(2, W * 0.005);
-    ctx.strokeRect(2, 2, W - 4, H - 4);
-    ctx.restore();
-    drawConn(OVAL,      'rgba(255,255,255,0.30)', Math.max(1, W * 0.002));
-    drawConn(NOSE,      'rgba(255,255,255,0.30)', Math.max(1, W * 0.002));
-    drawConn(LIP_OUTER, 'rgba(181,173,255,0.9)',   Math.max(1.5, W * 0.004));
-    drawConn(LIP_INNER, 'rgba(181,173,255,0.55)',   Math.max(1, W * 0.003));
-    if (STS) STS.textContent = statusTxt;
-  }
-
-  function tick() {
-    requestAnimationFrame(tick);
-    if (++frm % 3 !== 0) return;
-    sz();
-    if (W < 1 || H < 1) return;
-    if (!fm || busy) { if (!lm) guide(); return; }
-    if (!CAM || !CAM.srcObject || CAM.readyState < 2 || CAM.paused) { guide(); return; }
-    busy = true;
-    try { fm.send({ image: CAM }); } catch(e) { busy = false; }
-  }
-
-  function initFM() {
-    if (fm || typeof FaceMesh === 'undefined') return;
-    fm = new FaceMesh({
-      locateFile: function(f) {
-        return 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/' + f;
-      }
-    });
-    fm.setOptions({ maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-    fm.onResults(function(res) {
-      busy = false;
-      lm = (res.multiFaceLandmarks && res.multiFaceLandmarks[0]) || null;
-      draw();
-    });
-  }
-
-  /* モーダルが開くたびに呼ばれる — ターゲットを切り替える */
-  window._faceGuide = {
-    activate: function(videoId, canvasId, statusId) {
-      CAM  = document.getElementById(videoId);
-      CNVS = document.getElementById(canvasId);
-      STS  = document.getElementById(statusId);
-      ctx  = CNVS ? CNVS.getContext('2d') : null;
-      lm   = null; busy = false; W = 0; H = 0;
-    }
-  };
-
-  tick();
-
-  var s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
-  s.crossOrigin = 'anonymous';
-  s.onload = function() { initFM(); };
-  document.head.appendChild(s);
-  setInterval(function() { if (!fm) initFM(); }, 1000);
-})();
-</script>
 {# はじめてのチュートリアル（web/static/js/tour.js）。はじめて開いたときに1回だけ自動で出し、
    設定の「使い方を見る」からもやり直せる。練習が3回以上ある人には自動では出さない #}
 <script>
@@ -1634,6 +867,7 @@ window.SP_TOUR_HOME = { user: {{ current_user_id | tojson }}, auto: {{ ((stats.t
   }
 })();
 </script>
+<script src="/static/js/word_add.js" defer></script>
 <script src="/static/js/tabbar.js" defer></script>
 <script src="/static/js/tour.js" defer></script>
 </body>
