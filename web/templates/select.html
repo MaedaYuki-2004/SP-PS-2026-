@@ -76,31 +76,6 @@
       .hello-title { font-size:23px; }
     }
 
-    /* ── はじめての使い方（最初の1回だけ） ──
-       説明を音声や動画で聞けない生徒にも伝わるよう、1画面に1つずつ、絵と短い文で見せる。 */
-    .intro { position:fixed; inset:0; z-index:700; display:flex; align-items:flex-end; justify-content:center;
-             background:rgba(12,10,30,.45); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
-    .intro-panel { width:100%; max-width:480px; background:var(--bg-card); border-radius:32px 32px 0 0;
-                   padding:30px 22px calc(18px + env(safe-area-inset-bottom)); text-align:center; animation:intro-up .36s var(--spring); }
-    @media (min-width:600px) { .intro { align-items:center; } .intro-panel { border-radius:32px; } }
-    @keyframes intro-up { from { transform:translateY(40px); opacity:0; } to { transform:none; opacity:1; } }
-    .intro-step { display:none; }
-    .intro-step.active { display:block; animation:intro-fade .26s var(--ease); }
-    @keyframes intro-fade { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:none; } }
-    .intro-art { width:120px; height:120px; margin:0 auto 18px; border-radius:36px; background:var(--grad-hero); color:#fff;
-                 display:flex; align-items:center; justify-content:center; position:relative; box-shadow:var(--shadow-brand); }
-    .intro-art-num { position:absolute; right:-8px; top:-8px; width:36px; height:36px; border-radius:50%; background:var(--bg-card); color:var(--navy);
-                     font-family:var(--font-num); font-size:17px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:var(--elev-2); }
-    .intro-title { font-size:23px; font-weight:700; color:var(--text); line-height:1.4; }
-    .intro-text { font-size:15px; line-height:1.8; color:var(--text-2); margin:8px auto 0; max-width:320px; }
-    .intro-dots { display:flex; justify-content:center; gap:6px; margin:22px 0 16px; }
-    .intro-dots i { width:8px; height:8px; border-radius:100px; background:var(--border); transition:width .25s var(--ease), background .25s; }
-    .intro-dots i.on { width:24px; background:var(--navy); }
-    .intro-next { width:100%; min-height:58px; border:none; border-radius:18px; background:var(--grad-brand); color:#fff; box-shadow:var(--shadow-brand);
-                  font-family:var(--font); font-size:17px; font-weight:700; cursor:pointer; }
-    .intro-skip { width:100%; min-height:44px; margin-top:4px; border:none; background:none; color:var(--text-3);
-                  font-family:var(--font); font-size:14px; cursor:pointer; }
-
     /* 今日のれんしゅう（ホームの主役） */
     .today { padding:20px 20px 12px; border-radius:28px; }
     .today-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -1136,6 +1111,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
       if (!res.ok) throw new Error(data.error || '元に戻せませんでした');
       hideMatch();
       setStatus1('', '');
+      document.dispatchEvent(new CustomEvent('sp:wordadded', { detail: { wordId: w.word_id, display: w.display, reading: w.reading } }));
       goToStep3(`「${w.display}」を元に戻しました（前の練習の記録とお手本がそのまま使えます）`);
     } catch (err) {
       setStatus1('エラー: ' + err.message, 'err');
@@ -1310,6 +1286,9 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
       if (!res.ok) throw new Error(data.error || '登録に失敗しました');
       newWordId = data.word_id;
       status2.textContent = '✓ 登録しました！';
+      // はじめてのチュートリアル（tour.js）が、この単語で練習へ案内する
+      document.dispatchEvent(new CustomEvent('sp:wordadded', { detail: {
+        wordId: data.word_id, display: displayInp.value.trim(), reading: readingInp.value.trim() } }));
       // 以前の版で完全に消した同じ単語なら、練習記録に残る前の ID で登録される（core/vocab.py）
       const title = data.reused
         ? `「${displayInp.value.trim()}」を追加しました（前に練習した記録とつなげました）`
@@ -1638,54 +1617,13 @@ document.addEventListener('DOMContentLoaded', function () {
   setInterval(function() { if (!fm) initFM(); }, 1000);
 })();
 </script>
-{# はじめての使い方（初めて開いたときに1回だけ。設定の「使い方を見る」からも開ける） #}
-<div class="intro" id="intro" hidden role="dialog" aria-label="使い方">
-  <div class="intro-panel">
-    <div class="intro-step active">
-      <div class="intro-art">{{ icon('video', size=52) }}<span class="intro-art-num">1</span></div>
-      <div class="intro-title">お手本を見る</div>
-      <p class="intro-text">先生の口の動きと、音の高さ・長さを見ます。何回見てもOKです。</p>
-    </div>
-    <div class="intro-step">
-      <div class="intro-art">{{ icon('mic', size=52) }}<span class="intro-art-num">2</span></div>
-      <div class="intro-title">自分のペースで録音</div>
-      <p class="intro-text">お手本に合わせなくてだいじょうぶ。言い終わったら「録音停止」を押します。</p>
-    </div>
-    <div class="intro-step">
-      <div class="intro-art">{{ icon('target', size=52) }}<span class="intro-art-num">3</span></div>
-      <div class="intro-title">直すところは1つだけ</div>
-      <p class="intro-text">結果の「つぎは、ここだけ」を直していくと、点数がのびていきます。</p>
-    </div>
-    <div class="intro-dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
-    <button type="button" class="intro-next" id="introNext">つぎへ</button>
-    <button type="button" class="intro-skip" id="introSkip">とばす</button>
-  </div>
-</div>
+{# はじめてのチュートリアル（web/static/js/tour.js）。はじめて開いたときに1回だけ自動で出し、
+   設定の「使い方を見る」からもやり直せる。練習が3回以上ある人には自動では出さない #}
+<script>
+window.SP_TOUR_HOME = { user: {{ current_user_id | tojson }}, auto: {{ ((stats.total_sessions if stats else 0) < 3) | tojson }} };
+</script>
 <script>
 (function () {
-  const KEY = 'sp-ps-intro-seen';
-  const box = document.getElementById('intro');
-  if (!box) return;
-  const steps = Array.from(box.querySelectorAll('.intro-step'));
-  const dots = Array.from(box.querySelectorAll('.intro-dots i'));
-  const next = document.getElementById('introNext');
-  let i = 0;
-  function render() {
-    steps.forEach((el, k) => el.classList.toggle('active', k === i));
-    dots.forEach((el, k) => el.classList.toggle('on', k === i));
-    next.textContent = i === steps.length - 1 ? 'はじめる' : 'つぎへ';
-  }
-  function open() { i = 0; render(); box.hidden = false; }
-  function close() { box.hidden = true; try { localStorage.setItem(KEY, '1'); } catch (e) {} }
-  next.addEventListener('click', () => { if (i < steps.length - 1) { i++; render(); } else close(); });
-  document.getElementById('introSkip').addEventListener('click', close);
-  document.getElementById('btnShowIntro')?.addEventListener('click', () => { document.querySelectorAll('.sheet').forEach(s => s.hidden = true); open(); });
-  // まだ練習が少ない人にだけ、最初の1回だけ出す（慣れている人の邪魔をしない）
-  let seen = false;
-  try { seen = localStorage.getItem(KEY) === '1'; } catch (e) {}
-  if (!seen && {{ ((stats.total_sessions if stats else 0) < 3) | tojson }}) open();
-  else if (!seen) { try { localStorage.setItem(KEY, '1'); } catch (e) {} }
-
   // 振動の設定（振動できない端末では項目ごと出さない）
   const hg = document.getElementById('hapticsGroup');
   const hc = document.getElementById('hapticsToggle');
@@ -1697,5 +1635,6 @@ document.addEventListener('DOMContentLoaded', function () {
 })();
 </script>
 <script src="/static/js/tabbar.js" defer></script>
+<script src="/static/js/tour.js" defer></script>
 </body>
 </html>
