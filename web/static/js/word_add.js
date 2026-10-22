@@ -345,6 +345,7 @@
 
   function startCountdown() {
     if (!st.stream || st.busy) return;
+    if (st.meter) st.meter.resume();
     setBusy(true);
     st.cancelled = false;
     el.recordBtn.disabled = true;
@@ -404,7 +405,7 @@
     el.backBtn.disabled = false;
     // マイクが音を拾えていないと、送ってもサーバーで必ず失敗する（無音では音の区切りが取れない）。
     // 待たせずに、その場で原因が分かる形で知らせる
-    if (st.meter && st.meter.getMaxRms() < MIC_SILENCE_THRESHOLD) {
+    if (st.meter && st.meter.measuring() && st.meter.getMaxRms() < MIC_SILENCE_THRESHOLD) {
       el.volWarn.classList.add('show');
       setStatus(el.status2, '', '');
       el.recordBtn.disabled = false;
@@ -554,7 +555,8 @@
   function createMicMeter(stream, fillEl) {
     var track = stream.getAudioTracks()[0];
     var Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!track || !Ctx) return { resetMax: function () {}, getMaxRms: function () { return 1; }, stop: function () {} };
+    var NONE = { resetMax: function () {}, getMaxRms: function () { return 1; }, resume: function () {}, measuring: function () { return false; }, stop: function () {} };
+    if (!track || !Ctx) return NONE;
     var ctx, source, analyser;
     try {
       ctx = new Ctx();
@@ -563,7 +565,7 @@
       analyser.fftSize = 512;
       source.connect(analyser);
     } catch (e) {
-      return { resetMax: function () {}, getMaxRms: function () { return 1; }, stop: function () {} };
+      return NONE;
     }
     var buf = new Uint8Array(analyser.frequencyBinCount);
     var maxRms = 0, raf = null;
@@ -583,6 +585,11 @@
     return {
       resetMax: function () { maxRms = 0; },
       getMaxRms: function () { return maxRms; },
+      // ブラウザによっては、AudioContext が一時停止（suspended）のまま始まる。そのままだと声が入っていても
+      // 大きさが 0 と測れてしまうので、ボタンを押したとき（ユーザーの操作の中）に動かす
+      resume: function () { if (ctx.state === 'suspended' && ctx.resume) ctx.resume().catch(function () {}); },
+      // 測れているか。測れていないときは「声が録れていない」とは決めつけない
+      measuring: function () { return ctx.state === 'running'; },
       stop: function () {
         if (raf) cancelAnimationFrame(raf);
         try { source.disconnect(); } catch (e) {}
@@ -600,7 +607,7 @@
     var LIP_OUTER = [[61,185],[185,40],[40,39],[39,37],[37,0],[0,267],[267,269],[269,270],[270,409],[409,291],[291,375],[375,321],[321,405],[405,314],[314,17],[17,84],[84,181],[181,91],[91,146],[146,61]];
     var LIP_INNER = [[78,191],[191,80],[80,81],[81,82],[82,13],[13,312],[312,311],[311,310],[310,415],[415,308],[308,324],[324,318],[318,402],[402,317],[317,14],[14,87],[87,178],[178,88],[88,95],[95,78]];
     var NOSE = [[168,6],[6,5],[5,4],[4,1],[1,19],[19,94],[94,49],[94,279],[49,48],[279,278]];
-    var MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/';
+    var MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/';   // 版を固定（script と、あとから読む wasm・data の版をそろえる）
 
     function sz() {
       if (!CNVS) return;

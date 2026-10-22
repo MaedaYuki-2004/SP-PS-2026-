@@ -48,7 +48,7 @@
     .me-card-head span em { font-style:normal; font-family:var(--font-num); font-weight:800; color:var(--navy); font-size:15px; }
     .me-week { display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; text-decoration:none; -webkit-tap-highlight-color:transparent; }
     .wk { display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 0 6px; border-radius:16px; }
-    .wk-l { font-size:11px; font-weight:500; color:var(--text-3); line-height:1; }
+    .wk-l { font-size:12px; font-weight:500; color:var(--text-3); line-height:1; }
     .wk-c { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%;
             background:var(--bg-muted); color:var(--text-3); font-family:var(--font-num); font-size:13px; font-weight:700; }
     .wk.on .wk-c { background:var(--grad-brand); color:#fff; box-shadow:0 6px 12px -6px rgba(91,75,234,.8); }
@@ -83,11 +83,12 @@
     .today-label .ic { opacity:.9; }
     .today-ring { --ring-size:56px; --ring-w:5px; --ring-color:#fff; --ring-track:rgba(255,255,255,.24); }
     .today-count { font-family:var(--font-num); font-size:14px; font-weight:800; color:#fff; line-height:1; }
-    .today-count small { font-size:11px; font-weight:700; opacity:.75; }
+    .today-count small { font-size:12px; font-weight:700; opacity:.75; }
     .today-next { margin:10px 0 18px; }
     .today-tag { display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:100px; background:rgba(255,255,255,.18);
                  font-size:12.5px; font-weight:700; backdrop-filter:blur(4px); }
-    .today-word { font-size:46px; font-weight:700; line-height:1.15; margin-top:10px; letter-spacing:.02em; text-shadow:0 2px 18px rgba(20,10,80,.25); }
+    .today-word { font-size:46px; font-weight:700; line-height:1.15; margin-top:10px; letter-spacing:.02em; text-shadow:0 2px 18px rgba(20,10,80,.25); text-wrap:balance; }
+    .today-word.long { font-size:34px; }
     .today-reason { font-size:14px; color:rgba(255,255,255,.86); margin-top:6px; }
     /* 白いボタンの文字はテーマに依らず濃い青紫（ダークでは --brand-700 が明るくなるため固定） */
     .today .btn-hero { min-height:58px; background:#fff; color:#4A3AD0; box-shadow:0 12px 24px -12px rgba(20,10,80,.6); }
@@ -97,6 +98,8 @@
     .today-done { display:flex; align-items:flex-start; gap:10px; font-size:16px; font-weight:700; line-height:1.7; padding:12px 0 8px; }
     .today-done .ic { flex:none; width:28px; height:28px; margin-top:2px; }
     .today-empty { padding:20px; }
+    .today-empty .today-add { margin-top:16px; min-height:54px; background:#fff; color:#4A3AD0; box-shadow:0 12px 24px -12px rgba(20,10,80,.6); }
+    .today-empty .today-add::after { display:none; }
 
     /* ほかの練習 */
     .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
@@ -145,20 +148,20 @@
               -webkit-tap-highlight-color:transparent; transition:background var(--dur); }
     .wc-hit:active { background:var(--bg-muted); }
     .wc-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
-    .wc-word { font-size:27px; font-weight:700; line-height:1.25; color:var(--text); word-break:break-all; letter-spacing:.01em; }
+    .wc-word { font-size:27px; font-weight:700; line-height:1.25; color:var(--text); word-break:break-all; letter-spacing:.01em; text-wrap:balance; }
     .wc-word.long  { font-size:23px; }
     .wc-word.xlong { font-size:20px; }
     .wc-reading { font-size:13px; color:var(--text-3); letter-spacing:.08em; }
     .wc-meta { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
     .wc-accent { display:inline-flex; align-items:center; gap:6px; min-height:26px; padding:0 10px; border-radius:100px; background:var(--bg-muted); }
-    .wc-accent-lbl { font-size:11.5px; color:var(--text-3); line-height:1; }
+    .wc-accent-lbl { font-size:12px; color:var(--text-3); line-height:1; }
     .wc-accent .accent-viz { display:flex; align-items:flex-end; gap:2px; height:12px; }
     .wc-accent .av-bar { display:block; width:8px; border-radius:2px; }
     .wc-accent .av-bar.H { height:11px; background:var(--navy); opacity:.8; }
     .wc-accent .av-bar.L { height:4px; background:var(--text-3); opacity:.4; }
     /* 最高点は点数の高さで色を変え、言葉（◎など）ではなく数字＋「最高」で読ませる */
     .wc-best { display:inline-flex; align-items:baseline; gap:3px; min-height:26px; padding:3px 10px; border-radius:100px;
-               background:var(--bg-muted); font-size:11.5px; color:var(--text-3); }
+               background:var(--bg-muted); font-size:12px; color:var(--text-3); }
     .wc-best b { font-size:14px; color:var(--text-2); }
     .wc-best.grade-s { background:var(--navy-soft); } .wc-best.grade-s b { color:var(--navy); }
     .wc-best.grade-a { background:var(--good-bg); }   .wc-best.grade-a b { color:var(--good-text); }
@@ -184,7 +187,7 @@
 
     /* お手本の録画・削除（単語とお手本は参加者ごと。文字を付けて、カードのいちばん上に1行で置く） */
     .word-card-actions { display:flex; order:-1; justify-content:flex-end; gap:6px; padding:12px 12px 0; }
-    .word-ref-btn, .word-del-btn { display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px; background:var(--bg-muted); border:none;
+    .word-ref-btn, .word-del-btn { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 12px; background:var(--bg-muted); border:none;
                                    border-radius:100px; cursor:pointer; color:var(--text-2); font-family:var(--font); font-size:12.5px; font-weight:700; white-space:nowrap; }
     .word-ref-btn .ic, .word-del-btn .ic { width:15px; height:15px; }
     .word-ref-btn.has-ref { color:var(--good-text); background:var(--good-bg); }
@@ -333,7 +336,7 @@
     {% elif next_step %}
     <div class="today-next">
       <span class="today-tag">{{ next_step.title }}</span>
-      <div class="today-word">{{ next_step.display }}</div>
+      <div class="today-word{% if next_step.display | length >= 6 %} long{% endif %}">{{ next_step.display }}</div>
       <div class="today-reason">{{ next_step.reason }}</div>
     </div>
     {% if next_step.kind == 'mouth' %}
@@ -350,7 +353,12 @@
   {% else %}
   <section class="today aurora today-empty">
     <div class="today-label">{{ icon('calendar', size=16) }} 今日のれんしゅう</div>
-    <div class="today-reason" style="margin-top:8px;">{% if words %}下の単語から、練習したいものを選びましょう{% else %}まず、練習する単語を登録しましょう（下の「単語を追加」から。保護者が登録します）{% endif %}</div>
+    {% if words %}
+    <div class="today-reason" style="margin-top:8px;">下の単語から、練習したいものを選びましょう</div>
+    {% else %}
+    <div class="today-reason" style="margin-top:8px;">まず、練習する単語を登録しましょう（単語とお手本の登録は、保護者がします）</div>
+    <a class="btn-hero today-add" href="/words?add=1">{{ icon('plus', size=22) }} 単語を登録する</a>
+    {% endif %}
   </section>
   {% endif %}
 
@@ -410,7 +418,7 @@
       <a class="tile" href="/listening_quiz">
         <span class="tile-ic t-listen">{{ icon('ear', size=22) }}</span>
         <span class="tile-title">ことば当てクイズ</span>
-        <span class="tile-sub">口の動きや音で当てる</span>
+        <span class="tile-sub">{% if words | length >= 3 %}口の動きや音で当てる{% else %}単語が3つ以上で遊べます{% endif %}</span>
       </a>
       {# 単語が1つも無いときは押しても何も起きないので出さない #}
       {% if words %}
@@ -443,6 +451,7 @@
       よく使う絞り込みだけをチップで出す。
       以前は並び替え・タグ・アクセント型・再生速度が別々の段になっていた。
     #}
+    {% if words %}
     <div class="chip-row" id="wordFilters" style="margin:10px 0;">
       <button type="button" class="chip active" data-filter="all">すべて <b>{{ n_all }}</b></button>
       {% if ns.weak %}<button type="button" class="chip" data-filter="weak">にがて <b>{{ ns.weak }}</b></button>{% endif %}
@@ -450,6 +459,7 @@
       {% if ns.master %}<button type="button" class="chip" data-filter="master">マスター <b>{{ ns.master }}</b></button>{% endif %}
       {% for tag in all_tags %}<button type="button" class="chip" data-tag="{{ tag }}">#{{ tag }}</button>{% endfor %}
     </div>
+    {% endif %}
 
     <div class="word-grid" id="wordGrid">
       {% for w in words %}
@@ -792,13 +802,25 @@ function kanaNorm(str) {
   }));
 })();
 
-/* ── れんぞく練習：いま表示している単語を順番に ── */
+/* ── れんぞく練習：いま表示している単語を順番に ──
+   進み具合はこのタブの中だけに持つ（sessionStorage。結果の画面 line_graph.html が読む）。
+   以前は端末に残していたため、途中でやめたあと、ふつうに練習した単語の結果にも
+   「つぎの単語へ（のこり N）」が出ていた。共有の端末では、次の人にも引き継がれていた。
+   ホームに戻ってきたら、れんぞく練習は終わりにする。 */
+try {
+  sessionStorage.removeItem('sp-ps-continuous');
+  sessionStorage.removeItem('sp-ps-practice-queue');
+  localStorage.removeItem('sp-ps-continuous');       // 以前の版が端末に残したもの
+  localStorage.removeItem('sp-ps-practice-queue');
+} catch (e) {}
 document.getElementById('btnContinuous')?.addEventListener('click', () => {
   const visible = [...document.querySelectorAll('.word-card:not(.hidden)')];
   const ids = visible.map(c => c.dataset.wordId).filter(Boolean);
   if (!ids.length) return;
-  localStorage.setItem('sp-ps-practice-queue', JSON.stringify(ids.slice(1)));
-  localStorage.setItem('sp-ps-continuous', '1');
+  try {
+    sessionStorage.setItem('sp-ps-practice-queue', JSON.stringify(ids.slice(1)));
+    sessionStorage.setItem('sp-ps-continuous', '1');
+  } catch (e) {}
   const first = visible[0].querySelector('form');
   if (first) first.submit();
 });
@@ -844,7 +866,8 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!res.ok) throw new Error(data.error || '削除に失敗しました');
       location.reload();
     } catch (err) {
-      alert('削除エラー: ' + err.message);
+      const msg = '削除できませんでした：' + err.message;
+      if (window.SPToast) SPToast.show(msg, { kind: 'error' }); else alert(msg);
     }
   });
 }); // DOMContentLoaded

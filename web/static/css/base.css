@@ -29,7 +29,7 @@
   --bg-sunken:   #E7E7F0;
   --text:        #13121A;
   --text-2:      #4A4959;
-  --text-3:      #6A697B;   /* 白地で約5.3:1、--bg-muted 上でも 4.5:1 以上 */
+  --text-3:      #636275;   /* 白地で約5.9:1。--bg-muted・--navy-soft（うす紫）の上でも 4.8:1 以上 */
 
   /* ── 色のルール ─────────────────────────────────────
      基本はテーマカラー（青紫）の濃淡。意味を伝えるところだけ、少ない色を足す。
@@ -67,12 +67,12 @@
   --mid-text:    #945F0B;
   --mid-bg:      #FCF1DD;
   --mid-line:    #EFD39F;
-  --todo:        #C04E28;   /* 橙：印・文字（白地で約4.8:1） */
+  --todo:        #B54822;   /* 橙：印・文字（白地で約5.4:1、--bg-muted の上でも 4.6:1） */
   --todo-bar:    #E2754F;
   --todo-bg:     #FDEDE6;
   --todo-line:   #F3C7B5;
   --ref-line:    #A3A2B3;
-  --danger:      #C4453D;
+  --danger:      #B93D35;   /* 赤：注意の文字（--danger-bg の上でも約4.9:1） */
   --danger-bg:   #FCEDEB;
 
   /* グラデーション（主役の面・主ボタンだけに使う） */
@@ -386,7 +386,7 @@ button:focus:not(:focus-visible) { outline:none; }
 .app-header-right { justify-self:end; }
 
 /* アプリ名（文字だけ） */
-.app-brand { display:inline-flex; align-items:center; padding-left:12px;
+.app-brand { display:inline-flex; align-items:center; min-height:44px; padding-left:12px;
              font-family:var(--font-num); font-size:18px; font-weight:800; letter-spacing:-.01em;
              color:var(--text); text-decoration:none; white-space:nowrap; }
 

@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
   <script src="/static/js/media.js"></script>
+  <script src="/static/js/camera_error.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
@@ -204,7 +205,7 @@
     <div class="drill-card">
       <div class="drill-card-title">ことばの先頭で使ってみよう</div>
       <div class="drill-card-sub">「{{ kana }}」で始まる単語を録音します。点数は苦手な音の分析にも使われます。</div>
-      {{ word_list(words_head, '「' ~ kana ~ '」で始まる単語がまだありません。下のタブの「単語」から追加できます（保護者といっしょに）。') }}
+      {{ word_list(words_head, '「' ~ kana ~ '」で始まる単語がまだありません。「単語」のページから追加できます（保護者といっしょに）。') }}
       <button type="button" class="step-next" onclick="completeStep(3)">✓ 練習した！つぎの段階へ</button>
     </div>
   </section>
@@ -230,7 +231,7 @@
 <script>
 const KANA  = {{ kana | tojson }};
 const VOWEL = {{ vowel | tojson }};
-const LS_KEY = 'sp-ps-drill-' + KANA;
+const LS_KEY = 'sp-ps-drill-' + {{ (current_user_id or '') | tojson }} + '-' + KANA;
 
 /* ── 目標の口の形（母音ごとの形。色は1色にそろえる） ── */
 const MOUTH_SVG = {
@@ -242,6 +243,9 @@ const MOUTH_SVG = {
 };
 document.querySelectorAll('.mouth-svg').forEach(svg => { svg.innerHTML = MOUTH_SVG[VOWEL] || ''; if (!MOUTH_SVG[VOWEL]) svg.remove(); });
 
+/* ── 知らせ（theme.js の SPToast。読み込めていないときだけ alert） ── */
+function notify(msg) { if (window.SPToast) SPToast.show(msg, { kind: 'error' }); else alert(msg); }
+
 /* ── お手本の音（端末の音声合成。聞こえる人向けの補助） ── */
 function speak(text) {
   try {
@@ -250,7 +254,7 @@ function speak(text) {
     u.lang = 'ja-JP';
     u.rate = 0.75;
     speechSynthesis.speak(u);
-  } catch (e) { alert('この端末は音声合成に対応していません'); }
+  } catch (e) { notify('この端末では、お手本の音を出せません（音声合成に対応していません）。'); }
 }
 
 /* ── かがみ（カメラ）と録画 ── */
@@ -261,7 +265,7 @@ async function startMirror() {
     camStream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : { facingMode: 'user' }, audio: true });
   } catch (e) {
     try { camStream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true }); }
-    catch (e2) { alert('カメラを使えません。ブラウザの設定で「カメラ」を許可してください。'); return null; }
+    catch (e2) { notify(window.cameraErrorMessage ? cameraErrorMessage(e2) : 'カメラを使えません。ブラウザの設定で「カメラ」を許可してください。'); return null; }
   }
   document.querySelectorAll('.mirror-cam').forEach(cell => {
     cell.querySelector('.mirror-cam-btn')?.remove();
@@ -286,7 +290,7 @@ async function toggleRec(step) {
   if (!stream) return;
   chunks = []; recStep = step;
   try { mediaRecorder = new MediaRecorder(stream, window.SPMedia ? SPMedia.recorderOptions() : undefined); }
-  catch (e) { alert('この端末では録画できません。'); return; }
+  catch (e) { notify('この端末のブラウザでは録画できません。'); return; }
   mediaRecorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   mediaRecorder.onstop = () => {
     clearTimeout(recTimer);
@@ -312,7 +316,15 @@ async function toggleRec(step) {
 
 /* ── 段階の管理（この端末に保存） ── */
 function loadProgress() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch (e) { return {}; }
+  try {
+    // 以前の版は利用者で分けずに持っていた。あれば、いま開いた人の分として引き継ぐ
+    const OLD_KEY = 'sp-ps-drill-' + KANA;
+    if (localStorage.getItem(LS_KEY) === null && localStorage.getItem(OLD_KEY) !== null) {
+      localStorage.setItem(LS_KEY, localStorage.getItem(OLD_KEY));
+      localStorage.removeItem(OLD_KEY);
+    }
+    return JSON.parse(localStorage.getItem(LS_KEY)) || {};
+  } catch (e) { return {}; }
 }
 function saveProgress(p) { try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch (e) {} }
 

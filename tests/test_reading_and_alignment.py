@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.accent import _get_tagger, guess_reading
+from core.accent import _get_tagger, get_accent, guess_reading
 from core.alignment import lab_is_squeezed
 from core.vocab import julius_reading
 
@@ -44,6 +44,14 @@ class GuessReadingTests(unittest.TestCase):
         for display, reading in [("夕食", "ゆうしょく"), ("病院", "びょういん"), ("田んぼ", "たんぼ"), ("学校", "がっこう")]:
             self.assertEqual(guess_reading(display), reading)
             self.assertEqual(julius_reading(guess_reading(display)), reading)
+
+    @unittest.skipIf(_get_tagger() is None, "MeCab・UniDic が入っていない")
+    def test_quoted_commas_in_unidic_features_do_not_shift_the_fields(self):
+        # 「台」の素性には "B,B4WB7G9G" のような引用符の中のカンマがあり、カンマで単純に区切ると
+        # 後ろの項目がずれて、読みが取れず、アクセント型も取れなかった
+        self.assertEqual(guess_reading("東京スカイツリー展望台"), "とうきょうすかいつりーてんぼうだい")
+        self.assertEqual(get_accent("台"), (1, "mecab"))
+        self.assertEqual(get_accent("温度"), (1, "mecab"))
 
 
 class SqueezedAlignmentTests(unittest.TestCase):

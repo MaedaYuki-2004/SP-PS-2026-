@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>録音 — {{ display or test }}</title>
+  <title>「{{ display or test }}」を録音 — SP-PS</title>
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#F4F4F9">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,9 @@
                        background:radial-gradient(closest-side, color-mix(in srgb, var(--brand-400) 26%, transparent), transparent 72%); }
     .rp-reading { display:inline-flex; align-items:center; min-height:30px; padding:2px 14px; border-radius:100px;
                   background:var(--bg-card); box-shadow:var(--elev-1); font-size:14px; letter-spacing:.16em; color:var(--text-2); }
-    .rp-display { font-size:clamp(50px,14vw,76px); font-weight:700; line-height:1.1; color:var(--text); letter-spacing:.02em; }
+    .rp-display { font-size:clamp(50px,14vw,76px); font-weight:700; line-height:1.1; color:var(--text); letter-spacing:.02em; text-align:center; text-wrap:balance; }
+    .rp-word.is-long .rp-display { font-size:clamp(36px,10vw,56px); }
+    .rp-word.is-xlong .rp-display { font-size:clamp(28px,8vw,44px); }
     .rp-word-sm { padding-top:4px; }
     .rp-word-sm::before { width:min(200px, 60vw); }
     .rp-word-sm .rp-display { font-size:clamp(28px,7.5vw,36px); }
@@ -101,7 +103,7 @@
        背景を同じ色にして、3つで1つの流れに見えるようにする。 */
     .guide-countdown { display:none; position:fixed; inset:0; background:var(--stage-bg); z-index:1000; flex-direction:column; align-items:center; justify-content:flex-start; gap:16px; padding:calc(env(safe-area-inset-top) + 5vh) 20px 20px; }
     .guide-countdown.show { display:flex; }
-    .guide-count-word { font-size:30px; font-weight:700; color:#fff; letter-spacing:.04em; }
+    .guide-count-word { font-size:30px; font-weight:700; color:#fff; letter-spacing:.04em; text-align:center; text-wrap:balance; }
     .guide-count-num { position:relative; display:grid; place-items:center; width:132px; height:132px; border-radius:50%;
                        font-family:var(--font-num); font-size:80px; font-weight:800; line-height:1; color:#fff;
                        background:radial-gradient(closest-side, rgba(255,255,255,.14), rgba(255,255,255,.04));
@@ -125,7 +127,8 @@
     .user-lip-replay { width:100%; max-height:180px; border-radius:var(--r); background:#000; object-fit:contain; display:none; }
     .user-lip-replay.ready { display:block; }
     .replay-audio-fold { margin-top:8px; }
-    .replay-audio-fold > summary { list-style:none; cursor:pointer; font-size:12.5px; color:var(--text-3); }
+    .replay-audio-fold > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:6px; min-height:44px;
+                                   font-size:14px; font-weight:700; color:var(--text-2); }
     .replay-audio-fold > summary::-webkit-details-marker { display:none; }
     .replay-audio-fold > summary::before { content:'▸ '; }
     .replay-audio-fold[open] > summary::before { content:'▾ '; }
@@ -214,7 +217,7 @@
        高い音は上の段・低い音は下の段に置き、線でつないで「形」で見せる（辞書のアクセント表記と同じ考え方）。 */
     .pitch-steps { position:relative; display:grid; grid-template-columns:22px repeat(var(--n), minmax(0,1fr));
                    grid-template-rows:40px 40px; column-gap:4px; row-gap:6px; align-items:center; }
-    .pitch-row-label { grid-column:1; font-size:11px; color:rgba(255,255,255,.45); text-align:left; }
+    .pitch-row-label { grid-column:1; font-size:12px; color:rgba(255,255,255,.62); text-align:left; }
     .pitch-row-label.hi { grid-row:1; } .pitch-row-label.lo { grid-row:2; }
     .pitch-line { position:absolute; left:26px; right:0; top:0; height:86px; width:calc(100% - 26px); overflow:visible; pointer-events:none; }
     .pitch-line polyline { fill:none; stroke:rgba(197,196,250,.75); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
@@ -231,7 +234,7 @@
 /* お手本カラオケピッチグラフ（ヒーローの外に置く独立カード） */
 
     .mora-bar { display:flex; width:100%; gap:3px; overflow:hidden; }
-    .mora-item { text-align:center; font-size:14px; font-weight:700; padding:8px 0; color:var(--text-2); background:var(--bg-muted); border-radius:10px; transition:background .08s, color .08s; overflow:hidden; white-space:nowrap; flex-shrink:0; }
+    .mora-item { text-align:center; font-size:14px; font-weight:700; padding:8px 0; color:var(--text-2); background:var(--bg-muted); border-radius:10px; transition:background .08s, color .08s; overflow:hidden; white-space:nowrap; flex-shrink:0; min-width:2.2em; }
     .mora-item.active { background:var(--navy-fill); color:#fff; }
     .mora-item.mora-sil { background:transparent !important; }
 
@@ -266,7 +269,7 @@
     #refStageVideoSlot video { width:100%; height:100%; object-fit:cover; display:block; border-radius:0; max-height:none; }
     /* お手本の情報（音の高さ・長さ）はこの画面にだけ置く */
     .ref-stage-parts { display:flex; flex-direction:column; gap:10px; width:min(420px,88vw); }
-    .ref-part-label { font-size:11.5px; color:rgba(255,255,255,.45); margin-bottom:4px; text-align:left; }
+    .ref-part-label { font-size:12.5px; color:rgba(255,255,255,.62); margin-bottom:4px; text-align:left; }
     .ref-stage-parts .mora-item { background:rgba(255,255,255,.09); color:rgba(255,255,255,.62); }
     .ref-stage-parts .mora-item.active { background:#fff; color:#2A2378; }
 
@@ -296,15 +299,16 @@
 
     /* 録音中は「自分の口」が主役。いちばん上・いちばん大きく置く */
     .rec-stage-cam { width:min(70vw, 280px); aspect-ratio:4/3; }
+    @media (min-width:700px) and (min-height:760px) { .rec-stage-cam { width:min(70vw, 400px); } }
     .rec-stage-cam .lip-preview-container {
       width:100% !important; height:100% !important;
       border-radius:24px; border:2px solid rgba(255,255,255,.22);
       box-shadow:0 0 0 6px rgba(214,60,67,.2), 0 20px 50px -20px rgba(0,0,0,.8);
     }
-    .rec-stage-cam #faceStatus { font-size:10px; padding:2px 0 4px; }
+    .rec-stage-cam #faceStatus { font-size:13px; padding:14px 0 6px; }
 
     .rec-stage-word { display:flex; flex-direction:column; align-items:center; gap:2px; }
-    .rec-stage-display { font-size:clamp(26px,7vw,40px); font-weight:700; color:#fff; letter-spacing:.04em; }
+    .rec-stage-display { font-size:clamp(26px,7vw,40px); font-weight:700; color:#fff; letter-spacing:.04em; text-align:center; text-wrap:balance; }
     .rec-stage-reading { font-size:13px; letter-spacing:.16em; color:rgba(255,255,255,.5); }
 
     /* 「合わせなくていい」ことを言葉でも置く */
@@ -312,7 +316,7 @@
 
     /* お手本の長さ。動かない帯として置くだけで、合図としては使わない */
     .rec-stage-ref { display:flex; flex-direction:column; align-items:center; gap:6px; width:min(420px,88vw); }
-    .rec-stage-ref-label { font-size:11.5px; color:rgba(255,255,255,.45); }
+    .rec-stage-ref-label { font-size:12.5px; color:rgba(255,255,255,.62); }
     .rec-stage-chips { display:flex; width:100%; gap:4px; }
     .rec-stage-chip {
       flex:1 1 0; min-width:0; padding:10px 2px; border-radius:12px;
@@ -539,7 +543,8 @@
 
   <!-- ① はじめ ─────────────────────────────────── -->
   <section class="rp-view" id="viewStart">
-    <div class="rp-word">
+    {% set dlen = (display or test) | length %}
+    <div class="rp-word{% if dlen >= 9 %} is-xlong{% elif dlen >= 6 %} is-long{% endif %}">
       <span class="rp-reading">{{ test }}</span>
       <span class="rp-display">{{ display or test }}</span>
     </div>
@@ -643,11 +648,11 @@
     <div class="ref-len" id="refLenBar">
       <div class="ref-part-label">音の長さ</div>
       <div class="mora-bar" id="moraBar">
-        {% for m in ref_preview.moras %}
-          <span class="mora-item {% if m.is_sil %}mora-sil{% endif %}"
+        {% for m in ref_preview.moras if not m.is_sil %}
+          <span class="mora-item"
                 data-start="{{ m.start }}"
                 data-end="{{ m.end }}"
-                style="flex:{{ ((m.end - m.start) * 1000)|round|int }} 1 0">{% if not m.is_sil %}{{ m.label }}{% endif %}</span>
+                style="flex:{{ ((m.end - m.start) * 1000)|round|int }} 1 0">{{ m.label }}</span>
         {% endfor %}
       </div>
     </div>
@@ -787,9 +792,6 @@
   });
   document.getElementById('btnAgainRec')?.addEventListener('click', () => {
     const start = document.getElementById('buttonStart');
-    // 「すぐ録り直す」を押した時点で録り直すと決めているので、「前の録音を破棄しますか」は聞かない
-    // （「お手本を見て録り直す」と同じ）
-    window._spSkipRerecordConfirm = true;
     if (start && !start.disabled) start.click();
   });
 
@@ -1189,7 +1191,7 @@ function setSampleSpeed(speed) {
       return;
     }
     fm = new FaceMesh({
-      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`,
     });
     fm.setOptions({
       maxNumFaces:            1,
@@ -1243,7 +1245,7 @@ function setSampleSpeed(speed) {
 
     // MediaPipe をバックグラウンドでロード（10 秒でタイムアウト）
     try {
-      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js');
+      await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js');
     } catch (_) {
       console.info('[faceGuide] MediaPipe 未ロード — 静的ガイドのみ');
     }
@@ -1340,12 +1342,8 @@ function setSampleSpeed(speed) {
     media.currentTime = 0;
     closeStage();
     if (!startRecording) return;
-    // 録り直しの確認は入る前に済ませてあるので、ここでは出さない
     const start = document.getElementById('buttonStart');
-    if (start && !start.disabled) {
-      window._spSkipRerecordConfirm = true;
-      start.click();
-    }
+    if (start && !start.disabled) start.click();
   }
 
   // 外から呼ぶ入口（① はじめの画面・⑤ 録音のあとの画面）
@@ -1357,10 +1355,7 @@ function setSampleSpeed(speed) {
 
   if (watchBtn) watchBtn.addEventListener('click', () => window.openRefStage());
   if (btnRep)   btnRep.addEventListener('click', play);
-  if (btnRec)   btnRec.addEventListener('click', () => {
-    if (window._spHasRecording && !confirm('前の録音を消して、もう一度やりますか？')) return;
-    leave(true);
-  });
+  if (btnRec)   btnRec.addEventListener('click', () => leave(true));
   if (btnOut)   btnOut.addEventListener('click', () => leave(false));
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && open) { e.preventDefault(); leave(false); }

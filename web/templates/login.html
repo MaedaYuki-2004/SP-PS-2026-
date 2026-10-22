@@ -92,6 +92,11 @@
         b.textContent = show ? 'かくす' : '表示';
       });
     });
+    // 前に使っていた人の、このタブの途中経過（はじめてのチュートリアル・れんぞく練習）は引き継がない。
+    // 学校の端末で、ログアウトして次の人がログインしたときに、続きが出てしまわないように
+    try {
+      ['sp-ps-tour', 'sp-ps-continuous', 'sp-ps-practice-queue'].forEach(function (k) { sessionStorage.removeItem(k); });
+    } catch (e) {}
   </script>
 </body>
 </html>

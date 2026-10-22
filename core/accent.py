@@ -4,6 +4,7 @@ MeCab によるアクセント型の自動取得を担当するモジュール�
 """
 from __future__ import annotations
 
+import csv
 import threading
 
 # MeCab はオプション依存。入っていない環境では
@@ -35,6 +36,18 @@ def _get_tagger():
     return _tagger
 
 
+def _features(line: str) -> list[str]:
+    """MeCab の1行（表層形 TAB 素性）から素性の並びを取り出す。
+
+    UniDic の素性は CSV で、"B,B4WB7G9G"（「台」）や "0,2" のように、引用符の中にカンマを含む項目がある。
+    カンマで単純に区切ると、それより後ろの項目の位置がずれて、読みやアクセント型をまちがえる。
+    """
+    try:
+        return next(csv.reader([line.split("\t", 1)[1]]))
+    except (IndexError, StopIteration, csv.Error):
+        return []
+
+
 # ── アクセント型取得 ──────────────────────────────────────────────────
 
 def get_accent(display: str) -> tuple[int | None, str]:
@@ -61,12 +74,12 @@ def get_accent(display: str) -> tuple[int | None, str]:
     if len(lines) != 1:
         return None, "unknown"
 
-    features = lines[0].split("\t")[1].split(",")
+    features = _features(lines[0])
     if len(features) <= 24:
         return None, "unknown"
 
-    accent_str = features[24].strip().strip('"')
-    first = accent_str.split(",")[0].strip()
+    # アクセント型（aType）。「0,2」のように複数あるときは最初の値を使う
+    first = features[24].split(",")[0].strip()
     if first.isdigit():
         return int(first), "mecab"
 
@@ -108,14 +121,14 @@ def guess_reading(display: str) -> str | None:
         return None
     parts = []
     for line in result.splitlines():
-        if not line or line == "EOS" or "	" not in line:
+        if not line or line == "EOS" or "\t" not in line:
             continue
-        surface, feature = line.split("	", 1)
-        f = feature.split(",")
+        surface = line.split("\t", 1)[0]
+        f = _features(line)
         # UniDic：20 番目が書いてあるとおりの読み（仮名形）、6 番目が語彙素の読み
         kana_form = f[20] if len(f) > 20 and f[20] not in ("", "*") else (f[6] if len(f) > 6 else "")
         if not kana_form or kana_form == "*":
             kana_form = surface
-        parts.append(_to_hiragana(kana_form.strip('"')))
+        parts.append(_to_hiragana(kana_form))
     reading = "".join(parts)
     return reading if _is_kana_reading(reading) else None

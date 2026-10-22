@@ -10,9 +10,10 @@
   <script src="/static/js/theme.js"></script>
   <script src="/static/js/media.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  {# 口の形の判定（MediaPipe）。defer で読み、画面を先に出す（読み終わってから判定を始める：下の startDetection） #}
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous" defer></script>
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; background:var(--bg); }
 
@@ -30,7 +31,7 @@
     .mora-dot-circle.active  { background:var(--grad-brand); color:#fff; box-shadow:0 0 0 5px color-mix(in srgb, var(--navy) 22%, transparent); }
     .mora-dot-circle.done    { background:var(--grad-good); color:#fff; }
     .mora-dot-circle.skip    { border-color:var(--border); background:transparent; color:var(--text-3); opacity:.4; }
-    .mora-dot-vowel { font-size:11px; color:var(--text-3); font-family:var(--mono); }
+    .mora-dot-vowel { font-size:12px; color:var(--text-3); font-family:var(--mono); }
 
     /* ── メインエリア ── */
     .vt-main { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px 24px; max-width:960px; margin:0 auto; width:100%; box-sizing:border-box; }
@@ -41,7 +42,7 @@
     .camera-wrap { position:relative; border-radius:24px; box-shadow:var(--elev-1); overflow:hidden; background:#000; aspect-ratio:4/3; }
     .camera-wrap video  { width:100%; height:100%; object-fit:cover; display:block; transform:scaleX(-1); }
     .camera-wrap canvas { position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); }
-    .camera-status { position:absolute; top:8px; left:8px; font-size:11px; font-weight:700; letter-spacing:.04em; padding:4px 10px; border-radius:100px; backdrop-filter:blur(6px); }
+    .camera-status { position:absolute; top:8px; left:8px; font-size:12px; font-weight:700; letter-spacing:.04em; padding:4px 10px; border-radius:100px; backdrop-filter:blur(6px); }
     .camera-status.loading { background:rgba(0,0,0,.6); color:rgba(255,255,255,.6); }
     .camera-status.active  { background:rgba(141,139,242,.28); color:#E1E0FD; }
 
@@ -66,7 +67,7 @@
     .mouth-shape-wrap { margin:10px auto; width:120px; height:100px; position:relative; }
     .mouth-ref-video { width:120px; height:100px; object-fit:cover; border-radius:var(--r-sm); background:#000; }
     .mouth-view-tabs { display:flex; justify-content:center; gap:6px; margin-top:2px; }
-    .mouth-view-tab { min-height:32px; padding:4px 12px; border-radius:100px; border:none; background:var(--bg-muted); color:var(--text-2); font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; }
+    .mouth-view-tab { min-height:40px; padding:4px 12px; border-radius:100px; border:none; background:var(--bg-muted); color:var(--text-2); font-family:var(--font); font-size:12.5px; font-weight:700; cursor:pointer; transition:all .15s; }
     .mouth-view-tab:hover { border-color:var(--navy); color:var(--navy); }
     .mouth-view-tab.active { background:var(--grad-brand); color:#fff; }
     .mouth-svg { width:100%; height:100%; }
@@ -84,8 +85,8 @@
     .guide-marker.ok   { background:var(--good); }
     .guide-marker.low  { background:var(--mid); }
     .guide-marker.high { background:var(--todo); }
-    .guide-scale { display:flex; justify-content:space-between; font-size:9px; color:var(--text-3); margin-top:3px; font-family:var(--mono); }
-    .guide-hint  { font-size:11.5px; font-weight:600; margin-top:6px; min-height:16px; color:var(--text-2); }
+    .guide-scale { display:flex; justify-content:space-between; font-size:12px; color:var(--text-3); margin-top:4px; }
+    .guide-hint  { font-size:13px; font-weight:700; margin-top:6px; min-height:18px; color:var(--text-2); }
     .guide-hint.ok   { color:var(--good); }
     .guide-hint.low  { color:var(--mid-text); }
     .guide-hint.high { color:var(--todo); }
@@ -125,6 +126,12 @@
     .complete-btn.primary  { background:var(--grad-rec); color:#fff; border:none; box-shadow:var(--shadow-rec); }
     .complete-btn.secondary{ background:var(--bg-card); color:var(--text-2); border:none; box-shadow:var(--elev-1); }
 
+    /* 口の形の登録をやり直すボタン（ページのいちばん下） */
+    .vt-recal-row { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; padding:4px 16px 20px; }
+    .vt-recal { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 18px; border-radius:100px; border:1px solid var(--border);
+                background:var(--bg-card); color:var(--text-2); font-family:var(--font); font-size:13.5px; font-weight:700; cursor:pointer; }
+    .vt-recal-badge { font-size:12.5px; color:var(--text-3); }
+
     /* スキップ画面（母音なしモーラのみの場合） */
     .skip-notice { background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--r); padding:20px; text-align:center; color:var(--text-3); font-size:13px; }
 
@@ -142,7 +149,7 @@
       .vt-word { font-size:22px; }
       .progress-wrap { padding:8px 16px; }
       .feedback-bar, .vt-nav { padding-left:16px; padding-right:16px; }
-      .camera-panel-title, .target-panel-title { font-size:11px; }
+      .camera-panel-title, .target-panel-title { font-size:12px; }
       /* 自分の口は大きく見えたほうが直しやすい。縦長にして列の高さに合わせる */
       .camera-wrap { aspect-ratio:3/4; }
       .target-mora-card { padding:10px 6px; }
@@ -151,7 +158,7 @@
       .target-vowel-big { font-size:20px; padding:2px 12px; margin-bottom:8px; }
       /* 「イラスト／お手本の実写」は幅が足りずに折り返すので、縦に積む */
       .mouth-view-tabs { flex-direction:column; align-items:stretch; gap:4px; }
-      .mouth-view-tab { padding:7px 6px; font-size:11px; white-space:nowrap; }
+      .mouth-view-tab { padding:6px 6px; font-size:12px; white-space:nowrap; }
       .mouth-shape-wrap { width:96px; height:80px; margin:8px auto; }
       /* 判定はひと目で分かればよい。1行に収める */
       .detected-wrap { display:flex; align-items:center; justify-content:center; gap:12px; padding:10px 14px; }
@@ -164,6 +171,12 @@
                    background:radial-gradient(110% 55% at 50% -5%, rgba(107,86,255,.45) 0%, rgba(107,86,255,0) 60%), #0C0A1A; color:#fff; }
     .cal-kicker { display:inline-flex; align-items:center; min-height:30px; padding:4px 14px; border-radius:100px; background:rgba(255,255,255,.1);
                   font-size:13px; font-weight:700; letter-spacing:.06em; color:rgba(255,255,255,.85); }
+    .cal-why { font-size:14px; color:rgba(255,255,255,.78); max-width:330px; line-height:1.75; margin:-4px 0 0; }
+    .cal-cam { width:132px; aspect-ratio:4/3; border-radius:18px; overflow:hidden; background:#000; border:2px solid rgba(255,255,255,.22); }
+    .cal-cam video { width:100%; height:100%; object-fit:cover; display:block; transform:scaleX(-1); }
+    .cal-cam:not(.on) { display:none; }
+    .cal-status.warn { color:#F3C06B; }
+    @media (max-height:700px) { .cal-vowel { width:132px; height:132px; font-size:80px; } .cal-why { font-size:13px; } }
     .cal-progress { font-family:var(--font-num); font-size:14px; font-weight:700; color:rgba(255,255,255,.62); }
     .cal-vowel { display:grid; place-items:center; width:180px; height:180px; border-radius:50%; font-size:110px; font-weight:700; line-height:1; color:#fff;
                  background:radial-gradient(closest-side, rgba(255,255,255,.12), rgba(255,255,255,.03)); box-shadow:inset 0 0 0 2px rgba(255,255,255,.14); transition:color .2s; }
@@ -234,7 +247,7 @@
     <div class="target-panel">
       <span class="target-panel-title">目標の口の形</span>
       <div class="target-mora-card" id="targetCard">
-        <div class="target-mora-sub">練習中のモーラ</div>
+        <div class="target-mora-sub">いま練習する音</div>
         <div class="target-mora-text" id="targetMoraText">—</div>
         <div class="target-vowel-big" id="targetVowelBig">—</div>
         {% if has_ref_video %}
@@ -302,15 +315,17 @@
       <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M4 2l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
   </div>
-  <div style="text-align:center;padding-bottom:8px;">
-    <button onclick="startCalibration()" style="font-size:11px;font-weight:600;padding:5px 14px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-family:var(--font);" id="recalBtn">{{ icon('gear') }} 口の形を再登録</button>
-    <span id="calBadge" style="font-size:10px;color:var(--text-3);margin-left:8px;"></span>
+  <div class="vt-recal-row">
+    <button type="button" class="vt-recal" onclick="startCalibration()" id="recalBtn">{{ icon('repeat') }} 口の形を登録し直す</button>
+    <span id="calBadge" class="vt-recal-badge"></span>
   </div>
 </div>
 
 <!-- キャリブレーションオーバーレイ -->
 <div id="calOverlay" class="cal-overlay" style="display:none;">
-  <div class="cal-kicker">口の形キャリブレーション</div>
+  <div class="cal-kicker">あなたの口の形を登録</div>
+  <p class="cal-why">あなたの口に合わせて判定するために、「あ・い・う・え・お」の口の形を1回だけ登録します。</p>
+  <div class="cal-cam" id="calCam"><video id="calCamVideo" autoplay muted playsinline></video></div>
   <div id="calProgress" class="cal-progress">1 / 5</div>
   <div id="calVowel" class="cal-vowel"></div>
   <div id="calInstruction" class="cal-instruction"></div>
@@ -335,7 +350,7 @@
       <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="5"/></svg>
       録音する
     </a>
-    <a href="/select" class="complete-btn secondary">単語選択に戻る</a>
+    <a href="/select" class="complete-btn secondary">ホームに戻る</a>
   </div>
 </div>
 
@@ -594,7 +609,7 @@ function updateFeedback(detected, target) {
     icon.innerHTML = '<svg class="ic" width="32px" height="32px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M2.5 12q3.2-4 6-1.8Q12 6.6 15.5 10.2q2.8-2.2 6 1.8"/><path d="M2.5 12q4 6 9.5 6t9.5-6"/><path d="M2.5 12h19"/></svg>';
     msg.textContent  = '口を少し開けてください';
     sub.textContent  = 'カメラに顔をはっきり映してください';
-    detEl.textContent = detected === 'closed' ? '（閉口）' : '—';
+    detEl.textContent = detected === 'closed' ? '（とじている）' : '—';
     detEl.className = 'detected-vowel closed';
     matchStartTime = null;
     resetKeepBar();
@@ -618,7 +633,7 @@ function updateFeedback(detected, target) {
     icon.innerHTML = '<svg class="ic" width="32px" height="32px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-0.125em;"><path d="M9 17.5a6 6 0 1 1 6 0v1.5H9z"/><path d="M9.5 21.5h5"/></svg>';
     const hintKey = `${detected}→${target}`;
     msg.textContent = HINT_BY_DETECTED[hintKey] || `「${target}」の口の形を作ってみましょう`;
-    sub.textContent = `検出: 「${detected}」 → 目標: 「${target}」`;
+    sub.textContent = `いまの口：「${detected}」　めざす口：「${target}」`;
     detEl.className  = 'detected-vowel wrong';
     matchStartTime = null;
     resetKeepBar();
@@ -697,7 +712,9 @@ function showComplete() {
    h/w/zProt 値を localStorage に保存。
    保存した値をガウス分類の中心 (mu) として使う。
 ══════════════════════════════════════════════════════ */
-const CAL_KEY    = 'sp-ps-vowel-cal-v2';
+// 利用者ごとに分けて持つ。以前の版は端末に1つだけ持っていた（OLD_CAL_KEY）
+const CAL_KEY     = 'sp-ps-vowel-cal-v2:' + {{ (current_user_id or '') | tojson }};
+const OLD_CAL_KEY = 'sp-ps-vowel-cal-v2';
 const CAL_VOWELS = ['あ','い','う','え','お'];
 const CAL_FRAMES = 35;  // 約1.2秒分のフレーム数
 
@@ -705,9 +722,16 @@ let _calData      = null;  // {あ:{h,w,zProt}, …}
 let _isCalibrating= false;
 let _calStep      = -1;
 let _calFrames    = [];
+let _calCheck     = null;   // 記録中の進み具合を見るタイマー
+let _calLastFrame = 0;      // 口の形を最後に受け取った時刻
 
 function loadCalibration() {
   try {
+    // 以前の版の登録があれば、いま開いた人の分として引き継ぐ（何度も聞かないため）
+    if (localStorage.getItem(CAL_KEY) === null && localStorage.getItem(OLD_CAL_KEY) !== null) {
+      localStorage.setItem(CAL_KEY, localStorage.getItem(OLD_CAL_KEY));
+      localStorage.removeItem(OLD_CAL_KEY);
+    }
     const s = localStorage.getItem(CAL_KEY);
     if (s) _calData = JSON.parse(s);
   } catch(e) { _calData = null; }
@@ -716,14 +740,14 @@ function loadCalibration() {
 
 function saveCalibration(data) {
   _calData = data;
-  localStorage.setItem(CAL_KEY, JSON.stringify(data));
+  try { localStorage.setItem(CAL_KEY, JSON.stringify(data)); } catch (e) {}
   updateCalBadge();
 }
 
 function updateCalBadge() {
   const el = document.getElementById('calBadge');
   if (!el) return;
-  el.textContent = _calData ? '（登録済み ✓）' : '（未登録）';
+  el.textContent = _calData ? 'あなたの口の形：登録ずみ' : 'あなたの口の形：まだ登録していません';
 }
 
 function startCalibration() {
@@ -732,12 +756,27 @@ function startCalibration() {
   _calFrames = [];
   const ov = document.getElementById('calOverlay');
   ov.style.display = 'flex';
+  // 自分の口が見えるように、カメラの映像を小さく映す
+  const src = document.getElementById('camVideo');
+  const cv = document.getElementById('calCamVideo');
+  if (src && src.srcObject && cv) {
+    cv.srcObject = src.srcObject;
+    cv.play().catch(() => {});
+    document.getElementById('calCam').classList.add('on');
+  }
   showCalStep();
 }
 
-function skipCalibration() {
+function closeCalOverlay() {
   _isCalibrating = false;
+  clearInterval(_calCheck);
   document.getElementById('calOverlay').style.display = 'none';
+  const cv = document.getElementById('calCamVideo');
+  if (cv) cv.srcObject = null;
+}
+
+function skipCalibration() {
+  closeCalOverlay();
 }
 
 function showCalStep() {
@@ -756,14 +795,22 @@ function startCalRecording() {
   _calFrames = [];
   document.getElementById('calRecordBtn').disabled = true;
   document.getElementById('calBar').style.display = 'block';
-  document.getElementById('calStatus').textContent = 'その口の形をキープ…';
+  const status = document.getElementById('calStatus');
+  status.textContent = 'その口の形をキープ…';
+  status.className = 'cal-status';
+  _calLastFrame = Date.now();
 
   const fill = document.getElementById('calBarFill');
-  const check = setInterval(() => {
+  clearInterval(_calCheck);
+  _calCheck = setInterval(() => {
     const pct = Math.min(_calFrames.length / CAL_FRAMES * 100, 100);
     fill.style.width = pct + '%';
+    // 口が見えないと進まない。止まったままにせず、どうすればいいかを出す
+    const lost = Date.now() - _calLastFrame > 1500;
+    status.textContent = lost ? '口が見えません。顔をカメラに向けて、口を開けてください' : 'その口の形をキープ…';
+    status.className = 'cal-status' + (lost ? ' warn' : '');
     if (_calFrames.length >= CAL_FRAMES) {
-      clearInterval(check);
+      clearInterval(_calCheck);
       finishCalStep();
     }
   }, 50);
@@ -789,9 +836,8 @@ function finishCalStep() {
   if (_calStep >= CAL_VOWELS.length) {
     // 全母音完了
     saveCalibration(_calData);
-    document.getElementById('calOverlay').style.display = 'none';
-    _isCalibrating = false;
-    document.getElementById('calStatus').textContent = '登録完了！';
+    closeCalOverlay();
+    if (window.SPToast) SPToast.show('あなたの口の形を登録しました。');
   } else {
     showCalStep();
   }
@@ -880,7 +926,7 @@ function classifyVowel(lm) {
   // キャリブレーション記録中はフレームを蓄積
   if (_isCalibrating) {
     const m = getLipMetrics(lm);
-    if (m && m.h > 0.02) _calFrames.push(m);
+    if (m && m.h > 0.02) { _calFrames.push(m); _calLastFrame = Date.now(); }
     return null;
   }
 
@@ -996,53 +1042,61 @@ if (practiceItems.length === 0) {
   updateTargetUI();
 }
 
-if (typeof FaceMesh !== 'undefined' && typeof Camera !== 'undefined') {
-  const faceMesh = new FaceMesh({
-    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-  });
-  faceMesh.setOptions({
-    maxNumFaces: 1,
-    refineLandmarks: true,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-  });
-  faceMesh.onResults(onResults);
+// 口の形の判定は、MediaPipe を読み終わる（または読めなかった）のを待ってから始める。
+// 以前は <head> で読み終わるまで画面を出さなかったため、外部への接続が遅い・止められている
+// ネットワークでは、しばらく真っ白のままだった
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startDetection);
+else startDetection();
 
-  const camera = new Camera(video, {
-    onFrame: async () => { await faceMesh.send({ image: video }); },
-    width: 640, height: 480,
-  });
+function startDetection() {
+  if (typeof FaceMesh !== 'undefined' && typeof Camera !== 'undefined') {
+    const faceMesh = new FaceMesh({
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    faceMesh.onResults(onResults);
 
-  // カメラ起動（1回のみ）
-  camera.start().then(() => {
-    document.getElementById('camStatus').textContent = '認識中';
-    // キャリブレーション未登録なら自動起動
-    if (!_calData && practiceItems.length > 0) {
-      setTimeout(() => startCalibration(), 1000);
-    }
-  }).catch(err => {
-    document.getElementById('camStatus').textContent = 'カメラエラー';
-    document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
-    console.error(err);
-  });
-} else {
-  // 自動判定が使えないときは、カメラを「かがみ」として使う。自分で見くらべて「次へ」で進める
-  window._vtNoDetect = true;
-  document.getElementById('nextBtn').disabled = false;
-  document.getElementById('guideBlock')?.setAttribute('hidden', '');
-  document.querySelector('.detected-wrap')?.setAttribute('hidden', '');
-  document.getElementById('feedbackMsg').textContent = 'かがみモードで練習できます';
-  document.getElementById('feedbackSub').textContent = '口の形の自動判定が読み込めませんでした。右の「目標の口の形」と自分の口を見くらべて、できたら「次へ」を押しましょう。';
-  navigator.mediaDevices?.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true }).then(stream => {
-    video.srcObject = stream;
-    video.play().catch(() => {});
-    const st = document.getElementById('camStatus');
-    st.className = 'camera-status active';
-    st.textContent = 'かがみ';
-  }).catch(() => {
-    document.getElementById('camStatus').textContent = 'カメラエラー';
-    document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
-  });
+    const camera = new Camera(video, {
+      onFrame: async () => { await faceMesh.send({ image: video }); },
+      width: 640, height: 480,
+    });
+
+    // カメラ起動（1回のみ）
+    camera.start().then(() => {
+      document.getElementById('camStatus').textContent = '認識中';
+      // キャリブレーション未登録なら自動起動
+      if (!_calData && practiceItems.length > 0) {
+        setTimeout(() => startCalibration(), 1000);
+      }
+    }).catch(err => {
+      document.getElementById('camStatus').textContent = 'カメラエラー';
+      document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
+      console.error(err);
+    });
+  } else {
+    // 自動判定が使えないときは、カメラを「かがみ」として使う。自分で見くらべて「次へ」で進める
+    window._vtNoDetect = true;
+    document.getElementById('nextBtn').disabled = false;
+    document.getElementById('guideBlock')?.setAttribute('hidden', '');
+    document.querySelector('.detected-wrap')?.setAttribute('hidden', '');
+    document.getElementById('feedbackMsg').textContent = 'かがみモードで練習できます';
+    document.getElementById('feedbackSub').textContent = '口の形の自動判定が読み込めませんでした。右の「目標の口の形」と自分の口を見くらべて、できたら「次へ」を押しましょう。';
+    navigator.mediaDevices?.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true }).then(stream => {
+      video.srcObject = stream;
+      video.play().catch(() => {});
+      const st = document.getElementById('camStatus');
+      st.className = 'camera-status active';
+      st.textContent = 'かがみ';
+    }).catch(() => {
+      document.getElementById('camStatus').textContent = 'カメラエラー';
+      document.getElementById('feedbackMsg').textContent = 'カメラにアクセスできません。ブラウザの許可を確認してください。';
+    });
+  }
 }
 </script>
 </body>

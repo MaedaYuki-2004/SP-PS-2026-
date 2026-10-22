@@ -91,6 +91,8 @@
     .qz-diff-read mark { background:none; color:var(--todo); border-bottom:3px solid var(--todo-bar); padding:0 1px; }
     .qz-diff-read.is-answer mark { color:var(--good); border-bottom-color:var(--good); }
     .qz-diff-note { grid-column:1 / -1; font-size:12.5px; color:var(--text-3); margin-top:2px; }
+    .quiz-empty-actions { display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:18px; }
+    .quiz-empty-actions .btn { min-height:48px; padding:0 22px; }
     .qz-next { display:none; width:100%; min-height:56px; margin-top:10px; border:none; border-radius:18px; background:var(--grad-brand); color:#fff;
                font-family:var(--font); font-size:16px; font-weight:700; cursor:pointer; }
     .qz-next.show { display:block; position:sticky; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:5;
@@ -132,8 +134,11 @@
   {% if not questions or questions|length < 3 %}
   <div class="quiz-empty">
     <div class="quiz-empty-ic">{{ icon('ear', size=34) }}</div>クイズには、お手本つきの単語が3つ以上必要です。<br>
-    下のタブの<a href="/words">「単語」</a>で、お手本つきの単語を増やすと、出題できるようになります（保護者といっしょに）。
-    <div style="margin-top:16px;"><a href="/select" class="btn btn-ghost">ホームに戻る</a></div>
+    「単語」のページで、お手本つきの単語を増やすと、出題できるようになります（保護者といっしょに）。
+    <div class="quiz-empty-actions">
+      <a href="/words" class="btn btn-primary">{{ icon('book') }} 単語のページへ</a>
+      <a href="/select" class="btn btn-ghost">ホームに戻る</a>
+    </div>
   </div>
   {% else %}
 
@@ -148,17 +153,17 @@
     <div class="qz-modes" id="modeList">
       <button type="button" class="qz-mode" data-mode="lips">
         <span class="qz-mode-ic">{{ icon('mouth', size=24) }}</span>
-        <span class="qz-mode-text"><b>口の動きで当てる</b><small>音なしで、お手本の口の動きを見て当てます</small></span>
+        <span class="qz-mode-text"><b>口の動きで当てる</b><small>音なしで、口の動きだけを見て当てます</small></span>
         <span class="qz-mode-check">{{ icon('check', size=14) }}</span>
       </button>
       <button type="button" class="qz-mode" data-mode="both">
         <span class="qz-mode-ic">{{ icon('video', size=24) }}</span>
-        <span class="qz-mode-text"><b>口の動きと音で当てる</b><small>口の動きを見ながら、音も聞いて当てます</small></span>
+        <span class="qz-mode-text"><b>口の動きと音で当てる</b><small>口の動きを見て、音も聞いて当てます</small></span>
         <span class="qz-mode-check">{{ icon('check', size=14) }}</span>
       </button>
       <button type="button" class="qz-mode" data-mode="sound">
         <span class="qz-mode-ic">{{ icon('ear', size=24) }}</span>
-        <span class="qz-mode-text"><b>音で当てる</b><small>音だけを聞いて、似ている音を聞き分けます</small></span>
+        <span class="qz-mode-text"><b>音で当てる</b><small>音だけで、似ている音を聞き分けます</small></span>
         <span class="qz-mode-check">{{ icon('check', size=14) }}</span>
       </button>
     </div>
@@ -389,6 +394,21 @@ function answer(choice, btn) {
   $('qScore').textContent = `${score}問正解`;
   $('nextBtn').textContent = qIdx + 1 >= round.length ? '結果を見る' : 'つぎの問題へ';
   $('nextBtn').classList.add('show');
+  revealFeedback();
+}
+
+// 答えの知らせ（と「どこがちがったか」）が、下に貼りついた「つぎの問題へ」の上に見えるようにする
+function revealFeedback() {
+  const target = $('diffBox').hidden ? $('feedback') : $('diffBox');
+  requestAnimationFrame(() => {
+    const r = target.getBoundingClientRect();
+    const btn = $('nextBtn').getBoundingClientRect();
+    const limit = Math.min(window.innerHeight, btn.top) - 12;
+    if (r.bottom > limit) {
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollBy({ top: r.bottom - limit, behavior: reduce ? 'auto' : 'smooth' });
+    }
+  });
 }
 
 $('nextBtn').addEventListener('click', () => {

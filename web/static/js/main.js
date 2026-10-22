@@ -290,14 +290,9 @@ async function main() {
     }
 
     btnStart.addEventListener('click', () => {
-      // ③ 録音済みの場合は確認ダイアログを表示
-      // 「お手本を見て録音する」の流れでは開始前に確認済みなので、
-      // そのときだけ二重に聞かない（_spSkipRerecordConfirm は一度きりの印）。
-      if (hasRecording && !window._spSkipRerecordConfirm) {
-        const ok = confirm('前の録音を破棄して録音し直しますか？');
-        if (!ok) { window._spSkipRerecordConfirm = false; return; }
-      }
-      window._spSkipRerecordConfirm = false;
+      // 録り直すときに「前の録音を破棄しますか？」とは聞かない。
+      // 録音のあとの画面のボタンは「すぐ録り直す」「お手本を見て録り直す」と書いてあり、押すのは録り直したいとき。
+      // 録り直しは練習でいちばんくり返す操作なので、毎回ブラウザの確認を出すと手間になっていた。
 
       // 聴覚障碍ユーザー向けタイミングガイド：カウントダウンを挟んでから開始
       const guide = window._spTimingGuide;

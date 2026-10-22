@@ -106,6 +106,12 @@
   }
   window.addEventListener('pageswap', quietSkippedTransition);     // 古いページの側
   window.addEventListener('pagereveal', quietSkippedTransition);   // 新しいページの側
+  // それでも、上で受け取る前に約束が失敗で終わることがまれにある（全画面の確認で 70 回に 1 回ほど）。
+  // この知らせだけは、だれも受け取らなかったエラーとして記録しない
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e.reason;
+    if (r && r.name === 'AbortError' && /transition was skipped/i.test(String(r.message || ''))) e.preventDefault();
+  });
 
   // ── 数字のカウントアップ・リングの伸び ──
   // 点数が「0 から増えて止まる」動きは、音の効果音の代わりに「結果が出た」ことを伝える。
@@ -140,4 +146,56 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-count-up]'), countUp);
     Array.prototype.forEach.call(document.querySelectorAll('[data-ring]'), growRing);
   });
+
+  // ── 短い知らせ（トースト） ──
+  // 以前は通信のエラーなどをブラウザの alert() で出していた。alert() は画面全体を止め、
+  // 押すまで何も操作できず、文も選べない。画面の下に数秒だけ出す。
+  //   SPToast.show('削除できませんでした：…', { kind: 'error' })   kind: 'error' | 'info'（既定）
+  // 見た目はここに入れる（base.css は Service Worker が古い控えを返すことがあるため）。
+  var toastBox = null;
+  function toastStyle() {
+    if (document.getElementById('spToastCss')) return;
+    var st = document.createElement('style');
+    st.id = 'spToastCss';
+    st.textContent =
+      '.sp-toast-box{position:fixed;left:50%;transform:translateX(-50%);z-index:2147483100;width:min(420px,calc(100vw - 24px));' +
+      'bottom:calc(88px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;pointer-events:none;}' +
+      '.sp-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:13px 14px 13px 16px;border-radius:16px;' +
+      'background:var(--text,#13121A);color:var(--bg-card,#fff);font-family:var(--font,system-ui);font-size:14.5px;line-height:1.6;' +
+      'box-shadow:0 14px 34px -12px rgba(0,0,0,.45);animation:sp-toast-in .22s ease-out;}' +
+      '.sp-toast.error{background:var(--danger,#B93D35);color:#fff;}' +
+      '.sp-toast span{flex:1;min-width:0;overflow-wrap:anywhere;}' +
+      '.sp-toast button{flex:none;min-width:40px;min-height:32px;margin:-4px -6px -4px 0;border:none;border-radius:10px;background:transparent;' +
+      'color:inherit;font:inherit;font-weight:700;cursor:pointer;opacity:.85;}' +
+      '@keyframes sp-toast-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}' +
+      '@media (prefers-reduced-motion: reduce){.sp-toast{animation:none;}}';
+    document.head.appendChild(st);
+  }
+  function showToast(text, opts) {
+    opts = opts || {};
+    toastStyle();
+    if (!toastBox || !document.body.contains(toastBox)) {
+      toastBox = document.createElement('div');
+      toastBox.className = 'sp-toast-box';
+      toastBox.setAttribute('role', 'status');
+      toastBox.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toastBox);
+    }
+    var t = document.createElement('div');
+    t.className = 'sp-toast' + (opts.kind === 'error' ? ' error' : '');
+    var msg = document.createElement('span');
+    msg.textContent = text;
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = '×';
+    close.setAttribute('aria-label', 'とじる');
+    t.appendChild(msg);
+    t.appendChild(close);
+    toastBox.appendChild(t);
+    var timer = setTimeout(remove, opts.ms || (opts.kind === 'error' ? 7000 : 4500));
+    function remove() { clearTimeout(timer); if (t.parentNode) t.parentNode.removeChild(t); }
+    close.addEventListener('click', remove);
+    return remove;
+  }
+  window.SPToast = { show: showToast };
 })();

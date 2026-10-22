@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon %}<!DOCTYPE html>
 <html lang="ja"{% if is_teacher %} class="teacher-mode"{% endif %}>
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,28 +9,27 @@
   <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
-    .page-header { position:relative; overflow:hidden; background:var(--grad-hero); color:#fff; margin:16px auto 0; width:calc(100% - 32px); max-width:1036px; border-radius:28px; padding:22px 32px; display:flex; align-items:flex-end;
-                   justify-content:space-between; gap:16px; flex-wrap:wrap; }
-    .page-header-title { font-size:20px; font-weight:700; color:#fff; }
-    .page-header-sub { font-size:12px; color:rgba(255,255,255,.82); margin-top:3px; }
-    .page-header a { font-size:12px; color:rgba(255,255,255,.8); text-decoration:none; }
-    .page-header a:hover { color:#fff; }
-    .hdr-lock { min-height:36px; padding:0 14px; border:none; border-radius:100px; background:rgba(255,255,255,.18); color:#fff;
-                font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer; }
-    .main { max-width:1000px; margin:0 auto; padding:26px 32px; }
+    .main { max-width:1000px; margin:0 auto; padding:20px 32px 32px; }
+    .aa-lead { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+    .aa-lead p { font-size:13.5px; color:var(--text-2); line-height:1.7; margin:0; }
+    .aa-tools { display:flex; gap:8px; flex-wrap:wrap; }
+    .aa-tool { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 16px; border-radius:100px; border:none;
+               background:var(--bg-card); box-shadow:var(--elev-1); color:var(--text); font-family:var(--font); font-size:14px; font-weight:700;
+               text-decoration:none; cursor:pointer; }
+    .aa-tool.lock { color:var(--danger); }
     .card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r);
             padding:22px; margin-bottom:22px; box-shadow:var(--shadow-xs); }
-    .card-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
-                  color:var(--text-3); margin-bottom:14px; }
-    .ethics-note { font-size:11px; color:var(--text-3); line-height:1.7; margin-bottom:18px; }
+    .card-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:12px; }
+    .ethics-note { font-size:13px; color:var(--text-2); line-height:1.75; margin-bottom:18px; }
     .row-form { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
     .fld { display:flex; flex-direction:column; gap:4px; }
-    .fld label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); }
-    .fld input, .fld select { font-family:var(--font); font-size:13px; padding:9px 12px; border:1px solid var(--border);
+    .fld label { font-size:12.5px; font-weight:700; color:var(--text-2); }
+    /* 16px 未満にすると、iPhone で入力欄を押したときに画面が拡大されてしまう */
+    .fld input, .fld select, .inline-form select { font-family:var(--font); font-size:16px; min-height:44px; padding:8px 12px; border:1px solid var(--border);
                               border-radius:var(--r-sm); background:var(--bg); color:var(--text); }
     .fld input:focus, .fld select:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(79,70,229,.09); }
-    .btn { font-family:var(--font); font-size:12px; font-weight:700; border:none; border-radius:var(--r-sm);
-           padding:9px 16px; cursor:pointer; }
+    .btn { font-family:var(--font); font-size:14px; font-weight:700; border:none; border-radius:var(--r-sm);
+           min-height:44px; padding:0 16px; cursor:pointer; }
     .btn-primary { color:#fff; background:var(--navy-fill); }
     .btn-primary:hover { filter:brightness(1.06); }
     .btn-ghost { color:var(--text-2); background:var(--bg-muted); }
@@ -44,39 +43,54 @@
        最低幅を確保したうえで横スクロールさせる。 */
     .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     .table-scroll table { min-width:520px; }
-    th { text-align:left; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-         color:var(--text-3); padding:8px 10px; border-bottom:1px solid var(--border); }
+    th { text-align:left; font-size:12.5px; font-weight:700; color:var(--text-3); padding:8px 10px; border-bottom:1px solid var(--border); }
     td { padding:10px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
     .uid { font-family:var(--mono); font-weight:500; color:var(--navy); }
-    .pw-set { color:var(--green); font-weight:700; font-size:12px; }
-    .pw-unset { color:var(--quest); font-weight:700; font-size:12px; }
+    .pw-set { color:var(--good-text); font-weight:700; font-size:13px; }
+    .pw-unset { color:var(--quest); font-weight:700; font-size:13px; }
     .cell-actions { display:flex; gap:6px; flex-wrap:wrap; }
     .inline-form { display:flex; gap:6px; align-items:center; }
     .empty { color:var(--text-3); font-size:13px; padding:18px 4px; }
-    .code-state { display:block; font-size:11px; color:var(--text-3); margin-top:3px; }
+    .code-state { display:block; font-size:12.5px; color:var(--text-3); margin-top:3px; }
+    /* スマホでは表をやめ、1人ずつカードのように縦に並べる（横にスクロールしないと操作が見えなかった） */
+    @media (max-width:700px) {
+      .main { padding:14px 16px 24px; }
+      .card { padding:18px 16px; }
+      .table-scroll table { min-width:0; }
+      .accounts-table, .accounts-table tbody, .accounts-table tr, .accounts-table td { display:block; width:100%; }
+      .accounts-table thead { display:none; }
+      .accounts-table tr { padding:14px 0; border-bottom:1px solid var(--border); }
+      .accounts-table td { border:none; padding:4px 0; }
+      .accounts-table td.uid { font-size:18px; }
+      .accounts-table td[data-label]::before { content:attr(data-label); display:block; font-size:12px; font-weight:700; color:var(--text-3); margin:4px 0 2px; }
+      .inline-form { flex-wrap:wrap; }
+      .row-form { flex-direction:column; align-items:stretch; }
+      .row-form .btn { width:100%; }
+    }
     /* 発行した「はじめのコード」。この画面を離れると二度と表示できないので、大きく目立たせる */
     .issued { border:2px solid var(--navy); border-radius:var(--r); background:var(--bg-card); padding:18px 22px; margin-bottom:22px; }
     .issued-head { font-size:13px; font-weight:700; color:var(--navy); margin-bottom:10px; }
     .issued-row { display:flex; gap:28px; flex-wrap:wrap; align-items:baseline; }
-    .issued-label { font-size:11px; font-weight:700; color:var(--text-3); }
+    .issued-label { font-size:12.5px; font-weight:700; color:var(--text-3); }
     .issued-value { font-family:var(--mono); font-size:30px; font-weight:700; letter-spacing:.12em; color:var(--text); }
-    .issued-note { font-size:12px; color:var(--text-2); line-height:1.7; margin-top:10px; }
+    .issued-note { font-size:13px; color:var(--text-2); line-height:1.75; margin-top:10px; }
   </style>
 </head>
 <body>
-  <div class="page-header">
-    <div>
-      <div class="page-header-title">参加者アカウント管理</div>
-      <div class="page-header-sub">研究者用 / 先生モードのときだけ開けます</div>
-    </div>
-    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
-      <a href="/select">← ホームへ</a>
-      <a href="/admin/accounts/access_qr">配布用QRコード</a>
-      <form method="post" action="/teacher/lock" style="margin:0;"><input type="hidden" name="next" value="/select"><button type="submit" class="hdr-lock">先生モードを終わる</button></form>
-    </div>
-  </div>
+  <header class="app-header">
+    <a href="/select" class="app-header-left icon-btn" aria-label="ホームにもどる">{{ icon('back') }}</a>
+    <div class="app-header-title">参加者アカウント</div>
+    <span class="app-header-right"></span>
+  </header>
 
   <div class="main">
+    <div class="aa-lead">
+      <p>研究者・先生用の画面です（先生モードのときだけ開けます）。</p>
+      <div class="aa-tools">
+        <a class="aa-tool" href="/admin/accounts/access_qr">{{ icon('clipboard') }} 配布用QRコード</a>
+        <form method="post" action="/teacher/lock" style="margin:0;"><input type="hidden" name="next" value="/select"><button type="submit" class="aa-tool lock">{{ icon('x-circle') }} 先生モードを終わる</button></form>
+      </div>
+    </div>
     {% if error %}<div class="err">{{ error }}</div>{% endif %}
 
     {% if issued %}
@@ -133,7 +147,7 @@
       {% else %}
       {# 列が多く、スマホ幅では画面からはみ出す。横スクロールできる箱に入れる #}
       <div class="table-scroll">
-      <table>
+      <table class="accounts-table">
         <thead>
           <tr>
             <th>利用者ID</th><th>学年</th><th>聴覚障害の程度</th>
@@ -144,15 +158,15 @@
           {% for a in accounts %}
           <tr>
             <td class="uid">{{ a.user_id }}</td>
-            <td colspan="2">
+            <td colspan="2" data-label="学年・聴覚障害の程度">
               <form class="inline-form" method="post" action="/admin/accounts/update_profile">
                 <input type="hidden" name="user_id" value="{{ a.user_id }}">
-                <select name="grade" class="fld" style="padding:7px 10px;">
+                <select name="grade" aria-label="{{ a.user_id }} の学年">
                   {% for value, label in grade_labels.items() %}
                   <option value="{{ value }}" {{ 'selected' if value == a.profile.grade else '' }}>{{ label }}</option>
                   {% endfor %}
                 </select>
-                <select name="hearing_level" style="padding:7px 10px; font-size:13px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); color:var(--text);">
+                <select name="hearing_level" aria-label="{{ a.user_id }} の聴覚障害の程度">
                   {% for value, label in hearing_labels.items() %}
                   <option value="{{ value }}" {{ 'selected' if value == a.profile.hearing_level else '' }}>{{ label }}</option>
                   {% endfor %}
@@ -160,13 +174,13 @@
                 <button type="submit" class="btn btn-ghost">保存</button>
               </form>
             </td>
-            <td>
+            <td data-label="パスワード">
               {% if a.password_set %}<span class="pw-set">設定済み</span>
               {% else %}<span class="pw-unset">未設定</span>
               <span class="code-state">{% if a.setup_code_issued %}はじめのコード：発行済み（{{ (a.setup_code_issued_at or '')[5:10] | replace('-', '/') }}）{% else %}はじめのコード：まだ無い{% endif %}</span>
               {% endif %}
             </td>
-            <td>
+            <td data-label="操作">
               <div class="cell-actions">
                 {% if a.password_set %}
                 <form method="post" action="/admin/accounts/clear_password"
@@ -196,5 +210,6 @@
       {% endif %}
     </div>
   </div>
+<script src="/static/js/tabbar.js" defer></script>
 </body>
 </html>

@@ -49,7 +49,7 @@
     .wl-word span { font-size:13px; color:var(--text-3); letter-spacing:.06em; }
     .wl-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
     .wl-badge { display:inline-flex; align-items:center; gap:4px; min-height:24px; padding:2px 9px; border-radius:100px;
-                background:var(--bg-muted); font-size:11.5px; font-weight:700; color:var(--text-3); }
+                background:var(--bg-muted); font-size:12px; font-weight:700; color:var(--text-3); }
     .wl-badge .ic { width:13px; height:13px; }
     .wl-badge.ok { background:var(--good-bg); color:var(--good-text); }
     .wl-badge.warn { background:var(--mid-bg); color:var(--mid-text); }
@@ -89,7 +89,7 @@
     .ed-fields { display:flex; flex-direction:column; gap:14px; }
     .ed-field { display:flex; flex-direction:column; gap:6px; }
     .ed-label { font-size:13px; font-weight:700; color:var(--text-2); }
-    .ed-label small { font-weight:500; color:var(--text-3); margin-left:4px; }
+    .ed-label small { font-size:12px; font-weight:500; color:var(--text-3); margin-left:4px; }
     .ed-input { width:100%; min-height:52px; padding:12px 16px; border:1.5px solid var(--border); border-radius:16px; background:var(--bg);
                 color:var(--text); font-family:var(--font); font-size:17px; }
     textarea.ed-input { min-height:76px; resize:vertical; line-height:1.6; font-size:16px; }
@@ -143,7 +143,7 @@
     {% if words | length >= 6 %}
     <div class="search-box" style="margin-top:10px;">
       {{ icon('search') }}
-      <input type="search" class="search-input" id="wlSearch" placeholder="単語をさがす（ひらがなでもOK）" autocomplete="off">
+      <input type="search" class="search-input" id="wlSearch" placeholder="単語をさがす（ひらがなでもOK）" autocomplete="off" aria-label="単語をさがす">
     </div>
     {% endif %}
     {% if words %}
@@ -261,6 +261,7 @@
 (function () {
   'use strict';
   function $(id) { return document.getElementById(id); }
+  function notify(msg) { if (window.SPToast) SPToast.show(msg, { kind: 'error' }); else alert(msg); }
   function kanaNorm(s) { return (s || '').toLowerCase().replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); }); }
   async function postJson(url, body) {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body) });
@@ -404,7 +405,7 @@
     b.addEventListener('click', async function () {
       b.disabled = true;
       try { await postJson('/admin/restore_word', { word_id: b.dataset.restore }); location.reload(); }
-      catch (err) { b.disabled = false; alert('エラー：' + err.message); }
+      catch (err) { b.disabled = false; notify('元に戻せませんでした：' + err.message); }
     });
   });
   document.querySelectorAll('[data-purge]').forEach(function (b) {
@@ -418,7 +419,7 @@
       clearTimeout(t);
       b.disabled = true;
       try { await postJson('/admin/purge_word', { word_id: b.dataset.purge }); location.reload(); }
-      catch (err) { b.disabled = false; b.classList.remove('pending'); b.textContent = '完全に消す'; alert(err.message); }
+      catch (err) { b.disabled = false; b.classList.remove('pending'); b.textContent = '完全に消す'; notify('消せませんでした：' + err.message); }
     });
   });
 

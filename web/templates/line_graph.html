@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>解析結果 — {{ original_filename }} — SP-PS</title>
+  <title>「{{ original_filename }}」の結果 — SP-PS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
 
@@ -154,7 +154,7 @@
     .rc-axes { display:flex; flex-direction:column; gap:12px; }
     .rc-axis { display:grid; grid-template-columns:34px 1fr; grid-template-areas:'mark name' 'mark bar'; align-items:center; column-gap:12px; row-gap:6px; }
     .ax-mark { grid-area:mark; display:grid; place-items:center; width:34px; height:34px; border-radius:12px; font-size:18px; font-weight:700; line-height:1; }
-    .rc-axis.ok  .ax-mark { color:var(--good); background:var(--good-bg); }
+    .rc-axis.ok  .ax-mark { color:var(--good-text); background:var(--good-bg); }
     .rc-axis.mid .ax-mark { color:var(--mid-text); background:var(--mid-bg); }
     .rc-axis.ng  .ax-mark { color:var(--todo); background:var(--todo-bg); }
     .ax-name { grid-area:name; font-size:15px; font-weight:700; color:var(--text); display:flex; align-items:baseline; gap:8px; }
@@ -368,7 +368,7 @@
     .mora-chip.na { opacity:.6; }
     .mc-kana { font-size:24px; font-weight:700; color:var(--text); line-height:1.2; }
     .mc-mark { font-size:17px; font-weight:700; line-height:1; }
-    .mora-chip.ok .mc-mark { color:var(--good); }
+    .mora-chip.ok .mc-mark { color:var(--good-text); }
     .mora-chip.ng .mc-mark { color:var(--todo); }
     .mora-chip.na .mc-mark { color:var(--text-3); }
     .mc-axis { font-size:12px; font-weight:700; color:var(--text-2); }
@@ -438,11 +438,11 @@
     .av-spread-bar .band.ng   { background:color-mix(in srgb, var(--todo-bar) 50%, transparent); }
     .av-spread-pin { position:absolute; top:-3px; bottom:-3px; width:4px; margin-left:-2px; border-radius:2px;
                      background:var(--text); box-shadow:0 0 0 2px var(--bg-muted); }
-    .av-spread-scale { display:flex; justify-content:space-between; margin-top:4px; font-family:var(--mono); font-size:10.5px; color:var(--text-3); }
+    .av-spread-scale { display:flex; justify-content:space-between; margin-top:4px; font-family:var(--mono); font-size:12px; color:var(--text-3); }
     .av-spread-note { margin-top:8px; font-size:12px; line-height:1.7; color:var(--text-3); }
     .av-spread-note b { color:var(--text-2); font-weight:700; }
 
-    .av-scale { display:flex; justify-content:space-between; font-size:11px; color:var(--text-3); padding:0 2px 4px; }
+    .av-scale { display:flex; justify-content:space-between; font-size:12px; color:var(--text-3); padding:0 2px 4px; }
     .av-rows { display:flex; flex-direction:column; gap:7px; }
     .av-row { display:grid; grid-template-columns:2.6em 1fr 4.2em; align-items:center; gap:8px; }
     .av-kana { font-size:17px; font-weight:700; color:var(--text); text-align:center; }
@@ -453,10 +453,10 @@
     .av-bar.lv-mid { background:var(--mid); }
     .av-bar.lv-big { background:var(--todo-bar); }
     .av-ms { font-family:var(--mono); font-size:12px; color:var(--text-2); text-align:right; }
-    .av-ms small { font-size:9px; color:var(--text-3); }
+    .av-ms small { font-size:11px; color:var(--text-3); }
     .av-how { margin-top:12px; font-size:14px; line-height:1.7; color:var(--text-2); }
     .av-how b { color:var(--text); font-weight:700; }
-    .av-note { margin-top:8px; padding-top:8px; border-top:1px solid var(--border-light); font-size:11.5px; color:var(--text-3); line-height:1.6; }
+    .av-note { margin-top:8px; padding-top:8px; border-top:1px solid var(--border-light); font-size:12.5px; color:var(--text-3); line-height:1.6; }
 
     /* 自己ベスト */
     .rc-best { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:100px;
@@ -481,7 +481,7 @@
     .wp-spark .wp-90 { stroke:var(--brand-300); stroke-width:1.2; stroke-dasharray:4 4; }
     .wp-spark circle { fill:var(--navy); stroke:var(--bg-muted); stroke-width:2; }
     .wp-spark-cap { flex:none; font-size:12px; color:var(--text-3); line-height:1.4; }
-    .wp-spark-cap b { display:block; font-size:11px; font-weight:500; color:var(--brand-500); }
+    .wp-spark-cap b { display:block; font-size:12px; font-weight:500; color:var(--brand-700); }
 
     /* くらべる → 口の形：お手本とあなたの口の動画 */
     .cmp-mouth { margin:4px 0 14px; padding-bottom:14px; border-bottom:1px solid var(--border-light); }
@@ -562,7 +562,7 @@
   {% elif score %}
 
   {# ══════════ ① 結果ヒーロー：3秒でわかる ══════════ #}
-  {% set gcolmap = {'S':'#5B4BEA','A':'#1B7F5B','B':'#9A6412','C':'#C04E28','D':'#C04E28'} %}
+  {% set gcolmap = {'S':'#5B4BEA','A':'#1B7F5B','B':'#9A6412','C':'#B54822','D':'#B54822'} %}
   {% set gcol = gcolmap.get(score.grade, '#85858F') %}
   {#
     結果のタブ
@@ -1041,8 +1041,8 @@
     const COL = {
       voice: cv('--navy', '#5B4BEA'), mouth: cv('--brand-400', '#9186FB'),
       ok: cv('--good', '#1B7F5B'), mid: cv('--mid', '#D08A1E'), big: cv('--todo-bar', '#E2754F'),
-      bigText: cv('--todo', '#C04E28'),
-      grid: cv('--border-light', 'rgba(0,0,0,.06)'), text: cv('--text-3', '#6A697B'), card: cv('--bg-muted', '#EEEEF5'),
+      bigText: cv('--todo', '#B54822'),
+      grid: cv('--border-light', 'rgba(0,0,0,.06)'), text: cv('--text-3', '#636275'), card: cv('--bg-muted', '#EEEEF5'),
     };
     // 色の段階は下のバー（av-rows）と同じ：30ms 未満＝緑、80ms 未満＝黄、それ以上＝橙
     const level = ms => Math.abs(ms) < 30 ? 'ok' : (Math.abs(ms) < 80 ? 'mid' : 'big');
@@ -1686,6 +1686,7 @@
   </div>
   <script>
   (function() {
+    if (typeof Chart === 'undefined') return;   // グラフのライブラリ（CDN）が読めなかったとき
     var nf = {{ native_formants|default([])|tojson|safe }};
     var uf = {{ user_formants|default([])|tojson|safe }};
     if (!nf.length && !uf.length) return;
@@ -1816,6 +1817,10 @@ function setLengthView(v,b){try{document.getElementById('groupedBarChart1').styl
 </script>
 
 <script>
+// グラフのライブラリ（CDN）が読めなかったときも、ほかの表示まで止めない。
+// 下の設定の中で ChartDataLabels を名前で使うので、無ければ undefined として置いておく
+var ChartDataLabels = window.ChartDataLabels;
+var HAS_CHART = typeof Chart !== 'undefined';
 var d = {};
 try {
   d = JSON.parse(document.getElementById('python-data').textContent);
@@ -1900,7 +1905,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ── レーダーチャート ──────────────────────────────────────────────────
 var rc = document.getElementById('radarChart');
-if (rc) new Chart(rc, {
+if (rc && HAS_CHART) new Chart(rc, {
   type: 'radar',
   data: {
     labels: ['アクセント','長さ','母音'],
@@ -1924,6 +1929,7 @@ if (rc) new Chart(rc, {
 var ann=(v,l,c)=>{if(!v||!l||!v.length)return[];return v.map((x,i)=>({type:'line',scaleID:'x',value:x,borderColor:c,borderWidth:1,label:{content:l[i],enabled:true,position:'top',font:{size:10}}}));};
 
 function safeChart(id, cfg) {
+  if (!HAS_CHART) return;
   try {
     var el = document.getElementById(id);
     if(!el){ console.warn('canvas not found:', id); return; }
@@ -1950,7 +1956,7 @@ safeChart('PitchLengthChart',{type:'line',data:{labels:d.x_axis,datasets:[{label
 safeChart('groupedBarChart1',{type:'bar',data:{labels:['お手本','あなた'],datasets:gen(d.mora_labels,[d.Native_mora_length,d.User_mora_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
 safeChart('groupedBarChart2',{type:'bar',data:{labels:['お手本','あなた'],datasets:gen(d.phoneme_labels,[d.Native_phoneme_length,d.User_phoneme_length])},options:{indexAxis:'y',responsive:true,scales:{x:{max:100,stacked:true,title:{display:true,text:'%'}},y:{stacked:true}},plugins:{datalabels:{formatter:(v,c)=>c.dataset.label,font:{size:10}}}},plugins:[ChartDataLabels]});
 var lipEl=document.getElementById('LipCompareChart');
-if(lipEl && Array.isArray(d.lip_ref_ratios) && Array.isArray(d.lip_test_ratios)){
+if(lipEl && HAS_CHART && Array.isArray(d.lip_ref_ratios) && Array.isArray(d.lip_test_ratios)){
   try{
     new Chart(lipEl,{
       type: 'line',
@@ -1977,7 +1983,7 @@ if(lipEl && Array.isArray(d.lip_ref_ratios) && Array.isArray(d.lip_test_ratios))
   }catch(e){console.error('LipCompareChart error:',e);} 
 }
 var dc=document.getElementById('DistanceChart');
-if(dc){try{new Chart(dc,{type:'bar',data:{labels:d.words,datasets:[{data:d.sort_distance,backgroundColor:d.bar_color,borderWidth:0,borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{title:{display:true,text:'DTW距離（正規化）'}},y:{ticks:{autoSkip:false,font:{size:11}}}},plugins:{legend:{display:false},datalabels:{display:false}}}});dc.style.height='640px';}catch(e){console.error('DistanceChart error:',e);}}
+if(dc && HAS_CHART){try{new Chart(dc,{type:'bar',data:{labels:d.words,datasets:[{data:d.sort_distance,backgroundColor:d.bar_color,borderWidth:0,borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{title:{display:true,text:'DTW距離（正規化）'}},y:{ticks:{autoSkip:false,font:{size:11}}}},plugins:{legend:{display:false},datalabels:{display:false}}}});dc.style.height='640px';}catch(e){console.error('DistanceChart error:',e);}}
 </script>
 
 <script>
@@ -2132,9 +2138,11 @@ document.getElementById('rsTabs')?.addEventListener('click', e => {
    連続練習の列から外れてしまっていた。
    下のボタン自体を次の単語へ向け、残り数もそこに出す。 */
 (function () {
-  if (localStorage.getItem('sp-ps-continuous') !== '1') return;
+  const store = (() => { try { return window.sessionStorage; } catch (e) { return null; } })();
+  if (!store || store.getItem('sp-ps-continuous') !== '1') return;
 
-  const queue = JSON.parse(localStorage.getItem('sp-ps-practice-queue') || '[]');
+  let queue = [];
+  try { queue = JSON.parse(store.getItem('sp-ps-practice-queue') || '[]'); } catch (e) {}
   const next  = document.querySelector('.result-actions .ra-next');
   if (!next) return;
 
@@ -2143,11 +2151,11 @@ document.getElementById('rsTabs')?.addEventListener('click', e => {
     next.setAttribute('href', `/practice/word/${nextId}`);
     next.innerHTML = `つぎの単語へ（のこり ${queue.length}）`;
     next.addEventListener('click', () => {
-      localStorage.setItem('sp-ps-practice-queue', JSON.stringify(queue.slice(1)));
+      store.setItem('sp-ps-practice-queue', JSON.stringify(queue.slice(1)));
     });
   } else {
-    localStorage.removeItem('sp-ps-continuous');
-    localStorage.removeItem('sp-ps-practice-queue');
+    store.removeItem('sp-ps-continuous');
+    store.removeItem('sp-ps-practice-queue');
     next.innerHTML = 'れんぞく練習おわり！一覧へ';
   }
 })();

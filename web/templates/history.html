@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
   <style>
     /* ── わたしの記録（生徒向け） ─────────────────────────────── */
     .rec-main { max-width:760px; margin:0 auto; padding:14px 16px 32px; display:flex; flex-direction:column; gap:16px; }
@@ -24,7 +24,7 @@
     .rs-main { border-radius:28px; padding:18px 18px 16px; }
     body .rs-main { box-shadow:var(--elev-2); border:none; }
     .rs-label { font-size:13px; font-weight:700; color:rgba(255,255,255,.92); }
-    .rs-label small { font-size:11.5px; font-weight:400; color:rgba(255,255,255,.75); margin-left:2px; }
+    .rs-label small { font-size:12px; font-weight:400; color:rgba(255,255,255,.75); margin-left:2px; }
     .rs-value { font-size:60px; line-height:1.05; color:#fff; margin:6px 0 10px; }
     .rs-value span { font-family:var(--font); font-size:18px; font-weight:700; color:rgba(255,255,255,.8); margin-left:3px; letter-spacing:0; }
     .rs-delta { display:inline-flex; align-items:center; gap:5px; font-size:13px; line-height:1.5; padding:5px 12px; border-radius:100px;
@@ -55,7 +55,7 @@
     .wg-row:first-child { border-top:none; }
     .wg-word { display:flex; flex-direction:column; min-width:0; }
     .wg-display { font-size:18px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .wg-meta { font-size:11.5px; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .wg-meta { font-size:12px; color:var(--text-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .wg-meta b { font-family:var(--mono); font-weight:500; color:var(--text-2); }
     .wg-spark { width:70px; height:34px; overflow:visible; }
     .wg-spark polyline { fill:none; stroke:var(--navy); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
@@ -65,7 +65,7 @@
     .wg-row.plateau .wg-spark circle { fill:var(--mid); }
     .wg-badge { justify-self:center; font-size:12px; font-weight:700; padding:5px 10px; border-radius:100px; white-space:nowrap; }
     .wg-badge.plateau { background:var(--mid-bg); color:var(--mid-text); }
-    .wg-badge.up      { background:var(--good-bg); color:var(--good); }
+    .wg-badge.up      { background:var(--good-bg); color:var(--good-text); }
     .wg-badge.doing   { background:var(--bg-muted); color:var(--text-3); }
     .wg-badge.master  { background:var(--grad-brand); color:#fff; }
     .wg-form { margin:0; }
@@ -73,21 +73,21 @@
              color:var(--rec); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .15s var(--ease); }
     .wg-go:active { transform:scale(.9); }
     .wg-row.plateau .wg-go { background:var(--grad-rec); box-shadow:var(--shadow-rec); color:#fff; }
-    .wg-note { margin-top:8px; font-size:11.5px; color:var(--text-3); }
+    .wg-note { margin-top:8px; font-size:12px; color:var(--text-3); }
 
     /* ④ 練習した日 */
     .cal-scroll { overflow-x:auto; padding-bottom:4px; }
     .cal { display:inline-flex; flex-direction:column; gap:4px; min-width:max-content; }
     .cal-months { display:grid; grid-auto-flow:column; grid-auto-columns:18px; gap:4px; margin-left:24px; height:16px;
-                  font-size:10.5px; color:var(--text-3); white-space:nowrap; }
+                  font-size:12px; color:var(--text-3); white-space:nowrap; }
     .cal-body { display:flex; gap:6px; }
-    .cal-wd { display:grid; grid-template-rows:repeat(7,18px); gap:4px; width:18px; font-size:10.5px; color:var(--text-3); line-height:18px; text-align:center; }
+    .cal-wd { display:grid; grid-template-rows:repeat(7,18px); gap:4px; width:18px; font-size:12px; color:var(--text-3); line-height:18px; text-align:center; }
     .heatmap-grid { display:grid; grid-template-rows:repeat(7,18px); grid-auto-flow:column; grid-auto-columns:18px; gap:4px; }
     .heatmap-cell { width:18px; height:18px; border-radius:6px; transition:transform .15s var(--ease); }
     .heatmap-cell.pad { background:transparent !important; }
     .heatmap-cell.today, .cal-today-sample { box-shadow:0 0 0 2px var(--navy); }
     .cal-today-sample { background:var(--bg-muted); }
-    .heatmap-legend { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-top:10px; font-size:11.5px; color:var(--text-3); }
+    .heatmap-legend { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-top:10px; font-size:12px; color:var(--text-3); }
     .heatmap-legend .heatmap-cell { width:13px; height:13px; border-radius:4px; }
 
     /* ⑤ さいきんの練習 */
@@ -97,7 +97,7 @@
     .rl-row:first-child { border-top:none; }
     .rl-word { font-size:16px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .rl-score { display:inline-flex; align-items:baseline; justify-content:center; min-width:62px; padding:4px 10px; border-radius:100px; background:var(--bg-muted); font-size:17px; }
-    .rl-score small { font-family:var(--font); font-size:11px; color:var(--text-3); margin-left:1px; }
+    .rl-score small { font-family:var(--font); font-size:12px; color:var(--text-3); margin-left:1px; }
     .rl-score.g-s { color:var(--navy); background:var(--navy-soft); } .rl-score.g-a { color:var(--good-text); background:var(--good-bg); } .rl-score.g-b { color:var(--text); } .rl-score.g-c { color:var(--text-2); }
     .rl-date { font-family:var(--font-num); font-size:12.5px; font-weight:600; color:var(--text-3); text-align:right; }
     .rl-more { width:100%; min-height:48px; margin-top:10px; border-radius:16px; border:none;
@@ -228,7 +228,12 @@
   <div class="empty-state">
     <div class="empty-title">まだ記録がありません</div>
     <div class="empty-sub">単語を録音すると、ここに点数ののびや<br>練習した日が記録されていきます。</div>
+    {% if words %}
     <a href="/select" class="btn btn-primary btn-lg">{{ icon('mic') }} さいしょの録音をする</a>
+    {% else %}
+    <div class="empty-sub">まず、練習する単語を登録しましょう（保護者が登録します）。</div>
+    <a href="/words?add=1" class="btn btn-primary btn-lg">{{ icon('plus') }} 単語を登録する</a>
+    {% endif %}
   </div>
   {% else %}
 
