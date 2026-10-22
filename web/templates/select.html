@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
   <script src="/static/js/camera_error.js"></script>
+  <script src="/static/js/media.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
     /* ══ ホーム（v5） ══════════════════════════════════════════
@@ -1209,7 +1210,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
 
   async function startAwCamera() {
     try {
-      awStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      awStream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true, audio: true });
       videoEl.srcObject = awStream;
       status2.textContent = '準備完了。「録画開始」を押してください。';
       recordBtn.disabled = false;
@@ -1256,14 +1257,14 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
     awChunks = [];
     document.getElementById('awVolWarn').classList.remove('show');
     if (awMicMeter) awMicMeter.resetMax();
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
-    // 録画は 1 Mbps にする（ブラウザ任せだと Chrome で約 2.6 Mbps、Safari で約 8 Mbps になり、Mac の細い上り・下りで送信に数十秒かかった。口の開き具合の差は動く範囲の 2.5% ほど。README §5.4）
-    awRecorder = new MediaRecorder(awStream, { mimeType, videoBitsPerSecond: 1000000 });
+    // 録画は 1 Mbps・その端末で録れる形式（media.js。README §5.4）
+    awRecorder = new MediaRecorder(awStream, window.SPMedia ? SPMedia.recorderOptions() : { videoBitsPerSecond: 1000000 });
     awRecorder.addEventListener('dataavailable', function (e) {
       if (e.data && e.data.size > 0) awChunks.push(e.data);
     });
     awRecorder.addEventListener('stop', function () {
-      const blob = new Blob(awChunks, { type: 'video/webm' });
+      // 形式は止まった録画（this）から読む。閉じるときは stop() のすぐあとに awRecorder を空にするため
+      const blob = new Blob(awChunks, { type: this.mimeType || 'video/webm' });
       // マイクの音が一切拾えていなかった場合、送信してもJulius側で
       // 必ず失敗する（無音は forced alignment 不能）。ラウンドトリップを
       // 待たせず、原因が特定できる形でその場でやり直しを促す。
@@ -1361,7 +1362,7 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
 
   async function startCamera() {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true, audio: true });
       videoEl.srcObject = stream;
       statusEl.textContent = '準備完了。「録画開始」を押してください。';
       recordBtn.disabled = false;
@@ -1395,15 +1396,14 @@ const MIC_SILENCE_THRESHOLD = 0.02;  // main.js の無音判定(0.03)よりや�
     document.getElementById('refVolWarn').classList.remove('show');
     if (micMeter) micMeter.resetMax();
 
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-      ? 'video/webm;codecs=vp8' : 'video/webm';
-    // 録画は 1 Mbps にする（ブラウザ任せだと Chrome で約 2.6 Mbps、Safari で約 8 Mbps になり、Mac の細い上り・下りで送信に数十秒かかった。口の開き具合の差は動く範囲の 2.5% ほど。README §5.4）
-    recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 1000000 });
+    // 録画は 1 Mbps・その端末で録れる形式（media.js。README §5.4）
+    recorder = new MediaRecorder(stream, window.SPMedia ? SPMedia.recorderOptions() : { videoBitsPerSecond: 1000000 });
     recorder.addEventListener('dataavailable', function (e) {
       if (e.data && e.data.size > 0) chunks.push(e.data);
     });
     recorder.addEventListener('stop', function () {
-      const blob = new Blob(chunks, { type: 'video/webm' });
+      // 形式は止まった録画（this）から読む。閉じるときは stop() のすぐあとに recorder を空にするため
+      const blob = new Blob(chunks, { type: this.mimeType || 'video/webm' });
       if (micMeter && micMeter.getMaxRms() < MIC_SILENCE_THRESHOLD) {
         document.getElementById('refVolWarn').classList.add('show');
         statusEl.textContent = 'マイクの音が検出できなかったため、登録していません。';

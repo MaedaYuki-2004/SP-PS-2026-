@@ -523,7 +523,9 @@ def _webm_to_wav(webm_path: str) -> str:
     戻り値は一時 WAV ファイルのパス。呼び出し元が削除すること。
     """
     from pydub import AudioSegment
-    audio = AudioSegment.from_file(webm_path, format="webm")
+    # 形式は ffmpeg に中身から判断させる。WebM を録れない端末（古い iPhone の Safari など）は MP4 で
+    # 録って送ってくる（web/static/js/media.js）。"webm" と決めると、MP4 のお手本は音声を取り出せない
+    audio = AudioSegment.from_file(webm_path)
     audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     tmp.close()

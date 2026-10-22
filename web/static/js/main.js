@@ -31,7 +31,8 @@ async function main() {
     const volumeFill  = document.querySelector('#volumeFill');      // B
     const autoStop    = document.querySelector('#autoStopCountdown'); // C
 
-    const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+    // カメラの大きさは media.js で決める（端末任せだと 4K などになり、送る量と解析が重くなる）
+    const stream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true, audio: true });
     const [track] = stream.getAudioTracks();
     const settings = track.getSettings();
     const videoStream = new MediaStream(stream.getVideoTracks());
@@ -195,8 +196,9 @@ async function main() {
     function startLipRecording() {
       if (!videoStream || lipRecorder) return;
       lipChunks.length = 0;
-      // 録画は 1 Mbps にする（ブラウザ任せだと Chrome で約 2.6 Mbps、Safari で約 8 Mbps になり、Mac の細い上り・下りで送信に数十秒かかった。口の開き具合の差は動く範囲の 2.5% ほど。README §5.4）
-      lipRecorder = new MediaRecorder(videoStream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 1000000 });
+      // 録画は 1 Mbps・その端末で録れる形式（media.js。README §5.4）
+      lipRecorder = new MediaRecorder(videoStream,
+        window.SPMedia ? SPMedia.recorderOptions() : { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 1000000 });
 
       lipRecorder.addEventListener('dataavailable', event => {
         if (event.data && event.data.size > 0) {
@@ -204,7 +206,7 @@ async function main() {
         }
       });
       lipRecorder.addEventListener('stop', () => {
-        const blob = new Blob(lipChunks, { type: 'video/webm' });
+        const blob = new Blob(lipChunks, { type: lipRecorder.mimeType || 'video/webm' });
         lipUploadPromise = sendLipVideo(blob);
 
         // 自分の口の動きをその場で見返せるようにする。

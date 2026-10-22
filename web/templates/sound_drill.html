@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
+  <script src="/static/js/media.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
     body { display:flex; flex-direction:column; min-height:100vh; }
@@ -257,9 +258,9 @@ let camStream = null;
 async function startMirror() {
   if (camStream) return camStream;
   try {
-    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+    camStream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : { facingMode: 'user' }, audio: true });
   } catch (e) {
-    try { camStream = await navigator.mediaDevices.getUserMedia({ video: true }); }
+    try { camStream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true }); }
     catch (e2) { alert('カメラを使えません。ブラウザの設定で「カメラ」を許可してください。'); return null; }
   }
   document.querySelectorAll('.mirror-cam').forEach(cell => {
@@ -284,7 +285,7 @@ async function toggleRec(step) {
   const stream = await startMirror();
   if (!stream) return;
   chunks = []; recStep = step;
-  try { mediaRecorder = new MediaRecorder(stream); }
+  try { mediaRecorder = new MediaRecorder(stream, window.SPMedia ? SPMedia.recorderOptions() : undefined); }
   catch (e) { alert('この端末では録画できません。'); return; }
   mediaRecorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   mediaRecorder.onstop = () => {

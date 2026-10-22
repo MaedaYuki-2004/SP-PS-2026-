@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
+  <script src="/static/js/media.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
@@ -1032,7 +1033,7 @@ if (typeof FaceMesh !== 'undefined' && typeof Camera !== 'undefined') {
   document.querySelector('.detected-wrap')?.setAttribute('hidden', '');
   document.getElementById('feedbackMsg').textContent = 'かがみモードで練習できます';
   document.getElementById('feedbackSub').textContent = '口の形の自動判定が読み込めませんでした。右の「目標の口の形」と自分の口を見くらべて、できたら「次へ」を押しましょう。';
-  navigator.mediaDevices?.getUserMedia({ video: true }).then(stream => {
+  navigator.mediaDevices?.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true }).then(stream => {
     video.srcObject = stream;
     video.play().catch(() => {});
     const st = document.getElementById('camStatus');

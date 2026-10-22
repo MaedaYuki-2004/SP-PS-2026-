@@ -8,6 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/icon-192.svg">
   <script src="/static/js/theme.js"></script>
   <script src="/static/js/camera_error.js"></script>
+  <script src="/static/js/media.js"></script>
   <link href="/static/css/base.css" rel="stylesheet">
   <style>
     .page-header { position:relative; overflow:hidden; background:var(--grad-hero); color:#fff; margin:16px auto 0; width:calc(100% - 32px); max-width:1036px; border-radius:28px; padding:22px 32px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
@@ -249,7 +250,7 @@ function setRecStatus(msg, cls) {
 
 async function initAdminCamera() {
   try {
-    adminStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    adminStream = await navigator.mediaDevices.getUserMedia({ video: window.SPMedia ? SPMedia.video() : true, audio: true });
     document.getElementById('adminPreview').srcObject = adminStream;
   } catch(e) {
     setRecStatus(cameraErrorMessage(e));
@@ -264,15 +265,11 @@ function startAdminRec() {
   if (adminRecorder) return;
 
   const chunks = [];
-  try {
-    // 録画は 1 Mbps にする（ブラウザ任せだと Chrome で約 2.6 Mbps、Safari で約 8 Mbps になり、Mac の細い上り・下りで送信に数十秒かかった。口の開き具合の差は動く範囲の 2.5% ほど。README §5.4）
-    adminRecorder = new MediaRecorder(adminStream, { mimeType: 'video/webm', videoBitsPerSecond: 1000000 });
-  } catch(e) {
-    adminRecorder = new MediaRecorder(adminStream, { videoBitsPerSecond: 1000000 });
-  }
+  // 録画は 1 Mbps・その端末で録れる形式（media.js。README §5.4）
+  adminRecorder = new MediaRecorder(adminStream, window.SPMedia ? SPMedia.recorderOptions() : { videoBitsPerSecond: 1000000 });
   adminRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
   adminRecorder.onstop = () => {
-    adminBlob = new Blob(chunks, { type: 'video/webm' });
+    adminBlob = new Blob(chunks, { type: adminRecorder.mimeType || 'video/webm' });
     adminRecorder = null;
     document.getElementById('btnStartRec').textContent = '録り直す';
     document.getElementById('btnStartRec').disabled = false;
