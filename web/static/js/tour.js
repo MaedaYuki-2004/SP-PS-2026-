@@ -184,7 +184,7 @@
         ring: function () { return $('awRegisterBtn'); }, pad: 0, outside: true, onEnter: prefillWord,
         title: '練習する単語を入れよう',
         text: ['れんしゅうに「', { b: ($('awDisplay') && $('awDisplay').value.trim()) || '電話' }, '」を入れておいたよ。べつの単語にしてもOK。「', { b: '次へ（お手本録画）' }, '」を押します。'],
-        note: '単語とお手本の録画は、ふだんは、おうちの人や先生が登録します。今回は使い方を知るために、自分で1つ登録してみましょう。' },
+        note: '単語とお手本の録画は、ふだんは、保護者が登録します。今回は使い方を知るために、自分で1つ登録してみましょう。' },
       awRecord: { n: 4, hole: function () { return document.querySelector('#awModalOverlay .aw-modal-card'); },
         ring: function () { return $('awRecordBtn'); }, pad: 0, outside: true,
         title: 'お手本を録画しよう',
@@ -200,7 +200,7 @@
       // お手本の動画が流れている間は吹き出しを出さない（動画と音の高さ・長さの図をかくさない）
       pRef: { n: 8, dim: 'light', hole: function () { return $('refStageRec'); },
         bubbleWhen: function () { return $('refStageReplay') && !$('refStageReplay').hidden; },
-        title: 'お手本を見よう', text: ['先生の口の動きと、音の高さ・長さを見ます。見おわったら「', { b: '録音する' }, '」を押します。'] },
+        title: 'お手本を見よう', text: ['お手本の口の動きと、音の高さ・長さを見ます。見おわったら「', { b: '録音する' }, '」を押します。'] },
       pCount: { n: 9, dim: 'none', anchor: 'bottom',
         title: 'かまえよう', text: ['3・2・1 のあとに、「', { b: reading || word }, '」と1回言います。お手本に合わせなくてだいじょうぶ。'] },
       pRec: { n: 9, dim: 'light', hole: function () { return $('stageStop'); },
@@ -474,7 +474,7 @@
       title: 'いっしょに1回やってみよう',
       text: '画面の案内にそって、単語を1つ登録して、録音して、点数を見るところまで進みます。3分くらいです。',
       flow: ['単語の登録', '録音', '結果を見る'],
-      note: '単語とお手本の録画は、ふだんは、おうちの人や先生が登録します。今回は使い方を知るために、自分で1つ登録してみましょう。',
+      note: '単語とお手本の録画は、ふだんは、保護者が登録します。今回は使い方を知るために、自分で1つ登録してみましょう。',
       buttons: [
         { label: 'はじめる', onClick: function () { save({ stage: 'register' }); run(); } },
         { label: 'あとで', sub: true }

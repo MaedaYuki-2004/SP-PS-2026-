@@ -15,7 +15,7 @@
 
     /* ── はじめ：当て方をえらぶ ──
        音だけのテストは、聞こえにくい生徒には「できない」テストになってしまう。
-       先生の口の動きで当てる（読話）・音で当てる・両方で当てる、から選べるようにする。 */
+       お手本の口の動きで当てる（読話）・音で当てる・両方で当てる、から選べるようにする。 */
     .qz-hero { text-align:center; padding:26px 20px 22px; border-radius:28px; margin-bottom:16px; }
     .qz-hero > .ic { width:56px !important; height:56px !important; padding:13px; border-radius:20px; background:rgba(255,255,255,.18); box-sizing:border-box; }
     .qz-hero-title { font-size:24px; font-weight:700; margin-top:10px; }
@@ -132,7 +132,7 @@
   {% if not questions or questions|length < 3 %}
   <div class="quiz-empty">
     <div class="quiz-empty-ic">{{ icon('ear', size=34) }}</div>クイズには、お手本つきの単語が3つ以上必要です。<br>
-    設定の「単語を追加」でお手本つきの単語を増やすと、出題できるようになります（家の人や先生といっしょに）。
+    設定の「単語を追加」でお手本つきの単語を増やすと、出題できるようになります（保護者といっしょに）。
     <div style="margin-top:16px;"><a href="/select" class="btn btn-ghost">ホームに戻る</a></div>
   </div>
   {% else %}
@@ -148,7 +148,7 @@
     <div class="qz-modes" id="modeList">
       <button type="button" class="qz-mode" data-mode="lips">
         <span class="qz-mode-ic">{{ icon('mouth', size=24) }}</span>
-        <span class="qz-mode-text"><b>口の動きで当てる</b><small>音なしで、先生の口の動きを見て当てます</small></span>
+        <span class="qz-mode-text"><b>口の動きで当てる</b><small>音なしで、お手本の口の動きを見て当てます</small></span>
         <span class="qz-mode-check">{{ icon('check', size=14) }}</span>
       </button>
       <button type="button" class="qz-mode" data-mode="both">

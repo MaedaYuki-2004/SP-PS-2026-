@@ -112,7 +112,7 @@ def _has_audio(word_id: str) -> bool:
 
 
 def _has_video(word_id: str) -> bool:
-    """先生のお手本録画（口の動き）があるか。"""
+    """お手本の録画（口の動き）があるか。"""
     return current_library().sample_video(word_id).exists()
 
 
@@ -134,7 +134,7 @@ def build_listening_quiz(words: list[dict], n: int = 20, n_choices: int = 3) -> 
 
     音声のある単語から出題し、読みが似ている単語を選択肢に混ぜる
     （びょういん / びよういん のようなミニマルペアを優先）。
-    先生のお手本録画（口の動き）がある単語には video を付け、
+    お手本の録画（口の動き）がある単語には video を付け、
     画面側で「口の動きで当てる」「音で当てる」「口と音で当てる」を選べるようにする。
     1回に出す問題数（8問）は画面側で決める。
     """

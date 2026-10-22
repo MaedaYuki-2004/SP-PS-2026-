@@ -239,7 +239,7 @@
 
     /* 母音練習リンク（.word-section の外＝ページ背景の上に置かれるためテーマ対応色を使う） */
 
-    /* 先生のお手本実写映像（録音ページ） */
+    /* お手本の実写映像（録音ページ） */
 
     @media (max-width:480px) {
       .top-nav{padding:0 16px;}
@@ -260,7 +260,7 @@
     .ref-stage.show { display:flex; }
     .ref-stage-step { display:inline-flex; align-items:center; gap:6px; min-height:30px; padding:4px 14px; border-radius:100px; background:rgba(255,255,255,.1);
                       font-size:13px; font-weight:700; letter-spacing:.06em; color:rgba(255,255,255,.85); }
-    /* 先生の口は、このあと自分の口が出るのと同じ大きさ・同じ位置に置く */
+    /* お手本の口は、このあと自分の口が出るのと同じ大きさ・同じ位置に置く */
     #refStageVideoSlot { display:flex; align-items:center; justify-content:center; overflow:hidden;
                          border-radius:24px; background:#000; border:2px solid rgba(255,255,255,.22); box-shadow:0 20px 50px -20px rgba(0,0,0,.8); }
     #refStageVideoSlot video { width:100%; height:100%; object-fit:cover; display:block; border-radius:0; max-height:none; }
@@ -380,7 +380,7 @@
 
     body[data-phase="recording"] #buttonStop { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 
-    /* お手本の主役＝先生の口の動画 */
+    /* お手本の主役＝お手本の口の動画 */
     .ref-video-main {
       width:100%; max-height:150px; object-fit:cover; display:block;
       border-radius:var(--r); background:#000; margin:8px 0 6px;
@@ -436,8 +436,8 @@
 
   練習の流れは「見る → 言う」。以前は お手本の再生と録音開始が別々の操作で、
   そのあいだにページの他の要素（マイク・カメラ・設定）が挟まっていた。
-  ここでは 先生の口 → 3・2・1 → 自分の口 を続けて全画面で見せる。
-  先生の口と自分の口を画面の同じ位置に出すので、形の違いに気づきやすい。
+  ここでは お手本の口 → 3・2・1 → 自分の口 を続けて全画面で見せる。
+  お手本の口と自分の口を画面の同じ位置に出すので、形の違いに気づきやすい。
 #}
 <div class="ref-stage" id="refStage" aria-hidden="true">
   <div class="ref-stage-step" id="refStageStep">お手本を見ています</div>
@@ -469,7 +469,7 @@
 #}
 <div class="rec-stage" id="recStage" aria-hidden="true">
   {# お手本ステージと同じ位置に見出しと口の枠を置く。
-     先生の口が出ていた場所にそのまま自分の口が出るので、
+     お手本の口が出ていた場所にそのまま自分の口が出るので、
      直前に見た形と見くらべやすい。 #}
   <div class="ref-stage-step">録音しています</div>
   <div class="rec-stage-cam" id="recStageCam"></div>
@@ -527,7 +527,7 @@
   その時に使うものだけを出す。
 
     ① はじめ（この画面）   … 単語と、入口2つだけ
-    ② お手本（全画面）     … 先生の口・音の高さ・音の長さ
+    ② お手本（全画面）     … お手本の口・音の高さ・音の長さ
     ③ 3・2・1（全画面）    … 自分の口を映して構える
     ④ 録音中（全画面）     … 自分の口だけ
     ⑤ 録音のあと（この画面）… 撮れた口の動きと「結果を見る」
@@ -1263,8 +1263,8 @@ function setSampleSpeed(speed) {
 // 練習の形は「見る → 言う」。以前は お手本の再生ボタンと録音ボタンが
 // 離れていて、そのあいだにマイク・カメラ・設定が挟まっていた。
 // ここでは1回押すだけで
-//     先生の口（全画面）→ 3・2・1 → 自分の口（全画面）
-// まで続けて進む。先生の口と自分の口を画面の同じ位置・同じ大きさで出すので、
+//     お手本の口（全画面）→ 3・2・1 → 自分の口（全画面）
+// まで続けて進む。お手本の口と自分の口を画面の同じ位置・同じ大きさで出すので、
 // 直前に見た形と自分の形を比べやすい。
 //
 // 動画とモーラ帯は複製せず、既存の要素をステージへ移して使う。

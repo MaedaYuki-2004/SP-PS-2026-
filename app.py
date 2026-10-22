@@ -620,7 +620,7 @@ def _lip_video_error(exc: Exception) -> str:
 def _persist_ref_video(word_id: str, video_path: str) -> None:
     """お手本録画（webm）を sound_dir に永続保存する。
 
-    先生の実際の口の動きを母音トレーナー・録音画面で再生できるように、
+    保護者が録画したお手本の実際の口の動きを母音トレーナー・録音画面で再生できるように、
     抽出処理のためだけに使い捨てていた動画ファイルを保存しておく。
     失敗しても登録処理自体は継続してよいので例外は握りつぶす。
     """
@@ -1454,7 +1454,7 @@ _ROMAJI_VOWEL = {'a': 'あ', 'i': 'い', 'u': 'う', 'e': 'え', 'o': 'お'}
 
 @app.route('/api/lip_guide/<word_id>')
 def api_lip_guide(word_id: str):
-    """お手本（先生）のモーラ別口開き比率を、読みのモーラ列に揃えて返す。
+    """お手本（保護者が録画）のモーラ別口開き比率を、読みのモーラ列に揃えて返す。
 
     lip_refs.json の mora_data（Julius アライメント由来、ローマ字ラベル）を
     _get_mora_vowels(reading) のモーラ列に対応付ける。
