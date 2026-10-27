@@ -70,7 +70,7 @@ from core import usercontext
 from core.workspace import current_workspace
 from core.library import current_library, reference_id
 from core.public_access import client_key, public_url, qr_target, url_from_host
-from core import capacity, storage
+from core import capacity, default_words, storage
 from core.capacity import ServerBusy, heavy_slot
 from core.ratelimit import FailureLimiter
 from core.storage import RUN_DIR, write_json_atomic
@@ -2353,7 +2353,26 @@ def admin_accounts_create():
     except ValueError as exc:
         return _render_admin_accounts(error=str(exc), status=400)
     return _render_admin_accounts(issued={"user_id": account["user_id"], "code": account["setup_code"],
-                                          "reason": "登録しました"})
+                                          "reason": "登録しました",
+                                          "default_words": _install_default_words(account["user_id"])})
+
+
+def _install_default_words(user_id: str) -> str:
+    """新しいアカウントに初期単語のセットを写し、管理画面に出す一文を返す（core/default_words.py）。
+
+    写せなくてもアカウントの登録は取り消さない（scripts/default_words.py install であとから写せる）。
+    """
+    if not default_words.list_default_words():
+        return ("初期単語のセットがまだ無いので、単語は0個から始まります"
+                "（scripts/default_words.py save で作れます）")
+    try:
+        added = default_words.install_for_user(user_id)["added"]
+    except Exception:
+        traceback.print_exc()
+        return ("初期単語を写せませんでした。サーバーのパソコンで "
+                f"python scripts/default_words.py install --user {user_id} --apply を実行してください")
+    names = "・".join(a["display"] for a in added)
+    return f"はじめの単語 {len(added)} 個（{names}）を入れました" if added else "はじめの単語はありません"
 
 
 @app.route("/admin/accounts/update_profile", methods=["POST"])
