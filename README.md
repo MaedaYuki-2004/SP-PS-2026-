@@ -2654,6 +2654,8 @@ CLI スクリプトなどリクエストの外では `current_user()` が `None`
 
 #### 参考文献
 
+> **論文に使う文献は [docs/論文/参考文献.md](docs/論文/参考文献.md) にまとめています**（序論・関連研究の文献を加え、どの主張の根拠に文献のどこを引くか・原典で確かめたかを文献ごとに書いてある。BibTeX は [docs/論文/references.bib](docs/論文/references.bib)）。下の一覧は実装の出典のメモで、論文にはあちらを使ってください。
+
 実装で使った手法の出典として一般に引かれるものです。論文に載せる前に、書誌情報を原典で確認してください。
 
 - Boersma, P. (1993). Accurate short-term analysis of the fundamental frequency and the harmonics-to-noise ratio of a sampled sound. *Proceedings of the Institute of Phonetic Sciences*, 17, 97–110. — ピッチ推定（`To Pitch (ac)`）
