@@ -1,7 +1,10 @@
 /* SP-PS 単語の追加・お手本の録り直し（web/templates/_word_add.html の画面を動かす）
  *
- * 流れ：①単語と読みがな → ②お手本を録画（3・2・1 のあと 3 秒）→ ③録画を見て確かめる → 登録
+ * 流れ：①単語と読みがな → ②お手本を録画（3・2・1 のあと、言い終わると自動で止まる）→ ③録画を見て確かめる → 登録
  *
+ * ・録画の止め方は、練習の録音（main.js）と同じ。声が 0.5 秒以上入ったあと、無音が 1.5 秒続いたら止める。
+ *   「録画を止める」を押しても止まる。周りがうるさくて無音にならないときのため、最長 MAX_REC_SECONDS 秒で止める。
+ *   （以前は 3 秒で止めていたので、ゆっくり言う長い単語は途中で切れていた）
  * ・読みがなは、単語を入れると候補を自動で入れる（/api/reading_hint。かなだけの単語はその場でひらがなに）。
  *   自分で読みを直したあとは、上書きしない。
  * ・録画が終わってもすぐには登録しない。声が入っていない・顔が切れている録画に、その場で気づけるように、
@@ -21,8 +24,12 @@
 (function () {
   'use strict';
 
-  var REC_SECONDS = 3;
   var COUNT_FROM = 3;
+  // 録画を止める条件（練習の録音 main.js の SILENCE_THRESHOLD・SILENCE_DURATION・MIN_SPEECH_MS と同じ値）
+  var SILENCE_THRESHOLD = 0.03;   // この RMS 未満を「無音」とする
+  var SILENCE_MS = 1500;          // 声のあと、無音がこれだけ続いたら止める
+  var MIN_SPEECH_MS = 500;        // 声が入ってからこれだけたつまでは、無音でも止めない
+  var MAX_REC_SECONDS = 10;       // これを超えたら必ず止める（録画中の赤い線は、ここまでの経過）
   // main.js の無音判定（0.03）よりやや緩め（誤って止めない側に倒す）
   var MIC_SILENCE_THRESHOLD = 0.02;
   var HINT_DEFAULT = 'のばす音は「ー」で書きます（例：すーぱー）';
@@ -46,7 +53,7 @@
     video: $('awVideo'), count: $('awCount'), countNum: $('awCountNum'), countText: $('awCountText'),
     recBadge: $('awRecBadge'), recBar: $('awRecBar'), recBarFill: $('awRecBarFill'),
     volFill: $('awVolFill'), volWarn: $('awVolWarn'), status2: $('awStatus2'),
-    recordBtn: $('awRecordBtn'), backBtn: $('awBackBtn'),
+    recordBtn: $('awRecordBtn'), stopBtn: $('awStopBtn'), backBtn: $('awBackBtn'),
     checkTitle: $('awCheckTitle'), playback: $('awPlayback'), replay: $('awReplayBtn'), checkVoice: $('awCheckVoice'),
     status3: $('awStatus3'), confirmBtn: $('awConfirmBtn'), retakeBtn: $('awRetakeBtn'),
     doneTitle: $('awDoneTitle'), doneCount: $('awDoneCount'),
@@ -341,7 +348,15 @@
     el.countNum.textContent = text;
     el.countText.textContent = sub || '';
   }
-  function hideCount() { el.count.hidden = true; el.recBadge.hidden = true; el.recBar.hidden = true; }
+  function hideCount() { el.count.hidden = true; el.recBadge.hidden = true; el.recBar.hidden = true; showStop(false); }
+  // 録画中は「録画をはじめる」の場所に「録画を止める」を出す
+  // （古い _word_add.html に「録画を止める」が無いときは、何もしない）
+  function showStop(on) {
+    if (!el.stopBtn) return;
+    el.stopBtn.hidden = !on;
+    el.stopBtn.disabled = !on;
+    el.recordBtn.hidden = on;
+  }
 
   function startCountdown() {
     if (!st.stream || st.busy) return;
@@ -387,18 +402,35 @@
     setTimeout(function () { if (st.recorder === rec) el.count.hidden = true; }, 700);
     el.recBadge.hidden = false;
     el.recBar.hidden = false;
-    var t0 = performance.now();
-    (function bar() {
-      var p = Math.min(1, (performance.now() - t0) / (REC_SECONDS * 1000));
-      el.recBarFill.style.width = (p * 100) + '%';
-      if (p < 1) st.barRaf = requestAnimationFrame(bar);
+    showStop(true);
+    setStatus(el.status2, '言い終わると、自動で止まります。', '');
+    var t0 = performance.now(), speechAt = null, quietAt = null;
+    function stopRec() { if (rec.state === 'recording') { try { rec.stop(); } catch (e) {} } }
+    // 練習の録音（main.js）と同じ止め方：声が MIN_SPEECH_MS 以上入ったあと、無音が SILENCE_MS 続いたら止める
+    (function watch() {
+      if (st.recorder !== rec || rec.state !== 'recording') return;
+      var now = performance.now();
+      el.recBarFill.style.width = Math.min(100, (now - t0) / (MAX_REC_SECONDS * 10)) + '%';
+      // 音の大きさを測れないとき（AudioContext が動いていない）は、自動では止めない（「録画を止める」と最長で止まる）
+      if (st.meter && st.meter.measuring()) {
+        var silent = st.meter.level() < SILENCE_THRESHOLD;
+        if (!silent && speechAt === null) { speechAt = now; quietAt = null; }
+        if (speechAt !== null && now - speechAt >= MIN_SPEECH_MS) {
+          if (!silent) quietAt = null;
+          else if (quietAt === null) quietAt = now;
+          else if (now - quietAt >= SILENCE_MS) { stopRec(); return; }
+        }
+      }
+      st.barRaf = requestAnimationFrame(watch);
     })();
-    st.recTimer = setTimeout(function () { if (rec.state === 'recording') rec.stop(); }, REC_SECONDS * 1000);
+    st.recTimer = setTimeout(stopRec, MAX_REC_SECONDS * 1000);
   }
 
   function afterRecord(blob) {
+    clearTimeout(st.recTimer); cancelAnimationFrame(st.barRaf);
     hideCount();
     el.recBarFill.style.width = '0%';
+    setStatus(el.status2, '', '');
     st.recorder = null;
     setBusy(false);
     if (st.cancelled || !overlay.classList.contains('open')) return;
@@ -421,6 +453,9 @@
   }
 
   el.recordBtn.addEventListener('click', startCountdown);
+  if (el.stopBtn) el.stopBtn.addEventListener('click', function () {
+    if (st.recorder && st.recorder.state === 'recording') { el.stopBtn.disabled = true; try { st.recorder.stop(); } catch (e) {} }
+  });
   el.backBtn.addEventListener('click', function () {
     if (st.busy) return;
     if (st.mode === 'rerecord') { close(); return; }
@@ -555,7 +590,7 @@
   function createMicMeter(stream, fillEl) {
     var track = stream.getAudioTracks()[0];
     var Ctx = window.AudioContext || window.webkitAudioContext;
-    var NONE = { resetMax: function () {}, getMaxRms: function () { return 1; }, resume: function () {}, measuring: function () { return false; }, stop: function () {} };
+    var NONE = { resetMax: function () {}, getMaxRms: function () { return 1; }, level: function () { return 0; }, resume: function () {}, measuring: function () { return false; }, stop: function () {} };
     if (!track || !Ctx) return NONE;
     var ctx, source, analyser;
     try {
@@ -568,12 +603,13 @@
       return NONE;
     }
     var buf = new Uint8Array(analyser.frequencyBinCount);
-    var maxRms = 0, raf = null;
+    var maxRms = 0, lastRms = 0, raf = null;
     (function tick() {
       analyser.getByteTimeDomainData(buf);
       var sum = 0;
       for (var i = 0; i < buf.length; i++) { var v = buf[i] / 128 - 1; sum += v * v; }
       var rms = Math.sqrt(sum / buf.length);
+      lastRms = rms;
       if (rms > maxRms) maxRms = rms;
       if (fillEl) {
         var pct = Math.min(100, rms * 400);
@@ -585,6 +621,8 @@
     return {
       resetMax: function () { maxRms = 0; },
       getMaxRms: function () { return maxRms; },
+      // いまの音の大きさ（RMS。main.js の getRMS() と同じ式）。録画を自動で止めるのに使う
+      level: function () { return lastRms; },
       // ブラウザによっては、AudioContext が一時停止（suspended）のまま始まる。そのままだと声が入っていても
       // 大きさが 0 と測れてしまうので、ボタンを押したとき（ユーザーの操作の中）に動かす
       resume: function () { if (ctx.state === 'suspended' && ctx.resume) ctx.resume().catch(function () {}); },

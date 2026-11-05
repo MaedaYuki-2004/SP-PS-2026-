@@ -1,11 +1,12 @@
 {% from "_icons.html" import icon %}{#
   単語の追加・お手本の録り直しの画面（ホームと単語のページで使う）。動きは web/static/js/word_add.js。
 
-  流れ：①単語と読みがなを入れる → ②お手本を録画（3・2・1 のあと 3 秒）→ ③録画を見て確かめる → 登録。
+  流れ：①単語と読みがなを入れる → ②お手本を録画（3・2・1 のあと、言い終わると自動で止まる。練習の録音と同じ）→ ③録画を見て確かめる → 登録。
   以前は録画が終わるとすぐ登録され、声が入っていない・顔が切れている録画にも、登録したあとで気づいていた。
   お手本の録り直し（単語のカードやページの「お手本を録り直す」）も、②③を同じ画面で行う。
 
-  使い方：{% include "_word_add.html" %} と <script src="/static/js/word_add.js" defer></script>。
+  使い方：{% include "_word_add.html" %} と <script src="/static/js/word_add.js?v=20261105" defer></script>。
+  word_add.js を変えたら、読み込む側の ?v= も変える（Service Worker が古い控えを返さないように）。
   先に camera_error.js と media.js を読み込んでおく。
 #}
 <style>
@@ -184,6 +185,8 @@
       <p class="aw-status" id="awStatus2" role="status">カメラを起動しています…</p>
       <div class="aw-actions">
         <button type="button" class="aw-btn-rec" id="awRecordBtn" disabled>{{ icon('video') }} 録画をはじめる</button>
+        {# 録画中だけ、「録画をはじめる」の代わりに出す（word_add.js） #}
+        <button type="button" class="aw-btn-secondary" id="awStopBtn" hidden disabled>{{ icon('stop') }} 録画を止める</button>
         <button type="button" class="aw-btn-secondary" id="awBackBtn">もどる</button>
       </div>
     </div>

@@ -95,7 +95,7 @@ app.secret_key = FLASK_SECRET_KEY
 # 単語の削除などは JSON で受けるが request.get_json(force=True) なので、Cookie が付くと別サイトのフォームからも届きうる
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-# 受け取るファイルの上限。お手本・口の録画は3秒で数 MB、録音の WAV は 1 MB 未満。大きなファイルでディスクや
+# 受け取るファイルの上限。お手本の録画（長くても 10 秒）・口の録画は数 MB、録音の WAV は 1 MB 未満。大きなファイルでディスクや
 # メモリを使い切られないようにする（超えると 413）
 MAX_UPLOAD_MB = 50
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
@@ -2480,8 +2480,8 @@ def add_word():
                 return jsonify({
                     "error": "発音が認識できませんでした。マイクが正しく音を拾えているか"
                              "（接続・選択デバイス・ミュート設定）を確認のうえ、"
-                             "録画が始まったらすぐに、はっきり発音して録画し直してください"
-                             "（録画は3秒で止まります）。",
+                             "「どうぞ！」が出たら、はっきり発音して録画し直してください"
+                             "（言い終わると自動で止まります）。",
                     "alignment_ok": False,
                 }), 422
 
