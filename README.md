@@ -184,8 +184,6 @@ SP-PS は、学習者が**自分の発音をお手本と客観的に比較する
 | `mecab-python3` / `unidic` | アクセント型の自動取得（任意） | `core/accent.py` |
 | `audioop-lts` | Python 3.13 以降で pydub を動かす互換モジュール | （3.13 のみ） |
 
-`scripts/md_to_docx.py`（倫理審査資料の Word 変換）は `python-docx` が必要ですが、`requirements.txt` には入っていません。
-
 ブラウザ側では Chart.js（グラフ）と、MediaPipe Face Mesh の JavaScript 版（録画するときの顔の位置の案内と、母音トレーナーの口の形の判定）を CDN（jsDelivr）から読み込みます。
 版は固定しています（Chart.js 4.5.1、chartjs-plugin-annotation 3.1.0、chartjs-plugin-datalabels 2.0.0、@mediapipe/face_mesh 0.4.1633559619 ほか）。版を書かないといちばん新しい版が来るため、大きな版が出たときに、ある日とつぜんグラフが描けなくなるおそれがありました。読み込めないとき（学校のネットワークで外部への接続が止められている場合など）も、グラフ以外の画面は使えます。母音トレーナーは自動判定の代わりに「かがみモード」になります。
 
@@ -2772,7 +2770,7 @@ sp-ps/
 ├── docs/
 │   ├── 手順書/                 # 生徒・保護者用の手順書（冊子1冊と、A3 の1枚のかんたん手順書。Word・PDF。§4）
 │   ├── 負荷テスト手順書.md      # 負荷テストで重くなる原因を切り分ける手順（サーバーの Mac で実行する。§5.4）
-│   ├── 倫理審査資料_SP-PS.md    # 倫理審査申請用資料（正本。Word 版は scripts/md_to_docx.py で生成）
+│   ├── 倫理審査資料_SP-PS.md    # 倫理審査申請用資料（正本）
 │   └── 倫理審査資料_SP-PS.docx
 │
 ├── engine/                     # Julius エンジン（GitHub 管理。音素セグメンテーションキット由来、MIT License）
@@ -2795,8 +2793,7 @@ sp-ps/
 │   ├── server.sh               # serve_mac.sh quick をターミナルから切り離して start/status/stop（§4）
 │   ├── make_access_qr.py       # 公開 URL からスマホ用の QR 画像を作る（§4）
 │   ├── loadtest.py             # 負荷試験：仮想の生徒を同時に動かし、応答時間とエラーを測る（§5.4）
-│   ├── loadtest_accounts.py    # 負荷試験用の参加者をまとめて作る・消す（§5.4）
-│   └── md_to_docx.py           # 倫理審査資料の Markdown → Word 変換（python-docx が必要）
+│   └── loadtest_accounts.py    # 負荷試験用の参加者をまとめて作る・消す（§5.4）
 │
 ├── tests/                      # 単体テスト（python -m unittest discover -s tests）
 │   ├── test_accounts.py        # アカウントの削除でデータも消えること・作り直せない ID・はじめのコード・照合をロックの外で行うこと
