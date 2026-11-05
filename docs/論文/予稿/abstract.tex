@@ -19,8 +19,8 @@
 \def\THEMEID{SP-PS}
 
 %%% タイトル
-\def\TITLEJP{聴覚に障害のある生徒のための，声と口の動きをお手本と比べる発音練習システム}
-\def\TITLEEN{A Pronunciation Training System Comparing Learners' Voice and Lip Movements with a Model Speaker for Students with Hearing Impairments}
+\def\TITLEJP{聴覚障害者向けの映像フィードバックを用いた\\発音練習アプリ} % 文字は変えず，「アプリ」の途中で改行されないよう改行の位置だけ決めている
+\def\TITLEEN{A Pronunciation Practice App Using Video Feedback for People with Hearing Impairments}
 \def\CENTERADJ{3.3} % ここを書き換えて，表紙の「プロジェクトテーマ」という文字列がセル中心になるよう調整してください
 
 %%% 教員名
@@ -30,11 +30,11 @@
 % 最低：100ワード，最大：300ワード前後
 % 英文部分については，句読点は半角にすること．つまり", "か". "を使う
 \def\ABSTRACT{
-People with hearing impairments find it difficult to check their own pronunciation by ear. We developed SP-PS, a web application that compares a learner's word utterance with a model video recorded by a parent or teacher and returns a score out of 100 with visual feedback. The speech is segmented into morae by forced alignment with Julius, and pitch accent (50 points), mora duration (30 points) and vowel formants (20 points) are scored against the model. Lip-shape vectors from MediaPipe Face Mesh are aligned by dynamic time warping to measure the gap between voice and lips for each mora, and gaps beyond perceptual thresholds in the literature reduce the score by up to 5 points. In system tests, all 52 model words scored 100 against themselves, injected audio-visual gaps were detected without false alarms under a tempo change, and 40 simultaneous users were scored within 0.91 s at the 90th percentile. The detected accent nucleus, however, matched the dictionary accent type in only 15 of 45 words. A one-month study at a school for the deaf is planned.
+People with hearing impairments find it difficult to check their own pronunciation by ear. We developed SP-PS, a pronunciation practice app with video feedback. It compares a learner's word utterance with a model video recorded by a family member or teacher, shows the differences in graphs and videos, and suggests how to correct them along with a score out of 100. The speech is segmented into morae by forced alignment with Julius, and pitch accent (50 points), mora duration (30 points) and vowel formants (20 points) are scored against the model. Lip-shape vectors from MediaPipe Face Mesh are aligned by dynamic time warping to measure the gap between voice and lips for each mora, and gaps beyond perceptual thresholds in the literature reduce the score by up to 5 points. In system tests, all 52 model words scored 100 against themselves, injected audio-visual gaps were detected without false alarms under a tempo change, and 40 simultaneous users were scored within 0.91 s at the 90th percentile. The detected accent nucleus, however, matched the dictionary accent type in only 15 of 45 words. A one-month study at a school for the deaf is planned.
 }
 
 %%% キーワード(5個まで)
-\def\KEYWORDS{Pronunciation training，Hearing impairment，Pitch accent，Audio-visual synchrony，Lip movement}
+\def\KEYWORDS{Pronunciation training，Hearing impairment，Video feedback，Pitch accent，Audio-visual synchrony}
 
 %%% 著者リスト
 \def\AUTHORS{
@@ -51,8 +51,6 @@ People with hearing impairments find it difficult to check their own pronunciati
 %                                本文
 \documentclass{tkglabs}
 \usepackage{amsmath}
-\usepackage{tikz}
-\usetikzlibrary{positioning}
 \begin{document}
 \maketitle
 \begin{multicols*}{2} % *アスタ付きだとページのバランシングを無効にできる
@@ -67,41 +65,26 @@ People with hearing impairments find it difficult to check their own pronunciati
 しかし，発音学習支援システム\cite{neri2002}の多くは第二言語の学習者を対象とし，音声だけを評価する．
 日本語のピッチと長さを視覚的に練習させるシステム\cite{hirata2004}も，学習者の口の動きは扱わない．
 
-そこで，学習者の声と口の動きを保護者や先生が録画したお手本と比べ，耳を使わなくても分かる形で結果を示す発音練習システム SP-PS を開発した．本稿では評価手法とシステムの検証結果を報告する．
+そこで本プロジェクトでは，聴覚障害者向けの映像フィードバックを用いた発音練習アプリ SP-PS を開発した．
+図\ref{FIG_CONCEPT}にコンセプトを示す．家族などが録画したお手本と学習者の音程（声の高さ）や口の動きを比べ，違いをグラフや動画で示したうえで，「最初の音程を低く」のように直し方（解決策）を提案する．
+本稿では評価手法とアプリの検証結果を報告する．
 
-\section{システムの構成}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure} % 小さな図（コンセプトペーパーのイラスト）
+	\centering
+	\includegraphics[width=0.86\linewidth]{fig/concept.png}
+	\vspace{6mm}
+	\figcap{本アプリのコンセプト}{Concept of the app}{FIG_CONCEPT}
+\end{figure}
+
+\section{アプリの構成}
 \subsection{処理の流れ}
-図\ref{FIG_FLOW}に処理の流れを示す．
-単語を登録するとき，保護者や先生がその単語を発音する様子を3秒間録画し，その動画からお手本の音声と口の動きを取り込む．
-学習者はスマートフォンのブラウザで，お手本の動画を見てから録音と口元の録画を行う．結果は◎○△と「つぎは，ここだけ」で示し，苦手な音のドリルを提案する．
+単語を登録するとき，家族や先生がその単語を発音する様子を3秒間録画し，その動画からお手本の音声と口の動きを取り込む．
+学習者はスマートフォンのブラウザで，お手本の動画を見てから録音と口元の録画を行う．結果は◎○△と「つぎは，ここだけ」で示す．
 
 音声は Julius\cite{lee2009}の強制アライメントでモーラ（拍）ごとに区切り，Praat の自己相関法\cite{boersma1993}で基本周波数（F0）を，同じく Praat でフォルマントを測る．
 映像からは MediaPipe Face Mesh\cite{kartynnik2019}で唇の輪郭の20点を取り出し，両目の外側の端の距離で割った20次元の唇形状ベクトルとする．
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{figure} % 小さな図
-	\centering
-	\begin{tikzpicture}[
-		font=\footnotesize,
-		box/.style={draw, rounded corners=1pt, align=center, inner sep=1.5pt, minimum height=5mm},
-		arr/.style={->, >=stealth}]
-		\node[box, text width=3.4cm] (in) {学習者の録音・録画\\（お手本は登録時の録画）};
-		\node[box, text width=3.4cm, below left=2.5mm and -1.6cm of in] (jul) {Julius 強制アライメント\\（モーラの区切り）};
-		\node[box, text width=3.4cm, below right=2.5mm and -1.6cm of in] (mp) {MediaPipe Face Mesh\\（唇形状ベクトル）};
-		\node[box, text width=3.4cm, below=2.5mm of jul] (ax) {ピッチ・長さ・フォルマント\\$\to$ 3軸のスコア};
-		\node[box, text width=3.4cm, below=2.5mm of mp] (av) {唇の DTW $\to$ 口と声の\\タイミングのずれ};
-		\node[box, text width=7.3cm, below=2.5mm of ax.south east, anchor=north] (out) {合計点・つぎに直すところ・練習の提案};
-		\draw[arr] (in) -- (jul);
-		\draw[arr] (in) -- (mp);
-		\draw[arr] (jul) -- (ax);
-		\draw[arr] (mp) -- (av);
-		\draw[arr] (jul.east) -- (av.north west);
-		\draw[arr] (ax) -- (ax |- out.north);
-		\draw[arr] (av) -- (av |- out.north);
-	\end{tikzpicture}
-	\vspace{6mm}
-	\figcap{処理の流れ}{Processing flow}{FIG_FLOW}
-\end{figure}
 
 \subsection{発音の評価}
 合計点 $S$ は，アクセント $S_{\mathrm{A}}$（50点）・モーラ長 $S_{\mathrm{D}}$（30点）・母音品質 $S_{\mathrm{V}}$（20点）の和から，口と声のタイミングの減点 $P_{\mathrm{AV}}$（0〜5点）を引いたものである．
@@ -122,14 +105,10 @@ F0 を話者ごとの中央値を基準とした半音に直し，録音をお�
 \begin{equation}
 S_{\mathrm{D}} = \tfrac{3}{4}\max\Bigl(0,\ 40\Bigl(1 - \frac{\sum_g w_g \lvert \eta^{\mathrm{ref}}_g - \eta^{\mathrm{lrn}}_g \rvert}{\bar{\eta}\sum_g w_g}\Bigr)\Bigr)
 \end{equation}
-$\bar{\eta} = 100/G$（$G$ はモーラ数）で割り，モーラ数で厳しさが変わらないようにした．
+$\bar{\eta} = 100/G$（$G$ はモーラ数）で割り，モーラ数による差をなくした．
 
-\textbf{母音品質}：各モーラの区間の30・50・70\%の時刻で第1・第2フォルマント（$F_1$, $F_2$）を測り，その中央値を Bark 尺度 $z(\cdot)$\cite{traunmuller1990}に直して距離を求める．
-話者の声道の長さの違いは，同じ位置のモーラの $F_1$・$F_2$ の比の中央値 $\gamma$（0.80〜1.25）で補正する．
-\begin{equation}
-\delta_g = \sqrt{\Bigl(\tfrac{z(\gamma F^{\mathrm{ref}}_{1,g}) - z(F^{\mathrm{lrn}}_{1,g})}{3}\Bigr)^2 + \Bigl(\tfrac{z(\gamma F^{\mathrm{ref}}_{2,g}) - z(F^{\mathrm{lrn}}_{2,g})}{4}\Bigr)^2}
-\end{equation}
-重み付き平均 $\bar{\delta}$ から $S_{\mathrm{V}} = \mathrm{clip}(20 e^{-\bar{\delta}}, 0.5, 20)$ とする．
+\textbf{母音品質}：各モーラの区間の30・50・70\%の時刻で第1・第2フォルマント（$F_1$, $F_2$）を測り，その中央値を Bark 尺度\cite{traunmuller1990}に直す．
+話者の声道の長さの違いを $F_1$・$F_2$ の比の中央値 $\gamma$（0.80〜1.25）で補正したうえで，お手本との $F_1$・$F_2$ の差をそれぞれ 3・4 Bark で割ったユークリッド距離 $\delta_g$ を求め，その重み付き平均 $\bar{\delta}$ から $S_{\mathrm{V}} = \mathrm{clip}(20 e^{-\bar{\delta}}, 0.5, 20)$ とする．
 
 
 \subsection{口と声のタイミングの照合}
@@ -147,13 +126,13 @@ $\bar{\eta} = 100/G$（$G$ はモーラ数）で割り，モーラ数で厳し�
 $\theta_k$ は声が先なら45\,ms，口が先なら200\,ms，$\varepsilon$ はコマの間隔による誤差，$K$ は比べたモーラ数である．
 
 \section{評価実験の方法}
-学校での調査の前に，次の4点を確かめた．(1)お手本52語（人の録音30語，合成音声22語）を自分自身と比べる自己比較，(2)声のラベルに人工的なずれやテンポの変化を加える口と声の照合の校正，(3)アクセント型の分かっている45語でのアクセント核の検出，(4)仮想の生徒10〜80人が同時に練習を繰り返す負荷試験．
+学校での調査の前に，(1)お手本52語（人の録音30語，合成音声22語）の自己比較，(2)人工的なずれを加えた口と声の照合の校正，(3)アクセント型の分かっている45語での核の検出，(4)仮想の生徒10〜80人による負荷試験を行った．
 
 \section{実験結果}
 \textbf{自己比較}：52語すべてが100点となり，誤ったフィードバックは出なかった．
 
 \textbf{口と声の照合}：表\ref{TBL_SYNC}に結果を示す．
-一様なずれは中央値に現れ，中央値からの差のばらつき（中央絶対偏差）は増えない．テンポ1.5倍でも誤検出はなく，局所的なずれはばらつきとして検出できた．これから画面の判定のしきい値を70・140\,msとした．
+一様なずれは中央値に現れ，中央値からの差のばらつき（中央絶対偏差）は増えなかった．テンポ1.5倍でも誤検出はなく，局所的なずれはばらつきに現れた．
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{table} % 小さな表
@@ -193,15 +172,15 @@ $\theta_k$ は声が先なら45\,ms，口が先なら200\,ms，$\varepsilon$ は
 \end{table}
 
 \section{考察}
-同じ発音には満点を与え，口と声のずれを録画開始の機材差と分けて検出できること，1クラス程度が同時に使えることを確かめた．
+同じ発音は満点となり，口と声のずれを機材差と分けて検出でき，1クラス程度の同時利用にも耐えた．
 
 一方，アクセント核の検出は辞書のアクセント型とあまり一致しなかった．
 単語を単独で発音すると，平板型でも語末で声が大きく下がり，それを核と取り違えるためである．
 また，重みやしきい値は開発時に決めた値で，点数と人の評価の一致は未検証である．口と声の範囲も健聴者が英語を見聞きした実験の値であり，生徒の日本語の発話への当てはまりは今後の課題である．
 
 \section{まとめ}
-聴覚に障害のある生徒が一人で発音を練習できるよう，声と口の動きをお手本と比べる発音練習システム SP-PS を開発した．
-アクセント・モーラ長・母音品質の3観点に加えて口と声のタイミングを照合し，システムとしての動作を確かめた．
+聴覚障害者が一人で発音を練習できるよう，映像フィードバックを用いた発音練習アプリ SP-PS を開発した．
+3観点の評価と口と声のタイミングの照合を実装し，動作を確かめた．
 今後，聴覚特別支援学校の中学部・高等部の生徒に約1か月使ってもらい，発音の改善がみられるかと，使いやすさについての意見を調べる．
 
 %% 参考文献（必要に応じて追加）%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
