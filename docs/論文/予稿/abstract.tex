@@ -30,7 +30,7 @@
 % 最低：100ワード，最大：300ワード前後
 % 英文部分については，句読点は半角にすること．つまり", "か". "を使う
 \def\ABSTRACT{
-People with hearing impairments find it difficult to check their own pronunciation by ear. We developed SP-PS, a pronunciation practice app with video feedback. It compares a learner's word utterance with a model video recorded by a family member or teacher, shows the differences in graphs and videos, and suggests how to correct them along with a score out of 100. The speech is segmented into morae by forced alignment with Julius, and pitch accent (50 points), mora duration (30 points) and vowel formants (20 points) are scored against the model. Lip-shape vectors from MediaPipe Face Mesh are aligned by dynamic time warping to measure the gap between voice and lips for each mora, and gaps beyond perceptual thresholds in the literature reduce the score by up to 5 points. In system tests, all 52 model words scored 100 against themselves, injected audio-visual gaps were detected without false alarms under a tempo change, and 40 simultaneous users were scored within 0.91 s at the 90th percentile. The detected accent nucleus, however, matched the dictionary accent type in only 15 of 45 words. A one-month study at a school for the deaf is planned.
+People with hearing impairments find it difficult to check their own pronunciation by ear. We developed SP-PS, a pronunciation practice app with video feedback. It compares a learner's word utterance with a model video recorded by a family member or teacher, shows the differences in graphs and videos, and suggests how to correct them along with a score out of 100. The speech is segmented into morae by forced alignment with Julius, and pitch accent (50 points), mora duration (30 points) and vowel formants (20 points) are scored against the model. Lip-shape vectors from MediaPipe Face Mesh are aligned by dynamic time warping to measure the gap between voice and lips for each mora, and gaps beyond perceptual thresholds in the literature reduce the score by up to 5 points. In system tests, all 52 model words scored 100 against themselves, and injected audio-visual gaps were detected without false alarms under a tempo change. The detected accent nucleus, however, matched the dictionary accent type in only 15 of 45 words. A one-month study at a school for the deaf is planned.
 }
 
 %%% キーワード(5個まで)
@@ -80,7 +80,7 @@ People with hearing impairments find it difficult to check their own pronunciati
 \section{アプリの構成}
 \subsection{処理の流れ}
 単語を登録するとき，家族や先生がその単語を発音する様子を3秒間録画し，その動画からお手本の音声と口の動きを取り込む．
-学習者はスマートフォンのブラウザで，お手本の動画を見てから録音と口元の録画を行う．結果は◎○△と「つぎは，ここだけ」で示す．
+学習者はスマートフォンのブラウザで，お手本の動画を見てから録音と口元の録画を行う．結果は◎○△と「つぎは，ここだけ」で示し，苦手な音のドリルを提案する．
 
 音声は Julius\cite{lee2009}の強制アライメントでモーラ（拍）ごとに区切り，Praat の自己相関法\cite{boersma1993}で基本周波数（F0）を，同じく Praat でフォルマントを測る．
 映像からは MediaPipe Face Mesh\cite{kartynnik2019}で唇の輪郭の20点を取り出し，両目の外側の端の距離で割った20次元の唇形状ベクトルとする．
@@ -107,8 +107,12 @@ S_{\mathrm{D}} = \tfrac{3}{4}\max\Bigl(0,\ 40\Bigl(1 - \frac{\sum_g w_g \lvert \
 \end{equation}
 $\bar{\eta} = 100/G$（$G$ はモーラ数）で割り，モーラ数による差をなくした．
 
-\textbf{母音品質}：各モーラの区間の30・50・70\%の時刻で第1・第2フォルマント（$F_1$, $F_2$）を測り，その中央値を Bark 尺度\cite{traunmuller1990}に直す．
-話者の声道の長さの違いを $F_1$・$F_2$ の比の中央値 $\gamma$（0.80〜1.25）で補正したうえで，お手本との $F_1$・$F_2$ の差をそれぞれ 3・4 Bark で割ったユークリッド距離 $\delta_g$ を求め，その重み付き平均 $\bar{\delta}$ から $S_{\mathrm{V}} = \mathrm{clip}(20 e^{-\bar{\delta}}, 0.5, 20)$ とする．
+\textbf{母音品質}：各モーラの区間の30・50・70\%の時刻で第1・第2フォルマント（$F_1$, $F_2$）を測り，その中央値を Bark 尺度 $z(\cdot)$\cite{traunmuller1990}に直して距離を求める．
+話者の声道の長さの違いは，同じ位置のモーラの $F_1$・$F_2$ の比の中央値 $\gamma$（0.80〜1.25）で補正する．
+\begin{equation}
+\delta_g = \sqrt{\Bigl(\tfrac{z(\gamma F^{\mathrm{ref}}_{1,g}) - z(F^{\mathrm{lrn}}_{1,g})}{3}\Bigr)^2 + \Bigl(\tfrac{z(\gamma F^{\mathrm{ref}}_{2,g}) - z(F^{\mathrm{lrn}}_{2,g})}{4}\Bigr)^2}
+\end{equation}
+重み付き平均 $\bar{\delta}$ から $S_{\mathrm{V}} = \mathrm{clip}(20 e^{-\bar{\delta}}, 0.5, 20)$ とする．
 
 
 \subsection{口と声のタイミングの照合}
@@ -126,7 +130,7 @@ $\bar{\eta} = 100/G$（$G$ はモーラ数）で割り，モーラ数による�
 $\theta_k$ は声が先なら45\,ms，口が先なら200\,ms，$\varepsilon$ はコマの間隔による誤差，$K$ は比べたモーラ数である．
 
 \section{評価実験の方法}
-学校での調査の前に，(1)お手本52語（人の録音30語，合成音声22語）の自己比較，(2)人工的なずれを加えた口と声の照合の校正，(3)アクセント型の分かっている45語での核の検出，(4)仮想の生徒10〜80人による負荷試験を行った．
+学校での調査の前に，(1)お手本52語（人の録音30語，合成音声22語）の自己比較，(2)人工的なずれを加えた口と声の照合の校正，(3)アクセント型の分かっている45語での核の検出を行った．
 
 \section{実験結果}
 \textbf{自己比較}：52語すべてが100点となり，誤ったフィードバックは出なかった．
@@ -153,26 +157,10 @@ $\theta_k$ は声が先なら45\,ms，口が先なら200\,ms，$\varepsilon$ は
 
 \textbf{アクセント核}：検出した核が辞書のアクセント型と一致したのは45語中15語であった（下降のしきい値を0.25〜2.0半音で変えても11〜22語）．
 
-\textbf{負荷試験}：表\ref{TBL_LOAD}に示す（CPU 8個）．40人まで採点の90\%が1秒未満で，80人でも失敗はなかった．
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{table} % 小さな表
-	\centering
-	\tabcap{同時利用者数と採点の応答時間}{Concurrent users and scoring response time}{TBL_LOAD}
-	\begin{tabular}{rrrrr}
-		\Hline
-		人数 & 採点/分 & 中央値 [s] & 90\% [s] & 失敗\\
-		\hline
-		10 & 61 & 0.31 & 0.43 & 0\\
-		20 & 122 & 0.34 & 0.48 & 0\\
-		40 & 237 & 0.51 & 0.91 & 0\\
-		80 & 308 & 2.44 & 3.74 & 0\\
-		\Hline
-	\end{tabular}
-\end{table}
 
 \section{考察}
-同じ発音は満点となり，口と声のずれを機材差と分けて検出でき，1クラス程度の同時利用にも耐えた．
+同じ発音は満点となり，口と声のずれを録画開始の機材差と分けて検出できることを確かめた．
 
 一方，アクセント核の検出は辞書のアクセント型とあまり一致しなかった．
 単語を単独で発音すると，平板型でも語末で声が大きく下がり，それを核と取り違えるためである．
