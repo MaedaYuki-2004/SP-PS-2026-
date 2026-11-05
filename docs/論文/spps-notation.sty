@@ -1,0 +1,146 @@
+% spps-notation.sty
+% SP-PS 論文用の記号マクロ。記号の意味は docs/論文/記号表.md を参照。
+% 記号を変えるときは、このファイルと記号表.md を一緒に直す。
+%
+% 使い方:  \usepackage{spps-notation}
+% 上付き（誰の量か）は省略可能な引数で指定する:  \mpitch[\sref]{k}  →  \bar{p}^{ref}_k
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{spps-notation}[2026/11/05 v0.1 SP-PS notation (draft)]
+
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+
+% ── 内部用: 上付きが空なら付けない ──────────────────────────────
+\newcommand{\spps@sup}[1]{\if\relax\detokenize{#1}\relax\else^{#1}\fi}
+
+% ── お手本・学習者 ─────────────────────────────────────────────
+\newcommand{\sref}{\mathrm{ref}}
+\newcommand{\slrn}{\mathrm{lrn}}
+
+% ── 演算子 ─────────────────────────────────────────────────────
+\DeclareMathOperator*{\med}{med}
+\DeclareMathOperator{\clip}{clip}
+\DeclareMathOperator{\DTW}{DTW}
+\providecommand{\argmax}{\operatorname*{arg\,max}}
+\newcommand{\pct}[1]{Q_{#1}}                 % パーセンタイル Q_q
+\newcommand{\bark}[1]{z\!\left(#1\right)}    % Hz → Bark
+
+% ── 番号と数 ───────────────────────────────────────────────────
+\newcommand{\Nmora}{K}                       % モーラ（Julius の単位）の数
+\newcommand{\Ngroup}{G}                      % 長音のまとまりの数
+\newcommand{\Naud}{N_{\mathrm{a}}}           % 音声フレーム数
+\newcommand{\Nvid}{N_{\mathrm{v}}}           % 映像フレーム数
+\newcommand{\Taud}{T_{\mathrm{a}}}           % 音声フレーム周期 (10 ms)
+\newcommand{\Tvid}[1][]{T_{\mathrm{v}}\spps@sup{#1}} % 映像フレーム間隔
+
+% ── 集合 ───────────────────────────────────────────────────────
+\newcommand{\Tset}[1]{\mathcal{T}_{#1}}      % モーラのフレーム集合
+\newcommand{\Gset}[1]{\mathcal{G}_{#1}}      % まとまりのモーラ集合
+\newcommand{\Vset}[1][]{\mathcal{V}\spps@sup{#1}}            % 有声フレーム
+\newcommand{\Vmora}[2][]{\mathcal{V}\spps@sup{#1}_{#2}}      % モーラの有声フレーム
+\newcommand{\Kset}{\mathcal{K}}              % 高さを測れたモーラ
+\newcommand{\Kav}{\mathcal{K}_{\mathrm{AV}}} % 口と声を比べたモーラ
+\newcommand{\Wpath}{\mathcal{W}}             % DTW 経路
+
+% ── アライメント ───────────────────────────────────────────────
+\newcommand{\loglik}{\bar{\mathcal{L}}}
+\newcommand{\thJ}{\theta_{\mathrm{J}}}
+
+% ── ピッチ ─────────────────────────────────────────────────────
+\newcommand{\fz}[2][]{f\spps@sup{#1}_{0,#2}}                 % f_{0,t}
+\newcommand{\fzmed}[1][]{\tilde{f}\spps@sup{#1}_{0}}         % 半音変換の基準
+\newcommand{\pitch}[2][]{p\spps@sup{#1}_{#2}}                % 半音ピッチ p_t
+\newcommand{\pitchsm}[2][]{\hat{p}\spps@sup{#1}_{#2}}        % 補間・平滑化
+\newcommand{\pnorm}[2][]{\check{p}\spps@sup{#1}_{#2}}        % モーラ別スコア用の正規化
+\newcommand{\mpitch}[2][]{\bar{p}\spps@sup{#1}_{#2}}         % モーラの高さ
+\newcommand{\prange}[1][]{W\spps@sup{#1}}                    % 抑揚の幅
+
+% ── アクセント ─────────────────────────────────────────────────
+\newcommand{\nuc}[1][]{\kappa\spps@sup{#1}}
+\newcommand{\thnuc}{\theta_{\mathrm{nuc}}}
+\newcommand{\corr}{\rho}
+\newcommand{\hlab}[2][]{h\spps@sup{#1}_{#2}}               % H/L ラベル（\hl は soul と衝突するため使わない）
+\newcommand{\piL}{\pi_{\mathrm{L}}}
+\newcommand{\thHL}{\theta_{\mathrm{HL}}}
+\newcommand{\aHLrate}{a_{\mathrm{HL}}}
+\newcommand{\exvar}[1]{\sigma^{2}_{+,#1}}
+\newcommand{\varmax}{\sigma^{2}_{\max}}
+\newcommand{\thflat}{\theta_{\mathrm{flat}}}
+\newcommand{\Snuc}{S_{\mathrm{nuc}}}
+\newcommand{\Scor}{S_{\mathrm{cor}}}
+\newcommand{\SHL}{S_{\mathrm{HL}}}
+\newcommand{\Sstb}{S_{\mathrm{stb}}}
+\newcommand{\anuc}{\alpha_{\mathrm{nuc}}}
+\newcommand{\acor}{\alpha_{\mathrm{cor}}}
+\newcommand{\aHL}{\alpha_{\mathrm{HL}}}
+\newcommand{\astb}{\alpha_{\mathrm{stb}}}
+
+% ── モーラ長 ───────────────────────────────────────────────────
+\newcommand{\len}[2][]{\ell\spps@sup{#1}_{#2}}               % 長さ (s)
+\newcommand{\lenutt}[1][]{\ell\spps@sup{#1}_{\mathrm{utt}}}  % 発話全体の長さ
+\newcommand{\share}[2][]{\eta\spps@sup{#1}_{#2}}             % 割合 (%)
+\newcommand{\sharemean}{\bar{\eta}}
+\newcommand{\lendiff}[1]{e_{#1}}
+\newcommand{\lendiffmean}{\bar{e}}
+\newcommand{\lenw}[1]{w_{#1}}
+\newcommand{\lenratio}[1]{r_{#1}}
+\newcommand{\specratio}[1]{q_{#1}}
+
+% ── 母音 ───────────────────────────────────────────────────────
+\newcommand{\Fone}[2][]{F\spps@sup{#1}_{1,#2}}
+\newcommand{\Ftwo}[2][]{F\spps@sup{#1}_{2,#2}}
+\newcommand{\Fceil}{F_{\mathrm{ceil}}}
+\newcommand{\spk}{\gamma}                                    % 話者差の補正係数
+\newcommand{\vw}[1]{\omega_{#1}}
+\newcommand{\nvalid}[2][]{n\spps@sup{#1}_{#2}}
+
+% ── ずれ（モーラ・まとまりごと） ───────────────────────────────
+\newcommand{\adist}[1]{\delta^{\mathrm{A}}_{#1}}
+\newcommand{\ddist}[1]{\delta^{\mathrm{D}}_{#1}}
+\newcommand{\vdist}[1]{\delta^{\mathrm{V}}_{#1}}
+\newcommand{\vdistmean}{\bar{\delta}^{\mathrm{V}}}
+
+% ── スコア ─────────────────────────────────────────────────────
+\newcommand{\Stot}{S}
+\newcommand{\SA}{S_{\mathrm{A}}}
+\newcommand{\SD}{S_{\mathrm{D}}}
+\newcommand{\SV}{S_{\mathrm{V}}}
+\newcommand{\SAraw}{\tilde{S}_{\mathrm{A}}}
+\newcommand{\SDraw}{\tilde{S}_{\mathrm{D}}}
+\newcommand{\Pav}{P_{\mathrm{AV}}}
+\newcommand{\Pmax}{P_{\max}}
+\newcommand{\ms}[2][]{s\if\relax\detokenize{#1}\relax\else^{\mathrm{#1}}\fi_{#2}} % モーラ別: \ms[A]{k}
+\newcommand{\Slip}{S_{\mathrm{lip}}}
+
+% ── 口形（映像） ───────────────────────────────────────────────
+\newcommand{\lmk}[1]{\mathbf{u}_{#1}}
+\newcommand{\lipvec}[2][]{\mathbf{x}\spps@sup{#1}_{#2}}
+\newcommand{\LipSeq}[1][]{\mathbf{X}\spps@sup{#1}}
+\newcommand{\open}[2][]{o\spps@sup{#1}_{#2}}
+\newcommand{\mopen}[2][]{\bar{o}\spps@sup{#1}_{#2}}
+\newcommand{\nopen}[2][]{\check{o}\spps@sup{#1}_{#2}}
+\newcommand{\thopen}{\theta_{\mathrm{open}}}
+\newcommand{\dlip}{\bar{d}_{\mathrm{lip}}}
+
+% ── 口と声のタイミング ─────────────────────────────────────────
+\newcommand{\taua}[1]{\tau^{\mathrm{a}}_{#1}}
+\newcommand{\tauv}[1]{\tau^{\mathrm{v}}_{#1}}
+\newcommand{\avoff}[1]{\Delta_{#1}}
+\newcommand{\avrel}[1]{\tilde{\Delta}_{#1}}
+\newcommand{\avspread}{M_{\mathrm{AV}}}
+\newcommand{\avmargin}{\varepsilon}
+\newcommand{\thvf}{\theta_{\mathrm{vf}}}
+\newcommand{\thmf}{\theta_{\mathrm{mf}}}
+\newcommand{\thfull}{\theta_{\mathrm{full}}}
+\newcommand{\thok}{\theta_{\mathrm{ok}}}
+\newcommand{\thwarn}{\theta_{\mathrm{warn}}}
+\newcommand{\avloss}[1]{\lambda_{#1}}
+
+% ── 表示のみの分析・学習支援 ───────────────────────────────────
+\newcommand{\rate}[1][]{v\spps@sup{#1}}
+\newcommand{\mfcc}[2][]{\mathbf{c}\spps@sup{#1}_{#2}}
+\newcommand{\MfccSeq}[1][]{\mathbf{C}\spps@sup{#1}}
+\newcommand{\dmfcc}{\bar{d}_{\mathrm{mfcc}}}
+\newcommand{\Nboot}{B}
+
+\endinput
