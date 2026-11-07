@@ -22,7 +22,7 @@
 \DeclareMathOperator{\clip}{clip}
 \DeclareMathOperator{\DTW}{DTW}
 \providecommand{\argmax}{\operatorname*{arg\,max}}
-\newcommand{\pct}[1]{Q_{#1}}                 % パーセンタイル Q_q
+\newcommand{\pct}[1]{Q_{#1}}                 % パーセンタイル（\pct{90} → Q_{90}。添字は百分率の値）
 \newcommand{\bark}[1]{z\!\left(#1\right)}    % Hz → Bark
 
 % ── 番号と数 ───────────────────────────────────────────────────
@@ -30,6 +30,7 @@
 \newcommand{\Ngroup}{G}                      % 長音のまとまりの数
 \newcommand{\Naud}{N_{\mathrm{a}}}           % 音声フレーム数
 \newcommand{\Nvid}{N_{\mathrm{v}}}           % 映像フレーム数
+\newcommand{\Nrec}{N_{\mathrm{rec}}}         % ある単語の記録の数
 \newcommand{\Taud}{T_{\mathrm{a}}}           % 音声フレーム周期 (10 ms)
 \newcommand{\Tvid}[1][]{T_{\mathrm{v}}\spps@sup{#1}} % 映像フレーム間隔
 
@@ -40,6 +41,7 @@
 \newcommand{\Vmora}[2][]{\mathcal{V}\spps@sup{#1}_{#2}}      % モーラの有声フレーム
 \newcommand{\Kset}{\mathcal{K}}              % 高さを測れたモーラ
 \newcommand{\Kav}{\mathcal{K}_{\mathrm{AV}}} % 口と声を比べたモーラ
+\newcommand{\Kstb}{\mathcal{K}_{\mathrm{stb}}} % 安定度の平均に使うモーラ（学習者の有声 3 フレーム以上）
 \newcommand{\Wpath}{\mathcal{W}}             % DTW 経路
 
 % ── アライメント ───────────────────────────────────────────────
@@ -92,7 +94,7 @@
 \newcommand{\Fceil}{F_{\mathrm{ceil}}}
 \newcommand{\spk}{\gamma}                                    % 話者差の補正係数
 \newcommand{\vw}[1]{\omega_{#1}}
-\newcommand{\nvalid}[2][]{n\spps@sup{#1}_{#2}}
+\newcommand{\nvalid}[2][]{m\spps@sup{#1}_{#2}}             % フォルマントの有効な測定点の数 m_g（n は映像フレーム番号）
 
 % ── ずれ（モーラ・まとまりごと） ───────────────────────────────
 \newcommand{\adist}[1]{\delta^{\mathrm{A}}_{#1}}
