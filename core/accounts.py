@@ -8,11 +8,9 @@ core/accounts.py
           （werkzeug、平文は保持しない）。
           初回ログインでは、先生が渡す「はじめのコード」（6けたの数字）を確かめる。利用者 ID を
           知っているだけの別の人が、先にパスワードを決めてしまわないようにするため。
-  - §5.1#6 学年（grade）は学部単位（中学部・高等部）に丸めて保持する。
-  - §5.3  聴覚障害の程度（hearing_level）は要配慮個人情報のため、
-          dB 値などの詳細は持たず区分に丸めて保持する。
 
-grade / hearing_level は調査票由来のため、研究者のみが管理画面から入力・変更する。
+学年（学校区分）・聴覚障害の程度（障害区分）は持たない。以前の版で保存した "profile" は
+remove_profiles()（サーバーの起動時に呼ぶ）で消す。
 参加者が初回ログインで設定するのはパスワードのみ。
 
 accounts.json の構造:
@@ -24,10 +22,6 @@ accounts.json の構造:
     "setup_code_hash":      "scrypt:...",    # はじめのコード（パスワード未設定の間だけ。平文は持たない）
     "setup_code_issued_at": "2026-08-31T12:00:00",
     "setup_code_failures":  0,               # まちがえた回数（SETUP_CODE_MAX_FAILURES で使えなくなる）
-    "profile": {
-      "grade":         "junior",
-      "hearing_level": "moderate"
-    },
     "created_at": "2026-08-31T12:00:00",
     "updated_at": "2026-08-31T12:00:00"
   }
@@ -66,24 +60,8 @@ SETUP_CODE_DIGITS = 6
 SETUP_CODE_MAX_FAILURES = 10
 _SETUP_CODE_KEYS = ("setup_code_hash", "setup_code_issued_at", "setup_code_failures")
 
-# 学年は学部単位（中学部・高等部）に丸めて保持する（再識別リスク低減、資料 §5.3）。
-GRADE_LABELS: dict[str, str] = {
-    "junior": "中学部",
-    "senior": "高等部",
-    "unknown": "未回答",
-}
-
-# 聴覚障害の程度（要配慮個人情報。dB 値は持たず区分で保持する）。
-HEARING_LEVEL_LABELS: dict[str, str] = {
-    "mild": "軽度難聴",
-    "moderate": "中等度難聴",
-    "severe": "高度難聴",
-    "profound": "重度難聴",
-    "unknown": "未回答",
-}
-
-DEFAULT_GRADE = "unknown"
-DEFAULT_HEARING_LEVEL = "unknown"
+# 以前の版が保存していた、学年（学校区分）と聴覚障害の程度（障害区分）の入れ物。いまは持たない
+_LEGACY_PROFILE_KEY = "profile"
 
 
 # ── 入出力 ───────────────────────────────────────────────────────────
@@ -124,8 +102,8 @@ def _now_iso() -> str:
 
 def _sanitize(account: dict) -> dict:
     """password_hash とはじめのコードのハッシュを除いた表示用のコピーを返す。"""
-    safe = {k: v for k, v in account.items() if k not in ("password_hash", "setup_code_hash")}
-    safe["profile"] = dict(account.get("profile", {}))
+    safe = {k: v for k, v in account.items()
+            if k not in ("password_hash", "setup_code_hash", _LEGACY_PROFILE_KEY)}
     safe["setup_code_issued"] = bool(account.get("setup_code_hash"))
     return safe
 
@@ -153,18 +131,6 @@ def validate_user_id(user_id: str) -> str:
             "利用者IDは英字で始まる1〜32文字の半角英数字・ハイフン・アンダースコアにしてください"
         )
     return uid
-
-
-def validate_grade(grade: str) -> str:
-    if grade not in GRADE_LABELS:
-        raise ValueError(f"学年の値が不正です: {grade!r}")
-    return grade
-
-
-def validate_hearing_level(level: str) -> str:
-    if level not in HEARING_LEVEL_LABELS:
-        raise ValueError(f"聴覚障害の程度の値が不正です: {level!r}")
-    return level
 
 
 def validate_password(password: str) -> str:
@@ -202,18 +168,12 @@ def needs_password_setup(user_id: str) -> bool:
 # ── 研究者向け操作（管理画面 /admin/accounts） ───────────────────────
 
 @_exclusive
-def create_account(
-    user_id: str,
-    grade: str = DEFAULT_GRADE,
-    hearing_level: str = DEFAULT_HEARING_LEVEL,
-) -> dict:
+def create_account(user_id: str) -> dict:
     """新しい参加者アカウントを発行する。パスワードは未設定で作成する。
 
     戻り値の setup_code が、本人に渡す「はじめのコード」（ここでしか分からない）。
     """
     uid = validate_user_id(user_id)
-    grade = validate_grade(grade)
-    hearing_level = validate_hearing_level(hearing_level)
 
     accounts = load_accounts()
     if uid in accounts:
@@ -235,10 +195,6 @@ def create_account(
         "user_id": uid,
         "password_hash": None,
         "password_set": False,
-        "profile": {
-            "grade": grade,
-            "hearing_level": hearing_level,
-        },
         "created_at": now,
         "updated_at": now,
     }
@@ -248,24 +204,21 @@ def create_account(
 
 
 @_exclusive
-def update_research_profile(
-    user_id: str,
-    grade: str | None = None,
-    hearing_level: str | None = None,
-) -> dict:
-    """調査票由来の項目（学年・聴覚障害の程度）を研究者が更新する。"""
-    accounts = load_accounts()
-    acc = accounts.get((user_id or "").strip())
-    if not acc:
-        raise ValueError(f"利用者ID {user_id} は登録されていません")
+def remove_profiles() -> int:
+    """以前の版が保存した学年・聴覚障害の程度（"profile"）を、すべてのアカウントから消す。
 
-    if grade is not None:
-        acc["profile"]["grade"] = validate_grade(grade)
-    if hearing_level is not None:
-        acc["profile"]["hearing_level"] = validate_hearing_level(hearing_level)
-    acc["updated_at"] = _now_iso()
-    save_accounts(accounts)
-    return _sanitize(acc)
+    消したアカウントの数を返す。何も無ければファイルは書き換えない。サーバーの起動時に呼ぶ。
+    """
+    accounts = load_accounts()
+    removed = 0
+    for account in accounts.values():
+        if isinstance(account, dict) and _LEGACY_PROFILE_KEY in account:
+            del account[_LEGACY_PROFILE_KEY]
+            account["updated_at"] = _now_iso()
+            removed += 1
+    if removed:
+        save_accounts(accounts)
+    return removed
 
 
 @_exclusive
@@ -344,7 +297,6 @@ class SetupCodeError(ValueError):
 def complete_first_login(user_id: str, setup_code: str, password: str) -> dict:
     """初回ログイン: はじめのコードを確かめてから、参加者がパスワードを設定する。
 
-    学年・聴覚障害の程度はここでは触らない（研究者が調査票から入力済み）。
     コードは使ったら消す。SETUP_CODE_MAX_FAILURES 回まちがえたら使えなくする。
     """
     def check(acc: dict | None) -> None:

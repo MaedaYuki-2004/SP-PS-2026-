@@ -25,9 +25,9 @@
     .fld { display:flex; flex-direction:column; gap:4px; }
     .fld label { font-size:12.5px; font-weight:700; color:var(--text-2); }
     /* 16px 未満にすると、iPhone で入力欄を押したときに画面が拡大されてしまう */
-    .fld input, .fld select, .inline-form select { font-family:var(--font); font-size:16px; min-height:44px; padding:8px 12px; border:1px solid var(--border);
+    .fld input { font-family:var(--font); font-size:16px; min-height:44px; padding:8px 12px; border:1px solid var(--border);
                               border-radius:var(--r-sm); background:var(--bg); color:var(--text); }
-    .fld input:focus, .fld select:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(79,70,229,.09); }
+    .fld input:focus { outline:none; border-color:var(--navy); box-shadow:0 0 0 3px rgba(79,70,229,.09); }
     .btn { font-family:var(--font); font-size:14px; font-weight:700; border:none; border-radius:var(--r-sm);
            min-height:44px; padding:0 16px; cursor:pointer; }
     .btn-primary { color:#fff; background:var(--navy-fill); }
@@ -49,7 +49,6 @@
     .pw-set { color:var(--good-text); font-weight:700; font-size:13px; }
     .pw-unset { color:var(--quest); font-weight:700; font-size:13px; }
     .cell-actions { display:flex; gap:6px; flex-wrap:wrap; }
-    .inline-form { display:flex; gap:6px; align-items:center; }
     .empty { color:var(--text-3); font-size:13px; padding:18px 4px; }
     .code-state { display:block; font-size:12.5px; color:var(--text-3); margin-top:3px; }
     /* スマホでは表をやめ、1人ずつカードのように縦に並べる（横にスクロールしないと操作が見えなかった） */
@@ -63,7 +62,6 @@
       .accounts-table td { border:none; padding:4px 0; }
       .accounts-table td.uid { font-size:18px; }
       .accounts-table td[data-label]::before { content:attr(data-label); display:block; font-size:12px; font-weight:700; color:var(--text-3); margin:4px 0 2px; }
-      .inline-form { flex-wrap:wrap; }
       .row-form { flex-direction:column; align-items:stretch; }
       .row-form .btn { width:100%; }
     }
@@ -112,7 +110,7 @@
       <div class="card-title">新しい参加者を登録</div>
       <p class="ethics-note">
         利用者IDは研究者が割り当てます（例：A01, A02）。氏名・あだ名は入れないでください。<br>
-        学年と聴覚障害の程度は調査票の内容をここで入力します。パスワードは参加者本人が初回ログイン時に設定します。<br>
+        パスワードは参加者本人が初回ログイン時に設定します。<br>
         登録すると「はじめのコード」（6けたの数字）が表示されます。本人は初回ログインでこのコードを入れてから、パスワードを決めます（利用者IDを知っているだけの人が、先にパスワードを決められないようにするため）。
       </p>
       <form class="row-form" method="post" action="/admin/accounts/create" autocomplete="off">
@@ -120,22 +118,6 @@
           <label for="new_user_id">利用者ID</label>
           <input type="text" id="new_user_id" name="user_id" required
                  inputmode="latin" autocapitalize="off" spellcheck="false" placeholder="A01">
-        </div>
-        <div class="fld">
-          <label for="new_grade">学年</label>
-          <select id="new_grade" name="grade">
-            {% for value, label in grade_labels.items() %}
-            <option value="{{ value }}" {{ 'selected' if value == 'unknown' else '' }}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="fld">
-          <label for="new_hearing">聴覚障害の程度</label>
-          <select id="new_hearing" name="hearing_level">
-            {% for value, label in hearing_labels.items() %}
-            <option value="{{ value }}" {{ 'selected' if value == 'unknown' else '' }}>{{ label }}</option>
-            {% endfor %}
-          </select>
         </div>
         <button type="submit" class="btn btn-primary">登録</button>
       </form>
@@ -151,7 +133,7 @@
       <table class="accounts-table">
         <thead>
           <tr>
-            <th>利用者ID</th><th>学年</th><th>聴覚障害の程度</th>
+            <th>利用者ID</th>
             <th>パスワード</th><th>操作</th>
           </tr>
         </thead>
@@ -159,22 +141,6 @@
           {% for a in accounts %}
           <tr>
             <td class="uid">{{ a.user_id }}</td>
-            <td colspan="2" data-label="学年・聴覚障害の程度">
-              <form class="inline-form" method="post" action="/admin/accounts/update_profile">
-                <input type="hidden" name="user_id" value="{{ a.user_id }}">
-                <select name="grade" aria-label="{{ a.user_id }} の学年">
-                  {% for value, label in grade_labels.items() %}
-                  <option value="{{ value }}" {{ 'selected' if value == a.profile.grade else '' }}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-                <select name="hearing_level" aria-label="{{ a.user_id }} の聴覚障害の程度">
-                  {% for value, label in hearing_labels.items() %}
-                  <option value="{{ value }}" {{ 'selected' if value == a.profile.hearing_level else '' }}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-                <button type="submit" class="btn btn-ghost">保存</button>
-              </form>
-            </td>
             <td data-label="パスワード">
               {% if a.password_set %}<span class="pw-set">設定済み</span>
               {% else %}<span class="pw-unset">未設定</span>
