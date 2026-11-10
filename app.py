@@ -2295,8 +2295,7 @@ def api_reading_hint():
 
 
 # ── 研究参加者アカウント管理（研究者用・ローカル運用前提） ───────────
-# 倫理審査資料 §5.1#6 / §5.3：学年と聴覚障害の程度は調査票由来のため
-# 研究者がここで入力する。参加者が設定するのはパスワードと表示名のみ。
+# 学年・聴覚障害の程度は持たない。参加者が設定するのはパスワードのみ。
 
 def _render_admin_accounts(error: str | None = None, status: int = 200, issued: dict | None = None):
     """参加者アカウントの管理画面。issued を渡すと、発行した「はじめのコード」をこの1回だけ表示する
@@ -2304,8 +2303,6 @@ def _render_admin_accounts(error: str | None = None, status: int = 200, issued: 
     html = render_template(
         "admin_accounts.html",
         accounts=acc.list_accounts(),
-        grade_labels=acc.GRADE_LABELS,
-        hearing_labels=acc.HEARING_LEVEL_LABELS,
         error=error,
         issued=issued,
     )
@@ -2345,11 +2342,7 @@ def admin_access_qr():
 @app.route("/admin/accounts/create", methods=["POST"])
 def admin_accounts_create():
     try:
-        account = acc.create_account(
-            request.form.get("user_id", ""),
-            request.form.get("grade", acc.DEFAULT_GRADE),
-            request.form.get("hearing_level", acc.DEFAULT_HEARING_LEVEL),
-        )
+        account = acc.create_account(request.form.get("user_id", ""))
     except ValueError as exc:
         return _render_admin_accounts(error=str(exc), status=400)
     return _render_admin_accounts(issued={"user_id": account["user_id"], "code": account["setup_code"],
@@ -2373,19 +2366,6 @@ def _install_default_words(user_id: str) -> str:
                 f"python scripts/default_words.py install --user {user_id} --apply を実行してください")
     names = "・".join(a["display"] for a in added)
     return f"はじめの単語 {len(added)} 個（{names}）を入れました" if added else "はじめの単語はありません"
-
-
-@app.route("/admin/accounts/update_profile", methods=["POST"])
-def admin_accounts_update_profile():
-    try:
-        acc.update_research_profile(
-            request.form.get("user_id", ""),
-            grade=request.form.get("grade"),
-            hearing_level=request.form.get("hearing_level"),
-        )
-    except ValueError as exc:
-        return _render_admin_accounts(error=str(exc), status=400)
-    return redirect("/admin/accounts")
 
 
 @app.route("/admin/accounts/clear_password", methods=["POST"])
@@ -2529,6 +2509,14 @@ def add_word():
 
 # gunicorn / 直接起動の両方でディレクトリを確保する
 ensure_directories()
+
+# 以前の版が accounts.json に保存した学年・聴覚障害の程度を消す（いまは持たない）
+try:
+    _removed_profiles = acc.remove_profiles()
+    if _removed_profiles:
+        print(f"[accounts] {_removed_profiles} 人分の学年・聴覚障害の程度を削除しました", flush=True)
+except Exception:
+    traceback.print_exc()
 
 def warm_up() -> None:
     """起動直後の最初の解析が遅くならないよう、重いライブラリの準備を先に済ませる。

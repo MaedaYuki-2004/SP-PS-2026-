@@ -184,5 +184,26 @@ class LockScopeTests(TempDataTestCase):
         self.assertEqual(held, [False, False])
 
 
+class ProfileRemovalTests(TempDataTestCase):
+    def test_new_account_has_no_grade_or_hearing_level(self):
+        acc.create_account("A01")
+        raw = acc.load_accounts()["A01"]
+        self.assertNotIn("profile", raw)
+        self.assertNotIn("profile", acc.list_accounts()[0])
+
+    def test_remove_profiles_clears_old_accounts(self):
+        # 以前の版が保存した学年・聴覚障害の程度は消し、パスワードなどはそのまま残す
+        acc.create_account("A01")
+        acc.create_account("A02")
+        accounts = acc.load_accounts()
+        accounts["A01"]["profile"] = {"grade": "junior", "hearing_level": "mild"}
+        acc.save_accounts(accounts)
+        self.assertEqual(acc.remove_profiles(), 1)
+        after = acc.load_accounts()
+        self.assertNotIn("profile", after["A01"])
+        self.assertEqual(after["A01"]["setup_code_hash"], accounts["A01"]["setup_code_hash"])
+        self.assertEqual(acc.remove_profiles(), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
