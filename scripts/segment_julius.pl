@@ -64,7 +64,10 @@ if (defined $ENV{JULIUS_BIN} && $ENV{JULIUS_BIN} ne "") {
 $hmmdefs="./models/hmmdefs_monof_mix16_gid.binhmm"; # monophone model
 
 ## other options to Julius if needed
-$OPTARGS="-input file";	# raw speech file input
+## -nostrip: 値がちょうど 0 のサンプルを取り除かない。取り除くと、ブラウザの雑音除去などで
+## 無音が 0 になった録音では区切りの時刻がその分だけ前にずれ、元の wav で測る高さ・母音・口の
+## 動きと合わなくなる（.lab の時刻は元の wav の時刻として使っている）
+$OPTARGS="-input file -nostrip";	# raw speech file input
 #$OPTARGS="-input htkparam";	# MFCC file input
 
 ## offset for result in ms: 25ms / 2
